@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/select"
 import { CURRICULUM } from "@/lib/data/curriculum"
 import type { ManagerTrainee } from "@/types"
+import { LearnersPanel } from "./LearnersPanel"
 
 const STATUS_PILL: Record<0 | 1 | 2, string> = {
   0: "border-brand-red/30 bg-brand-red/10",
@@ -56,6 +57,7 @@ export default function AdminDashboardPage() {
   const [trainees, setTrainees] = useState<ManagerTrainee[]>([])
   const [newName, setNewName] = useState("")
   const [loading, setLoading] = useState(true)
+  const [view, setView] = useState<"learners" | "cohort">("learners")
 
   async function refresh() {
     const res = await fetch("/api/admin/trainees")
@@ -185,6 +187,33 @@ export default function AdminDashboardPage() {
       </header>
 
       <div className="mx-auto max-w-7xl space-y-6 p-6">
+        <div className="inline-flex rounded-lg border border-border bg-card p-1">
+          <button
+            onClick={() => setView("learners")}
+            className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+              view === "learners"
+                ? "bg-brand-orange/10 text-brand-orange"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Registered Learners
+          </button>
+          <button
+            onClick={() => setView("cohort")}
+            className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+              view === "cohort"
+                ? "bg-brand-orange/10 text-brand-orange"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Manual Cohort
+          </button>
+        </div>
+
+        {view === "learners" && <LearnersPanel />}
+
+        {view === "cohort" && (
+          <>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="flex items-center gap-2 font-display text-2xl font-semibold tracking-tight text-foreground">
@@ -312,6 +341,8 @@ export default function AdminDashboardPage() {
               </tbody>
             </table>
           </div>
+        )}
+          </>
         )}
       </div>
     </div>
