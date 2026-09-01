@@ -6,7 +6,10 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  // Postgres for persistent, multi-user hosting (e.g. on Vercel with Neon /
+  // Vercel Postgres). For purely local dev you can switch this to "sqlite" and
+  // set DATABASE_URL="file:./dev.db".
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -16,6 +19,27 @@ model AdminUser {
   passwordHash String
   createdAt    DateTime  @default(now())
   sessions     Session[]
+}
+
+// A learner account. Progress is stored as a JSON blob synced from the client
+// store, keyed to the user, so it survives across devices and browsers.
+model User {
+  id           String        @id @default(cuid())
+  email        String        @unique
+  name         String
+  passwordHash String
+  progressJson String        @default("{}")
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  sessions     UserSession[]
+}
+
+model UserSession {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
 }
 
 model Session {

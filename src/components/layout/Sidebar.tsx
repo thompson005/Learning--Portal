@@ -15,9 +15,11 @@ import {
   ChevronsLeft,
   ChevronsRight,
   ArrowRight,
+  LogOut,
 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
+import { useAuth } from "@/components/auth/AuthContext"
 import { Logo, LogoMark } from "@/components/shared/Logo"
 import { getOverallProgress, getNextTopic } from "@/lib/store/progress"
 import { CURRICULUM } from "@/lib/data/curriculum"
@@ -40,6 +42,7 @@ function formatModuleCode(moduleId: string) {
 
 export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname()
+  const { user, logout } = useAuth()
   const [collapsed, setCollapsed] = useState(false)
   const [percent, setPercent] = useState(0)
   const [operation, setOperation] = useState<{ code: string; title: string; moduleId: string } | null>(null)
@@ -194,6 +197,34 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
               Continue learning <ArrowRight className="h-3 w-3" />
             </Link>
           </div>
+        </div>
+      )}
+
+      {user && (
+        <div className="border-t border-white/10 px-3 py-2.5">
+          <button
+            onClick={logout}
+            title="Sign out"
+            className={cn(
+              "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-white/65 transition-colors hover:bg-white/5 hover:text-white",
+              collapsed && "justify-center",
+            )}
+          >
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-orange/20 font-mono text-[11px] font-bold uppercase text-brand-orange">
+              {user.name.slice(0, 1)}
+            </span>
+            {!collapsed && (
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-xs font-medium">
+                  {user.name}
+                </span>
+                <span className="block truncate font-mono text-[10px] text-white/40">
+                  {user.email}
+                </span>
+              </span>
+            )}
+            {!collapsed && <LogOut className="h-3.5 w-3.5 shrink-0 text-white/40" />}
+          </button>
         </div>
       )}
 

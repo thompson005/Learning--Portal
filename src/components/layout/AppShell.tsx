@@ -3,7 +3,6 @@
 import { Sidebar } from "@/components/layout/Sidebar"
 import { Header } from "@/components/layout/Header"
 import { MobileNav } from "@/components/layout/MobileNav"
-import { OnboardingModal } from "@/components/onboarding/OnboardingModal"
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   return (
@@ -19,8 +18,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </main>
         <MobileNav />
       </div>
-
-      <OnboardingModal />
     </div>
   )
 }
