@@ -1,0 +1,213 @@
+SKIP [1/131] Application Basics / SDLC — already exists
+SKIP [2/131] Application Basics / Frontend — already exists
+SKIP [3/131] Application Basics / Backend — already exists
+SKIP [4/131] Application Basics / API — already exists
+SKIP [5/131] Application Basics / Authentication & Authorization — already exists
+SKIP [6/131] Application Basics / Cookies — already exists
+SKIP [7/131] Application Basics / DBMS — already exists
+SKIP [8/131] Application Basics / Intro Application Basics — already exists
+SKIP [9/131] Application Basics / Outro Application Basics — already exists
+SKIP [10/131] Networking / 2.1. OSI Model - Introduction — already exists
+SKIP [11/131] Networking / IP Address — already exists
+SKIP [12/131] Networking / What happens when you type a URL and press Enter — already exists
+SKIP [13/131] Networking / 2.2. Application Layer - OSI Layer — already exists
+SKIP [14/131] Networking / 2.3. Presentation Layer - OSI Layer — already exists
+SKIP [15/131] Networking / 2.4. Session Layer - OSI Layer — already exists
+SKIP [16/131] Networking / 2.5. Transport Layer - OSI Layer — already exists
+SKIP [17/131] Networking / 2.6. Network Layer - OSI Layer — already exists
+SKIP [18/131] Networking / 2.7. Data Link Layer - OSI Layer — already exists
+SKIP [19/131] Networking / 2.8. Physical Layer - OSI Layer — already exists
+SKIP [20/131] Networking / 2.9. Ports — already exists
+SKIP [21/131] Networking / Mac Address — already exists
+SKIP [22/131] Networking / Subnetting — already exists
+SKIP [23/131] Networking / TCP — already exists
+SKIP [24/131] Networking / UDP — already exists
+SKIP [25/131] Networking / NAT — already exists
+SKIP [26/131] Hacking Basics / 6.0. Introduction - Hacking Basics — already exists
+SKIP [27/131] Hacking Basics / 6.1 Footprinting and Reconnaissance — already exists
+SKIP [28/131] Hacking Basics / 6.2 Vulnerability Scanning — already exists
+SKIP [29/131] Hacking Basics / 6.3 Gaining Access — already exists
+SKIP [30/131] Hacking Basics / 6.4. Maintaining Access - Hacking Basics — already exists
+SKIP [31/131] Hacking Basics / 6.5. Clearing Tracks - Hacking Basics — already exists
+SKIP [32/131] Hacking Basics / 6.x. OWASP Top 10 For Web — already exists
+SKIP [33/131] Hacking Practical / 9.x. ARP Spoofing — already exists
+SKIP [34/131] Hacking Practical / OWASP Top10 - Broken Access Control (Theory) — already exists
+SKIP [35/131] Hacking Practical / Broken Access Control - Hands on — already exists
+SKIP [36/131] Hacking Practical / Injections — already exists
+SKIP [37/131] Hacking Practical / SQL Injections — already exists
+SKIP [38/131] Hacking Practical / Cross-Site Scripting — already exists
+SKIP [39/131] Hacking Practical / Reflected Cross-Site Scripting — already exists
+SKIP [40/131] Hacking Practical / Command Injection — already exists
+SKIP [41/131] Hacking Practical / File Uploads - PortSwigger Walkthrough — already exists
+SKIP [42/131] Hacking Practical / File Upload Vulnerabilities — already exists
+SKIP [43/131] Hacking Practical / Path Traversal — already exists
+SKIP [44/131] Hacking Practical / Stored Cross-Site Scripting Lab — already exists
+SKIP [45/131] Hacking Practical / Business Logic Vulnerabilities in Web Applications — already exists
+SKIP [46/131] Hacking Practical / Business Logic Vulnerabilities Lab Walkthrough — already exists
+SKIP [47/131] Corporate Network / Corporate Network — already exists
+SKIP [48/131] Corporate Network / Virtual Desktop Infrastructure — already exists
+SKIP [49/131] Corporate Network / Active Directory — already exists
+SKIP [50/131] Corporate Network / Zero Trust Architecture — already exists
+SKIP [54/131] Footprinting & Reconnaissance / Active_recon — already exists
+SKIP [55/131] Footprinting & Reconnaissance / Passive_recon — already exists
+SKIP [77/131] Common Web Attacks / SSRF / Ssrf Labs — already exists
+SKIP [84/131] Common Web Attacks / SSTI — already exists
+SKIP [85/131] Common Web Attacks / SSTI_LAB — already exists
+
+76 to download, concurrency 15, budget 260000ms
+
+FAIL Corporate Network / DMZ — timed out after 35000ms
+FAIL Corporate Network / VPN — timed out after 35000ms
+FAIL Corporate Network / VLAN — timed out after 35000ms
+FAIL Operating System Basics - Linux / Linux — timed out after 35000ms
+FAIL Operating System Basics - Linux / The Linux file system — timed out after 35000ms
+FAIL Operating System Basics - Linux / File Permissions — timed out after 35000ms
+FAIL Operating System Basics - Linux / Input/Output redirection — timed out after 35000ms
+FAIL Operating System Basics - Linux / Linux Process Management — timed out after 35000ms
+FAIL Operating System Basics - Linux / Man_pages — timed out after 35000ms
+FAIL Operating System Basics - Linux / Service — timed out after 35000ms
+FAIL Operating System Basics - Linux / Navigation & working files — timed out after 35000ms
+FAIL Operating System Basics - Linux / Networking Commands — timed out after 35000ms
+FAIL Operating System Basics - Linux / User and group management — timed out after 35000ms
+FAIL Networking (Fundamentals) / ARP — timed out after 35000ms
+FAIL Networking (Fundamentals) / Firewalls — timed out after 35000ms
+FAIL Networking (Fundamentals) / Hub_vs_Router_vs_Switch_devices — timed out after 35000ms
+FAIL Networking (Fundamentals) / Network_Intro — timed out after 35000ms
+FAIL Networking (Fundamentals) / Network_Outro — timed out after 35000ms
+FAIL Networking (Fundamentals) / Proxy and VPN — timed out after 35000ms
+FAIL Networking (Fundamentals) / TCP/IP — timed out after 35000ms
+FAIL Networking (Fundamentals) / Common Network Protocols — timed out after 35000ms
+FAIL Common Web Attacks / Command Injection / Lab Walkthrough: OS Command Injection — timed out after 35000ms
+FAIL Common Web Attacks / Path Traversal / Lab Walkthrough: File Path Traversal — timed out after 35000ms
+FAIL Common Web Attacks / SQLi / SQL_Injection_lab — timed out after 35000ms
+FAIL Common Web Attacks / SSRF / Ssrf — timed out after 35000ms
+FAIL Common Web Attacks / File Inclusion / File Inclusion attacks Basics — timed out after 35000ms
+FAIL Common Web Attacks / File Inclusion / File Inclusion - LFI — timed out after 35000ms
+FAIL Common Web Attacks / File Inclusion / File Inclusion - RFI — timed out after 35000ms
+FAIL Common Web Attacks / File Inclusion Lab / File Inclusion - LFI (Lab) — timed out after 35000ms
+FAIL Common Web Attacks / File Inclusion Lab / File Inclusion - RFI (Lab) — timed out after 35000ms
+FAIL Blue Team / SOC — timed out after 35000ms
+FAIL Blue Team / Key Areas of Blue Team — timed out after 35000ms
+FAIL Blue Team / Defensive Security — timed out after 35000ms
+FAIL Blue Team Labs / Basic_log_analysis — timed out after 35000ms
+FAIL Blue Team Labs / Network Traffic Analysis — timed out after 35000ms
+FAIL Blue Team Labs / Malware Detection — timed out after 35000ms
+FAIL Burpsuite 101 / Burpsuite 101 — timed out after 35000ms
+FAIL Cybersecurity Careers / Cybersecurity_Roadmap — timed out after 35000ms
+FAIL Cybersecurity Careers / Cybersecurity Introduction — timed out after 35000ms
+FAIL Network Scanning & Service Enumeration / Network Scanning & Service Enumeration — timed out after 35000ms
+FAIL Network Vulnerability Scanning / Network Vulnerability Scanning — timed out after 35000ms
+FAIL Scripting / Python Basics — timed out after 35000ms
+FAIL Windows / Access Control List — timed out after 35000ms
+FAIL Windows / File Navigation & Management — timed out after 35000ms
+FAIL Windows / Understanding Windows OS Versions — timed out after 35000ms
+FAIL Windows / User Mode vs Kernel Mode — timed out after 35000ms
+FAIL Windows / User & Group Management — timed out after 35000ms
+FAIL Windows / Introduction to Networking Commands — timed out after 35000ms
+FAIL Windows / PowerShell and CMD Commands — timed out after 35000ms
+FAIL Windows / Processes & Services Management — timed out after 35000ms
+FAIL Windows / Windows Defender & Firewall — timed out after 35000ms
+FAIL Hacking with AI / Defensive Security / Honeypots — timed out after 35000ms
+FAIL Hacking with AI / Defensive Security / Identifying_Vulnerabilities — timed out after 35000ms
+FAIL Hacking with AI / Defensive Security / Threat_Detection — timed out after 35000ms
+FAIL Hacking with AI / Leverage AI for Hacking / Installing_DeepSeek — timed out after 35000ms
+FAIL Hacking with AI / Leverage AI for Hacking / Deepseek_for_Hacking — timed out after 35000ms
+FAIL Hacking with AI / Leverage AI for Hacking / Ethical Boundaries of AI using Prompt Injection — timed out after 35000ms
+FAIL Hacking with AI / Leverage AI for Hacking / Local Ai — timed out after 35000ms
+FAIL Hacking with AI / Outro / Ethical Responsibilities in AI — timed out after 35000ms
+FAIL Hacking with AI / Outro / Importance of Continuous Learning AI — timed out after 35000ms
+FAIL Hacking with AI / Outro / The Evolving Role of AI — timed out after 35000ms
+FAIL AI Automation Script / Bruteforce_script — timed out after 35000ms
+FAIL AI Automation Script / Phishing_mail_with_AI — timed out after 35000ms
+FAIL AI Automation Script / scanning_subdomains_with_python — timed out after 35000ms
+FAIL AI Automation Script / Basic_of_AI_ML_DL — timed out after 35000ms
+FAIL AI Automation Script / Ethical_Boundaries — timed out after 35000ms
+FAIL AI Automation Script / Role of AI — timed out after 35000ms
+FAIL Handson Exploitation Techniques / Bruteforce_techniques — timed out after 35000ms
+FAIL Handson Exploitation Techniques / ReverseShell_BindShell — timed out after 35000ms
+FAIL Handson Exploitation Techniques / Hash Cracking — timed out after 35000ms
+FAIL Handson Exploitation Techniques / Payload Execution Tech — timed out after 35000ms
+FAIL Operating System / Input Output — timed out after 35000ms
+FAIL Operating System / BIOS/UEFI — timed out after 35000ms
+FAIL Android / Burp Suite (Android) — timed out after 35000ms
+FAIL Android / Tool_frida_installation — timed out after 35000ms
+FAIL Android / Choosing Emulators — timed out after 35000ms
+
+Done. 0 downloaded, 55 skipped, 76 failed. (elapsed 210447ms)
+Failed:
+  - Corporate Network / DMZ: timed out after 35000ms
+  - Corporate Network / VPN: timed out after 35000ms
+  - Corporate Network / VLAN: timed out after 35000ms
+  - Operating System Basics - Linux / Linux: timed out after 35000ms
+  - Operating System Basics - Linux / The Linux file system: timed out after 35000ms
+  - Operating System Basics - Linux / File Permissions: timed out after 35000ms
+  - Operating System Basics - Linux / Input/Output redirection: timed out after 35000ms
+  - Operating System Basics - Linux / Linux Process Management: timed out after 35000ms
+  - Operating System Basics - Linux / Man_pages: timed out after 35000ms
+  - Operating System Basics - Linux / Service: timed out after 35000ms
+  - Operating System Basics - Linux / Navigation & working files: timed out after 35000ms
+  - Operating System Basics - Linux / Networking Commands: timed out after 35000ms
+  - Operating System Basics - Linux / User and group management: timed out after 35000ms
+  - Networking (Fundamentals) / ARP: timed out after 35000ms
+  - Networking (Fundamentals) / Firewalls: timed out after 35000ms
+  - Networking (Fundamentals) / Hub_vs_Router_vs_Switch_devices: timed out after 35000ms
+  - Networking (Fundamentals) / Network_Intro: timed out after 35000ms
+  - Networking (Fundamentals) / Network_Outro: timed out after 35000ms
+  - Networking (Fundamentals) / Proxy and VPN: timed out after 35000ms
+  - Networking (Fundamentals) / TCP/IP: timed out after 35000ms
+  - Networking (Fundamentals) / Common Network Protocols: timed out after 35000ms
+  - Common Web Attacks / Command Injection / Lab Walkthrough: OS Command Injection: timed out after 35000ms
+  - Common Web Attacks / Path Traversal / Lab Walkthrough: File Path Traversal: timed out after 35000ms
+  - Common Web Attacks / SQLi / SQL_Injection_lab: timed out after 35000ms
+  - Common Web Attacks / SSRF / Ssrf: timed out after 35000ms
+  - Common Web Attacks / File Inclusion / File Inclusion attacks Basics: timed out after 35000ms
+  - Common Web Attacks / File Inclusion / File Inclusion - LFI: timed out after 35000ms
+  - Common Web Attacks / File Inclusion / File Inclusion - RFI: timed out after 35000ms
+  - Common Web Attacks / File Inclusion Lab / File Inclusion - LFI (Lab): timed out after 35000ms
+  - Common Web Attacks / File Inclusion Lab / File Inclusion - RFI (Lab): timed out after 35000ms
+  - Blue Team / SOC: timed out after 35000ms
+  - Blue Team / Key Areas of Blue Team: timed out after 35000ms
+  - Blue Team / Defensive Security: timed out after 35000ms
+  - Blue Team Labs / Basic_log_analysis: timed out after 35000ms
+  - Blue Team Labs / Network Traffic Analysis: timed out after 35000ms
+  - Blue Team Labs / Malware Detection: timed out after 35000ms
+  - Burpsuite 101 / Burpsuite 101: timed out after 35000ms
+  - Cybersecurity Careers / Cybersecurity_Roadmap: timed out after 35000ms
+  - Cybersecurity Careers / Cybersecurity Introduction: timed out after 35000ms
+  - Network Scanning & Service Enumeration / Network Scanning & Service Enumeration: timed out after 35000ms
+  - Network Vulnerability Scanning / Network Vulnerability Scanning: timed out after 35000ms
+  - Scripting / Python Basics: timed out after 35000ms
+  - Windows / Access Control List: timed out after 35000ms
+  - Windows / File Navigation & Management: timed out after 35000ms
+  - Windows / Understanding Windows OS Versions: timed out after 35000ms
+  - Windows / User Mode vs Kernel Mode: timed out after 35000ms
+  - Windows / User & Group Management: timed out after 35000ms
+  - Windows / Introduction to Networking Commands: timed out after 35000ms
+  - Windows / PowerShell and CMD Commands: timed out after 35000ms
+  - Windows / Processes & Services Management: timed out after 35000ms
+  - Windows / Windows Defender & Firewall: timed out after 35000ms
+  - Hacking with AI / Defensive Security / Honeypots: timed out after 35000ms
+  - Hacking with AI / Defensive Security / Identifying_Vulnerabilities: timed out after 35000ms
+  - Hacking with AI / Defensive Security / Threat_Detection: timed out after 35000ms
+  - Hacking with AI / Leverage AI for Hacking / Installing_DeepSeek: timed out after 35000ms
+  - Hacking with AI / Leverage AI for Hacking / Deepseek_for_Hacking: timed out after 35000ms
+  - Hacking with AI / Leverage AI for Hacking / Ethical Boundaries of AI using Prompt Injection: timed out after 35000ms
+  - Hacking with AI / Leverage AI for Hacking / Local Ai: timed out after 35000ms
+  - Hacking with AI / Outro / Ethical Responsibilities in AI: timed out after 35000ms
+  - Hacking with AI / Outro / Importance of Continuous Learning AI: timed out after 35000ms
+  - Hacking with AI / Outro / The Evolving Role of AI: timed out after 35000ms
+  - AI Automation Script / Bruteforce_script: timed out after 35000ms
+  - AI Automation Script / Phishing_mail_with_AI: timed out after 35000ms
+  - AI Automation Script / scanning_subdomains_with_python: timed out after 35000ms
+  - AI Automation Script / Basic_of_AI_ML_DL: timed out after 35000ms
+  - AI Automation Script / Ethical_Boundaries: timed out after 35000ms
+  - AI Automation Script / Role of AI: timed out after 35000ms
+  - Handson Exploitation Techniques / Bruteforce_techniques: timed out after 35000ms
+  - Handson Exploitation Techniques / ReverseShell_BindShell: timed out after 35000ms
+  - Handson Exploitation Techniques / Hash Cracking: timed out after 35000ms
+  - Handson Exploitation Techniques / Payload Execution Tech: timed out after 35000ms
+  - Operating System / Input Output: timed out after 35000ms
+  - Operating System / BIOS/UEFI: timed out after 35000ms
+  - Android / Burp Suite (Android): timed out after 35000ms
+  - Android / Tool_frida_installation: timed out after 35000ms
+  - Android / Choosing Emulators: timed out after 35000ms

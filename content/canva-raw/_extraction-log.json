@@ -1,0 +1,1050 @@
+[
+  {
+    "category": "Application Basics",
+    "title": "SDLC",
+    "url": "https://www.canva.com/design/DAGRYjc-GoY/wVeBu8QAKpy5Dc6SZAxmzw/edit",
+    "status": "ok",
+    "slides": 19,
+    "file": "content\\canva-raw\\application-basics\\sdlc.md"
+  },
+  {
+    "category": "Application Basics",
+    "title": "Frontend",
+    "url": "https://www.canva.com/design/DAGRuHHGjvE/CViwnx9x_GWcIogR4yR-Tg/edit",
+    "status": "ok",
+    "slides": 13,
+    "file": "content\\canva-raw\\application-basics\\frontend.md"
+  },
+  {
+    "category": "Application Basics",
+    "title": "Backend",
+    "url": "https://www.canva.com/design/DAGR2nt9wLY/tWs2rxdfUnvbZ2ZlsOgUxg/edit",
+    "status": "ok",
+    "slides": 9,
+    "file": "content\\canva-raw\\application-basics\\backend.md"
+  },
+  {
+    "category": "Application Basics",
+    "title": "API",
+    "url": "https://www.canva.com/design/DAGSNd-bp8M/dajys3_G-9yNAhiCAb3_vQ/edit",
+    "status": "ok",
+    "slides": 13,
+    "file": "content\\canva-raw\\application-basics\\api.md"
+  },
+  {
+    "category": "Application Basics",
+    "title": "Authentication & Authorization",
+    "url": "https://www.canva.com/design/DAGSTkQkGB8/8v5hWjFLfrECHuOkebdaZA/edit",
+    "status": "ok",
+    "slides": 1,
+    "file": "content\\canva-raw\\application-basics\\authentication-authorization.md"
+  },
+  {
+    "category": "Application Basics",
+    "title": "Cookies",
+    "url": "https://www.canva.com/design/DAGSZwUHO_o/xQoMeOlKMeBTpg5DbnMmGQ/edit",
+    "status": "ok",
+    "slides": 1,
+    "file": "content\\canva-raw\\application-basics\\cookies.md"
+  },
+  {
+    "category": "Application Basics",
+    "title": "DBMS",
+    "url": "https://www.canva.com/design/DAGSgOi3obU/2b2_o-66hQfXOJqFQsjUww/edit",
+    "status": "ok",
+    "slides": 10,
+    "file": "content\\canva-raw\\application-basics\\dbms.md"
+  },
+  {
+    "category": "Application Basics",
+    "title": "Intro Application Basics",
+    "url": "https://www.canva.com/design/DAGTQEB9AoA/soR_eVKYf3iNgIMas6VeIQ/edit",
+    "status": "ok",
+    "slides": 4,
+    "file": "content\\canva-raw\\application-basics\\intro-application-basics.md"
+  },
+  {
+    "category": "Application Basics",
+    "title": "Outro Application Basics",
+    "url": "https://www.canva.com/design/DAGTQAJ8wlw/SCPbVcerrUz_SWM2E84xaA/edit",
+    "status": "ok",
+    "slides": 9,
+    "file": "content\\canva-raw\\application-basics\\outro-application-basics.md"
+  },
+  {
+    "category": "Networking",
+    "title": "2.1. OSI Model - Introduction",
+    "url": "https://www.canva.com/design/DAGTnp-5EXg/FkvDXkzCYrwNaZm8G5B-Aw/edit",
+    "status": "ok",
+    "slides": 13,
+    "file": "content\\canva-raw\\networking\\2-1-osi-model-introduction.md"
+  },
+  {
+    "category": "Networking",
+    "title": "IP Address",
+    "url": "https://www.canva.com/design/DAGTuqV6eq4/ChHwd4E1-E3_TERMRCMZ5w/edit",
+    "status": "ok",
+    "slides": 9,
+    "file": "content\\canva-raw\\networking\\ip-address.md"
+  },
+  {
+    "category": "Networking",
+    "title": "What happens when you type a URL and press Enter",
+    "url": "https://www.canva.com/design/DAGUKdynDu0/GXE9mtkzJi6K2Z6inUmvVw/edit",
+    "status": "ok",
+    "slides": 13,
+    "file": "content\\canva-raw\\networking\\what-happens-when-you-type-a-url-and-press-enter.md"
+  },
+  {
+    "category": "Networking",
+    "title": "2.2. Application Layer - OSI Layer",
+    "url": "https://www.canva.com/design/DAGUeIuBUNY/I1ZnGXCtVKIMsdnVoLptFA/edit",
+    "status": "ok",
+    "slides": 16,
+    "file": "content\\canva-raw\\networking\\2-2-application-layer-osi-layer.md"
+  },
+  {
+    "category": "Networking",
+    "title": "2.3. Presentation Layer - OSI Layer",
+    "url": "https://www.canva.com/design/DAGU8XIxM7s/r9SAf2qVaOH3_WQiWP0ydw/edit",
+    "status": "ok",
+    "slides": 4,
+    "file": "content\\canva-raw\\networking\\2-3-presentation-layer-osi-layer.md"
+  },
+  {
+    "category": "Networking",
+    "title": "2.4. Session Layer - OSI Layer",
+    "url": "https://www.canva.com/design/DAGVheuCVhs/7Sll5iTQjZyHwgMu__kC1g/edit",
+    "status": "ok",
+    "slides": 4,
+    "file": "content\\canva-raw\\networking\\2-4-session-layer-osi-layer.md"
+  },
+  {
+    "category": "Networking",
+    "title": "2.5. Transport Layer - OSI Layer",
+    "url": "https://www.canva.com/design/DAGVAbPLTxQ/oxYs0mZ_SZ7TO5KUOaf3sg/edit",
+    "status": "ok",
+    "slides": 3,
+    "file": "content\\canva-raw\\networking\\2-5-transport-layer-osi-layer.md"
+  },
+  {
+    "category": "Networking",
+    "title": "2.6. Network Layer - OSI Layer",
+    "url": "https://www.canva.com/design/DAGVAuh4Q3M/2KkpcQyLqcjoJCI0wu9CEQ/edit",
+    "status": "ok",
+    "slides": 3,
+    "file": "content\\canva-raw\\networking\\2-6-network-layer-osi-layer.md"
+  },
+  {
+    "category": "Networking",
+    "title": "2.7. Data Link Layer - OSI Layer",
+    "url": "https://www.canva.com/design/DAGVnQe9yw4/zdAJMdaIYhhytCDcxUaiZg/edit",
+    "status": "ok",
+    "slides": 6,
+    "file": "content\\canva-raw\\networking\\2-7-data-link-layer-osi-layer.md"
+  },
+  {
+    "category": "Networking",
+    "title": "2.8. Physical Layer - OSI Layer",
+    "url": "https://www.canva.com/design/DAGVsGygRHc/jkxoy-kJAbFn4Q3pcehPpw/edit",
+    "status": "ok",
+    "slides": 8,
+    "file": "content\\canva-raw\\networking\\2-8-physical-layer-osi-layer.md"
+  },
+  {
+    "category": "Networking",
+    "title": "2.9. Ports",
+    "url": "https://www.canva.com/design/DAGT4TK9dVQ/Zscl-J7cSe2TjimG3ygnmg/edit",
+    "status": "ok",
+    "slides": 1,
+    "file": "content\\canva-raw\\networking\\2-9-ports.md"
+  },
+  {
+    "category": "Networking",
+    "title": "Mac Address",
+    "url": "https://www.canva.com/design/DAGV3o_6SZw/rrj91b5FNTiMtaQf5ZiZZg/edit",
+    "status": "ok",
+    "slides": 13,
+    "file": "content\\canva-raw\\networking\\mac-address.md"
+  },
+  {
+    "category": "Networking",
+    "title": "Subnetting",
+    "url": "https://www.canva.com/design/DAGWKm1P1aY/biDOAIzwiUlUsDpL1JCgxA/edit",
+    "status": "ok",
+    "slides": 11,
+    "file": "content\\canva-raw\\networking\\subnetting.md"
+  },
+  {
+    "category": "Networking",
+    "title": "TCP",
+    "url": "https://www.canva.com/design/DAGWWIKPbew/G426IVValICKMtzdhKJ9nw/edit",
+    "status": "ok",
+    "slides": 15,
+    "file": "content\\canva-raw\\networking\\tcp.md"
+  },
+  {
+    "category": "Networking",
+    "title": "UDP",
+    "url": "https://www.canva.com/design/DAGWnBvOKUU/FsE7AkNJzw45F_NtcKMV5w/edit",
+    "status": "ok",
+    "slides": 10,
+    "file": "content\\canva-raw\\networking\\udp.md"
+  },
+  {
+    "category": "Networking",
+    "title": "NAT",
+    "url": "https://www.canva.com/design/DAGW0fM0ruk/_R0pTys9FCs0SvpJdyju5w/edit",
+    "status": "ok",
+    "slides": 10,
+    "file": "content\\canva-raw\\networking\\nat.md"
+  },
+  {
+    "category": "Hacking Basics",
+    "title": "6.0. Introduction - Hacking Basics",
+    "url": "https://www.canva.com/design/DAGXAele-a4/1nL2csjOU7iocEqead7aOw/edit",
+    "status": "ok",
+    "slides": 5,
+    "file": "content\\canva-raw\\hacking-basics\\6-0-introduction-hacking-basics.md"
+  },
+  {
+    "category": "Hacking Basics",
+    "title": "6.1 Footprinting and Reconnaissance",
+    "url": "https://www.canva.com/design/DAGXA17KNZU/sxHhrqOs701Je0cOqaUC7g/edit",
+    "status": "ok",
+    "slides": 12,
+    "file": "content\\canva-raw\\hacking-basics\\6-1-footprinting-and-reconnaissance.md"
+  },
+  {
+    "category": "Hacking Basics",
+    "title": "6.2 Vulnerability Scanning",
+    "url": "https://www.canva.com/design/DAGXHA63HPo/C7XrNqP0Cmz_dSzf-MNhbw/edit",
+    "status": "ok",
+    "slides": 6,
+    "file": "content\\canva-raw\\hacking-basics\\6-2-vulnerability-scanning.md"
+  },
+  {
+    "category": "Hacking Basics",
+    "title": "6.3 Gaining Access",
+    "url": "https://www.canva.com/design/DAGXLbmE8U4/8_T25nOjPhvBduHAjkj4zA/edit",
+    "status": "ok",
+    "slides": 13,
+    "file": "content\\canva-raw\\hacking-basics\\6-3-gaining-access.md"
+  },
+  {
+    "category": "Hacking Basics",
+    "title": "6.4. Maintaining Access - Hacking Basics",
+    "url": "https://www.canva.com/design/DAGXeHUhdJ8/QkPrnN9xPjVSGkZpvM8Kow/edit",
+    "status": "ok",
+    "slides": 7,
+    "file": "content\\canva-raw\\hacking-basics\\6-4-maintaining-access-hacking-basics.md"
+  },
+  {
+    "category": "Hacking Basics",
+    "title": "6.5. Clearing Tracks - Hacking Basics",
+    "url": "https://www.canva.com/design/DAGXjrWS0z4/QQUSkf2s2RyWxT-LbkT5qg/edit",
+    "status": "ok",
+    "slides": 8,
+    "file": "content\\canva-raw\\hacking-basics\\6-5-clearing-tracks-hacking-basics.md"
+  },
+  {
+    "category": "Hacking Basics",
+    "title": "6.x. OWASP Top 10 For Web",
+    "url": "https://www.canva.com/design/DAGYTtapyO8/t3IPAoh3GqyQigQ0WMBeEg/edit",
+    "status": "ok",
+    "slides": 13,
+    "file": "content\\canva-raw\\hacking-basics\\6-x-owasp-top-10-for-web.md"
+  },
+  {
+    "category": "Hacking Practical",
+    "title": "9.x. ARP Spoofing",
+    "url": "https://www.canva.com/design/DAGYgN4mJII/do_VxWRWz90JRNIPPJObdw/edit",
+    "status": "ok",
+    "slides": 11,
+    "file": "content\\canva-raw\\hacking-practical\\9-x-arp-spoofing.md"
+  },
+  {
+    "category": "Hacking Practical",
+    "title": "OWASP Top10 - Broken Access Control (Theory)",
+    "url": "https://www.canva.com/design/DAGaL7NLiYs/84GKTogCHxyeLTOZjJNlbw/edit",
+    "status": "ok",
+    "slides": 18,
+    "file": "content\\canva-raw\\hacking-practical\\owasp-top10-broken-access-control-theory.md"
+  },
+  {
+    "category": "Hacking Practical",
+    "title": "Broken Access Control - Hands on",
+    "url": "https://www.canva.com/design/DAGbC_5JQNg/Ufl6MqJFGBtu0DQCJZ_DAg/edit",
+    "status": "ok",
+    "slides": 16,
+    "file": "content\\canva-raw\\hacking-practical\\broken-access-control-hands-on.md"
+  },
+  {
+    "category": "Hacking Practical",
+    "title": "Injections",
+    "url": "https://www.canva.com/design/DAGbOmq0uFE/sPEq6rs2h37P6qFIvtp72g/edit",
+    "status": "ok",
+    "slides": 6,
+    "file": "content\\canva-raw\\hacking-practical\\injections.md"
+  },
+  {
+    "category": "Hacking Practical",
+    "title": "SQL Injections",
+    "url": "https://www.canva.com/design/DAGbhAr_wtI/xuKa8axYUSceRI6kmHS15g/edit",
+    "status": "ok",
+    "slides": 18,
+    "file": "content\\canva-raw\\hacking-practical\\sql-injections.md"
+  },
+  {
+    "category": "Hacking Practical",
+    "title": "Cross-Site Scripting",
+    "url": "https://www.canva.com/design/DAGbgwDHQD8/yZ1H-cCNE3d7T6xiWBXa7w/edit",
+    "status": "ok",
+    "slides": 9,
+    "file": "content\\canva-raw\\hacking-practical\\cross-site-scripting.md"
+  },
+  {
+    "category": "Hacking Practical",
+    "title": "Reflected Cross-Site Scripting",
+    "url": "https://www.canva.com/design/DAGbmLWvGuw/Y4XtYPq97Y_7fUpyIwd5rA/edit",
+    "status": "ok",
+    "slides": 12,
+    "file": "content\\canva-raw\\hacking-practical\\reflected-cross-site-scripting.md"
+  },
+  {
+    "category": "Hacking Practical",
+    "title": "Command Injection",
+    "url": "https://www.canva.com/design/DAGccXnslh4/WVJgVGk3EiNh7XgswS4f-Q/edit",
+    "status": "ok",
+    "slides": 14,
+    "file": "content\\canva-raw\\hacking-practical\\command-injection.md"
+  },
+  {
+    "category": "Hacking Practical",
+    "title": "File Uploads - PortSwigger Walkthrough",
+    "url": "https://www.canva.com/design/DAGc6Wk0IQA/1Z4S9vR1FstZMar07zKJdQ/edit",
+    "status": "ok",
+    "slides": 14,
+    "file": "content\\canva-raw\\hacking-practical\\file-uploads-portswigger-walkthrough.md"
+  },
+  {
+    "category": "Hacking Practical",
+    "title": "File Upload Vulnerabilities",
+    "url": "https://www.canva.com/design/DAGdAFv_eJ0/w2KdCWsPhnFnxN5g98RlSA/edit",
+    "status": "ok",
+    "slides": 18,
+    "file": "content\\canva-raw\\hacking-practical\\file-upload-vulnerabilities.md"
+  },
+  {
+    "category": "Hacking Practical",
+    "title": "Path Traversal",
+    "url": "https://www.canva.com/design/DAGdMf3b1eU/3lghBaTIhWbF3vGUf6A2ig/edit",
+    "status": "ok",
+    "slides": 13,
+    "file": "content\\canva-raw\\hacking-practical\\path-traversal.md"
+  },
+  {
+    "category": "Hacking Practical",
+    "title": "Stored Cross-Site Scripting Lab",
+    "url": "https://www.canva.com/design/DAGdXhUflhs/ea5eZghPIkslLTR4jgMxQA/edit",
+    "status": "ok",
+    "slides": 12,
+    "file": "content\\canva-raw\\hacking-practical\\stored-cross-site-scripting-lab.md"
+  },
+  {
+    "category": "Hacking Practical",
+    "title": "Business Logic Vulnerabilities in Web Applications",
+    "url": "https://www.canva.com/design/DAGddFZNB6Y/rWtT6sFxfFlRvI3JOlKG4Q/edit",
+    "status": "ok",
+    "slides": 1,
+    "file": "content\\canva-raw\\hacking-practical\\business-logic-vulnerabilities-in-web-applications.md"
+  },
+  {
+    "category": "Hacking Practical",
+    "title": "Business Logic Vulnerabilities Lab Walkthrough",
+    "url": "https://www.canva.com/design/DAGdqf0IKd4/wA9C6ROzrqep8dHAJMYY6w/edit",
+    "status": "ok",
+    "slides": 18,
+    "file": "content\\canva-raw\\hacking-practical\\business-logic-vulnerabilities-lab-walkthrough.md"
+  },
+  {
+    "category": "Corporate Network",
+    "title": "Corporate Network",
+    "url": "https://www.canva.com/design/DAGY-vYY6OY/83D7X3faB03x4wtOAzqthw/edit",
+    "status": "ok",
+    "slides": 13,
+    "file": "content\\canva-raw\\corporate-network\\corporate-network.md"
+  },
+  {
+    "category": "Corporate Network",
+    "title": "Virtual Desktop Infrastructure",
+    "url": "https://www.canva.com/design/DAGZLJqOH8I/L4R9F9a4-vW9sMCXPF7Fzg/edit",
+    "status": "ok",
+    "slides": 7,
+    "file": "content\\canva-raw\\corporate-network\\virtual-desktop-infrastructure.md"
+  },
+  {
+    "category": "Corporate Network",
+    "title": "Active Directory",
+    "url": "https://www.canva.com/design/DAGZciU86d0/E_IYABuUZQDmalqloRLvfg/edit",
+    "status": "ok",
+    "slides": 7,
+    "file": "content\\canva-raw\\corporate-network\\active-directory.md"
+  },
+  {
+    "category": "Corporate Network",
+    "title": "Zero Trust Architecture",
+    "url": "https://www.canva.com/design/DAGZh0cmBfY/0I-Yw_wLup3xlXI7FvBPkg/edit",
+    "status": "ok",
+    "slides": 11,
+    "file": "content\\canva-raw\\corporate-network\\zero-trust-architecture.md"
+  },
+  {
+    "category": "Corporate Network",
+    "title": "DMZ",
+    "url": "https://www.canva.com/design/DAGliXC28Vs/PL3gTaEwoB-4gSsqkyYAiQ/edit",
+    "status": "ok",
+    "slides": 6,
+    "file": "content\\canva-raw\\corporate-network\\dmz.md"
+  },
+  {
+    "category": "Corporate Network",
+    "title": "VPN",
+    "url": "https://www.canva.com/design/DAGliQphfjw/iRCjxEnirXDdc06gCrvqzA/edit",
+    "status": "ok",
+    "slides": 8,
+    "file": "content\\canva-raw\\corporate-network\\vpn.md"
+  },
+  {
+    "category": "Corporate Network",
+    "title": "VLAN",
+    "url": "https://www.canva.com/design/DAGliZNA9EI/5y2MU-Ed080PY7w66NHL1g/edit",
+    "status": "ok",
+    "slides": 6,
+    "file": "content\\canva-raw\\corporate-network\\vlan.md"
+  },
+  {
+    "category": "Footprinting & Reconnaissance",
+    "title": "Active_recon",
+    "url": "https://www.canva.com/design/DAGiEStriX8/IeF3FClGG9-G_A0Ell09Og/edit",
+    "status": "ok",
+    "slides": 17,
+    "file": "content\\canva-raw\\footprinting-reconnaissance\\active-recon.md"
+  },
+  {
+    "category": "Footprinting & Reconnaissance",
+    "title": "Passive_recon",
+    "url": "https://www.canva.com/design/DAGiEejlEFM/5JLAiVJOdydEZHG-A-k2yQ/edit",
+    "status": "ok",
+    "slides": 1,
+    "file": "content\\canva-raw\\footprinting-reconnaissance\\passive-recon.md"
+  },
+  {
+    "category": "Operating System Basics - Linux",
+    "title": "Linux",
+    "url": "https://www.canva.com/design/DAGjcY1Cz6w/9FcCZMDy1axHopi9uxYsDA/edit",
+    "status": "ok",
+    "slides": 8,
+    "file": "content\\canva-raw\\operating-system-basics-linux\\linux.md"
+  },
+  {
+    "category": "Operating System Basics - Linux",
+    "title": "The Linux file system",
+    "url": "https://www.canva.com/design/DAGjcnAOF48/1xME2G9epkUhXTyv9imG9w/edit",
+    "status": "ok",
+    "slides": 4,
+    "file": "content\\canva-raw\\operating-system-basics-linux\\the-linux-file-system.md"
+  },
+  {
+    "category": "Operating System Basics - Linux",
+    "title": "File Permissions",
+    "url": "https://www.canva.com/design/DAGjcU-4oAY/NkF3rF1SgLc4Q6jgoRSumA/edit",
+    "status": "ok",
+    "slides": 16,
+    "file": "content\\canva-raw\\operating-system-basics-linux\\file-permissions.md"
+  },
+  {
+    "category": "Operating System Basics - Linux",
+    "title": "Input/Output redirection",
+    "url": "https://www.canva.com/design/DAGjcZq_Ojs/f4yyYclpHjzE9DZsrnjamQ/edit",
+    "status": "ok",
+    "slides": 12,
+    "file": "content\\canva-raw\\operating-system-basics-linux\\input-output-redirection.md"
+  },
+  {
+    "category": "Operating System Basics - Linux",
+    "title": "Linux Process Management",
+    "url": "https://www.canva.com/design/DAGjcc6vtWQ/VRz2Flp9SVezVCZmZNx2iw/edit",
+    "status": "ok",
+    "slides": 13,
+    "file": "content\\canva-raw\\operating-system-basics-linux\\linux-process-management.md"
+  },
+  {
+    "category": "Operating System Basics - Linux",
+    "title": "Man_pages",
+    "url": "https://www.canva.com/design/DAGkCNYyu6w/2GCa8_iyvFnt9Onh3SVDUA/edit",
+    "status": "ok",
+    "slides": 7,
+    "file": "content\\canva-raw\\operating-system-basics-linux\\man-pages.md"
+  },
+  {
+    "category": "Operating System Basics - Linux",
+    "title": "Service",
+    "url": "https://www.canva.com/design/DAGkCtPonII/9ss3aZF2Ut2U-MT0I7HZlg/edit",
+    "status": "ok",
+    "slides": 7,
+    "file": "content\\canva-raw\\operating-system-basics-linux\\service.md"
+  },
+  {
+    "category": "Operating System Basics - Linux",
+    "title": "Navigation & working files",
+    "url": "https://www.canva.com/design/DAGjcbyCb1Q/jQFtcdABD_LiJ33FjFDdOA/edit",
+    "status": "ok",
+    "slides": 19,
+    "file": "content\\canva-raw\\operating-system-basics-linux\\navigation-working-files.md"
+  },
+  {
+    "category": "Operating System Basics - Linux",
+    "title": "Networking Commands",
+    "url": "https://www.canva.com/design/DAGjcX56weI/UWDjMG5he1swjAXqkwSGBA/edit",
+    "status": "ok",
+    "slides": 14,
+    "file": "content\\canva-raw\\operating-system-basics-linux\\networking-commands.md"
+  },
+  {
+    "category": "Operating System Basics - Linux",
+    "title": "User and group management",
+    "url": "https://www.canva.com/design/DAGjcdEAaIE/_E8X9R6dQui16deulA1eQQ/edit",
+    "status": "ok",
+    "slides": 18,
+    "file": "content\\canva-raw\\operating-system-basics-linux\\user-and-group-management.md"
+  },
+  {
+    "category": "Networking (Fundamentals)",
+    "title": "ARP",
+    "url": "https://www.canva.com/design/DAGjcUvvXEE/GL4gwEqz_yoYTqkGJkwrWg/edit",
+    "status": "ok",
+    "slides": 13,
+    "file": "content\\canva-raw\\networking-fundamentals\\arp.md"
+  },
+  {
+    "category": "Networking (Fundamentals)",
+    "title": "Firewalls",
+    "url": "https://www.canva.com/design/DAGkzQdHids/_x7Hnpy-DksMliBBZjP4Hg/edit",
+    "status": "ok",
+    "slides": 14,
+    "file": "content\\canva-raw\\networking-fundamentals\\firewalls.md"
+  },
+  {
+    "category": "Networking (Fundamentals)",
+    "title": "Hub_vs_Router_vs_Switch_devices",
+    "url": "https://www.canva.com/design/DAGkzaqaH74/_9X7WaywAEwi5_BeJhIxgA/edit",
+    "status": "ok",
+    "slides": 16,
+    "file": "content\\canva-raw\\networking-fundamentals\\hub-vs-router-vs-switch-devices.md"
+  },
+  {
+    "category": "Networking (Fundamentals)",
+    "title": "Network_Intro",
+    "url": "https://www.canva.com/design/DAGjce2w4Vs/TWAEvDVDmuPBXfHYBBtQ5A/edit",
+    "status": "ok",
+    "slides": 6,
+    "file": "content\\canva-raw\\networking-fundamentals\\network-intro.md"
+  },
+  {
+    "category": "Networking (Fundamentals)",
+    "title": "Network_Outro",
+    "url": "https://www.canva.com/design/DAGlRmfZB5g/SV6EWySOCBuKfJkrT5tEBg/edit",
+    "status": "ok",
+    "slides": 3,
+    "file": "content\\canva-raw\\networking-fundamentals\\network-outro.md"
+  },
+  {
+    "category": "Networking (Fundamentals)",
+    "title": "Proxy and VPN",
+    "url": "https://www.canva.com/design/DAGjcZFopO0/SgzD5yrSdumSJ6PAekuTCA/edit",
+    "status": "ok",
+    "slides": 17,
+    "file": "content\\canva-raw\\networking-fundamentals\\proxy-and-vpn.md"
+  },
+  {
+    "category": "Networking (Fundamentals)",
+    "title": "TCP/IP",
+    "url": "https://www.canva.com/design/DAGjcfxVQZM/qR-li4wDZQfVykPPojYv6A/edit",
+    "status": "ok",
+    "slides": 8,
+    "file": "content\\canva-raw\\networking-fundamentals\\tcp-ip.md"
+  },
+  {
+    "category": "Networking (Fundamentals)",
+    "title": "Common Network Protocols",
+    "url": "https://www.canva.com/design/DAGjcdDBahU/SXdSP7mkAt2YMwzrVkd3dQ/edit",
+    "status": "ok",
+    "slides": 18,
+    "file": "content\\canva-raw\\networking-fundamentals\\common-network-protocols.md"
+  },
+  {
+    "category": "Common Web Attacks / Command Injection",
+    "title": "Lab Walkthrough: OS Command Injection",
+    "url": "https://www.canva.com/design/DAGmYX7shxg/xO1DYt-gJ30UldEeuFAR3w/edit",
+    "status": "ok",
+    "slides": 13,
+    "file": "content\\canva-raw\\common-web-attacks-command-injection\\lab-walkthrough-os-command-injection.md"
+  },
+  {
+    "category": "Common Web Attacks / Path Traversal",
+    "title": "Lab Walkthrough: File Path Traversal",
+    "url": "https://www.canva.com/design/DAGmYbHVDgE/0IQ0SVZl5gmpo-ZKc65e4w/edit",
+    "status": "ok",
+    "slides": 12,
+    "file": "content\\canva-raw\\common-web-attacks-path-traversal\\lab-walkthrough-file-path-traversal.md"
+  },
+  {
+    "category": "Common Web Attacks / SQLi",
+    "title": "SQL_Injection_lab",
+    "url": "https://www.canva.com/design/DAGmYafFu4I/qxX3jYYDf6yktzHZSc_MVQ/edit",
+    "status": "ok",
+    "slides": 16,
+    "file": "content\\canva-raw\\common-web-attacks-sqli\\sql-injection-lab.md"
+  },
+  {
+    "category": "Common Web Attacks / SSRF",
+    "title": "Ssrf Labs",
+    "url": "https://www.canva.com/design/DAGnVrL7gq4/OasFa-Rbg8Ctpt1CPWGnOA/edit",
+    "status": "ok",
+    "slides": 18,
+    "file": "content\\canva-raw\\common-web-attacks-ssrf\\ssrf-labs.md"
+  },
+  {
+    "category": "Common Web Attacks / SSRF",
+    "title": "Ssrf",
+    "url": "https://www.canva.com/design/DAGm26pJWh0/AI8XVPd1pb_LME1tlQZP6A/edit",
+    "status": "ok",
+    "slides": 18,
+    "file": "content\\canva-raw\\common-web-attacks-ssrf\\ssrf.md"
+  },
+  {
+    "category": "Common Web Attacks / File Inclusion",
+    "title": "File Inclusion attacks Basics",
+    "url": "https://www.canva.com/design/DAGmYRJF13E/IdfxLsdReky4dTBL4zUWgg/edit",
+    "status": "ok",
+    "slides": 14,
+    "file": "content\\canva-raw\\common-web-attacks-file-inclusion\\file-inclusion-attacks-basics.md"
+  },
+  {
+    "category": "Common Web Attacks / File Inclusion",
+    "title": "File Inclusion - LFI",
+    "url": "https://www.canva.com/design/DAGmv0NEsFQ/UxF3wBH783T4r9I4z_sXnA/edit",
+    "status": "ok",
+    "slides": 11,
+    "file": "content\\canva-raw\\common-web-attacks-file-inclusion\\file-inclusion-lfi.md"
+  },
+  {
+    "category": "Common Web Attacks / File Inclusion",
+    "title": "File Inclusion - RFI",
+    "url": "https://www.canva.com/design/DAGm2UxMd9M/ue0Bbwt9VmJKkh0rbVeQgw/edit",
+    "status": "ok",
+    "slides": 11,
+    "file": "content\\canva-raw\\common-web-attacks-file-inclusion\\file-inclusion-rfi.md"
+  },
+  {
+    "category": "Common Web Attacks / File Inclusion Lab",
+    "title": "File Inclusion - LFI (Lab)",
+    "url": "https://www.canva.com/design/DAGm87zdcRI/rTgL1VXweKeEWHsd5e_WnA/edit",
+    "status": "ok",
+    "slides": 15,
+    "file": "content\\canva-raw\\common-web-attacks-file-inclusion-lab\\file-inclusion-lfi-lab.md"
+  },
+  {
+    "category": "Common Web Attacks / File Inclusion Lab",
+    "title": "File Inclusion - RFI (Lab)",
+    "url": "https://www.canva.com/design/DAGm88OiVlw/Q-MGeVZIml87MSHOm8HdJg/edit",
+    "status": "ok",
+    "slides": 11,
+    "file": "content\\canva-raw\\common-web-attacks-file-inclusion-lab\\file-inclusion-rfi-lab.md"
+  },
+  {
+    "category": "Common Web Attacks",
+    "title": "SSTI",
+    "url": "https://www.canva.com/design/DAGi0CPxIE8/_43vy4u69W9iIh1GPmyQjQ/edit",
+    "status": "ok",
+    "slides": 19,
+    "file": "content\\canva-raw\\common-web-attacks\\ssti.md"
+  },
+  {
+    "category": "Common Web Attacks",
+    "title": "SSTI_LAB",
+    "url": "https://www.canva.com/design/DAGi0GuLu8g/HmMseUG_VjAuQUhkcme1IA/edit",
+    "status": "ok",
+    "slides": 9,
+    "file": "content\\canva-raw\\common-web-attacks\\ssti-lab.md"
+  },
+  {
+    "category": "Blue Team",
+    "title": "SOC",
+    "url": "https://www.canva.com/design/DAGl6aELMTU/VSCmRXkf6BDlxjLZzrTf1w/edit",
+    "status": "ok",
+    "slides": 6,
+    "file": "content\\canva-raw\\blue-team\\soc.md"
+  },
+  {
+    "category": "Blue Team",
+    "title": "Key Areas of Blue Team",
+    "url": "https://www.canva.com/design/DAGl6a-7ki8/ysKtODjxIZakB8oPV9qFXA/edit",
+    "status": "ok",
+    "slides": 11,
+    "file": "content\\canva-raw\\blue-team\\key-areas-of-blue-team.md"
+  },
+  {
+    "category": "Blue Team",
+    "title": "Defensive Security",
+    "url": "https://www.canva.com/design/DAGl6f9WxE4/qhGXE_iAxWYZVaIfaAvPaA/edit",
+    "status": "ok",
+    "slides": 8,
+    "file": "content\\canva-raw\\blue-team\\defensive-security.md"
+  },
+  {
+    "category": "Blue Team Labs",
+    "title": "Basic_log_analysis",
+    "url": "https://www.canva.com/design/DAGmTTodbz0/fnBXM4E_71u1d3YJkphCgg/edit",
+    "status": "ok",
+    "slides": 13,
+    "file": "content\\canva-raw\\blue-team-labs\\basic-log-analysis.md"
+  },
+  {
+    "category": "Blue Team Labs",
+    "title": "Network Traffic Analysis",
+    "url": "https://www.canva.com/design/DAGmTUJP3LU/JQ77xMwwycw9dznUshASPA/edit",
+    "status": "ok",
+    "slides": 9,
+    "file": "content\\canva-raw\\blue-team-labs\\network-traffic-analysis.md"
+  },
+  {
+    "category": "Blue Team Labs",
+    "title": "Malware Detection",
+    "url": "https://www.canva.com/design/DAGmTdb8prI/Xn4hcWag-XGGxA4NJhY5kg/edit",
+    "status": "ok",
+    "slides": 6,
+    "file": "content\\canva-raw\\blue-team-labs\\malware-detection.md"
+  },
+  {
+    "category": "Burpsuite 101",
+    "title": "Burpsuite 101",
+    "url": "https://www.canva.com/design/DAGmQQZS6bM/Ut5__-zbnOHsoQZPpOnqTA/edit",
+    "status": "ok",
+    "slides": 13,
+    "file": "content\\canva-raw\\burpsuite-101\\burpsuite-101.md"
+  },
+  {
+    "category": "Cybersecurity Careers",
+    "title": "Cybersecurity_Roadmap",
+    "url": "https://www.canva.com/design/DAGnaqClpGE/QEuKze957D3kt21i0h-7BQ/edit",
+    "status": "ok",
+    "slides": 14,
+    "file": "content\\canva-raw\\cybersecurity-careers\\cybersecurity-roadmap.md"
+  },
+  {
+    "category": "Cybersecurity Careers",
+    "title": "Cybersecurity Introduction",
+    "url": "https://www.canva.com/design/DAGnmgn2GVk/Qx51HBizrNoNGUiZxKltAQ/edit",
+    "status": "ok",
+    "slides": 13,
+    "file": "content\\canva-raw\\cybersecurity-careers\\cybersecurity-introduction.md"
+  },
+  {
+    "category": "Network Scanning & Service Enumeration",
+    "title": "Network Scanning & Service Enumeration",
+    "url": "https://www.canva.com/design/DAGnxjyFyAg/xWr7Zi9-86eKotyLpl2LYA/edit",
+    "status": "ok",
+    "slides": 14,
+    "file": "content\\canva-raw\\network-scanning-service-enumeration\\network-scanning-service-enumeration.md"
+  },
+  {
+    "category": "Network Vulnerability Scanning",
+    "title": "Network Vulnerability Scanning",
+    "url": "https://www.canva.com/design/DAGn9s0Cmlw/ZRgd_Dqj33SknCuyA95uaw/edit",
+    "status": "ok",
+    "slides": 13,
+    "file": "content\\canva-raw\\network-vulnerability-scanning\\network-vulnerability-scanning.md"
+  },
+  {
+    "category": "Scripting",
+    "title": "Python Basics",
+    "url": "https://www.canva.com/design/DAGn-uFZYq8/tos9lw5W1xfKapbVVMBH-A/edit",
+    "status": "ok",
+    "slides": 11,
+    "file": "content\\canva-raw\\scripting\\python-basics.md"
+  },
+  {
+    "category": "Windows",
+    "title": "Access Control List",
+    "url": "https://www.canva.com/design/DAGn-kmlIDw/6GdNm44Kwq4VdOF3psdsgw/edit",
+    "status": "ok",
+    "slides": 17,
+    "file": "content\\canva-raw\\windows\\access-control-list.md"
+  },
+  {
+    "category": "Windows",
+    "title": "File Navigation & Management",
+    "url": "https://www.canva.com/design/DAGn-llDvIQ/avzueVZLMkszTCwnzSalMw/edit",
+    "status": "ok",
+    "slides": 7,
+    "file": "content\\canva-raw\\windows\\file-navigation-management.md"
+  },
+  {
+    "category": "Windows",
+    "title": "Understanding Windows OS Versions",
+    "url": "https://www.canva.com/design/DAGn-o8vO_A/qihUL_dSGG8H6kLPkj-6Kw/edit",
+    "status": "ok",
+    "slides": 8,
+    "file": "content\\canva-raw\\windows\\understanding-windows-os-versions.md"
+  },
+  {
+    "category": "Windows",
+    "title": "User Mode vs Kernel Mode",
+    "url": "https://www.canva.com/design/DAGn-nq3OVI/xJm6yQP47U1w7pstS7q1VQ/edit",
+    "status": "ok",
+    "slides": 10,
+    "file": "content\\canva-raw\\windows\\user-mode-vs-kernel-mode.md"
+  },
+  {
+    "category": "Windows",
+    "title": "User & Group Management",
+    "url": "https://www.canva.com/design/DAGn-s_Z3RU/w5KHxjADTr0I97KhHIFQxQ/edit",
+    "status": "ok",
+    "slides": 7,
+    "file": "content\\canva-raw\\windows\\user-group-management.md"
+  },
+  {
+    "category": "Windows",
+    "title": "Introduction to Networking Commands",
+    "url": "https://www.canva.com/design/DAGn-hJxWdM/rTPOLKJpllt337593YREMA/edit",
+    "status": "ok",
+    "slides": 13,
+    "file": "content\\canva-raw\\windows\\introduction-to-networking-commands.md"
+  },
+  {
+    "category": "Windows",
+    "title": "PowerShell and CMD Commands",
+    "url": "https://www.canva.com/design/DAGoIu8kVyE/-iR-LmZlskSalf_yJg1igg/edit",
+    "status": "ok",
+    "slides": 13,
+    "file": "content\\canva-raw\\windows\\powershell-and-cmd-commands.md"
+  },
+  {
+    "category": "Windows",
+    "title": "Processes & Services Management",
+    "url": "https://www.canva.com/design/DAGoKcuBnR4/HUxRnFVAJW1LCFzvlgNqmA/edit",
+    "status": "ok",
+    "slides": 13,
+    "file": "content\\canva-raw\\windows\\processes-services-management.md"
+  },
+  {
+    "category": "Windows",
+    "title": "Windows Defender & Firewall",
+    "url": "https://www.canva.com/design/DAGn-kOYLV4/uDTl1NhStOvAn0KynKRgRg/edit",
+    "status": "ok",
+    "slides": 13,
+    "file": "content\\canva-raw\\windows\\windows-defender-firewall.md"
+  },
+  {
+    "category": "Hacking with AI / Defensive Security",
+    "title": "Honeypots",
+    "url": "https://www.canva.com/design/DAGoP3GnEO8/YH687XTe-_jTqT2tQumbsA/edit",
+    "status": "ok",
+    "slides": 10,
+    "file": "content\\canva-raw\\hacking-with-ai-defensive-security\\honeypots.md"
+  },
+  {
+    "category": "Hacking with AI / Defensive Security",
+    "title": "Identifying_Vulnerabilities",
+    "url": "https://www.canva.com/design/DAGoP0E1_Dw/avrOiTTsZS2oF1qYyb9oOg/edit",
+    "status": "ok",
+    "slides": 10,
+    "file": "content\\canva-raw\\hacking-with-ai-defensive-security\\identifying-vulnerabilities.md"
+  },
+  {
+    "category": "Hacking with AI / Defensive Security",
+    "title": "Threat_Detection",
+    "url": "https://www.canva.com/design/DAGoP7GA_kY/T8DJ2aLpUfS8kRZa17R_kQ/edit",
+    "status": "ok",
+    "slides": 11,
+    "file": "content\\canva-raw\\hacking-with-ai-defensive-security\\threat-detection.md"
+  },
+  {
+    "category": "Hacking with AI / Leverage AI for Hacking",
+    "title": "Installing_DeepSeek",
+    "url": "https://www.canva.com/design/DAGqTNhgIWE/IDotQD2cB8bwx3mmZcI85Q/edit",
+    "status": "ok",
+    "slides": 14,
+    "file": "content\\canva-raw\\hacking-with-ai-leverage-ai-for-hacking\\installing-deepseek.md"
+  },
+  {
+    "category": "Hacking with AI / Leverage AI for Hacking",
+    "title": "Deepseek_for_Hacking",
+    "url": "https://www.canva.com/design/DAGqTLZIaHs/SYTlRcHhIjgWqj_rge4Q4w/edit",
+    "status": "ok",
+    "slides": 10,
+    "file": "content\\canva-raw\\hacking-with-ai-leverage-ai-for-hacking\\deepseek-for-hacking.md"
+  },
+  {
+    "category": "Hacking with AI / Leverage AI for Hacking",
+    "title": "Ethical Boundaries of AI using Prompt Injection",
+    "url": "https://www.canva.com/design/DAGqTBJ-8u8/nTeRxJSvo3g6cTuB7xkEMw/edit",
+    "status": "ok",
+    "slides": 14,
+    "file": "content\\canva-raw\\hacking-with-ai-leverage-ai-for-hacking\\ethical-boundaries-of-ai-using-prompt-injection.md"
+  },
+  {
+    "category": "Hacking with AI / Leverage AI for Hacking",
+    "title": "Local Ai",
+    "url": "https://www.canva.com/design/DAGqfFeUy88/jYeThXix_RbM7NADHyzNtg/edit",
+    "status": "ok",
+    "slides": 13,
+    "file": "content\\canva-raw\\hacking-with-ai-leverage-ai-for-hacking\\local-ai.md"
+  },
+  {
+    "category": "Hacking with AI / Outro",
+    "title": "Ethical Responsibilities in AI",
+    "url": "https://www.canva.com/design/DAGqfrMFmjw/cSn9P7PXMQKwaHW2kU_HrA/edit",
+    "status": "ok",
+    "slides": 13,
+    "file": "content\\canva-raw\\hacking-with-ai-outro\\ethical-responsibilities-in-ai.md"
+  },
+  {
+    "category": "Hacking with AI / Outro",
+    "title": "Importance of Continuous Learning AI",
+    "url": "https://www.canva.com/design/DAGqfpOqPrU/V9IU-ytCYSWixfAwWfaMKA/edit",
+    "status": "ok",
+    "slides": 13,
+    "file": "content\\canva-raw\\hacking-with-ai-outro\\importance-of-continuous-learning-ai.md"
+  },
+  {
+    "category": "Hacking with AI / Outro",
+    "title": "The Evolving Role of AI",
+    "url": "https://www.canva.com/design/DAGqfqFIBIs/FLr0W6D4vPvODf27SBeslg/edit",
+    "status": "ok",
+    "slides": 13,
+    "file": "content\\canva-raw\\hacking-with-ai-outro\\the-evolving-role-of-ai.md"
+  },
+  {
+    "category": "AI Automation Script",
+    "title": "Bruteforce_script",
+    "url": "https://www.canva.com/design/DAGohCI6-lE/ho0y6nyP91jVTETi5OvUBw/edit",
+    "status": "ok",
+    "slides": 9,
+    "file": "content\\canva-raw\\ai-automation-script\\bruteforce-script.md"
+  },
+  {
+    "category": "AI Automation Script",
+    "title": "Phishing_mail_with_AI",
+    "url": "https://www.canva.com/design/DAGohM525pk/jXWTIxA_mQX3uMmBBhFVrg/edit",
+    "status": "ok",
+    "slides": 9,
+    "file": "content\\canva-raw\\ai-automation-script\\phishing-mail-with-ai.md"
+  },
+  {
+    "category": "AI Automation Script",
+    "title": "scanning_subdomains_with_python",
+    "url": "https://www.canva.com/design/DAGohEaJHiM/dc9_JFO_lsztfJ7_kx5MfA/edit",
+    "status": "ok",
+    "slides": 9,
+    "file": "content\\canva-raw\\ai-automation-script\\scanning-subdomains-with-python.md"
+  },
+  {
+    "category": "AI Automation Script",
+    "title": "Basic_of_AI_ML_DL",
+    "url": "https://www.canva.com/design/DAGosaOHDo4/xxZ_3HPPoFWImrLAszPrDA/edit",
+    "status": "ok",
+    "slides": 12,
+    "file": "content\\canva-raw\\ai-automation-script\\basic-of-ai-ml-dl.md"
+  },
+  {
+    "category": "AI Automation Script",
+    "title": "Ethical_Boundaries",
+    "url": "https://www.canva.com/design/DAGosQ4Gujo/1vGCWqfD2aVoFRQFBGWgbg/edit",
+    "status": "ok",
+    "slides": 12,
+    "file": "content\\canva-raw\\ai-automation-script\\ethical-boundaries.md"
+  },
+  {
+    "category": "AI Automation Script",
+    "title": "Role of AI",
+    "url": "https://www.canva.com/design/DAGosQUlohg/egEdYUccjctKoRh3de2p_A/edit",
+    "status": "ok",
+    "slides": 17,
+    "file": "content\\canva-raw\\ai-automation-script\\role-of-ai.md"
+  },
+  {
+    "category": "Handson Exploitation Techniques",
+    "title": "Bruteforce_techniques",
+    "url": "https://www.canva.com/design/DAGnbIbOVPM/jgn8G7mHNUfNdVkUcN7ZbA/edit",
+    "status": "ok",
+    "slides": 18,
+    "file": "content\\canva-raw\\handson-exploitation-techniques\\bruteforce-techniques.md"
+  },
+  {
+    "category": "Handson Exploitation Techniques",
+    "title": "ReverseShell_BindShell",
+    "url": "https://www.canva.com/design/DAGnbOnEt1M/u0qc7lq2VlqwQYhx5cGgVA/edit",
+    "status": "ok",
+    "slides": 14,
+    "file": "content\\canva-raw\\handson-exploitation-techniques\\reverseshell-bindshell.md"
+  },
+  {
+    "category": "Handson Exploitation Techniques",
+    "title": "Hash Cracking",
+    "url": "https://www.canva.com/design/DAGnghkJxjw/YRrfHrNzUxfO6e0uRVMkvA/edit",
+    "status": "ok",
+    "slides": 10,
+    "file": "content\\canva-raw\\handson-exploitation-techniques\\hash-cracking.md"
+  },
+  {
+    "category": "Handson Exploitation Techniques",
+    "title": "Payload Execution Tech",
+    "url": "https://www.canva.com/design/DAGnbFqiy6U/Ozjdga243kpXFTDtRoQsEg/edit",
+    "status": "ok",
+    "slides": 20,
+    "file": "content\\canva-raw\\handson-exploitation-techniques\\payload-execution-tech.md"
+  },
+  {
+    "category": "Operating System",
+    "title": "Input Output",
+    "url": "https://www.canva.com/design/DAGcuWn39Is/8DNbFjtm8uX7tvhUbF_YcA/edit",
+    "status": "ok",
+    "slides": 14,
+    "file": "content\\canva-raw\\operating-system\\input-output.md"
+  },
+  {
+    "category": "Operating System",
+    "title": "BIOS/UEFI",
+    "url": "https://www.canva.com/design/DAGcuaIFHF4/GMHJ_iOQY60mT0IQ0_Sd8Q/edit",
+    "status": "ok",
+    "slides": 8,
+    "file": "content\\canva-raw\\operating-system\\bios-uefi.md"
+  },
+  {
+    "category": "Android",
+    "title": "Burp Suite (Android)",
+    "url": "https://www.canva.com/design/DAGqmJFOKuk/lCANdOpuu8APHu3eLwFxzg/edit",
+    "status": "ok",
+    "slides": 10,
+    "file": "content\\canva-raw\\android\\burp-suite-android.md"
+  },
+  {
+    "category": "Android",
+    "title": "Tool_frida_installation",
+    "url": "https://www.canva.com/design/DAGqmHALPIg/6Ai68EQDCtT9afW1c5azFg/edit",
+    "status": "ok",
+    "slides": 5,
+    "file": "content\\canva-raw\\android\\tool-frida-installation.md"
+  },
+  {
+    "category": "Android",
+    "title": "Choosing Emulators",
+    "url": "https://www.canva.com/design/DAGqmN5g_uE/3LtjjLUnr1hRq8KgBCw_ag/edit",
+    "status": "ok",
+    "slides": 13,
+    "file": "content\\canva-raw\\android\\choosing-emulators.md"
+  }
+]

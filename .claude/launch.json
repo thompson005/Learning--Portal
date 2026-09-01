@@ -1,0 +1,23 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "learning-portal-dev",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "port": 3333
+    },
+    {
+      "name": "sast-ui",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "C:/Users/asus/Documents/technieum-tools/SAST/ui/node_modules/next/dist/bin/next",
+        "dev",
+        "C:/Users/asus/Documents/technieum-tools/SAST/ui",
+        "-p",
+        "3456"
+      ],
+      "port": 3456
+    }
+  ]
+}

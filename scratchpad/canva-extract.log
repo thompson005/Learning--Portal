@@ -1,0 +1,135 @@
+Extracting 131 Canva designs with concurrency 4...
+
+OK   [3/131] Application Basics / Backend — 9 slides -> content\canva-raw\application-basics\backend.md
+OK   [2/131] Application Basics / Frontend — 13 slides -> content\canva-raw\application-basics\frontend.md
+OK   [4/131] Application Basics / API — 13 slides -> content\canva-raw\application-basics\api.md
+OK   [5/131] Application Basics / Authentication & Authorization — 1 slides -> content\canva-raw\application-basics\authentication-authorization.md
+OK   [6/131] Application Basics / Cookies — 1 slides -> content\canva-raw\application-basics\cookies.md
+OK   [1/131] Application Basics / SDLC — 19 slides -> content\canva-raw\application-basics\sdlc.md
+OK   [8/131] Application Basics / Intro Application Basics — 4 slides -> content\canva-raw\application-basics\intro-application-basics.md
+OK   [7/131] Application Basics / DBMS — 10 slides -> content\canva-raw\application-basics\dbms.md
+OK   [9/131] Application Basics / Outro Application Basics — 9 slides -> content\canva-raw\application-basics\outro-application-basics.md
+OK   [11/131] Networking / IP Address — 9 slides -> content\canva-raw\networking\ip-address.md
+OK   [10/131] Networking / 2.1. OSI Model - Introduction — 13 slides -> content\canva-raw\networking\2-1-osi-model-introduction.md
+OK   [12/131] Networking / What happens when you type a URL and press Enter — 13 slides -> content\canva-raw\networking\what-happens-when-you-type-a-url-and-press-enter.md
+OK   [14/131] Networking / 2.3. Presentation Layer - OSI Layer — 4 slides -> content\canva-raw\networking\2-3-presentation-layer-osi-layer.md
+OK   [15/131] Networking / 2.4. Session Layer - OSI Layer — 4 slides -> content\canva-raw\networking\2-4-session-layer-osi-layer.md
+OK   [13/131] Networking / 2.2. Application Layer - OSI Layer — 16 slides -> content\canva-raw\networking\2-2-application-layer-osi-layer.md
+OK   [16/131] Networking / 2.5. Transport Layer - OSI Layer — 3 slides -> content\canva-raw\networking\2-5-transport-layer-osi-layer.md
+OK   [17/131] Networking / 2.6. Network Layer - OSI Layer — 3 slides -> content\canva-raw\networking\2-6-network-layer-osi-layer.md
+OK   [20/131] Networking / 2.9. Ports — 1 slides -> content\canva-raw\networking\2-9-ports.md
+OK   [18/131] Networking / 2.7. Data Link Layer - OSI Layer — 6 slides -> content\canva-raw\networking\2-7-data-link-layer-osi-layer.md
+OK   [19/131] Networking / 2.8. Physical Layer - OSI Layer — 8 slides -> content\canva-raw\networking\2-8-physical-layer-osi-layer.md
+OK   [21/131] Networking / Mac Address — 13 slides -> content\canva-raw\networking\mac-address.md
+OK   [22/131] Networking / Subnetting — 11 slides -> content\canva-raw\networking\subnetting.md
+OK   [24/131] Networking / UDP — 10 slides -> content\canva-raw\networking\udp.md
+OK   [23/131] Networking / TCP — 15 slides -> content\canva-raw\networking\tcp.md
+OK   [26/131] Hacking Basics / 6.0. Introduction - Hacking Basics — 5 slides -> content\canva-raw\hacking-basics\6-0-introduction-hacking-basics.md
+OK   [25/131] Networking / NAT — 10 slides -> content\canva-raw\networking\nat.md
+OK   [28/131] Hacking Basics / 6.2 Vulnerability Scanning — 6 slides -> content\canva-raw\hacking-basics\6-2-vulnerability-scanning.md
+OK   [27/131] Hacking Basics / 6.1 Footprinting and Reconnaissance — 12 slides -> content\canva-raw\hacking-basics\6-1-footprinting-and-reconnaissance.md
+OK   [30/131] Hacking Basics / 6.4. Maintaining Access - Hacking Basics — 7 slides -> content\canva-raw\hacking-basics\6-4-maintaining-access-hacking-basics.md
+OK   [29/131] Hacking Basics / 6.3 Gaining Access — 13 slides -> content\canva-raw\hacking-basics\6-3-gaining-access.md
+OK   [31/131] Hacking Basics / 6.5. Clearing Tracks - Hacking Basics — 8 slides -> content\canva-raw\hacking-basics\6-5-clearing-tracks-hacking-basics.md
+OK   [32/131] Hacking Basics / 6.x. OWASP Top 10 For Web — 13 slides -> content\canva-raw\hacking-basics\6-x-owasp-top-10-for-web.md
+OK   [33/131] Hacking Practical / 9.x. ARP Spoofing — 11 slides -> content\canva-raw\hacking-practical\9-x-arp-spoofing.md
+OK   [35/131] Hacking Practical / Broken Access Control - Hands on — 16 slides -> content\canva-raw\hacking-practical\broken-access-control-hands-on.md
+OK   [34/131] Hacking Practical / OWASP Top10 - Broken Access Control (Theory) — 18 slides -> content\canva-raw\hacking-practical\owasp-top10-broken-access-control-theory.md
+OK   [36/131] Hacking Practical / Injections — 6 slides -> content\canva-raw\hacking-practical\injections.md
+OK   [37/131] Hacking Practical / SQL Injections — 18 slides -> content\canva-raw\hacking-practical\sql-injections.md
+OK   [38/131] Hacking Practical / Cross-Site Scripting — 9 slides -> content\canva-raw\hacking-practical\cross-site-scripting.md
+OK   [39/131] Hacking Practical / Reflected Cross-Site Scripting — 12 slides -> content\canva-raw\hacking-practical\reflected-cross-site-scripting.md
+OK   [40/131] Hacking Practical / Command Injection — 14 slides -> content\canva-raw\hacking-practical\command-injection.md
+OK   [41/131] Hacking Practical / File Uploads - PortSwigger Walkthrough — 14 slides -> content\canva-raw\hacking-practical\file-uploads-portswigger-walkthrough.md
+OK   [42/131] Hacking Practical / File Upload Vulnerabilities — 18 slides -> content\canva-raw\hacking-practical\file-upload-vulnerabilities.md
+OK   [43/131] Hacking Practical / Path Traversal — 13 slides -> content\canva-raw\hacking-practical\path-traversal.md
+OK   [44/131] Hacking Practical / Stored Cross-Site Scripting Lab — 12 slides -> content\canva-raw\hacking-practical\stored-cross-site-scripting-lab.md
+OK   [45/131] Hacking Practical / Business Logic Vulnerabilities in Web Applications — 1 slides -> content\canva-raw\hacking-practical\business-logic-vulnerabilities-in-web-applications.md
+OK   [48/131] Corporate Network / Virtual Desktop Infrastructure — 7 slides -> content\canva-raw\corporate-network\virtual-desktop-infrastructure.md
+OK   [49/131] Corporate Network / Active Directory — 7 slides -> content\canva-raw\corporate-network\active-directory.md
+OK   [47/131] Corporate Network / Corporate Network — 13 slides -> content\canva-raw\corporate-network\corporate-network.md
+OK   [46/131] Hacking Practical / Business Logic Vulnerabilities Lab Walkthrough — 18 slides -> content\canva-raw\hacking-practical\business-logic-vulnerabilities-lab-walkthrough.md
+OK   [51/131] Corporate Network / DMZ — 6 slides -> content\canva-raw\corporate-network\dmz.md
+OK   [50/131] Corporate Network / Zero Trust Architecture — 11 slides -> content\canva-raw\corporate-network\zero-trust-architecture.md
+OK   [52/131] Corporate Network / VPN — 8 slides -> content\canva-raw\corporate-network\vpn.md
+OK   [53/131] Corporate Network / VLAN — 6 slides -> content\canva-raw\corporate-network\vlan.md
+OK   [55/131] Footprinting & Reconnaissance / Passive_recon — 1 slides -> content\canva-raw\footprinting-reconnaissance\passive-recon.md
+OK   [57/131] Operating System Basics - Linux / The Linux file system — 4 slides -> content\canva-raw\operating-system-basics-linux\the-linux-file-system.md
+OK   [56/131] Operating System Basics - Linux / Linux — 8 slides -> content\canva-raw\operating-system-basics-linux\linux.md
+OK   [54/131] Footprinting & Reconnaissance / Active_recon — 17 slides -> content\canva-raw\footprinting-reconnaissance\active-recon.md
+OK   [58/131] Operating System Basics - Linux / File Permissions — 16 slides -> content\canva-raw\operating-system-basics-linux\file-permissions.md
+OK   [59/131] Operating System Basics - Linux / Input/Output redirection — 12 slides -> content\canva-raw\operating-system-basics-linux\input-output-redirection.md
+OK   [60/131] Operating System Basics - Linux / Linux Process Management — 13 slides -> content\canva-raw\operating-system-basics-linux\linux-process-management.md
+OK   [61/131] Operating System Basics - Linux / Man_pages — 7 slides -> content\canva-raw\operating-system-basics-linux\man-pages.md
+OK   [62/131] Operating System Basics - Linux / Service — 7 slides -> content\canva-raw\operating-system-basics-linux\service.md
+OK   [64/131] Operating System Basics - Linux / Networking Commands — 14 slides -> content\canva-raw\operating-system-basics-linux\networking-commands.md
+OK   [63/131] Operating System Basics - Linux / Navigation & working files — 19 slides -> content\canva-raw\operating-system-basics-linux\navigation-working-files.md
+OK   [65/131] Operating System Basics - Linux / User and group management — 18 slides -> content\canva-raw\operating-system-basics-linux\user-and-group-management.md
+OK   [66/131] Networking (Fundamentals) / ARP — 13 slides -> content\canva-raw\networking-fundamentals\arp.md
+OK   [69/131] Networking (Fundamentals) / Network_Intro — 6 slides -> content\canva-raw\networking-fundamentals\network-intro.md
+OK   [70/131] Networking (Fundamentals) / Network_Outro — 3 slides -> content\canva-raw\networking-fundamentals\network-outro.md
+OK   [67/131] Networking (Fundamentals) / Firewalls — 14 slides -> content\canva-raw\networking-fundamentals\firewalls.md
+OK   [68/131] Networking (Fundamentals) / Hub_vs_Router_vs_Switch_devices — 16 slides -> content\canva-raw\networking-fundamentals\hub-vs-router-vs-switch-devices.md
+OK   [72/131] Networking (Fundamentals) / TCP/IP — 8 slides -> content\canva-raw\networking-fundamentals\tcp-ip.md
+OK   [71/131] Networking (Fundamentals) / Proxy and VPN — 17 slides -> content\canva-raw\networking-fundamentals\proxy-and-vpn.md
+OK   [74/131] Common Web Attacks / Command Injection / Lab Walkthrough: OS Command Injection — 13 slides -> content\canva-raw\common-web-attacks-command-injection\lab-walkthrough-os-command-injection.md
+OK   [73/131] Networking (Fundamentals) / Common Network Protocols — 18 slides -> content\canva-raw\networking-fundamentals\common-network-protocols.md
+OK   [75/131] Common Web Attacks / Path Traversal / Lab Walkthrough: File Path Traversal — 12 slides -> content\canva-raw\common-web-attacks-path-traversal\lab-walkthrough-file-path-traversal.md
+OK   [76/131] Common Web Attacks / SQLi / SQL_Injection_lab — 16 slides -> content\canva-raw\common-web-attacks-sqli\sql-injection-lab.md
+OK   [77/131] Common Web Attacks / SSRF / Ssrf Labs — 18 slides -> content\canva-raw\common-web-attacks-ssrf\ssrf-labs.md
+OK   [78/131] Common Web Attacks / SSRF / Ssrf — 18 slides -> content\canva-raw\common-web-attacks-ssrf\ssrf.md
+OK   [79/131] Common Web Attacks / File Inclusion / File Inclusion attacks Basics — 14 slides -> content\canva-raw\common-web-attacks-file-inclusion\file-inclusion-attacks-basics.md
+OK   [80/131] Common Web Attacks / File Inclusion / File Inclusion - LFI — 11 slides -> content\canva-raw\common-web-attacks-file-inclusion\file-inclusion-lfi.md
+OK   [81/131] Common Web Attacks / File Inclusion / File Inclusion - RFI — 11 slides -> content\canva-raw\common-web-attacks-file-inclusion\file-inclusion-rfi.md
+OK   [82/131] Common Web Attacks / File Inclusion Lab / File Inclusion - LFI (Lab) — 15 slides -> content\canva-raw\common-web-attacks-file-inclusion-lab\file-inclusion-lfi-lab.md
+OK   [83/131] Common Web Attacks / File Inclusion Lab / File Inclusion - RFI (Lab) — 11 slides -> content\canva-raw\common-web-attacks-file-inclusion-lab\file-inclusion-rfi-lab.md
+OK   [85/131] Common Web Attacks / SSTI_LAB — 9 slides -> content\canva-raw\common-web-attacks\ssti-lab.md
+OK   [86/131] Blue Team / SOC — 6 slides -> content\canva-raw\blue-team\soc.md
+OK   [84/131] Common Web Attacks / SSTI — 19 slides -> content\canva-raw\common-web-attacks\ssti.md
+OK   [87/131] Blue Team / Key Areas of Blue Team — 11 slides -> content\canva-raw\blue-team\key-areas-of-blue-team.md
+OK   [88/131] Blue Team / Defensive Security — 8 slides -> content\canva-raw\blue-team\defensive-security.md
+OK   [90/131] Blue Team Labs / Network Traffic Analysis — 9 slides -> content\canva-raw\blue-team-labs\network-traffic-analysis.md
+OK   [91/131] Blue Team Labs / Malware Detection — 6 slides -> content\canva-raw\blue-team-labs\malware-detection.md
+OK   [89/131] Blue Team Labs / Basic_log_analysis — 13 slides -> content\canva-raw\blue-team-labs\basic-log-analysis.md
+OK   [92/131] Burpsuite 101 / Burpsuite 101 — 13 slides -> content\canva-raw\burpsuite-101\burpsuite-101.md
+OK   [94/131] Cybersecurity Careers / Cybersecurity Introduction — 13 slides -> content\canva-raw\cybersecurity-careers\cybersecurity-introduction.md
+OK   [93/131] Cybersecurity Careers / Cybersecurity_Roadmap — 14 slides -> content\canva-raw\cybersecurity-careers\cybersecurity-roadmap.md
+OK   [95/131] Network Scanning & Service Enumeration / Network Scanning & Service Enumeration — 14 slides -> content\canva-raw\network-scanning-service-enumeration\network-scanning-service-enumeration.md
+OK   [96/131] Network Vulnerability Scanning / Network Vulnerability Scanning — 13 slides -> content\canva-raw\network-vulnerability-scanning\network-vulnerability-scanning.md
+OK   [97/131] Scripting / Python Basics — 11 slides -> content\canva-raw\scripting\python-basics.md
+OK   [99/131] Windows / File Navigation & Management — 7 slides -> content\canva-raw\windows\file-navigation-management.md
+OK   [98/131] Windows / Access Control List — 17 slides -> content\canva-raw\windows\access-control-list.md
+OK   [100/131] Windows / Understanding Windows OS Versions — 8 slides -> content\canva-raw\windows\understanding-windows-os-versions.md
+OK   [102/131] Windows / User & Group Management — 7 slides -> content\canva-raw\windows\user-group-management.md
+OK   [101/131] Windows / User Mode vs Kernel Mode — 10 slides -> content\canva-raw\windows\user-mode-vs-kernel-mode.md
+OK   [103/131] Windows / Introduction to Networking Commands — 13 slides -> content\canva-raw\windows\introduction-to-networking-commands.md
+OK   [104/131] Windows / PowerShell and CMD Commands — 13 slides -> content\canva-raw\windows\powershell-and-cmd-commands.md
+OK   [105/131] Windows / Processes & Services Management — 13 slides -> content\canva-raw\windows\processes-services-management.md
+OK   [106/131] Windows / Windows Defender & Firewall — 13 slides -> content\canva-raw\windows\windows-defender-firewall.md
+OK   [107/131] Hacking with AI / Defensive Security / Honeypots — 10 slides -> content\canva-raw\hacking-with-ai-defensive-security\honeypots.md
+OK   [108/131] Hacking with AI / Defensive Security / Identifying_Vulnerabilities — 10 slides -> content\canva-raw\hacking-with-ai-defensive-security\identifying-vulnerabilities.md
+OK   [109/131] Hacking with AI / Defensive Security / Threat_Detection — 11 slides -> content\canva-raw\hacking-with-ai-defensive-security\threat-detection.md
+OK   [110/131] Hacking with AI / Leverage AI for Hacking / Installing_DeepSeek — 14 slides -> content\canva-raw\hacking-with-ai-leverage-ai-for-hacking\installing-deepseek.md
+OK   [111/131] Hacking with AI / Leverage AI for Hacking / Deepseek_for_Hacking — 10 slides -> content\canva-raw\hacking-with-ai-leverage-ai-for-hacking\deepseek-for-hacking.md
+OK   [112/131] Hacking with AI / Leverage AI for Hacking / Ethical Boundaries of AI using Prompt Injection — 14 slides -> content\canva-raw\hacking-with-ai-leverage-ai-for-hacking\ethical-boundaries-of-ai-using-prompt-injection.md
+OK   [113/131] Hacking with AI / Leverage AI for Hacking / Local Ai — 13 slides -> content\canva-raw\hacking-with-ai-leverage-ai-for-hacking\local-ai.md
+OK   [114/131] Hacking with AI / Outro / Ethical Responsibilities in AI — 13 slides -> content\canva-raw\hacking-with-ai-outro\ethical-responsibilities-in-ai.md
+OK   [115/131] Hacking with AI / Outro / Importance of Continuous Learning AI — 13 slides -> content\canva-raw\hacking-with-ai-outro\importance-of-continuous-learning-ai.md
+OK   [117/131] AI Automation Script / Bruteforce_script — 9 slides -> content\canva-raw\ai-automation-script\bruteforce-script.md
+OK   [116/131] Hacking with AI / Outro / The Evolving Role of AI — 13 slides -> content\canva-raw\hacking-with-ai-outro\the-evolving-role-of-ai.md
+OK   [118/131] AI Automation Script / Phishing_mail_with_AI — 9 slides -> content\canva-raw\ai-automation-script\phishing-mail-with-ai.md
+OK   [119/131] AI Automation Script / scanning_subdomains_with_python — 9 slides -> content\canva-raw\ai-automation-script\scanning-subdomains-with-python.md
+OK   [121/131] AI Automation Script / Ethical_Boundaries — 12 slides -> content\canva-raw\ai-automation-script\ethical-boundaries.md
+OK   [120/131] AI Automation Script / Basic_of_AI_ML_DL — 12 slides -> content\canva-raw\ai-automation-script\basic-of-ai-ml-dl.md
+OK   [122/131] AI Automation Script / Role of AI — 17 slides -> content\canva-raw\ai-automation-script\role-of-ai.md
+OK   [123/131] Handson Exploitation Techniques / Bruteforce_techniques — 18 slides -> content\canva-raw\handson-exploitation-techniques\bruteforce-techniques.md
+OK   [125/131] Handson Exploitation Techniques / Hash Cracking — 10 slides -> content\canva-raw\handson-exploitation-techniques\hash-cracking.md
+OK   [124/131] Handson Exploitation Techniques / ReverseShell_BindShell — 14 slides -> content\canva-raw\handson-exploitation-techniques\reverseshell-bindshell.md
+OK   [126/131] Handson Exploitation Techniques / Payload Execution Tech — 20 slides -> content\canva-raw\handson-exploitation-techniques\payload-execution-tech.md
+OK   [127/131] Operating System / Input Output — 14 slides -> content\canva-raw\operating-system\input-output.md
+OK   [128/131] Operating System / BIOS/UEFI — 8 slides -> content\canva-raw\operating-system\bios-uefi.md
+OK   [129/131] Android / Burp Suite (Android) — 10 slides -> content\canva-raw\android\burp-suite-android.md
+OK   [130/131] Android / Tool_frida_installation — 5 slides -> content\canva-raw\android\tool-frida-installation.md
+OK   [131/131] Android / Choosing Emulators — 13 slides -> content\canva-raw\android\choosing-emulators.md
+
+Done. 131 succeeded, 0 failed.

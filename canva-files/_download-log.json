@@ -1,0 +1,505 @@
+[
+  {
+    "category": "Application Basics",
+    "title": "SDLC",
+    "url": "https://www.canva.com/design/DAGRYjc-GoY/wVeBu8QAKpy5Dc6SZAxmzw/edit",
+    "folder": "Application Basics",
+    "filename": "SDLC",
+    "status": "skipped"
+  },
+  {
+    "category": "Application Basics",
+    "title": "Frontend",
+    "url": "https://www.canva.com/design/DAGRuHHGjvE/CViwnx9x_GWcIogR4yR-Tg/edit",
+    "folder": "Application Basics",
+    "filename": "Frontend",
+    "status": "skipped"
+  },
+  {
+    "category": "Application Basics",
+    "title": "Backend",
+    "url": "https://www.canva.com/design/DAGR2nt9wLY/tWs2rxdfUnvbZ2ZlsOgUxg/edit",
+    "folder": "Application Basics",
+    "filename": "Backend",
+    "status": "skipped"
+  },
+  {
+    "category": "Application Basics",
+    "title": "API",
+    "url": "https://www.canva.com/design/DAGSNd-bp8M/dajys3_G-9yNAhiCAb3_vQ/edit",
+    "folder": "Application Basics",
+    "filename": "API",
+    "status": "skipped"
+  },
+  {
+    "category": "Application Basics",
+    "title": "Authentication & Authorization",
+    "url": "https://www.canva.com/design/DAGSTkQkGB8/8v5hWjFLfrECHuOkebdaZA/edit",
+    "folder": "Application Basics",
+    "filename": "Authentication & Authorization",
+    "status": "skipped"
+  },
+  {
+    "category": "Application Basics",
+    "title": "Cookies",
+    "url": "https://www.canva.com/design/DAGSZwUHO_o/xQoMeOlKMeBTpg5DbnMmGQ/edit",
+    "folder": "Application Basics",
+    "filename": "Cookies",
+    "status": "skipped"
+  },
+  {
+    "category": "Application Basics",
+    "title": "DBMS",
+    "url": "https://www.canva.com/design/DAGSgOi3obU/2b2_o-66hQfXOJqFQsjUww/edit",
+    "folder": "Application Basics",
+    "filename": "DBMS",
+    "status": "skipped"
+  },
+  {
+    "category": "Application Basics",
+    "title": "Intro Application Basics",
+    "url": "https://www.canva.com/design/DAGTQEB9AoA/soR_eVKYf3iNgIMas6VeIQ/edit",
+    "folder": "Application Basics",
+    "filename": "Intro Application Basics",
+    "status": "skipped"
+  },
+  {
+    "category": "Application Basics",
+    "title": "Outro Application Basics",
+    "url": "https://www.canva.com/design/DAGTQAJ8wlw/SCPbVcerrUz_SWM2E84xaA/edit",
+    "folder": "Application Basics",
+    "filename": "Outro Application Basics",
+    "status": "skipped"
+  },
+  {
+    "category": "Networking",
+    "title": "2.1. OSI Model - Introduction",
+    "url": "https://www.canva.com/design/DAGTnp-5EXg/FkvDXkzCYrwNaZm8G5B-Aw/edit",
+    "folder": "Networking",
+    "filename": "2.1. OSI Model - Introduction",
+    "status": "skipped"
+  },
+  {
+    "category": "Networking",
+    "title": "IP Address",
+    "url": "https://www.canva.com/design/DAGTuqV6eq4/ChHwd4E1-E3_TERMRCMZ5w/edit",
+    "folder": "Networking",
+    "filename": "IP Address",
+    "status": "skipped"
+  },
+  {
+    "category": "Networking",
+    "title": "What happens when you type a URL and press Enter",
+    "url": "https://www.canva.com/design/DAGUKdynDu0/GXE9mtkzJi6K2Z6inUmvVw/edit",
+    "folder": "Networking",
+    "filename": "What happens when you type a URL and press Enter",
+    "status": "skipped"
+  },
+  {
+    "category": "Networking",
+    "title": "2.2. Application Layer - OSI Layer",
+    "url": "https://www.canva.com/design/DAGUeIuBUNY/I1ZnGXCtVKIMsdnVoLptFA/edit",
+    "folder": "Networking",
+    "filename": "2.2. Application Layer - OSI Layer",
+    "status": "skipped"
+  },
+  {
+    "category": "Networking",
+    "title": "2.3. Presentation Layer - OSI Layer",
+    "url": "https://www.canva.com/design/DAGU8XIxM7s/r9SAf2qVaOH3_WQiWP0ydw/edit",
+    "folder": "Networking",
+    "filename": "2.3. Presentation Layer - OSI Layer",
+    "status": "skipped"
+  },
+  {
+    "category": "Networking",
+    "title": "2.4. Session Layer - OSI Layer",
+    "url": "https://www.canva.com/design/DAGVheuCVhs/7Sll5iTQjZyHwgMu__kC1g/edit",
+    "folder": "Networking",
+    "filename": "2.4. Session Layer - OSI Layer",
+    "status": "skipped"
+  },
+  {
+    "category": "Networking",
+    "title": "2.5. Transport Layer - OSI Layer",
+    "url": "https://www.canva.com/design/DAGVAbPLTxQ/oxYs0mZ_SZ7TO5KUOaf3sg/edit",
+    "folder": "Networking",
+    "filename": "2.5. Transport Layer - OSI Layer",
+    "status": "skipped"
+  },
+  {
+    "category": "Networking",
+    "title": "2.6. Network Layer - OSI Layer",
+    "url": "https://www.canva.com/design/DAGVAuh4Q3M/2KkpcQyLqcjoJCI0wu9CEQ/edit",
+    "folder": "Networking",
+    "filename": "2.6. Network Layer - OSI Layer",
+    "status": "skipped"
+  },
+  {
+    "category": "Networking",
+    "title": "2.7. Data Link Layer - OSI Layer",
+    "url": "https://www.canva.com/design/DAGVnQe9yw4/zdAJMdaIYhhytCDcxUaiZg/edit",
+    "folder": "Networking",
+    "filename": "2.7. Data Link Layer - OSI Layer",
+    "status": "skipped"
+  },
+  {
+    "category": "Networking",
+    "title": "2.8. Physical Layer - OSI Layer",
+    "url": "https://www.canva.com/design/DAGVsGygRHc/jkxoy-kJAbFn4Q3pcehPpw/edit",
+    "folder": "Networking",
+    "filename": "2.8. Physical Layer - OSI Layer",
+    "status": "skipped"
+  },
+  {
+    "category": "Networking",
+    "title": "2.9. Ports",
+    "url": "https://www.canva.com/design/DAGT4TK9dVQ/Zscl-J7cSe2TjimG3ygnmg/edit",
+    "folder": "Networking",
+    "filename": "2.9. Ports",
+    "status": "skipped"
+  },
+  {
+    "category": "Networking",
+    "title": "Mac Address",
+    "url": "https://www.canva.com/design/DAGV3o_6SZw/rrj91b5FNTiMtaQf5ZiZZg/edit",
+    "folder": "Networking",
+    "filename": "Mac Address",
+    "status": "skipped"
+  },
+  {
+    "category": "Networking",
+    "title": "Subnetting",
+    "url": "https://www.canva.com/design/DAGWKm1P1aY/biDOAIzwiUlUsDpL1JCgxA/edit",
+    "folder": "Networking",
+    "filename": "Subnetting",
+    "status": "skipped"
+  },
+  {
+    "category": "Networking",
+    "title": "TCP",
+    "url": "https://www.canva.com/design/DAGWWIKPbew/G426IVValICKMtzdhKJ9nw/edit",
+    "folder": "Networking",
+    "filename": "TCP",
+    "status": "skipped"
+  },
+  {
+    "category": "Networking",
+    "title": "UDP",
+    "url": "https://www.canva.com/design/DAGWnBvOKUU/FsE7AkNJzw45F_NtcKMV5w/edit",
+    "folder": "Networking",
+    "filename": "UDP",
+    "status": "skipped"
+  },
+  {
+    "category": "Networking",
+    "title": "NAT",
+    "url": "https://www.canva.com/design/DAGW0fM0ruk/_R0pTys9FCs0SvpJdyju5w/edit",
+    "folder": "Networking",
+    "filename": "NAT",
+    "status": "skipped"
+  },
+  {
+    "category": "Hacking Basics",
+    "title": "6.0. Introduction - Hacking Basics",
+    "url": "https://www.canva.com/design/DAGXAele-a4/1nL2csjOU7iocEqead7aOw/edit",
+    "folder": "Hacking Basics",
+    "filename": "6.0. Introduction - Hacking Basics",
+    "status": "skipped"
+  },
+  {
+    "category": "Hacking Basics",
+    "title": "6.1 Footprinting and Reconnaissance",
+    "url": "https://www.canva.com/design/DAGXA17KNZU/sxHhrqOs701Je0cOqaUC7g/edit",
+    "folder": "Hacking Basics",
+    "filename": "6.1 Footprinting and Reconnaissance",
+    "status": "skipped"
+  },
+  {
+    "category": "Hacking Basics",
+    "title": "6.2 Vulnerability Scanning",
+    "url": "https://www.canva.com/design/DAGXHA63HPo/C7XrNqP0Cmz_dSzf-MNhbw/edit",
+    "folder": "Hacking Basics",
+    "filename": "6.2 Vulnerability Scanning",
+    "status": "skipped"
+  },
+  {
+    "category": "Hacking Basics",
+    "title": "6.3 Gaining Access",
+    "url": "https://www.canva.com/design/DAGXLbmE8U4/8_T25nOjPhvBduHAjkj4zA/edit",
+    "folder": "Hacking Basics",
+    "filename": "6.3 Gaining Access",
+    "status": "skipped"
+  },
+  {
+    "category": "Hacking Basics",
+    "title": "6.4. Maintaining Access - Hacking Basics",
+    "url": "https://www.canva.com/design/DAGXeHUhdJ8/QkPrnN9xPjVSGkZpvM8Kow/edit",
+    "folder": "Hacking Basics",
+    "filename": "6.4. Maintaining Access - Hacking Basics",
+    "status": "skipped"
+  },
+  {
+    "category": "Hacking Basics",
+    "title": "6.5. Clearing Tracks - Hacking Basics",
+    "url": "https://www.canva.com/design/DAGXjrWS0z4/QQUSkf2s2RyWxT-LbkT5qg/edit",
+    "folder": "Hacking Basics",
+    "filename": "6.5. Clearing Tracks - Hacking Basics",
+    "status": "skipped"
+  },
+  {
+    "category": "Hacking Basics",
+    "title": "6.x. OWASP Top 10 For Web",
+    "url": "https://www.canva.com/design/DAGYTtapyO8/t3IPAoh3GqyQigQ0WMBeEg/edit",
+    "folder": "Hacking Basics",
+    "filename": "6.x. OWASP Top 10 For Web",
+    "status": "skipped"
+  },
+  {
+    "category": "Hacking Practical",
+    "title": "9.x. ARP Spoofing",
+    "url": "https://www.canva.com/design/DAGYgN4mJII/do_VxWRWz90JRNIPPJObdw/edit",
+    "folder": "Hacking Practical",
+    "filename": "9.x. ARP Spoofing",
+    "status": "skipped"
+  },
+  {
+    "category": "Hacking Practical",
+    "title": "OWASP Top10 - Broken Access Control (Theory)",
+    "url": "https://www.canva.com/design/DAGaL7NLiYs/84GKTogCHxyeLTOZjJNlbw/edit",
+    "folder": "Hacking Practical",
+    "filename": "OWASP Top10 - Broken Access Control (Theory)",
+    "status": "skipped"
+  },
+  {
+    "category": "Hacking Practical",
+    "title": "Broken Access Control - Hands on",
+    "url": "https://www.canva.com/design/DAGbC_5JQNg/Ufl6MqJFGBtu0DQCJZ_DAg/edit",
+    "folder": "Hacking Practical",
+    "filename": "Broken Access Control - Hands on",
+    "status": "skipped"
+  },
+  {
+    "category": "Hacking Practical",
+    "title": "Injections",
+    "url": "https://www.canva.com/design/DAGbOmq0uFE/sPEq6rs2h37P6qFIvtp72g/edit",
+    "folder": "Hacking Practical",
+    "filename": "Injections",
+    "status": "skipped"
+  },
+  {
+    "category": "Hacking Practical",
+    "title": "SQL Injections",
+    "url": "https://www.canva.com/design/DAGbhAr_wtI/xuKa8axYUSceRI6kmHS15g/edit",
+    "folder": "Hacking Practical",
+    "filename": "SQL Injections",
+    "status": "skipped"
+  },
+  {
+    "category": "Hacking Practical",
+    "title": "Cross-Site Scripting",
+    "url": "https://www.canva.com/design/DAGbgwDHQD8/yZ1H-cCNE3d7T6xiWBXa7w/edit",
+    "folder": "Hacking Practical",
+    "filename": "Cross-Site Scripting",
+    "status": "skipped"
+  },
+  {
+    "category": "Hacking Practical",
+    "title": "Reflected Cross-Site Scripting",
+    "url": "https://www.canva.com/design/DAGbmLWvGuw/Y4XtYPq97Y_7fUpyIwd5rA/edit",
+    "folder": "Hacking Practical",
+    "filename": "Reflected Cross-Site Scripting",
+    "status": "skipped"
+  },
+  {
+    "category": "Hacking Practical",
+    "title": "Command Injection",
+    "url": "https://www.canva.com/design/DAGccXnslh4/WVJgVGk3EiNh7XgswS4f-Q/edit",
+    "folder": "Hacking Practical",
+    "filename": "Command Injection",
+    "status": "skipped"
+  },
+  {
+    "category": "Hacking Practical",
+    "title": "File Uploads - PortSwigger Walkthrough",
+    "url": "https://www.canva.com/design/DAGc6Wk0IQA/1Z4S9vR1FstZMar07zKJdQ/edit",
+    "folder": "Hacking Practical",
+    "filename": "File Uploads - PortSwigger Walkthrough",
+    "status": "skipped"
+  },
+  {
+    "category": "Hacking Practical",
+    "title": "File Upload Vulnerabilities",
+    "url": "https://www.canva.com/design/DAGdAFv_eJ0/w2KdCWsPhnFnxN5g98RlSA/edit",
+    "folder": "Hacking Practical",
+    "filename": "File Upload Vulnerabilities",
+    "status": "skipped"
+  },
+  {
+    "category": "Hacking Practical",
+    "title": "Path Traversal",
+    "url": "https://www.canva.com/design/DAGdMf3b1eU/3lghBaTIhWbF3vGUf6A2ig/edit",
+    "folder": "Hacking Practical",
+    "filename": "Path Traversal",
+    "status": "skipped"
+  },
+  {
+    "category": "Hacking Practical",
+    "title": "Stored Cross-Site Scripting Lab",
+    "url": "https://www.canva.com/design/DAGdXhUflhs/ea5eZghPIkslLTR4jgMxQA/edit",
+    "folder": "Hacking Practical",
+    "filename": "Stored Cross-Site Scripting Lab",
+    "status": "skipped"
+  },
+  {
+    "category": "Hacking Practical",
+    "title": "Business Logic Vulnerabilities in Web Applications",
+    "url": "https://www.canva.com/design/DAGddFZNB6Y/rWtT6sFxfFlRvI3JOlKG4Q/edit",
+    "folder": "Hacking Practical",
+    "filename": "Business Logic Vulnerabilities in Web Applications",
+    "status": "skipped"
+  },
+  {
+    "category": "Hacking Practical",
+    "title": "Business Logic Vulnerabilities Lab Walkthrough",
+    "url": "https://www.canva.com/design/DAGdqf0IKd4/wA9C6ROzrqep8dHAJMYY6w/edit",
+    "folder": "Hacking Practical",
+    "filename": "Business Logic Vulnerabilities Lab Walkthrough",
+    "status": "skipped"
+  },
+  {
+    "category": "Corporate Network",
+    "title": "Corporate Network",
+    "url": "https://www.canva.com/design/DAGY-vYY6OY/83D7X3faB03x4wtOAzqthw/edit",
+    "folder": "Corporate Network",
+    "filename": "Corporate Network",
+    "status": "skipped"
+  },
+  {
+    "category": "Corporate Network",
+    "title": "Virtual Desktop Infrastructure",
+    "url": "https://www.canva.com/design/DAGZLJqOH8I/L4R9F9a4-vW9sMCXPF7Fzg/edit",
+    "folder": "Corporate Network",
+    "filename": "Virtual Desktop Infrastructure",
+    "status": "skipped"
+  },
+  {
+    "category": "Corporate Network",
+    "title": "Active Directory",
+    "url": "https://www.canva.com/design/DAGZciU86d0/E_IYABuUZQDmalqloRLvfg/edit",
+    "folder": "Corporate Network",
+    "filename": "Active Directory",
+    "status": "skipped"
+  },
+  {
+    "category": "Corporate Network",
+    "title": "Zero Trust Architecture",
+    "url": "https://www.canva.com/design/DAGZh0cmBfY/0I-Yw_wLup3xlXI7FvBPkg/edit",
+    "folder": "Corporate Network",
+    "filename": "Zero Trust Architecture",
+    "status": "skipped"
+  },
+  {
+    "category": "Footprinting & Reconnaissance",
+    "title": "Active_recon",
+    "url": "https://www.canva.com/design/DAGiEStriX8/IeF3FClGG9-G_A0Ell09Og/edit",
+    "folder": "Footprinting & Reconnaisance",
+    "filename": "Active_recon",
+    "status": "skipped"
+  },
+  {
+    "category": "Footprinting & Reconnaissance",
+    "title": "Passive_recon",
+    "url": "https://www.canva.com/design/DAGiEejlEFM/5JLAiVJOdydEZHG-A-k2yQ/edit",
+    "folder": "Footprinting & Reconnaisance",
+    "filename": "Passive_recon",
+    "status": "skipped"
+  },
+  {
+    "category": "Common Web Attacks / SSRF",
+    "title": "Ssrf Labs",
+    "url": "https://www.canva.com/design/DAGnVrL7gq4/OasFa-Rbg8Ctpt1CPWGnOA/edit",
+    "folder": "SSRF",
+    "filename": "Ssrf Labs",
+    "status": "skipped"
+  },
+  {
+    "category": "Common Web Attacks",
+    "title": "SSTI",
+    "url": "https://www.canva.com/design/DAGi0CPxIE8/_43vy4u69W9iIh1GPmyQjQ/edit",
+    "folder": "Common Web Attacks",
+    "filename": "SSTI",
+    "status": "skipped"
+  },
+  {
+    "category": "Common Web Attacks",
+    "title": "SSTI_LAB",
+    "url": "https://www.canva.com/design/DAGi0GuLu8g/HmMseUG_VjAuQUhkcme1IA/edit",
+    "folder": "Common Web Attacks",
+    "filename": "SSTI_LAB",
+    "status": "skipped"
+  },
+  {
+    "category": "Corporate Network",
+    "title": "DMZ",
+    "url": "https://www.canva.com/design/DAGliXC28Vs/PL3gTaEwoB-4gSsqkyYAiQ/edit",
+    "folder": "Corporate Network",
+    "filename": "DMZ",
+    "status": "failed",
+    "error": "locator.waitFor: Timeout 40000ms exceeded."
+  },
+  {
+    "category": "Corporate Network",
+    "title": "VPN",
+    "url": "https://www.canva.com/design/DAGliQphfjw/iRCjxEnirXDdc06gCrvqzA/edit",
+    "folder": "Corporate Network",
+    "filename": "VPN",
+    "status": "failed",
+    "error": "locator.waitFor: Timeout 40000ms exceeded."
+  },
+  {
+    "category": "Corporate Network",
+    "title": "VLAN",
+    "url": "https://www.canva.com/design/DAGliZNA9EI/5y2MU-Ed080PY7w66NHL1g/edit",
+    "folder": "Corporate Network",
+    "filename": "VLAN",
+    "status": "failed",
+    "error": "locator.waitFor: Timeout 40000ms exceeded."
+  },
+  {
+    "category": "Operating System Basics - Linux",
+    "title": "Linux",
+    "url": "https://www.canva.com/design/DAGjcY1Cz6w/9FcCZMDy1axHopi9uxYsDA/edit",
+    "folder": "Operating System Basics-Linux",
+    "filename": "Linux",
+    "status": "failed",
+    "error": "locator.waitFor: Timeout 40000ms exceeded."
+  },
+  {
+    "category": "Operating System Basics - Linux",
+    "title": "The Linux file system",
+    "url": "https://www.canva.com/design/DAGjcnAOF48/1xME2G9epkUhXTyv9imG9w/edit",
+    "folder": "Operating System Basics-Linux",
+    "filename": "The Linux file system",
+    "status": "failed",
+    "error": "locator.waitFor: Timeout 40000ms exceeded."
+  },
+  {
+    "category": "Operating System Basics - Linux",
+    "title": "File Permissions",
+    "url": "https://www.canva.com/design/DAGjcU-4oAY/NkF3rF1SgLc4Q6jgoRSumA/edit",
+    "folder": "Operating System Basics-Linux",
+    "filename": "File Permissions",
+    "status": "failed",
+    "error": "locator.waitFor: Timeout 40000ms exceeded."
+  },
+  {
+    "category": "Operating System Basics - Linux",
+    "title": "Input/Output redirection",
+    "url": "https://www.canva.com/design/DAGjcZq_Ojs/f4yyYclpHjzE9DZsrnjamQ/edit",
+    "folder": "Operating System Basics-Linux",
+    "filename": "Input-Output redirection",
+    "status": "failed",
+    "error": "locator.waitFor: Timeout 40000ms exceeded."
+  }
+]

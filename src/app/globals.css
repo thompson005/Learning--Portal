@@ -1,0 +1,143 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Technieum OS — warm paper working surface, near-black chrome, ember-orange accent */
+    --background: 36 25% 96%;
+    --foreground: 20 12% 9%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 20 12% 9%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 20 12% 9%;
+
+    --primary: 24 78% 54%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 36 20% 93%;
+    --secondary-foreground: 20 12% 9%;
+
+    --muted: 36 20% 93%;
+    --muted-foreground: 25 8% 42%;
+
+    --accent: 30 55% 93%;
+    --accent-foreground: 20 12% 9%;
+
+    --destructive: 8 62% 40%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 30 15% 87%;
+    --input: 30 15% 87%;
+    --ring: 24 78% 54%;
+
+    --radius: 0.65rem;
+  }
+
+  .dark {
+    --background: 20 10% 7%;
+    --foreground: 36 25% 93%;
+
+    --card: 20 9% 10%;
+    --card-foreground: 36 25% 93%;
+
+    --popover: 20 9% 10%;
+    --popover-foreground: 36 25% 93%;
+
+    --primary: 28 85% 60%;
+    --primary-foreground: 20 10% 7%;
+
+    --secondary: 20 8% 15%;
+    --secondary-foreground: 36 25% 93%;
+
+    --muted: 20 8% 15%;
+    --muted-foreground: 30 10% 62%;
+
+    --accent: 24 35% 16%;
+    --accent-foreground: 36 25% 93%;
+
+    --destructive: 8 70% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 20 8% 19%;
+    --input: 20 8% 19%;
+    --ring: 28 85% 60%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Subtle dot-grid backdrop for hero/dashboard sections */
+.bg-dot-grid {
+  background-image: radial-gradient(circle, hsl(var(--muted-foreground) / 0.25) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+/* Terminal-style code block scrollbar */
+.code-scroll::-webkit-scrollbar {
+  height: 6px;
+  width: 6px;
+}
+.code-scroll::-webkit-scrollbar-thumb {
+  background: #1ABC9C55;
+  border-radius: 999px;
+}
+
+/* Hero banner: layered brand gradient + faint glow, used on Dashboard/Admin login */
+.hero-gradient {
+  background:
+    radial-gradient(circle at 15% 20%, rgba(26, 188, 156, 0.25), transparent 45%),
+    radial-gradient(circle at 85% 0%, rgba(142, 68, 173, 0.18), transparent 40%),
+    linear-gradient(135deg, #0d1b2a 0%, #123249 55%, #1b4f72 100%);
+}
+
+/* Gradient text accent for section headers / emphasis (bright, legible on dark hero backgrounds) */
+.text-gradient-brand {
+  background: linear-gradient(90deg, #1abc9c, #5fe3c9);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Left accent bar used on cards to signal category/month/difficulty color at a glance */
+.accent-bar {
+  position: relative;
+}
+.accent-bar::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  border-radius: 4px 0 0 4px;
+  background: var(--accent-bar-color, #1abc9c);
+}
+
+/* Soft glow ring for the currently-active/highlighted item (current week, current module, etc.) */
+.glow-teal {
+  box-shadow: 0 0 0 1px rgba(26, 188, 156, 0.4), 0 0 24px -4px rgba(26, 188, 156, 0.35);
+}
+
+/* Ember gradient — the one signature accent, reserved for the logo, big numerals, and progress rings */
+.text-gradient-ember {
+  background: linear-gradient(135deg, #f2a93b 0%, #e8792a 45%, #8e44ad 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.bg-gradient-ember {
+  background: linear-gradient(135deg, #f2a93b 0%, #e8792a 45%, #8e44ad 100%);
+}
+.stroke-gradient-ember {
+  stroke: url(#ember-gradient-stroke);
+}

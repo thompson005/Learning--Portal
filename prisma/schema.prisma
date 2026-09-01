@@ -1,0 +1,57 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model AdminUser {
+  id           String    @id @default(cuid())
+  username     String    @unique
+  passwordHash String
+  createdAt    DateTime  @default(now())
+  sessions     Session[]
+}
+
+model Session {
+  id          String    @id @default(cuid())
+  adminUser   AdminUser @relation(fields: [adminUserId], references: [id], onDelete: Cascade)
+  adminUserId String
+  expiresAt   DateTime
+  createdAt   DateTime  @default(now())
+}
+
+model Trainee {
+  id           String                @id @default(cuid())
+  name         String
+  createdAt    DateTime              @default(now())
+  moduleStatus TraineeModuleStatus[]
+}
+
+model TraineeModuleStatus {
+  id        String   @id @default(cuid())
+  trainee   Trainee  @relation(fields: [traineeId], references: [id], onDelete: Cascade)
+  traineeId String
+  moduleId  String
+  status    Int      @default(0) // 0 = not started, 1 = in progress, 2 = completed
+  updatedAt DateTime @updatedAt
+
+  @@unique([traineeId, moduleId])
+}
+
+model LabRun {
+  id            String    @id @default(cuid())
+  labId         String
+  containerName String
+  containerId   String?
+  port          Int?
+  status        String    @default("running") // running | stopped | failed
+  errorMessage  String?
+  startedAt     DateTime  @default(now())
+  stoppedAt     DateTime?
+}
