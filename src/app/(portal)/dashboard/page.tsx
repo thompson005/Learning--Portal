@@ -7,7 +7,8 @@ import {
   CheckCircle2,
   FlaskConical,
   BookOpen,
-  CalendarDays,
+  Layers,
+  Target,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -94,11 +95,15 @@ export default function DashboardPage() {
         const done = topics.filter((t) => completedTopicIds.has(t.id)).length
         return {
           label: p.label,
+          done,
+          total: topics.length,
           percent: topics.length ? Math.round((done / topics.length) * 100) : 0,
         }
       }),
     [completedTopicIds],
   )
+
+  const phasesComplete = PHASES.filter((p) => p.percent === 100).length
 
   const nextModule = nextTopic
     ? CURRICULUM.find((m) => m.id === nextTopic.moduleId)
@@ -112,240 +117,237 @@ export default function DashboardPage() {
   }, [nextTopic])
 
   return (
-    <div className="space-y-6">
-      {/* Hero */}
-      <div className="flex flex-col gap-6 rounded-xl border border-border bg-card p-6 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">
-            {today}
-          </p>
-          <h1 className="mt-2 font-display text-4xl font-semibold tracking-tight text-foreground md:text-5xl">
-            Welcome back{name ? `, ${name.split(" ")[0]}.` : "."}
-          </h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Keep building. One topic at a time.
-          </p>
+    <div className="space-y-5">
+      {/* Command hero */}
+      <section className="hero-gradient relative overflow-hidden p-6 md:p-8">
+        <div className="bg-dot-grid pointer-events-none absolute inset-0 opacity-40" />
+        <div className="relative flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
+          <div className="min-w-0">
+            <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+              {today || " "}
+            </p>
+            <h1 className="mt-3 font-display text-4xl font-semibold leading-[1.05] tracking-tight text-foreground md:text-6xl">
+              {name ? `Welcome back, ${name.split(" ")[0]}` : "Welcome back"}
+            </h1>
+            <p className="mt-3 max-w-md text-sm text-muted-foreground">
+              {nextTopic
+                ? "Pick up where you left off — your next operation is ready."
+                : "You've cleared the board. Revisit a lab or sharpen a skill."}
+            </p>
+            {nextTopic && nextModule && (
+              <Button asChild size="lg" className="mt-6">
+                <Link href={`/modules/${nextModule.id}`}>
+                  Resume {nextModule.shortName} <ArrowRight className="h-4 w-4" />
+                </Link>
+              </Button>
+            )}
+          </div>
+
+          <div className="flex shrink-0 items-center justify-center lg:pr-2">
+            <ProgressRing
+              value={overall.percentComplete}
+              size={168}
+              strokeWidth={12}
+              label="Programme"
+              gradient
+            />
+          </div>
         </div>
-        <div className="flex items-center gap-3 lg:shrink-0">
-          <div className="text-right">
-            <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">
-              Complete
+      </section>
+
+      {/* Stat strip */}
+      <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <StatTile
+          icon={<BookOpen className="h-4 w-4" />}
+          value={overall.topicsCompleted}
+          total={overall.topicsTotal}
+          label="Topics cleared"
+        />
+        <StatTile
+          icon={<FlaskConical className="h-4 w-4" />}
+          value={overall.labsCompleted}
+          total={overall.labsTotal}
+          label="Labs solved"
+        />
+        <StatTile
+          icon={<Layers className="h-4 w-4" />}
+          value={phasesComplete}
+          total={PHASES.length}
+          label="Phases complete"
+        />
+        <div className="bg-card shadow-tile p-4">
+          <RankBadge />
+        </div>
+      </section>
+
+      {/* Continue + Up next */}
+      <section className="grid grid-cols-1 gap-4 lg:grid-cols-5">
+        <div className="accent-bar bg-card shadow-raised p-6 lg:col-span-3">
+          <div className="flex items-center gap-2 text-brand-orange">
+            <Target className="h-4 w-4" />
+            <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.18em]">
+              Continue learning
             </p>
           </div>
-          <div className="flex items-baseline gap-1.5">
-            <span className="font-display text-gradient-ember text-7xl font-bold leading-none md:text-8xl">
-              {overall.percentComplete}
-            </span>
-            <span className="font-mono text-lg text-muted-foreground">%</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Phase progress — self-paced, no schedule */}
-      <div className="rounded-xl border border-border bg-card p-5">
-        <p className="mb-4 font-mono text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-          Your Path — Go at Your Own Pace
-        </p>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {PHASES.map((phase, i) => (
-            <div
-              key={phase.label}
-              className="rounded-lg border border-border bg-muted/20 p-3"
-            >
-              <p className="font-mono text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-                Phase {i + 1}
-              </p>
-              <p className="mt-0.5 text-sm font-semibold text-foreground">
-                {phase.label}
-              </p>
-              <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted">
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-brand-orange to-brand-purple transition-all duration-500"
-                  style={{ width: `${phase.percent}%` }}
-                />
-              </div>
-              <p className="mt-1 font-mono text-[10px] text-muted-foreground">
-                {phase.percent}% complete
-              </p>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        {/* Continue learning */}
-        <div className="rounded-xl border border-border bg-card p-6">
-          <p className="font-mono text-xs font-semibold uppercase tracking-widest text-brand-orange">
-            Continue Learning
-          </p>
           {nextTopic && nextModule ? (
             <>
-              <p className="mt-3 font-mono text-xs text-muted-foreground">
-                {nextModule.shortName} · Topic {nextTopic.number}
-              </p>
-              <h2 className="mt-1 font-display text-2xl font-semibold text-foreground">
+              <h2 className="mt-4 font-display text-3xl font-semibold leading-tight text-foreground">
                 {nextTopic.title}
               </h2>
-              <p className="mt-2 text-sm text-muted-foreground">
+              <p className="mt-2 font-mono text-xs text-muted-foreground">
+                {nextModule.shortName} / Topic {nextTopic.number}
+              </p>
+              <p className="mt-3 max-w-prose text-sm leading-relaxed text-muted-foreground">
                 {nextTopic.description}
               </p>
-              <Button
-                asChild
-                variant="teal"
-                className="mt-4 bg-brand-ink text-white hover:bg-brand-ink/90"
-              >
+              <Button asChild className="mt-5">
                 <Link href={`/modules/${nextModule.id}`}>
-                  Continue Topic <ArrowRight className="h-4 w-4" />
+                  Open topic <ArrowRight className="h-4 w-4" />
                 </Link>
               </Button>
             </>
           ) : mounted ? (
-            <p className="mt-3 text-sm text-muted-foreground">
+            <p className="mt-4 text-sm text-muted-foreground">
               You&apos;ve worked through every topic. Nice.
             </p>
           ) : null}
         </div>
 
-        {/* Progress overview */}
-        <div className="rounded-xl border border-border bg-card p-6">
-          <p className="font-mono text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-            Progress Overview
-          </p>
-          <div className="mt-3 flex flex-wrap items-center gap-6">
-            <ProgressRing
-              value={overall.percentComplete}
-              size={128}
-              strokeWidth={10}
-              label="Programme Complete"
-              gradient
-            />
-            <div className="flex-1 space-y-3 text-sm">
-              <div className="flex items-center gap-2.5">
-                <BookOpen className="h-4 w-4 shrink-0 text-brand-orange" />
-                <span className="font-semibold">
-                  {overall.topicsCompleted}{" "}
-                  <span className="text-muted-foreground">
-                    / {overall.topicsTotal}
-                  </span>
-                </span>
-                <span className="text-xs text-muted-foreground">
-                  Topics Completed
-                </span>
-              </div>
-              <div className="flex items-center gap-2.5">
-                <FlaskConical className="h-4 w-4 shrink-0 text-brand-purple" />
-                <span className="font-semibold">
-                  {overall.labsCompleted}{" "}
-                  <span className="text-muted-foreground">
-                    / {overall.labsTotal}
-                  </span>
-                </span>
-                <span className="text-xs text-muted-foreground">
-                  Labs Completed
-                </span>
-              </div>
-              <div className="flex items-center gap-2.5">
-                <CalendarDays className="h-4 w-4 shrink-0 text-brand-blue" />
-                <span className="font-semibold">
-                  {PHASES.filter((p) => p.percent === 100).length}{" "}
-                  <span className="text-muted-foreground">
-                    / {PHASES.length}
-                  </span>
-                </span>
-                <span className="text-xs text-muted-foreground">
-                  Phases Complete
-                </span>
-              </div>
-            </div>
-          </div>
-          <div className="mt-4">
-            <RankBadge />
-          </div>
-          <Link
-            href="/progress"
-            className="mt-4 flex items-center gap-1 text-sm font-medium text-brand-orange hover:underline"
-          >
-            View full progress <ArrowRight className="h-3.5 w-3.5" />
-          </Link>
-        </div>
-      </div>
-
-      <AchievementsPanel />
-
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        {/* Recent activity */}
-        <div className="rounded-xl border border-border bg-card p-6">
-          <p className="font-mono text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-            Recent Activity
-          </p>
-          <div className="mt-3 divide-y divide-border">
-            {recent.length > 0 ? (
-              recent.map((item) => (
-                <div key={item.id} className="flex items-center gap-3 py-2.5">
-                  {item.kind === "topic" ? (
-                    <CheckCircle2 className="h-4 w-4 shrink-0 text-brand-green" />
-                  ) : (
-                    <FlaskConical className="h-4 w-4 shrink-0 text-brand-orange" />
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">{item.title}</p>
-                    <p className="font-mono text-[11px] text-muted-foreground">
-                      {item.moduleId.toUpperCase()} ·{" "}
-                      {item.kind === "topic" ? "Topic" : "Lab"}
-                    </p>
-                  </div>
-                  <span className="shrink-0 text-xs text-muted-foreground">
-                    {new Date(item.date).toLocaleDateString(undefined, {
-                      month: "short",
-                      day: "numeric",
-                    })}
-                  </span>
-                </div>
-              ))
-            ) : (
-              <p className="py-2.5 text-sm text-muted-foreground">
-                No activity yet — start your first topic to see it here.
-              </p>
-            )}
-          </div>
-          <Link
-            href="/progress"
-            className="mt-3 flex items-center gap-1 text-sm font-medium text-brand-orange hover:underline"
-          >
-            View all activity <ArrowRight className="h-3.5 w-3.5" />
-          </Link>
-        </div>
-
-        {/* Up next */}
-        <div className="rounded-xl border border-border bg-card p-6">
-          <p className="font-mono text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-            Up Next
+        <div className="bg-card shadow-tile p-6 lg:col-span-2">
+          <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+            Up next
           </p>
           {upNextTopic ? (
             <>
-              <h3 className="mt-3 font-display text-xl font-semibold text-foreground">
+              <h3 className="mt-4 font-display text-xl font-semibold leading-tight text-foreground">
                 {upNextTopic.title}
               </h3>
-              <p className="mt-1 font-mono text-xs text-muted-foreground">
-                {nextModule?.shortName} · Topic {upNextTopic.number}
+              <p className="mt-2 font-mono text-xs text-muted-foreground">
+                {nextModule?.shortName} / Topic {upNextTopic.number}
               </p>
-              <p className="mt-2 text-sm text-muted-foreground">
+              <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
                 {upNextTopic.description}
               </p>
-              <Button asChild variant="outline" className="mt-4">
-                <Link href={`/modules/${nextModule?.id}`}>
-                  Preview Topic <ArrowRight className="h-4 w-4" />
-                </Link>
+              <Button asChild variant="outline" className="mt-5">
+                <Link href={`/modules/${nextModule?.id}`}>Preview</Link>
               </Button>
             </>
           ) : (
-            <p className="mt-3 text-sm text-muted-foreground">
-              You&apos;ve worked through every topic. Explore the labs or
-              revisit anything you like.
+            <p className="mt-4 text-sm text-muted-foreground">
+              Nothing queued — explore the labs or revisit anything you like.
             </p>
           )}
         </div>
+      </section>
+
+      {/* Your path */}
+      <section className="bg-card shadow-tile p-6">
+        <div className="flex items-baseline justify-between">
+          <h2 className="font-display text-lg font-semibold text-foreground">
+            Your path
+          </h2>
+          <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+            Self-paced
+          </span>
+        </div>
+        <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          {PHASES.map((phase, i) => (
+            <div key={phase.label}>
+              <div className="flex items-baseline justify-between gap-2">
+                <p className="font-mono text-[11px] text-brand-orange">
+                  0{i + 1}
+                </p>
+                <p className="font-mono text-[11px] text-muted-foreground">
+                  {phase.done}/{phase.total}
+                </p>
+              </div>
+              <p className="mt-1 text-sm font-semibold text-foreground">
+                {phase.label}
+              </p>
+              <div className="shadow-inner mt-2.5 h-2 w-full overflow-hidden bg-muted">
+                <div
+                  className="bg-gradient-ember h-full transition-all duration-700"
+                  style={{ width: `${phase.percent}%` }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <AchievementsPanel />
+
+      {/* Recent activity */}
+      <section className="bg-card shadow-tile p-6">
+        <div className="flex items-baseline justify-between">
+          <h2 className="font-display text-lg font-semibold text-foreground">
+            Recent activity
+          </h2>
+          <Link
+            href="/progress"
+            className="flex items-center gap-1 text-sm font-medium text-brand-orange hover:underline"
+          >
+            Full progress <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
+        </div>
+        <div className="mt-3 divide-y divide-border">
+          {recent.length > 0 ? (
+            recent.map((item) => (
+              <div key={item.id} className="flex items-center gap-3 py-3">
+                {item.kind === "topic" ? (
+                  <CheckCircle2 className="h-4 w-4 shrink-0 text-brand-green" />
+                ) : (
+                  <FlaskConical className="h-4 w-4 shrink-0 text-brand-orange" />
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium">{item.title}</p>
+                  <p className="font-mono text-[11px] text-muted-foreground">
+                    {item.moduleId.toUpperCase()} /{" "}
+                    {item.kind === "topic" ? "Topic" : "Lab"}
+                  </p>
+                </div>
+                <span className="shrink-0 font-mono text-[11px] text-muted-foreground">
+                  {new Date(item.date).toLocaleDateString(undefined, {
+                    month: "short",
+                    day: "numeric",
+                  })}
+                </span>
+              </div>
+            ))
+          ) : (
+            <p className="py-3 text-sm text-muted-foreground">
+              No activity yet — start your first topic to see it here.
+            </p>
+          )}
+        </div>
+      </section>
+    </div>
+  )
+}
+
+function StatTile({
+  icon,
+  value,
+  total,
+  label,
+}: {
+  icon: React.ReactNode
+  value: number
+  total: number
+  label: string
+}) {
+  return (
+    <div className="bg-card shadow-tile p-4">
+      <div className="flex items-center justify-between">
+        <span className="text-brand-orange">{icon}</span>
+        <span className="font-mono text-[11px] text-muted-foreground">
+          /{total}
+        </span>
       </div>
+      <p className="mt-3 font-mono text-4xl font-semibold leading-none text-foreground">
+        {value}
+      </p>
+      <p className="mt-1.5 text-xs text-muted-foreground">{label}</p>
     </div>
   )
 }
