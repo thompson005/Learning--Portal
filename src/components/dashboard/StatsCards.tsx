@@ -30,9 +30,9 @@ export function StatsCards({
       label: "Labs Completed",
       value: `${labsCompleted}/${labsTotal}`,
       icon: FlaskConical,
-      color: "text-brand-purple",
-      bg: "bg-brand-purple/10",
-      border: "border-t-brand-purple",
+      color: "text-brand-orange",
+      bg: "bg-brand-orange/10",
+      border: "border-t-brand-orange",
     },
     {
       label: "Current Week",

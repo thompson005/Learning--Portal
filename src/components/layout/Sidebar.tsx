@@ -40,6 +40,52 @@ function formatModuleCode(moduleId: string) {
   return m ? `M${m[1].padStart(2, "0")}` : moduleId.toUpperCase()
 }
 
+/** Sharp UI nav keycap — sharp-ui/Navigation.dc.html.
+ *
+ * The sidebar is the one place that deliberately breaks the square-corner
+ * rule: each item is a mechanical keycap with its own component language.
+ * The base, cap, press and accent-lit current state all live in `.keycap`
+ * (globals.css); this only supplies layout and the collapsed-rail variant. */
+function NavKey({
+  href,
+  label,
+  icon: Icon,
+  active,
+  collapsed,
+  badge,
+  onNavigate,
+}: {
+  href: string
+  label: string
+  icon: React.ComponentType<{ className?: string }>
+  active: boolean
+  collapsed: boolean
+  badge?: number
+  onNavigate?: () => void
+}) {
+  return (
+    <Link
+      href={href}
+      onClick={onNavigate}
+      title={collapsed ? label : undefined}
+      aria-current={active ? "page" : undefined}
+      className={cn(
+        "keycap flex w-full items-center gap-[.55rem] font-nav text-[.92rem] font-medium tracking-[-.03em] no-underline",
+        collapsed ? "justify-center px-[.35rem] py-[.62rem]" : "px-[.85rem] py-[.7rem]",
+        active ? "keycap-active font-semibold" : "text-muted-foreground hover:text-foreground",
+      )}
+    >
+      <span className="inline-flex shrink-0 items-center justify-center opacity-[.85]">
+        <Icon className={collapsed ? "h-5 w-5" : "h-[18px] w-[18px]"} />
+      </span>
+      {!collapsed && <span className="flex-1">{label}</span>}
+      {!collapsed && !!badge && (
+        <span className="rounded-full px-1.5 py-0.5 font-mono text-[10px] shadow-chip">{badge}</span>
+      )}
+    </Link>
+  )
+}
+
 export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname()
   const { user, logout } = useAuth()
@@ -68,45 +114,35 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <aside
       className={cn(
-        "flex h-full flex-col bg-brand-ink text-white transition-all duration-300",
+        // Sidebar resolves to the page colour like every other surface — it is
+        // separated by edge, not fill. Collapsed rail is 76px per the pack.
+        "flex h-full flex-col bg-background text-foreground shadow-raised transition-all duration-300",
         collapsed ? "w-[76px]" : "w-64"
       )}
     >
-      <div className="flex items-center gap-2.5 border-b border-white/10 px-4 py-5">
-        {collapsed ? <LogoMark /> : <Logo wordmarkClassName="text-white" />}
+      <div className="flex items-center gap-2.5 border-b border-border px-4 py-5">
+        {collapsed ? <LogoMark /> : <Logo />}
       </div>
 
-      <nav className="flex-1 space-y-6 overflow-y-auto px-2 py-4">
+      <nav className="flex-1 space-y-6 overflow-y-auto px-3 py-4">
         <div>
-          {!collapsed && (
-            <p className="px-2 pb-1.5 text-[10px] font-semibold uppercase tracking-widest text-white/35">Main</p>
-          )}
-          <ul className="space-y-0.5">
+          {!collapsed && <p className="sharp-section-title px-1 pb-2">Main</p>}
+          <ul className="space-y-1.5">
             {MAIN_NAV.map((item) => {
               const active = pathname === item.href || pathname.startsWith(item.href + "/")
-              const Icon = item.icon
-              const badge = item.badge === "count-modules" ? totalTopics : item.badge === "count-labs" ? totalLabs : undefined
+              const badge =
+                item.badge === "count-modules" ? totalTopics : item.badge === "count-labs" ? totalLabs : undefined
               return (
                 <li key={item.href}>
-                  <Link
+                  <NavKey
                     href={item.href}
-                    onClick={onNavigate}
-                    className={cn(
-                      "flex items-center gap-3 rounded-md border-l-2 px-2.5 py-2 text-sm font-medium transition-colors",
-                      active
-                        ? "border-brand-orange bg-brand-orange/10 text-brand-orange"
-                        : "border-transparent text-white/65 hover:bg-white/5 hover:text-white"
-                    )}
-                    title={collapsed ? item.label : undefined}
-                  >
-                    <Icon className="h-4 w-4 shrink-0" />
-                    {!collapsed && <span className="flex-1">{item.label}</span>}
-                    {!collapsed && !!badge && (
-                      <span className="rounded-md bg-white/10 px-1.5 py-0.5 font-mono text-[10px] text-white/55">
-                        {badge}
-                      </span>
-                    )}
-                  </Link>
+                    label={item.label}
+                    icon={item.icon}
+                    active={active}
+                    collapsed={collapsed}
+                    badge={badge}
+                    onNavigate={onNavigate}
+                  />
                 </li>
               )
             })}
@@ -114,29 +150,20 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         </div>
 
         <div>
-          {!collapsed && (
-            <p className="px-2 pb-1.5 text-[10px] font-semibold uppercase tracking-widest text-white/35">Reference</p>
-          )}
-          <ul className="space-y-0.5">
+          {!collapsed && <p className="sharp-section-title px-1 pb-2">Reference</p>}
+          <ul className="space-y-1.5">
             {REFERENCE_NAV.map((item) => {
               const active = pathname === item.href || pathname.startsWith(item.href + "/")
-              const Icon = item.icon
               return (
                 <li key={item.href}>
-                  <Link
+                  <NavKey
                     href={item.href}
-                    onClick={onNavigate}
-                    className={cn(
-                      "flex items-center gap-3 rounded-md border-l-2 px-2.5 py-2 text-sm font-medium transition-colors",
-                      active
-                        ? "border-brand-orange bg-brand-orange/10 text-brand-orange"
-                        : "border-transparent text-white/65 hover:bg-white/5 hover:text-white"
-                    )}
-                    title={collapsed ? item.label : undefined}
-                  >
-                    <Icon className="h-4 w-4 shrink-0" />
-                    {!collapsed && <span>{item.label}</span>}
-                  </Link>
+                    label={item.label}
+                    icon={item.icon}
+                    active={active}
+                    collapsed={collapsed}
+                    onNavigate={onNavigate}
+                  />
                 </li>
               )
             })}
@@ -144,55 +171,48 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         </div>
 
         <div>
-          {!collapsed && (
-            <p className="px-2 pb-1.5 text-[10px] font-semibold uppercase tracking-widest text-white/35">System</p>
-          )}
-          <ul className="space-y-0.5">
+          {!collapsed && <p className="sharp-section-title px-1 pb-2">System</p>}
+          <ul className="space-y-1.5">
             <li>
-              <Link
+              <NavKey
                 href="/admin"
-                onClick={onNavigate}
-                className="flex items-center gap-3 rounded-md px-2.5 py-2 text-sm font-medium text-white/65 transition-colors hover:bg-white/5 hover:text-white"
-                title={collapsed ? "Admin" : undefined}
-              >
-                <UserCog className="h-4 w-4 shrink-0" />
-                {!collapsed && <span>Admin</span>}
-              </Link>
+                label="Admin"
+                icon={UserCog}
+                active={pathname.startsWith("/admin")}
+                collapsed={collapsed}
+                onNavigate={onNavigate}
+              />
             </li>
             <li>
-              <Link
+              <NavKey
                 href="/settings"
-                onClick={onNavigate}
-                className={cn(
-                  "flex items-center gap-3 rounded-md px-2.5 py-2 text-sm font-medium text-white/65 transition-colors hover:bg-white/5 hover:text-white",
-                  pathname === "/settings" && "bg-brand-orange/10 text-brand-orange"
-                )}
-                title={collapsed ? "Settings" : undefined}
-              >
-                <Settings className="h-4 w-4 shrink-0" />
-                {!collapsed && <span>Settings</span>}
-              </Link>
+                label="Settings"
+                icon={Settings}
+                active={pathname === "/settings"}
+                collapsed={collapsed}
+                onNavigate={onNavigate}
+              />
             </li>
           </ul>
         </div>
       </nav>
 
       {!collapsed && operation && (
-        <div className="border-t border-white/10 px-3 py-3">
-          <div className="rounded-lg border border-white/10 p-3">
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-white/35">Current Operation</p>
-            <p className="mt-1.5 font-mono text-sm font-bold text-white">{operation.code}</p>
-            <p className="truncate text-xs text-white/60">{operation.title}</p>
+        <div className="border-t border-border px-3 py-3">
+          <div className="p-3 shadow-tile">
+            <p className="sharp-section-title">Current Operation</p>
+            <p className="mt-1.5 font-mono text-sm font-bold text-foreground">{operation.code}</p>
+            <p className="truncate text-xs text-muted-foreground">{operation.title}</p>
             <div className="mt-2 flex items-center gap-2">
-              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/10">
-                <div className="h-full rounded-full bg-brand-orange" style={{ width: `${percent}%` }} />
+              <div className="h-1.5 flex-1 overflow-hidden shadow-well">
+                <div className="h-full bg-brand-orange" style={{ width: `${percent}%` }} />
               </div>
-              <span className="font-mono text-[10px] text-white/50">{percent}%</span>
+              <span className="font-mono text-[10px] text-muted-foreground">{percent}%</span>
             </div>
             <Link
               href={`/modules/${operation.moduleId}`}
               onClick={onNavigate}
-              className="mt-2 flex items-center gap-1 text-xs font-medium text-brand-orange hover:underline"
+              className="mt-2 flex items-center gap-1 text-xs font-medium text-brand-orange hover:text-brand-orange-strong"
             >
               Continue learning <ArrowRight className="h-3 w-3" />
             </Link>
@@ -201,44 +221,51 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       )}
 
       {user && (
-        <div className="border-t border-white/10 px-3 py-2.5">
+        <div className="border-t border-border px-3 py-2.5">
           <button
             onClick={logout}
             title="Sign out"
             className={cn(
-              "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-white/65 transition-colors hover:bg-white/5 hover:text-white",
+              "flex w-full items-center gap-2 px-2 py-1.5 text-left text-muted-foreground transition-colors hover:text-foreground",
               collapsed && "justify-center",
             )}
           >
-            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-orange/20 font-mono text-[11px] font-bold uppercase text-brand-orange">
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full font-mono text-[11px] font-bold uppercase text-brand-orange shadow-chip">
               {user.name.slice(0, 1)}
             </span>
             {!collapsed && (
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-xs font-medium">
+                <span className="block truncate text-xs font-medium text-foreground">
                   {user.name}
                 </span>
-                <span className="block truncate font-mono text-[10px] text-white/40">
+                <span className="block truncate font-mono text-[10px] text-muted-foreground">
                   {user.email}
                 </span>
               </span>
             )}
-            {!collapsed && <LogOut className="h-3.5 w-3.5 shrink-0 text-white/40" />}
+            {!collapsed && <LogOut className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />}
           </button>
         </div>
       )}
 
-      <div className="flex items-center justify-between border-t border-white/10 px-3 py-2.5">
+      <div className="flex items-center justify-between border-t border-border px-3 py-2.5">
+        {/* Outfit/IBM Plex Mono are wider than the faces this replaced, so the
+            status line no longer fits on one 10px row. flex-wrap plus
+            whitespace-nowrap lets it break BETWEEN the two labels rather than
+            mid-word, which is what made it read as clipped. */}
         {!collapsed && (
-          <div className="flex items-center gap-1.5 font-mono text-[10px] text-white/35">
-            <span>Technieum OS v2.0.1</span>
-            <span className="h-1.5 w-1.5 rounded-full bg-brand-green" />
-            <span>System Online</span>
+          <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 font-mono text-[10px] text-muted-foreground">
+            <span className="whitespace-nowrap">Technieum OS v2.0.1</span>
+            <span className="flex items-center gap-1.5 whitespace-nowrap">
+              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-brand-green" />
+              System Online
+            </span>
           </div>
         )}
         <button
           onClick={() => setCollapsed((c) => !c)}
-          className="hidden items-center justify-center rounded-md p-1.5 text-white/40 hover:bg-white/5 hover:text-white/80 md:flex"
+          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          className="hidden items-center justify-center p-1.5 text-muted-foreground hover:text-foreground md:flex"
         >
           {collapsed ? <ChevronsRight className="h-4 w-4" /> : <ChevronsLeft className="h-4 w-4" />}
         </button>

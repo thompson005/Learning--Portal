@@ -26,13 +26,13 @@ export function CodeBlock({ command, language }: { command: string; language?: s
   }
 
   return (
-    <div className="overflow-hidden rounded-lg border border-brand-teal/20 bg-[#0a1520]">
-      <div className="flex items-center justify-between border-b border-brand-teal/10 px-3 py-1.5">
-        <span className="font-mono text-[10px] uppercase tracking-wider text-brand-teal/70">{lang}</span>
+    <div className="overflow-hidden rounded-lg bg-background shadow-well">
+      <div className="flex items-center justify-between border-b border-border px-3 py-1.5">
+        <span className="font-mono text-[10px] uppercase tracking-wider text-brand-orange">{lang}</span>
         <button
           onClick={handleCopy}
           className={cn(
-            "flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] text-brand-teal/70 transition-colors hover:bg-brand-teal/10 hover:text-brand-teal"
+            "flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] text-muted-foreground transition-colors hover:text-foreground"
           )}
         >
           {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
@@ -40,7 +40,7 @@ export function CodeBlock({ command, language }: { command: string; language?: s
         </button>
       </div>
       <pre className="code-scroll overflow-x-auto px-3 py-2">
-        <code className="font-mono text-[13px] leading-relaxed text-brand-teal whitespace-pre">{command}</code>
+        <code className="font-mono text-[13px] leading-relaxed text-foreground whitespace-pre">{command}</code>
       </pre>
     </div>
   )

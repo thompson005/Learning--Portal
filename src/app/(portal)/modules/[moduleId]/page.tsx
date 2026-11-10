@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ProgressBar } from "@/components/shared/ProgressBar"
 import { TopicRow } from "@/components/modules/TopicRow"
+import { VideoEmbed, isEmbeddableVideo } from "@/components/shared/VideoEmbed"
 import { QuizModal } from "@/components/quiz/QuizModal"
 import { CURRICULUM } from "@/lib/data/curriculum"
 import {
@@ -52,6 +53,11 @@ export default function ModuleDetailPage({
 
   const moduleQuiz = mod ? getModuleQuiz(mod.id) : undefined
   const extraModuleResources = mod ? (RESOURCE_ADDITIONS[mod.id] ?? []) : []
+  const moduleResources = mod
+    ? dedupeResources(mod.resources, extraModuleResources)
+    : []
+  const moduleVideos = moduleResources.filter((r) => isEmbeddableVideo(r.url))
+  const moduleLinks = moduleResources.filter((r) => !isEmbeddableVideo(r.url))
 
   useEffect(() => {
     if (!mod) return
@@ -151,7 +157,7 @@ export default function ModuleDetailPage({
                   </div>
                   {mod.prerequisites && mod.prerequisites.length > 0 && (
                     <div className="flex items-center gap-2 text-sm">
-                      <Target className="h-4 w-4 text-brand-purple" />
+                      <Target className="h-4 w-4 text-brand-orange" />
                       <span>{mod.prerequisites.join(", ")}</span>
                     </div>
                   )}
@@ -171,13 +177,13 @@ export default function ModuleDetailPage({
             </Card>
 
             {moduleQuiz && (
-              <Card className="rounded-xl border-brand-purple/25 bg-brand-purple/[0.03]">
+              <Card className="rounded-xl border-brand-orange/25 bg-brand-orange/[0.03]">
                 <CardContent className="flex items-center gap-3 p-5">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-purple/15">
-                    <Award className="h-5 w-5 text-brand-purple" />
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-orange/15">
+                    <Award className="h-5 w-5 text-brand-orange" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold text-brand-purple">
+                    <p className="text-sm font-semibold text-brand-orange">
                       Module Quiz (
                       <span className="font-mono">
                         {moduleQuiz.questions.length}
@@ -192,7 +198,7 @@ export default function ModuleDetailPage({
                   </div>
                   <Button
                     variant="teal"
-                    className="bg-brand-purple hover:bg-brand-purple/90"
+                    className="bg-brand-orange hover:bg-brand-orange/90"
                     onClick={() => setQuizOpen(true)}
                   >
                     <HelpCircle className="h-4 w-4" />{" "}
@@ -209,39 +215,52 @@ export default function ModuleDetailPage({
             ))}
           </TabsContent>
 
-          <TabsContent value="resources">
+          <TabsContent value="resources" className="space-y-4">
+            {moduleVideos.length > 0 && (
+              <Card>
+                <CardContent className="space-y-3 p-5">
+                  <p className="font-mono text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                    Watch
+                  </p>
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    {moduleVideos.map((r) => (
+                      <VideoEmbed key={r.url} url={r.url} title={r.title} />
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
             <Card>
               <CardContent className="p-5">
-                {dedupeResources(mod.resources, extraModuleResources).length >
-                0 ? (
+                {moduleLinks.length > 0 ? (
                   <ul className="divide-y divide-border">
-                    {dedupeResources(mod.resources, extraModuleResources).map(
-                      (r) => (
-                        <li
-                          key={r.url}
-                          className="flex items-center gap-2 py-2.5 text-sm first:pt-0 last:pb-0"
+                    {moduleLinks.map((r) => (
+                      <li
+                        key={r.url}
+                        className="flex items-center gap-2 py-2.5 text-sm first:pt-0 last:pb-0"
+                      >
+                        <Badge
+                          variant="outline"
+                          className="rounded-md font-mono text-[10px] uppercase"
                         >
-                          <Badge
-                            variant="outline"
-                            className="rounded-md font-mono text-[10px] uppercase"
-                          >
-                            {r.type}
-                          </Badge>
-                          <a
-                            href={r.url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-flex items-center gap-1 text-brand-orange hover:underline"
-                          >
-                            {r.title} <ExternalLink className="h-3 w-3" />
-                          </a>
-                        </li>
-                      ),
-                    )}
+                          {r.type}
+                        </Badge>
+                        <a
+                          href={r.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 text-brand-orange hover:underline"
+                        >
+                          {r.title} <ExternalLink className="h-3 w-3" />
+                        </a>
+                      </li>
+                    ))}
                   </ul>
                 ) : (
                   <p className="text-sm text-muted-foreground">
-                    No curated resources for this module yet.
+                    {moduleVideos.length > 0
+                      ? "All curated resources for this module are videos — watch them above."
+                      : "No curated resources for this module yet."}
                   </p>
                 )}
               </CardContent>

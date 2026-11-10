@@ -1,15 +1,13 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { useTheme } from "next-themes"
 import { toast } from "sonner"
-import { Download, Moon, Sun, Upload } from "lucide-react"
+import { Download, Upload } from "lucide-react"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Switch } from "@/components/ui/switch"
 import {
   Dialog,
   DialogContent,
@@ -21,8 +19,6 @@ import {
 import { getProgress, updateProfile, exportProgress, importProgress, resetProgress } from "@/lib/store/progress"
 
 export default function SettingsPage() {
-  const { theme, setTheme } = useTheme()
-  const [mounted, setMounted] = useState(false)
   const [name, setName] = useState("")
   const [startDate, setStartDate] = useState("")
   const [resetOpen, setResetOpen] = useState(false)
@@ -30,7 +26,6 @@ export default function SettingsPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    setMounted(true)
     const progress = getProgress()
     setName(progress.name)
     setStartDate(progress.startDate ? progress.startDate.slice(0, 10) : "")
@@ -116,24 +111,6 @@ export default function SettingsPage() {
           <Button variant="default" onClick={handleSaveProfile}>
             Save Profile
           </Button>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Appearance</p>
-          <CardTitle className="text-base">Theme</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              {mounted && theme === "dark" ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
-              <span className="text-sm font-medium">Dark theme</span>
-            </div>
-            {mounted && (
-              <Switch checked={theme === "dark"} onCheckedChange={(checked) => setTheme(checked ? "dark" : "light")} />
-            )}
-          </div>
         </CardContent>
       </Card>
 

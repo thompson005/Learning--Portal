@@ -46,27 +46,82 @@ const config: Config = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
-        // Technieum brand palette
-        "brand-navy": "#0D1B2A",
-        "brand-blue": "#1B4F72",
-        "brand-teal": "#1ABC9C",
-        "brand-orange": "#E8792A",
-        "brand-green": "#27AE60",
-        "brand-red": "#C0392B",
-        "brand-purple": "#8E44AD",
-        // Technieum OS v2 — near-black chrome + warm paper surface (sidebar, title bands, hero cards)
-        "brand-ink": "#0E0D0B",
-        "brand-cream": "#F7F4EF",
+        // Sharp UI palette — sharp-ui/Main.dc.html
+        //
+        // ONE accent, not three. `brand-orange` is now the single chrome hue
+        // and every call site that reached for it keeps working unchanged.
+        // Driven by tokens rather than literals so both skins get the same hue
+        // at the same contrast. The `<alpha-value>` form is required: ~40 call
+        // sites use opacity modifiers (bg-brand-orange/15 and friends), and a
+        // bare hsl(var(--x)) silently breaks every one of them.
+        "brand-orange": "hsl(var(--primary) / <alpha-value>)",
+        "brand-orange-strong": "hsl(var(--primary-strong) / <alpha-value>)",
+        "brand-orange-soft": "#ffb073",
+        // Semantic severity, NEVER restyled to fit the palette — these encode
+        // data (module category, difficulty, status), so repainting them to
+        // match the skin would destroy the thing they carry. Remapped onto the
+        // pack's severity ramp rather than dropped.
+        "brand-red": "hsl(var(--sev-critical) / <alpha-value>)",
+        "brand-green": "hsl(var(--sev-low) / <alpha-value>)",
+        "brand-blue": "hsl(var(--sev-info) / <alpha-value>)",
+        "brand-teal": "hsl(var(--sev-low) / <alpha-value>)",
+        "brand-purple": "hsl(var(--sev-medium) / <alpha-value>)",
+        "brand-navy": "#0d0d0d",
+        // Chrome
+        "brand-ink": "#0d0d0d",
+        "brand-cream": "#f2f0ed",
+        // Tinted companions for severity backgrounds
+        "sev-critical-bg": "#3f1616",
+        "sev-high-bg": "#3d2410",
+        "sev-medium-bg": "#362c0a",
+        "sev-low-bg": "#132a1c",
+        "sev-info-bg": "#24272d",
       },
+      // Sharp geometry. All three flatten to zero, so the ~150 existing
+      // rounded-lg / -md / -sm call sites go square with no edit. Pills
+      // (rounded-full) and dots keep their own radius: they are a label
+      // language, not a surface, and squaring them would make them read as
+      // tiny cards.
       borderRadius: {
         lg: "var(--radius)",
-        md: "calc(var(--radius) - 2px)",
-        sm: "calc(var(--radius) - 4px)",
+        md: "var(--radius)",
+        sm: "var(--radius)",
+        xl: "var(--radius)",
+        "2xl": "var(--radius)",
+        "3xl": "var(--radius)",
       },
+      // Three faces, one job each.
+      //   sans  — all UI: headings, labels, body, buttons
+      //   mono  — numerals and identifiers. If it is a number or a name a
+      //           machine produced, it is mono.
+      //   nav   — sidebar navigation only
+      // `display` is kept pointing at the nav face so the existing font-display
+      // call sites resolve to something in the system rather than a dead var.
       fontFamily: {
-        sans: ["var(--font-inter)", "sans-serif"],
-        mono: ["var(--font-jetbrains-mono)", "monospace"],
-        display: ["var(--font-fraunces)", "serif"],
+        sans: ["var(--font-outfit)", "Segoe UI", "system-ui", "sans-serif"],
+        mono: ["var(--font-ibm-plex-mono)", "ui-monospace", "monospace"],
+        nav: ["var(--font-space-grotesk)", "var(--font-outfit)", "system-ui", "sans-serif"],
+        display: ["var(--font-space-grotesk)", "var(--font-outfit)", "system-ui", "sans-serif"],
+      },
+      // Depth always comes from a token, never an inline value. Mapping the
+      // stock shadow scale onto the --neu-* set means the existing shadow-sm /
+      // -md / -lg call sites pick up Sharp bevels instead of blurred drops,
+      // which on a near-black canvas would only pool light and read as a lamp.
+      boxShadow: {
+        none: "none",
+        sm: "var(--neu-raised-xs)",
+        DEFAULT: "var(--neu-raised-sm)",
+        md: "var(--neu-raised-sm)",
+        lg: "var(--neu-raised)",
+        xl: "var(--neu-raised)",
+        "2xl": "var(--neu-raised-lift)",
+        inner: "var(--neu-inset)",
+        raised: "var(--neu-raised)",
+        tile: "var(--neu-raised-sm)",
+        chip: "var(--neu-raised-xs)",
+        well: "var(--neu-inset)",
+        pressed: "var(--neu-pressed)",
+        lift: "var(--neu-raised-lift)",
       },
       keyframes: {
         "accordion-down": {

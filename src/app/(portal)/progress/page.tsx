@@ -47,8 +47,17 @@ const MONTH_HEATMAP_COLOR: Record<1 | 2 | 3 | 4, string> = {
   4: "bg-brand-purple",
 }
 
-const DIFFICULTY_COLORS: Record<string, string> = { easy: "#27AE60", medium: "#E8792A", hard: "#C0392B" }
-const TYPE_COLORS: Record<string, string> = { theory: "#1B4F72", lab: "#8E44AD", setup: "#E8792A", exercise: "#27AE60" }
+const DIFFICULTY_COLORS: Record<string, string> = {
+  easy: "hsl(var(--sev-low))",
+  medium: "hsl(var(--sev-high))",
+  hard: "hsl(var(--sev-critical))",
+}
+const TYPE_COLORS: Record<string, string> = {
+  theory: "hsl(var(--sev-info))",
+  lab: "hsl(var(--sev-medium))",
+  setup: "hsl(var(--sev-high))",
+  exercise: "hsl(var(--sev-low))",
+}
 
 export default function ProgressPage() {
   const [overall, setOverall] = useState(() => getOverallProgress())
@@ -171,8 +180,8 @@ export default function ProgressPage() {
                 <Tooltip
                   contentStyle={{ background: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }}
                 />
-                <Bar dataKey="completed" fill="#E8792A" radius={[4, 4, 0, 0]} name="Completed" />
-                <Bar dataKey="total" fill="hsl(var(--muted))" radius={[4, 4, 0, 0]} name="Total" />
+                <Bar dataKey="completed" fill="hsl(var(--primary))" radius={[0, 0, 0, 0]} name="Completed" />
+                <Bar dataKey="total" fill="hsl(var(--muted-foreground) / 0.25)" radius={[0, 0, 0, 0]} name="Total" />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -187,15 +196,23 @@ export default function ProgressPage() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-8">
+            {/* The completion fade belongs to the FILL, not the tile. Applied
+                to the whole element it faded the label too, so an untouched
+                month rendered white text at 0.25 alpha — 2.3:1, unreadable.
+                The fill layer carries the opacity now. */}
             {heatmap.map((m) => (
               <div
                 key={m.id}
-                className={`${MONTH_HEATMAP_COLOR[m.month]} flex aspect-square flex-col items-center justify-center rounded-xl p-2 text-center text-white`}
-                style={{ opacity: 0.25 + (m.percent / 100) * 0.75 }}
+                className="relative flex aspect-square flex-col items-center justify-center rounded-xl p-2 text-center text-foreground"
                 title={`${m.shortName}: ${m.percent}%`}
               >
-                <span className="text-[10px] font-medium leading-tight">{m.shortName}</span>
-                <span className="font-display text-sm font-bold">{m.percent}%</span>
+                <span
+                  aria-hidden
+                  className={`${MONTH_HEATMAP_COLOR[m.month]} absolute inset-0 rounded-xl`}
+                  style={{ opacity: 0.25 + (m.percent / 100) * 0.75 }}
+                />
+                <span className="relative text-[10px] font-medium leading-tight">{m.shortName}</span>
+                <span className="relative font-display text-sm font-bold">{m.percent}%</span>
               </div>
             ))}
           </div>
@@ -259,12 +276,12 @@ export default function ProgressPage() {
               <Tooltip
                 contentStyle={{ background: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }}
               />
-              <Bar dataKey="completed" radius={[4, 4, 0, 0]} name="Completed">
+              <Bar dataKey="completed" radius={[0, 0, 0, 0]} name="Completed">
                 {typeBreakdown.map((entry) => (
                   <Cell key={entry.type} fill={TYPE_COLORS[entry.type]} />
                 ))}
               </Bar>
-              <Bar dataKey="total" fill="hsl(var(--muted))" radius={[4, 4, 0, 0]} name="Total" />
+              <Bar dataKey="total" fill="hsl(var(--muted-foreground) / 0.25)" radius={[0, 0, 0, 0]} name="Total" />
             </BarChart>
           </ResponsiveContainer>
         </CardContent>

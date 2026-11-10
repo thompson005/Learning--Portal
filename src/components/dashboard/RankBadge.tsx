@@ -31,8 +31,8 @@ export function RankBadge() {
   const { current, next, progressToNext } = getRank(xp)
 
   return (
-    <div className="flex items-center gap-3 rounded-lg border border-brand-purple/25 bg-brand-purple/[0.04] px-3 py-2.5">
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-purple/15 text-brand-purple">
+    <div className="flex items-center gap-3 rounded-lg border border-brand-orange/25 bg-brand-orange/[0.04] px-3 py-2.5">
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-orange/15 text-brand-orange">
         <Award className="h-5 w-5" />
       </div>
       <div className="min-w-0 flex-1">
@@ -48,7 +48,7 @@ export function RankBadge() {
           <>
             <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-muted">
               <div
-                className="h-full rounded-full bg-gradient-to-r from-brand-orange to-brand-purple transition-all duration-500"
+                className="h-full rounded-full bg-gradient-to-r from-brand-orange to-brand-orange-strong transition-all duration-500"
                 style={{ width: `${progressToNext}%` }}
               />
             </div>

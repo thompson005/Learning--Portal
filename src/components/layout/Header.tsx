@@ -31,16 +31,16 @@ export function Header() {
   useEffect(() => setOpen(false), [pathname])
 
   return (
-    <header className="flex h-14 items-center justify-between border-b border-border bg-card px-4 md:hidden">
+    <header className="flex h-14 items-center justify-between bg-background px-4 shadow-tile md:hidden">
       <div className="flex items-center gap-2">
-        <ShieldCheck className="h-5 w-5 text-brand-teal" />
+        <ShieldCheck className="h-5 w-5 text-brand-orange" />
         <span className="font-mono text-sm font-bold tracking-wide">TECHNIEUM</span>
       </div>
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetTrigger asChild>
           <button
             aria-label="Open navigation menu"
-            className="rounded-md p-2 text-foreground hover:bg-muted"
+            className="p-2 text-foreground shadow-chip hover:shadow-lift"
           >
             <Menu className="h-5 w-5" />
           </button>

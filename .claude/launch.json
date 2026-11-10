@@ -4,20 +4,83 @@
     {
       "name": "learning-portal-dev",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
       "port": 3333
+    },
+    {
+      "name": "stub-api",
+      "runtimeExecutable": "C:/Users/asus/AppData/Local/Temp/gv/Scripts/python.exe",
+      "runtimeArgs": [
+        "C:/Users/asus/AppData/Local/Temp/claude/C--Users-asus-Documents-technieum-projects-learning-portal/e26e24e9-ba5a-4fc7-8574-c698840e156e/scratchpad/mock/stub_api.py"
+      ],
+      "port": 4466
+    },
+    {
+      "name": "sast-api",
+      "runtimeExecutable": "C:/Users/asus/AppData/Local/Temp/gv/Scripts/python.exe",
+      "runtimeArgs": [
+        "C:/Users/asus/AppData/Local/Temp/claude/C--Users-asus-Documents-technieum-projects-learning-portal/e26e24e9-ba5a-4fc7-8574-c698840e156e/scratchpad/run_sast_api.py"
+      ],
+      "port": 9090
     },
     {
       "name": "sast-ui",
       "runtimeExecutable": "node",
       "runtimeArgs": [
-        "C:/Users/asus/Documents/technieum-tools/SAST/ui/node_modules/next/dist/bin/next",
-        "dev",
-        "C:/Users/asus/Documents/technieum-tools/SAST/ui",
-        "-p",
-        "3456"
+        "C:/Users/asus/AppData/Local/Temp/claude/C--Users-asus-Documents-technieum-projects-learning-portal/e26e24e9-ba5a-4fc7-8574-c698840e156e/scratchpad/run_sast_ui.js"
       ],
       "port": 3456
+    },
+    {
+      "name": "sales-portal-web",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "C:/Users/asus/AppData/Local/Temp/claude/C--Users-asus-Documents-technieum-projects-learning-portal/3b290060-f9fc-4a1e-8d16-87ff49cbc233/scratchpad/run_sales_web.js"
+      ],
+      "port": 3000
+    },
+    {
+      "name": "sales-portal-scraper",
+      "runtimeExecutable": "C:/Users/asus/Documents/technieum-tools/sales-portal/scraper_service/venv/Scripts/python.exe",
+      "runtimeArgs": [
+        "C:/Users/asus/AppData/Local/Temp/claude/C--Users-asus-Documents-technieum-projects-learning-portal/3b290060-f9fc-4a1e-8d16-87ff49cbc233/scratchpad/run_sales_scraper.py"
+      ],
+      "port": 8000
+    },
+    {
+      "name": "sales-portal-prod",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "C:/Users/asus/AppData/Local/Temp/claude/C--Users-asus-Documents-technieum-projects-learning-portal/3b290060-f9fc-4a1e-8d16-87ff49cbc233/scratchpad/run_sales_prod.js"
+      ],
+      "port": 3001
+    },
+    {
+      "name": "tip-ui",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "C:/Users/asus/AppData/Local/Temp/claude/C--Users-asus-Documents-technieum-projects-learning-portal/bf051c62-b1b5-4625-8979-7845cf5a9c3b/scratchpad/run_tip_ui.js"
+      ],
+      "port": 3400
+    },
+    {
+      "name": "sales-portal-blob",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "C:/Users/asus/AppData/Local/Temp/claude/C--Users-asus-Documents-technieum-projects-learning-portal/3b290060-f9fc-4a1e-8d16-87ff49cbc233/scratchpad/run_sales_blob.js"
+      ],
+      "port": 3002
+    },
+    {
+      "name": "tip-mock-api",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "C:/Users/asus/AppData/Local/Temp/claude/C--Users-asus-Documents-technieum-projects-learning-portal/bf051c62-b1b5-4625-8979-7845cf5a9c3b/scratchpad/tip_mock_api.py"
+      ],
+      "port": 8010
     }
   ]
 }

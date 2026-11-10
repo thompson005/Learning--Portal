@@ -116,7 +116,7 @@ export function QuizModal({
                       disabled={submitted}
                       className={cn(
                         "flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm transition-colors",
-                        !submitted && isSelected && "border-brand-purple bg-brand-purple/10",
+                        !submitted && isSelected && "border-brand-orange bg-brand-orange/10",
                         !submitted && !isSelected && "border-border hover:bg-muted",
                         submitted && isCorrect && "border-brand-green/40 bg-brand-green/10",
                         submitted && isSelected && !isCorrect && "border-brand-red/40 bg-brand-red/10",
@@ -145,7 +145,7 @@ export function QuizModal({
           ) : (
             <Button
               variant="teal"
-              className="bg-brand-purple hover:bg-brand-purple/90"
+              className="bg-brand-orange hover:bg-brand-orange/90"
               onClick={handleSubmit}
               disabled={!allAnswered}
             >

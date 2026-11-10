@@ -20,9 +20,9 @@ export function WeeklyActivity({ data }: { data: { week: string; completed: numb
           <Line
             type="monotone"
             dataKey="completed"
-            stroke="#1ABC9C"
+            stroke="hsl(var(--primary))"
             strokeWidth={2}
-            dot={{ r: 3, fill: "#1ABC9C" }}
+            dot={{ r: 3, fill: "hsl(var(--primary))" }}
             activeDot={{ r: 5 }}
           />
         </LineChart>

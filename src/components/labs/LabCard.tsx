@@ -46,9 +46,9 @@ const DIFFICULTY_VARIANT = {
   hard: "red",
 } as const
 const DIFFICULTY_COLOR = {
-  easy: "#27AE60",
-  medium: "#E67E22",
-  hard: "#C0392B",
+  easy: "#22c55e",
+  medium: "#f0793a",
+  hard: "#ef4444",
 } as const
 
 interface VerifyResult {
@@ -108,8 +108,8 @@ function EvidenceVerify({ lab }: { lab: Lab }) {
   }
 
   return (
-    <div className="space-y-2 rounded-lg border border-brand-purple/25 bg-brand-purple/[0.04] p-3">
-      <p className="flex items-center gap-1.5 font-mono text-xs font-semibold uppercase tracking-widest text-brand-purple">
+    <div className="space-y-2 rounded-lg border border-brand-orange/25 bg-brand-orange/[0.04] p-3">
+      <p className="flex items-center gap-1.5 font-mono text-xs font-semibold uppercase tracking-widest text-brand-orange">
         <ShieldCheck className="h-3.5 w-3.5" /> Completion Screenshot
         Verification
       </p>
@@ -143,7 +143,7 @@ function EvidenceVerify({ lab }: { lab: Lab }) {
           size="sm"
           onClick={handleVerify}
           disabled={!file || checking}
-          className="bg-brand-purple text-white hover:bg-brand-purple/90"
+          className="bg-brand-orange text-white hover:bg-brand-orange/90"
         >
           {checking ? (
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -415,7 +415,7 @@ export function LabCard({ lab, moduleName }: { lab: Lab; moduleName: string }) {
                 <Container className="h-3 w-3" /> Docker
               </span>
             )}
-            <span className="inline-flex items-center gap-1 rounded-full bg-brand-purple/10 px-1.5 py-0.5 text-[10px] font-semibold text-brand-purple">
+            <span className="inline-flex items-center gap-1 rounded-full bg-brand-orange/10 px-1.5 py-0.5 text-[10px] font-semibold text-brand-orange">
               <Zap className="h-3 w-3" /> +{XP_PER_LAB} XP
             </span>
           </p>

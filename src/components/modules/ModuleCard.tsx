@@ -11,23 +11,23 @@ import { getModuleCompletionPercent } from "@/lib/store/progress"
 import type { Module } from "@/types"
 
 const MONTH_COLOR = {
-  1: { badge: "green", bar: "green", hex: "#27AE60", phase: "Foundations" },
+  1: { badge: "green", bar: "green", hex: "#22c55e", phase: "Foundations" },
   2: {
     badge: "orange",
     bar: "orange",
-    hex: "#E67E22",
+    hex: "#f0793a",
     phase: "Core Offensive Skills",
   },
   3: {
     badge: "blue",
     bar: "blue",
-    hex: "#1B4F72",
+    hex: "#94a3b8",
     phase: "Exploitation + Reporting",
   },
   4: {
     badge: "purple",
     bar: "purple",
-    hex: "#8E44AD",
+    hex: "#eab308",
     phase: "Advanced Offensive Security",
   },
 } as const

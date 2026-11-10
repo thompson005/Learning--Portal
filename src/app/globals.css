@@ -2,68 +2,226 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ===========================================================================
+ * SHARP UI — ported from the Technieum-morphic design pack (sharp-ui/*.dc.html)
+ *
+ * Hard black canvas, hard-edged depth, one orange accent. The whole idea:
+ *
+ *   Human contrast sensitivity collapses near black (Weber's law) — a 13-unit
+ *   step reads as strong at high luminance and as almost nothing at low. A
+ *   BLURRED shadow on #0d0d0d therefore cannot describe an edge; it only pools
+ *   light under the element and reads as a lamp. So every depth token below is
+ *   built from hard lines: zero blur anywhere in the raised or recessed set.
+ *
+ * Offset-only inset shadows paint a band along the two edges they are offset
+ * away from, and earlier layers paint over later ones. A 3px lit band listed
+ * above a 4px dark band leaves exactly 1px of dark showing at the fourth pixel
+ * — a raised rim with a recess scored just inside it.
+ *
+ * What actually sells "raised" is the FACE being lighter than the canvas, not
+ * the ledge — a black ledge on a near-black page is invisible. That lift is the
+ * full-bleed `inset 0 0 0 999px` tint, which is why these tokens work on
+ * elements that declare no background of their own.
+ *
+ * The silhouette ring is a box-shadow rather than a real border on purpose: it
+ * costs no layout size, so any element consuming the token picks up its border
+ * with no markup change.
+ *
+ * Dark values are lifted verbatim from the design pack. Light values are the
+ * one place this file extrapolates — the pack defines no light skin, but the
+ * portal ships a working Dark Mode switch in Settings and that is a feature,
+ * not styling, so it had to keep working. The light half inverts the bevel
+ * polarity and keeps everything else (geometry, accent, type) identical.
+ * ========================================================================= */
+
 @layer base {
   :root {
-    /* Technieum OS — warm paper working surface, near-black chrome, ember-orange accent */
-    --background: 36 25% 96%;
-    --foreground: 20 12% 9%;
+    /* --- shadcn semantic tokens, resolved to Sharp values ------------------
+     * Sharp draws no distinction by FILL — card, sidebar, topbar and input all
+     * resolve to the page colour and are separated by EDGE alone. So `card`
+     * deliberately equals `background` here; the depth tokens do the work that
+     * a lighter card fill would normally do. */
+    /* --- Clean light LMS palette ------------------------------------------
+     * Paper-grey canvas, white cards that lift off it, one friendly orange.
+     * Cards now differ from the background by FILL (white on grey) plus a soft
+     * shadow — the classic, readable card look, not edge-only Sharp depth. */
+    --background: 210 20% 97%;
+    --foreground: 222 24% 16%;
 
     --card: 0 0% 100%;
-    --card-foreground: 20 12% 9%;
+    --card-foreground: 222 24% 16%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 20 12% 9%;
+    --popover-foreground: 222 24% 16%;
 
-    --primary: 24 78% 54%;
+    /* The one accent — tuned to stay legible on white (text + white-on-orange
+     * buttons both clear AA at this lightness). */
+    --primary: 22 90% 44%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 36 20% 93%;
-    --secondary-foreground: 20 12% 9%;
+    --secondary: 210 20% 94%;
+    --secondary-foreground: 222 24% 16%;
 
-    --muted: 36 20% 93%;
-    --muted-foreground: 25 8% 42%;
+    --muted: 210 20% 95%;
+    --muted-foreground: 215 14% 42%;
 
-    --accent: 30 55% 93%;
-    --accent-foreground: 20 12% 9%;
+    --accent: 24 90% 95%;
+    --accent-foreground: 22 80% 30%;
 
-    --destructive: 8 62% 40%;
+    --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 30 15% 87%;
-    --input: 30 15% 87%;
-    --ring: 24 78% 54%;
+    --border: 214 18% 89%;
+    --input: 214 18% 85%;
+    --ring: 22 90% 44%;
 
-    --radius: 0.65rem;
+    /* Rounded, friendly geometry — soft cards, not square tiles. */
+    --radius: 12px;
+
+    /* Raw accent, for places that need the literal colour rather than an HSL
+     * triple (gradients, glows, SVG). */
+    --accent-hex: hsl(var(--primary));
+    --accent-strong: hsl(var(--primary-strong));
+    --accent-soft: #ffb073;
+    --accent-glow: rgba(234, 120, 30, 0.26);
+
+    /* Severity ramp carried to readable contrast on white. Hue/saturation
+     * held so a green still reads as the same green. */
+    --primary-strong: 20 90% 38%;
+    --sev-critical: 0 72% 45%;
+    --sev-high: 22 85% 42%;
+    --sev-medium: 38 92% 40%;
+    --sev-low: 142 58% 34%;
+    --sev-info: 215 30% 45%;
+
+    --chrome-inset: 14px;
+    --zip-step: 3px;
+    --ease: 0.16s cubic-bezier(0.2, 0, 0.2, 1);
+
+    /* --- depth: soft, modern drop shadows -------------------------------
+     * On a light canvas a blurred shadow reads correctly (unlike near-black),
+     * so cards use real, layered soft shadows + a hairline ring. */
+    --neu-raised:
+      0 1px 2px rgba(17, 24, 39, 0.06),
+      0 6px 16px rgba(17, 24, 39, 0.08),
+      0 0 0 1px rgba(17, 24, 39, 0.04);
+    --neu-raised-sm:
+      0 1px 2px rgba(17, 24, 39, 0.05),
+      0 2px 6px rgba(17, 24, 39, 0.06),
+      0 0 0 1px rgba(17, 24, 39, 0.04);
+    --neu-raised-xs:
+      0 1px 2px rgba(17, 24, 39, 0.06),
+      0 0 0 1px rgba(17, 24, 39, 0.05);
+    --neu-inset:
+      inset 0 1px 2px rgba(17, 24, 39, 0.09),
+      0 0 0 1px rgba(17, 24, 39, 0.05);
+    --neu-pressed:
+      inset 0 2px 4px rgba(17, 24, 39, 0.14),
+      0 0 0 1px rgba(17, 24, 39, 0.06);
+    --neu-raised-lift:
+      0 2px 4px rgba(17, 24, 39, 0.06),
+      0 12px 28px rgba(17, 24, 39, 0.14),
+      0 0 0 1px rgba(17, 24, 39, 0.05);
+
+    /* Nav items — clean, flat, rounded (no skeuomorphic keycap). */
+    --key-base: transparent;
+    --key-cap: transparent;
+    --key-cap-hover: transparent;
+    --key-ring: transparent;
   }
 
   .dark {
-    --background: 20 10% 7%;
-    --foreground: 36 25% 93%;
+    /* Values below are the design pack verbatim. #0d0d0d canvas, #f2f0ed text
+     * — 12.6:1. */
+    --background: 0 0% 5%;
+    --foreground: 36 16% 94%;
 
-    --card: 20 9% 10%;
-    --card-foreground: 36 25% 93%;
+    --card: 0 0% 5%;
+    --card-foreground: 36 16% 94%;
 
-    --popover: 20 9% 10%;
-    --popover-foreground: 36 25% 93%;
+    --popover: 0 0% 7%;
+    --popover-foreground: 36 16% 94%;
 
-    --primary: 28 85% 60%;
-    --primary-foreground: 20 10% 7%;
+    --primary: 23 97% 46%;
+    --primary-strong: 24 100% 56%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 20 8% 15%;
-    --secondary-foreground: 36 25% 93%;
+    /* Severity ramp, design pack verbatim: #ef4444 #f0793a #eab308 #22c55e
+     * #94a3b8. These encode data and are never repainted to fit the palette. */
+    --sev-critical: 0 84% 60%;
+    --sev-high: 22 85% 58%;
+    --sev-medium: 45 93% 47%;
+    --sev-low: 142 71% 45%;
+    --sev-info: 215 20% 65%;
 
-    --muted: 20 8% 15%;
-    --muted-foreground: 30 10% 62%;
+    --secondary: 0 0% 11%;
+    --secondary-foreground: 36 16% 94%;
 
-    --accent: 24 35% 16%;
-    --accent-foreground: 36 25% 93%;
+    --muted: 0 0% 9%;
+    --muted-foreground: 37 4% 62%;
 
-    --destructive: 8 70% 55%;
+    --accent: 0 0% 12%;
+    --accent-foreground: 36 16% 94%;
+
+    --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 20 8% 19%;
-    --input: 20 8% 19%;
-    --ring: 28 85% 60%;
+    /* rgba(255,255,255,.09) and .14 composited over #0d0d0d — shadcn wants an
+     * opaque triple, the pack specifies alpha over the canvas. */
+    --border: 0 0% 14%;
+    --input: 0 0% 14%;
+    --ring: 23 97% 46%;
+
+    /* --- depth, Sharp dark — design pack verbatim ------------------------ */
+    --neu-raised:
+      inset 3px 3px 0 0 rgba(255, 255, 255, 0.085),
+      inset -3px -3px 0 0 rgba(0, 0, 0, 0.85),
+      inset 4px 4px 0 0 rgba(0, 0, 0, 0.65),
+      inset -4px -4px 0 0 rgba(255, 255, 255, 0.06),
+      inset 0 0 0 999px rgba(255, 255, 255, 0.075),
+      0 0 0 1px rgba(255, 255, 255, 0.14),
+      5px 5px 0 0 rgba(0, 0, 0, 0.92);
+    --neu-raised-sm:
+      inset 2px 2px 0 0 rgba(255, 255, 255, 0.075),
+      inset -2px -2px 0 0 rgba(0, 0, 0, 0.8),
+      inset 3px 3px 0 0 rgba(0, 0, 0, 0.6),
+      inset -3px -3px 0 0 rgba(255, 255, 255, 0.05),
+      inset 0 0 0 999px rgba(255, 255, 255, 0.06),
+      0 0 0 1px rgba(255, 255, 255, 0.09),
+      3px 3px 0 0 rgba(0, 0, 0, 0.9);
+    --neu-raised-xs:
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.12),
+      inset 0 -1px 0 0 rgba(0, 0, 0, 0.75),
+      inset 0 0 0 999px rgba(255, 255, 255, 0.045),
+      0 0 0 1px rgba(255, 255, 255, 0.09),
+      2px 2px 0 0 rgba(0, 0, 0, 0.85);
+    /* Bevel read upside-down and the face tinted DOWN. No ledge — a sunken
+     * thing casts none. */
+    --neu-inset:
+      inset 0 1px 0 0 rgba(0, 0, 0, 0.9),
+      inset 0 -1px 0 0 rgba(255, 255, 255, 0.09),
+      inset 0 0 0 999px rgba(0, 0, 0, 0.38),
+      0 0 0 1px rgba(255, 255, 255, 0.09);
+    --neu-pressed:
+      inset 0 1px 0 0 rgba(0, 0, 0, 0.95),
+      inset 0 -1px 0 0 rgba(255, 255, 255, 0.08),
+      inset 0 0 0 999px rgba(0, 0, 0, 0.45),
+      0 0 0 1px rgba(255, 255, 255, 0.14);
+    /* Hover is a TOKEN, not an inline tweak, so it stays theme-correct:
+     * ledge grows 5 -> 8px, ring brightens to .24. */
+    --neu-raised-lift:
+      inset 3px 3px 0 0 rgba(255, 255, 255, 0.13),
+      inset -3px -3px 0 0 rgba(0, 0, 0, 0.9),
+      inset 4px 4px 0 0 rgba(0, 0, 0, 0.7),
+      inset -4px -4px 0 0 rgba(255, 255, 255, 0.08),
+      inset 0 0 0 999px rgba(255, 255, 255, 0.105),
+      0 0 0 1px rgba(255, 255, 255, 0.24),
+      8px 8px 0 0 rgba(0, 0, 0, 0.95);
+
+    --key-base: linear-gradient(180deg, #1a1a1a, #121212);
+    --key-cap: linear-gradient(100deg, #1c1c1c, #2a2a2a);
+    --key-cap-hover: linear-gradient(100deg, #232323, #333333);
+    --key-ring: rgba(0, 0, 0, 0.6);
   }
 }
 
@@ -74,12 +232,180 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  /* Numerals and identifiers are mono: counts, hostnames, CVE ids, timestamps.
+   * If it is a number or a name a machine produced, it is mono. Tabular
+   * figures so columns of numbers line up. */
+  code,
+  kbd,
+  samp {
+    font-family: var(--font-ibm-plex-mono), ui-monospace, monospace;
+  }
+
+  /* Focus rings use :focus-visible and are never transitioned. */
+  :focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px var(--accent-glow);
+  }
 }
 
-/* Subtle dot-grid backdrop for hero/dashboard sections */
+@layer components {
+  /* ===== Depth utilities =================================================
+   * Depth always comes from a token, never an inline value — hover included.
+   * Anything hardcoded stops following the skin. */
+
+  /* Cards, topbar, sidebar, any full panel. 3px rim, 5px ledge. */
+  .sharp-panel {
+    box-shadow: var(--neu-raised);
+    border-radius: var(--radius);
+    border: none;
+  }
+
+  /* Stat boxes, inner tiles, grid cells. 2px rim, 3px ledge. */
+  .sharp-tile {
+    box-shadow: var(--neu-raised-sm);
+    border-radius: var(--radius);
+    border: none;
+  }
+
+  /* Single-line bevel, for chips and pills too small for a multi-px rim. */
+  .sharp-chip {
+    box-shadow: var(--neu-raised-xs);
+    border: none;
+  }
+
+  /* Inputs, selects, textareas — wells cut into the surface rather than
+   * objects sitting on it. */
+  .sharp-well {
+    box-shadow: var(--neu-inset);
+    border-radius: var(--radius);
+    border: none;
+  }
+
+  /* Selected chips, current tab, bottomed-out press. */
+  .sharp-pressed {
+    box-shadow: var(--neu-pressed);
+    border: none;
+  }
+
+  .sharp-lift {
+    box-shadow: var(--neu-raised-lift);
+  }
+
+  /* Interactive panel: raises on hover, bottoms out on press. */
+  .sharp-panel-interactive {
+    box-shadow: var(--neu-raised);
+    border-radius: var(--radius);
+    border: none;
+    transition: box-shadow var(--ease), transform var(--ease);
+  }
+  .sharp-panel-interactive:hover {
+    box-shadow: var(--neu-raised-lift);
+    transform: translateY(-2px);
+  }
+  .sharp-panel-interactive:active {
+    box-shadow: var(--neu-pressed);
+    transform: translateY(0);
+  }
+
+  /* ===== Primary button — the chunky box ================================
+   * A solid black block sits one --zip-step taller than the face, so the face
+   * reads as physically raised on it. Press collapses the step and shifts the
+   * element down by the same amount; margin-bottom reserves that space so
+   * nothing around the button moves.
+   *
+   * Built from two box-shadows on a single element, so no markup change is
+   * needed at any call site. The 3px radius is the box-button's FACE — part of
+   * the press mechanic, not a surface radius, so it survives the square
+   * corner rule. */
+  .sharp-box-btn {
+    border: none;
+    border-radius: 10px;
+    text-transform: none;
+    letter-spacing: -0.01em;
+    box-shadow:
+      0 1px 2px rgba(17, 24, 39, 0.12),
+      0 1px 3px rgba(17, 24, 39, 0.1);
+    transition: background-color var(--ease), box-shadow var(--ease),
+      transform var(--ease);
+  }
+  .sharp-box-btn:hover:not(:disabled) {
+    box-shadow:
+      0 2px 6px rgba(17, 24, 39, 0.16),
+      0 4px 12px rgba(17, 24, 39, 0.12);
+    transform: translateY(-1px);
+  }
+  .sharp-box-btn:active:not(:disabled) {
+    transform: translateY(0);
+    box-shadow: inset 0 2px 4px rgba(17, 24, 39, 0.18);
+  }
+  .sharp-box-btn:disabled {
+    box-shadow: none;
+    transform: none;
+  }
+
+  /* ===== Nav keycaps =====================================================
+   * The sidebar deliberately breaks the square-corner rule. Each item is a
+   * mechanical keycap: a dark base, an inset cap panel offset toward the
+   * top-left with its own directional light, and a real press.
+   *
+   * `isolation: isolate` keeps the cap's negative z-index scoped to the row
+   * instead of sinking it behind the sidebar. */
+  .keycap {
+    position: relative;
+    border-radius: 10px;
+    border: 1px solid transparent;
+    background: transparent;
+    transition: background-color var(--ease), color var(--ease),
+      border-color var(--ease);
+  }
+  /* The old skeuomorphic cap overlay is retired in the clean skin. */
+  .keycap::before {
+    content: none;
+  }
+  .keycap:hover {
+    background: hsl(var(--muted));
+  }
+  .keycap:active {
+    background: hsl(var(--secondary));
+  }
+
+  /* Current page: accent-tinted pill so "you are here" reads at a glance. */
+  .keycap.keycap-active {
+    color: hsl(var(--primary));
+    background: hsl(var(--primary) / 0.1);
+    border-color: hsl(var(--primary) / 0.22);
+  }
+  .keycap.keycap-active::before,
+  .keycap.keycap-active:hover::before {
+    content: none;
+  }
+
+  /* ===== Type roles ======================================================
+   * Section titles: 600 / uppercase / .08-.1em tracking. */
+  .sharp-eyebrow {
+    font-family: var(--font-ibm-plex-mono), ui-monospace, monospace;
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--accent-hex);
+  }
+  .sharp-section-title {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: hsl(var(--muted-foreground));
+  }
+}
+
+/* Scanline grid backdrop. Kept as a hairline rule grid rather than the old dot
+ * field: Sharp builds form from lines, and a dot matrix reads as texture. */
 .bg-dot-grid {
-  background-image: radial-gradient(circle, hsl(var(--muted-foreground) / 0.25) 1px, transparent 1px);
-  background-size: 20px 20px;
+  background-image:
+    linear-gradient(to right, hsl(var(--border) / 0.5) 1px, transparent 1px),
+    linear-gradient(to bottom, hsl(var(--border) / 0.5) 1px, transparent 1px);
+  background-size: 64px 64px;
 }
 
 /* Terminal-style code block scrollbar */
@@ -88,27 +414,66 @@
   width: 6px;
 }
 .code-scroll::-webkit-scrollbar-thumb {
-  background: #1ABC9C55;
-  border-radius: 999px;
+  background: hsl(var(--border));
+  border-radius: 0;
 }
 
-/* Hero banner: layered brand gradient + faint glow, used on Dashboard/Admin login */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  border-radius: 0;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground));
+  background-clip: padding-box;
+}
+* {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--border)) transparent;
+}
+
+::selection {
+  background: var(--accent-glow);
+  color: hsl(var(--foreground));
+}
+
+/* Hero banner. Was a blue/teal/purple gradient wash — Sharp has one accent and
+ * builds emphasis from edge, not from a colour field, so this is now the
+ * canvas with an accent-lit rule and a faint accent bloom at the top-left. */
 .hero-gradient {
   background:
-    radial-gradient(circle at 15% 20%, rgba(26, 188, 156, 0.25), transparent 45%),
-    radial-gradient(circle at 85% 0%, rgba(142, 68, 173, 0.18), transparent 40%),
-    linear-gradient(135deg, #0d1b2a 0%, #123249 55%, #1b4f72 100%);
+    radial-gradient(80% 130% at 0% 0%, rgba(234, 120, 30, 0.12), transparent 60%),
+    linear-gradient(180deg, hsl(0 0% 100%), hsl(210 30% 99%));
+  box-shadow: var(--neu-raised);
 }
 
-/* Gradient text accent for section headers / emphasis (bright, legible on dark hero backgrounds) */
-.text-gradient-brand {
-  background: linear-gradient(90deg, #1abc9c, #5fe3c9);
+/* Emphasis on black reads as LIT UP, so the hover variant goes brighter, not
+ * darker. Both of these used to be multi-hue gradients; a second hue means the
+ * thing is data, not chrome, so they collapse to the single accent. */
+.text-gradient-brand,
+.text-gradient-ember {
+  background: linear-gradient(90deg, var(--accent-hex), var(--accent-strong));
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
 }
+.bg-gradient-ember {
+  background: linear-gradient(135deg, var(--accent-hex), var(--accent-strong));
+}
+.stroke-gradient-ember {
+  stroke: url(#ember-gradient-stroke);
+}
 
-/* Left accent bar used on cards to signal category/month/difficulty color at a glance */
+/* Left accent bar used on cards to signal category at a glance. Square now —
+ * it is a surface marker, so it follows the skin. */
 .accent-bar {
   position: relative;
 }
@@ -119,25 +484,13 @@
   top: 0;
   bottom: 0;
   width: 4px;
-  border-radius: 4px 0 0 4px;
-  background: var(--accent-bar-color, #1abc9c);
+  border-radius: 0;
+  background: var(--accent-bar-color, var(--accent-hex));
 }
 
-/* Soft glow ring for the currently-active/highlighted item (current week, current module, etc.) */
+/* Ring for the currently-active item (current week, current module). Sharp
+ * keeps the accent glow — it is the one place the pack allows bloom, because
+ * it marks "you are here" rather than describing an edge. */
 .glow-teal {
-  box-shadow: 0 0 0 1px rgba(26, 188, 156, 0.4), 0 0 24px -4px rgba(26, 188, 156, 0.35);
-}
-
-/* Ember gradient — the one signature accent, reserved for the logo, big numerals, and progress rings */
-.text-gradient-ember {
-  background: linear-gradient(135deg, #f2a93b 0%, #e8792a 45%, #8e44ad 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}
-.bg-gradient-ember {
-  background: linear-gradient(135deg, #f2a93b 0%, #e8792a 45%, #8e44ad 100%);
-}
-.stroke-gradient-ember {
-  stroke: url(#ember-gradient-stroke);
+  box-shadow: 0 0 0 1px var(--accent-hex), 0 0 14px 1px var(--accent-glow);
 }

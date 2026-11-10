@@ -34,9 +34,9 @@ export function ProgressRing({
         {gradient && (
           <defs>
             <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#F2A93B" />
-              <stop offset="45%" stopColor="#E8792A" />
-              <stop offset="100%" stopColor="#8E44AD" />
+              <stop offset="0%" stopColor="#e85d04" />
+              <stop offset="45%" stopColor="#f0793a" />
+              <stop offset="100%" stopColor="#ff7a1f" />
             </linearGradient>
           </defs>
         )}
@@ -53,7 +53,7 @@ export function ProgressRing({
           cy={size / 2}
           r={radius}
           fill="none"
-          stroke={gradient ? `url(#${gradientId})` : "#1ABC9C"}
+          stroke={gradient ? `url(#${gradientId})` : "hsl(var(--primary))"}
           strokeWidth={strokeWidth}
           strokeLinecap="round"
           strokeDasharray={circumference}

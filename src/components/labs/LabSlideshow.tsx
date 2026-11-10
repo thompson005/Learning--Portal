@@ -55,8 +55,8 @@ function CheckpointCheck({
   const answered = selected !== null
 
   return (
-    <div className="mt-4 rounded-lg border border-brand-purple/25 bg-brand-purple/[0.04] p-3">
-      <p className="flex items-center gap-1.5 font-mono text-xs font-semibold uppercase tracking-widest text-brand-purple">
+    <div className="mt-4 rounded-lg border border-brand-orange/25 bg-brand-orange/[0.04] p-3">
+      <p className="flex items-center gap-1.5 font-mono text-xs font-semibold uppercase tracking-widest text-brand-orange">
         <HelpCircle className="h-3.5 w-3.5" /> Quick Check
       </p>
       <p className="mt-1.5 text-sm font-medium text-foreground">
@@ -75,7 +75,7 @@ function CheckpointCheck({
               className={cn(
                 "flex w-full items-center gap-2 rounded-md border px-3 py-2 text-left text-sm transition-colors",
                 !answered &&
-                  "border-border hover:border-brand-purple/40 hover:bg-brand-purple/[0.03]",
+                  "border-border hover:border-brand-orange/40 hover:bg-brand-orange/[0.03]",
                 answered &&
                   isCorrectOpt &&
                   "border-brand-green bg-brand-green/10 text-brand-green",
@@ -149,7 +149,7 @@ function SlideContent({
       <h4
         className={cn(
           "font-display text-base font-semibold",
-          isFinal ? "text-brand-purple" : "text-brand-orange",
+          isFinal ? "text-brand-orange-strong" : "text-brand-orange",
           title.className,
         )}
         style={title.style}
@@ -260,9 +260,9 @@ export function LabSlideshow({
                   x2="100%"
                   y2="100%"
                 >
-                  <stop offset="0%" stopColor="#F2A93B" />
-                  <stop offset="45%" stopColor="#E8792A" />
-                  <stop offset="100%" stopColor="#8E44AD" />
+                  <stop offset="0%" stopColor="#e85d04" />
+                  <stop offset="45%" stopColor="#f0793a" />
+                  <stop offset="100%" stopColor="#ff7a1f" />
                 </linearGradient>
               </defs>
               <circle
@@ -330,13 +330,13 @@ export function LabSlideshow({
                         state === "upcoming" &&
                           "border border-border text-muted-foreground",
                         state === "current" && accent === "purple"
-                          ? "border-2 border-brand-purple text-brand-purple shadow-[0_0_0_4px_rgba(142,68,173,0.16)]"
+                          ? "border-2 border-brand-orange text-brand-orange shadow-[0_0_0_4px_rgba(142,68,173,0.16)]"
                           : state === "current"
                             ? "border-2 border-brand-orange text-brand-orange shadow-[0_0_0_4px_rgba(232,121,42,0.16)]"
                             : "",
                         state === "done" &&
                           (accent === "purple"
-                            ? "animate-pop-check bg-brand-purple text-white motion-reduce:animate-none"
+                            ? "animate-pop-check bg-brand-orange text-white motion-reduce:animate-none"
                             : "animate-pop-check bg-brand-orange text-white motion-reduce:animate-none"),
                       )}
                     >
@@ -430,7 +430,7 @@ export function LabSlideshow({
               variant="ghost"
               size="sm"
               onClick={() => go(0)}
-              className="text-brand-purple hover:bg-brand-purple/10 hover:text-brand-purple"
+              className="text-brand-orange hover:bg-brand-orange/10 hover:text-brand-orange"
             >
               <RotateCcw className="h-3.5 w-3.5" /> Restart
             </Button>
