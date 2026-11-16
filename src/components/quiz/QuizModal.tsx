@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Award, CheckCircle2, RotateCcw, XCircle } from "lucide-react"
 
 import { cn } from "@/lib/utils"
@@ -13,6 +13,23 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import type { QuizQuestion } from "@/types"
+
+// Fisher-Yates shuffle of a question's options, with correctIndex remapped to
+// the option's new position. The authored data is heavily biased toward
+// option 0 (~58% of answers), so without this the correct choice is almost
+// always first and the quiz is guessable.
+function shuffleQuestion(q: QuizQuestion): QuizQuestion {
+  const order = q.options.map((_, i) => i)
+  for (let i = order.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[order[i], order[j]] = [order[j], order[i]]
+  }
+  return {
+    ...q,
+    options: order.map((i) => q.options[i]),
+    correctIndex: order.indexOf(q.correctIndex),
+  }
+}
 
 export function QuizModal({
   open,
@@ -27,8 +44,21 @@ export function QuizModal({
   questions: QuizQuestion[]
   onComplete: (score: number, total: number, answers: number[]) => void
 }) {
+  const [deck, setDeck] = useState<QuizQuestion[]>(() =>
+    questions.map(shuffleQuestion),
+  )
   const [answers, setAnswers] = useState<(number | null)[]>(() => questions.map(() => null))
   const [submitted, setSubmitted] = useState(false)
+
+  // Fresh shuffle every time the quiz is opened, so a retake (or reopening)
+  // never repeats the same option order.
+  useEffect(() => {
+    if (open) {
+      setDeck(questions.map(shuffleQuestion))
+      setAnswers(questions.map(() => null))
+      setSubmitted(false)
+    }
+  }, [open, questions])
 
   function handleSelect(qIndex: number, optIndex: number) {
     if (submitted) return
@@ -41,14 +71,15 @@ export function QuizModal({
 
   function handleSubmit() {
     setSubmitted(true)
-    const score = questions.reduce(
+    const score = deck.reduce(
       (sum, q, i) => sum + (answers[i] === q.correctIndex ? 1 : 0),
       0
     )
-    onComplete(score, questions.length, answers.map((a) => a ?? -1))
+    onComplete(score, deck.length, answers.map((a) => a ?? -1))
   }
 
   function handleRetake() {
+    setDeck(questions.map(shuffleQuestion))
     setAnswers(questions.map(() => null))
     setSubmitted(false)
   }
@@ -62,7 +93,7 @@ export function QuizModal({
   }
 
   const score = submitted
-    ? questions.reduce((sum, q, i) => sum + (answers[i] === q.correctIndex ? 1 : 0), 0)
+    ? deck.reduce((sum, q, i) => sum + (answers[i] === q.correctIndex ? 1 : 0), 0)
     : 0
   const allAnswered = answers.every((a) => a !== null)
 
@@ -100,7 +131,7 @@ export function QuizModal({
         )}
 
         <div className="max-h-[55vh] space-y-6 overflow-y-auto pr-1">
-          {questions.map((q, qi) => (
+          {deck.map((q, qi) => (
             <div key={qi} className="space-y-2">
               <p className="text-sm font-semibold">
                 <span className="font-mono text-muted-foreground">{qi + 1}.</span> {q.question}
