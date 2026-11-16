@@ -1,9 +1,15 @@
 import { NextResponse } from "next/server"
 
-import { getActiveLabRun } from "@/lib/server/dockerLabs"
+import { getUserActiveLabRun } from "@/lib/server/dockerLabs"
+import { getCurrentUserId } from "@/lib/server/userAuth"
+
+export const runtime = "nodejs"
 
 export async function GET() {
-  const active = await getActiveLabRun()
+  const userId = await getCurrentUserId()
+  if (!userId) return NextResponse.json({ active: null })
+
+  const active = await getUserActiveLabRun(userId)
   if (!active) return NextResponse.json({ active: null })
   return NextResponse.json({
     active: {

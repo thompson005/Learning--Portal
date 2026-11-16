@@ -6,10 +6,19 @@ import { LABS } from "@/lib/data/labs"
 
 const execFileAsync = promisify(execFile)
 
-/** Only one lab container runs at a time, so a fixed host port is safe — no scanning needed. */
-const HOST_PORT = 18080
+// Multiple learners can each run a lab at once (on a shared host like a DGX
+// Spark), so every lab gets its own host port from this pool. The size of the
+// pool is the hard ceiling on concurrent labs.
+const PORT_MIN = Number(process.env.LABS_PORT_MIN || 18100)
+const PORT_MAX = Number(process.env.LABS_PORT_MAX || 18160)
+// Global cap on concurrent lab containers — size this to the host's RAM/CPU.
+const MAX_CONCURRENT = Number(process.env.LABS_MAX_CONCURRENT || 24)
+// Per-container resource limits keep one learner from starving the box.
+const MEM_LIMIT = process.env.LABS_MEM || "512m"
+const CPU_LIMIT = process.env.LABS_CPUS || "1"
+const PIDS_LIMIT = process.env.LABS_PIDS || "256"
 
-/** Docker CLI's raw daemon-unreachable errors are cryptic (npipe paths, unix sockets) — surface something a trainee can act on instead. */
+/** Docker CLI's raw daemon-unreachable errors are cryptic — surface something actionable. */
 function friendlyDockerError(rawMessage: string): string {
   const daemonDown =
     /cannot connect to the docker daemon/i.test(rawMessage) ||
@@ -17,46 +26,17 @@ function friendlyDockerError(rawMessage: string): string {
     /dockerdesktoplinuxengine/i.test(rawMessage) ||
     /docker\.sock/i.test(rawMessage)
   if (daemonDown) {
-    return "Docker Desktop doesn't appear to be running. Start Docker Desktop, wait for it to finish loading, then try again."
+    return "The lab engine (Docker) isn't reachable. On a local machine, start Docker Desktop; on the server, make sure the Docker socket is mounted into the app container."
   }
   return rawMessage
 }
 
-function containerNameFor(labId: string) {
-  return `technieum-lab-${labId.toLowerCase()}`
+/** Container name is per-user + per-lab so two learners running the same lab don't collide. */
+function containerNameFor(userId: string, labId: string) {
+  const u = userId.replace(/[^a-z0-9]/gi, "").slice(0, 10).toLowerCase()
+  return `technieum-lab-${u}-${labId.toLowerCase()}`
 }
 
-/** Reads the DB's notion of the active run, but self-heals if the container died without us noticing. */
-export async function getActiveLabRun() {
-  const active = await db.labRun.findFirst({
-    where: { status: "running" },
-    orderBy: { startedAt: "desc" },
-  })
-  if (!active) return null
-  if (await isContainerRunning(active.containerName)) return active
-  await db.labRun.update({
-    where: { id: active.id },
-    data: { status: "stopped", stoppedAt: new Date() },
-  })
-  return null
-}
-
-export async function stopActiveLabRun() {
-  const active = await getActiveLabRun()
-  if (!active) return null
-  try {
-    await execFileAsync("docker", ["rm", "-f", active.containerName])
-  } catch {
-    // container may already be gone (e.g. Docker restarted) — proceed to mark it stopped anyway
-  }
-  await db.labRun.update({
-    where: { id: active.id },
-    data: { status: "stopped", stoppedAt: new Date() },
-  })
-  return active
-}
-
-/** True once the container's own health/state settles — used right after `docker run -d` to catch immediate crashes. */
 async function isContainerRunning(containerName: string): Promise<boolean> {
   try {
     const { stdout } = await execFileAsync("docker", [
@@ -85,35 +65,98 @@ async function containerLogsTail(containerName: string): Promise<string> {
   }
 }
 
-export async function startLab(labId: string) {
+/** The user's currently-running lab, self-healing if the container died. */
+export async function getUserActiveLabRun(userId: string) {
+  const active = await db.labRun.findFirst({
+    where: { userId, status: "running" },
+    orderBy: { startedAt: "desc" },
+  })
+  if (!active) return null
+  if (await isContainerRunning(active.containerName)) return active
+  await db.labRun.update({
+    where: { id: active.id },
+    data: { status: "stopped", stoppedAt: new Date() },
+  })
+  return null
+}
+
+/** All genuinely-running labs across all users, reconciled against Docker. */
+async function liveRuns() {
+  const runs = await db.labRun.findMany({ where: { status: "running" } })
+  const alive = []
+  for (const r of runs) {
+    if (await isContainerRunning(r.containerName)) alive.push(r)
+    else
+      await db.labRun
+        .update({
+          where: { id: r.id },
+          data: { status: "stopped", stoppedAt: new Date() },
+        })
+        .catch(() => {})
+  }
+  return alive
+}
+
+function allocPort(alive: { port: number | null }[]): number | null {
+  const used = new Set(alive.map((r) => r.port).filter(Boolean))
+  for (let p = PORT_MIN; p <= PORT_MAX; p++) if (!used.has(p)) return p
+  return null
+}
+
+export async function stopUserActiveLabRun(userId: string) {
+  const active = await getUserActiveLabRun(userId)
+  if (!active) return null
+  try {
+    await execFileAsync("docker", ["rm", "-f", active.containerName])
+  } catch {
+    // already gone — mark stopped anyway
+  }
+  await db.labRun.update({
+    where: { id: active.id },
+    data: { status: "stopped", stoppedAt: new Date() },
+  })
+  return active
+}
+
+export async function startLab(userId: string, labId: string) {
   const lab = LABS.find((l) => l.id === labId)
   if (!lab) throw new Error("Unknown lab id.")
   if (!lab.dockerImage || !lab.containerPort) {
     throw new Error("This lab has no runnable Docker environment configured.")
   }
 
-  const active = await getActiveLabRun()
-  if (active && active.labId === labId) {
+  // One running lab per user: reuse if it's already this lab, otherwise stop it.
+  const mine = await getUserActiveLabRun(userId)
+  if (mine && mine.labId === labId) {
     return {
-      port: active.port ?? HOST_PORT,
-      containerName: active.containerName,
+      port: mine.port,
+      containerName: mine.containerName,
       alreadyRunning: true,
     }
   }
-  if (active) {
-    await stopActiveLabRun()
+  if (mine) await stopUserActiveLabRun(userId)
+
+  // Global capacity + port allocation.
+  const alive = await liveRuns()
+  if (alive.length >= MAX_CONCURRENT) {
+    throw new Error(
+      `The lab server is at capacity (${MAX_CONCURRENT} labs running). Please try again in a few minutes.`,
+    )
+  }
+  const port = allocPort(alive)
+  if (port == null) {
+    throw new Error("No free lab port is available right now. Try again shortly.")
   }
 
-  const containerName = containerNameFor(labId)
+  const containerName = containerNameFor(userId, labId)
   await execFileAsync("docker", ["rm", "-f", containerName]).catch(() => {})
 
   const run = await db.labRun.create({
-    data: { labId, containerName, port: HOST_PORT, status: "running" },
+    data: { userId, labId, containerName, port, status: "running" },
   })
 
   try {
-    // Best-effort refresh — if this fails (offline, registry hiccup) but the image is
-    // already cached locally, `docker run` below still succeeds without a network call.
+    // Best-effort image refresh; a cached image still runs if this fails.
     await execFileAsync("docker", ["pull", lab.dockerImage], {
       timeout: 240_000,
     }).catch(() => {})
@@ -125,15 +168,22 @@ export async function startLab(labId: string) {
         "-d",
         "--name",
         containerName,
+        "--memory",
+        MEM_LIMIT,
+        "--cpus",
+        CPU_LIMIT,
+        "--pids-limit",
+        PIDS_LIMIT,
+        "--security-opt",
+        "no-new-privileges",
         "-p",
-        `${HOST_PORT}:${lab.containerPort}`,
+        `${port}:${lab.containerPort}`,
         lab.dockerImage,
       ],
       { timeout: 30_000 },
     )
     const containerId = stdout.trim()
 
-    // give the container a moment to crash-loop before declaring victory
     await new Promise((resolve) => setTimeout(resolve, 2000))
     if (!(await isContainerRunning(containerName))) {
       const logs = await containerLogsTail(containerName)
@@ -147,12 +197,7 @@ export async function startLab(labId: string) {
     }
 
     await db.labRun.update({ where: { id: run.id }, data: { containerId } })
-    return {
-      port: HOST_PORT,
-      containerName,
-      containerId,
-      alreadyRunning: false,
-    }
+    return { port, containerName, containerId, alreadyRunning: false }
   } catch (err) {
     const rawMessage = err instanceof Error ? err.message : "docker run failed"
     const message = friendlyDockerError(rawMessage)
@@ -164,8 +209,8 @@ export async function startLab(labId: string) {
   }
 }
 
-export async function stopLab(labId: string) {
-  const active = await getActiveLabRun()
+export async function stopLab(userId: string, labId: string) {
+  const active = await getUserActiveLabRun(userId)
   if (!active || active.labId !== labId) return null
-  return stopActiveLabRun()
+  return stopUserActiveLabRun(userId)
 }

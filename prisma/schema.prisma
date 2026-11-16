@@ -90,6 +90,7 @@ model TraineeModuleStatus {
 
 model LabRun {
   id            String    @id @default(cuid())
+  userId        String?   // the learner who started this lab — one running lab per user
   labId         String
   containerName String
   containerId   String?
@@ -98,4 +99,7 @@ model LabRun {
   errorMessage  String?
   startedAt     DateTime  @default(now())
   stoppedAt     DateTime?
+
+  @@index([userId])
+  @@index([status])
 }

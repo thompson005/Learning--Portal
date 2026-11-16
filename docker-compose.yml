@@ -1,0 +1,57 @@
+# Self-host the Technieum portal + its Postgres on one host (e.g. a DGX Spark).
+#   cp .env.docker.example .env   # then edit the secrets
+#   docker compose up -d --build
+#   docker compose exec app npx prisma db push      # create the tables (first run)
+#   docker compose exec app npx prisma db seed       # seed the admin account
+#
+# The app starts each lab as its OWN container on the host Docker (via the
+# mounted socket), publishing it on a host port in LABS_PORT_MIN..MAX. Open that
+# range on the host firewall so learners can reach their lab target.
+
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: technieum
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
+      POSTGRES_DB: technieum
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U technieum"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      args:
+        NEXT_PUBLIC_LABS_DOCKER: "1"
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://technieum:${POSTGRES_PASSWORD:-change-me}@db:5432/technieum?schema=public
+      SESSION_SECRET: ${SESSION_SECRET:-change-me-to-a-long-random-string}
+      DEFAULT_ADMIN_USERNAME: ${DEFAULT_ADMIN_USERNAME:-admin}
+      DEFAULT_ADMIN_PASSWORD: ${DEFAULT_ADMIN_PASSWORD:-change-me}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      # Lab scheduling / resource limits — size these to the host.
+      LABS_MAX_CONCURRENT: ${LABS_MAX_CONCURRENT:-24}
+      LABS_MEM: ${LABS_MEM:-512m}
+      LABS_CPUS: ${LABS_CPUS:-1}
+      LABS_PIDS: ${LABS_PIDS:-256}
+      LABS_PORT_MIN: ${LABS_PORT_MIN:-18100}
+      LABS_PORT_MAX: ${LABS_PORT_MAX:-18160}
+    ports:
+      - "3000:3000"
+    volumes:
+      # Lets the app create/stop lab containers on the host. The lab containers
+      # publish their own host ports directly, so the app only needs 3000.
+      - /var/run/docker.sock:/var/run/docker.sock
+
+volumes:
+  pgdata:

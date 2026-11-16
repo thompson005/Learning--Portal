@@ -266,22 +266,26 @@ function LabEnvironment({ lab }: { lab: Lab }) {
         <Container className="h-3.5 w-3.5" /> Lab Environment (Docker)
       </p>
       <p className="text-xs text-muted-foreground">
-        Runs{" "}
+        Spins up{" "}
         <code className="rounded bg-muted px-1 py-0.5">{lab.dockerImage}</code>{" "}
-        locally via Docker. Only one lab environment runs at a time — starting
-        this one stops whatever else is running.
+        as your own lab target. You can run one lab at a time — starting this
+        one stops any other lab you have open.
       </p>
       {isOtherRunning && (
         <p className="text-xs font-medium text-brand-orange">
-          Another lab environment is currently running. Starting this one will
-          stop it first.
+          You already have another lab running. Starting this one will stop it
+          first.
         </p>
       )}
       <div className="flex flex-wrap items-center gap-2">
         {isThisRunning ? (
           <>
             <a
-              href={`http://localhost:${active?.port}`}
+              href={
+                active?.port
+                  ? `${typeof window !== "undefined" ? window.location.protocol : "http:"}//${typeof window !== "undefined" ? window.location.hostname : "localhost"}:${active.port}`
+                  : "#"
+              }
               target="_blank"
               rel="noreferrer"
             >
