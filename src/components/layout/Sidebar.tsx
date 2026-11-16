@@ -15,6 +15,7 @@ import {
   ChevronsRight,
   ArrowRight,
   LogOut,
+  Route,
 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
@@ -26,14 +27,13 @@ import { getOverallProgress, getNextTopic } from "@/lib/store/progress"
 import {
   activeCurriculum,
   activeLabs,
-  TRACKS,
-  getActiveTrackId,
-  setActiveTrackId,
+  getActiveTrack,
 } from "@/lib/data/tracks/registry"
 import { useActiveTrackId } from "@/lib/data/tracks/useTrack"
 
 const MAIN_NAV = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/paths", label: "Paths", icon: Route },
   { href: "/plan", label: "Roadmap", icon: CalendarDays },
   { href: "/modules", label: "Modules", icon: BookOpen, badge: "count-modules" as const },
   { href: "/labs", label: "Labs", icon: FlaskConical, badge: "count-labs" as const },
@@ -132,6 +132,25 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         {collapsed ? <LogoMark /> : <Logo />}
       </div>
 
+      {!collapsed && (
+        <Link
+          href="/paths"
+          onClick={onNavigate}
+          className="mx-3 mt-3 flex items-center justify-between rounded-lg bg-card px-3 py-2 shadow-chip transition-colors hover:text-brand-orange"
+          title="Switch track"
+        >
+          <span className="min-w-0">
+            <span className="block font-mono text-[9px] font-semibold uppercase tracking-widest text-muted-foreground">
+              Current track
+            </span>
+            <span className="block truncate text-sm font-semibold">
+              {getActiveTrack().name}
+            </span>
+          </span>
+          <ChevronsRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+        </Link>
+      )}
+
       <div className="px-3 pt-3">
         {collapsed ? (
           <button
@@ -148,27 +167,6 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           <SearchTrigger className="flex w-full items-center gap-2 px-3 py-2 text-sm text-muted-foreground shadow-chip transition-colors hover:text-foreground" />
         )}
       </div>
-
-      {!collapsed && (
-        <div className="px-3 pt-2.5">
-          <p className="sharp-section-title px-1 pb-1">Track</p>
-          <select
-            value={trackId}
-            onChange={(e) => {
-              setActiveTrackId(e.target.value)
-              onNavigate?.()
-            }}
-            className="w-full cursor-pointer rounded-lg bg-card px-2.5 py-2 text-sm font-medium text-foreground shadow-chip outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/40"
-            aria-label="Switch course track"
-          >
-            {TRACKS.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name}
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
 
       <nav className="flex-1 space-y-6 overflow-y-auto px-3 py-4">
         <div>
