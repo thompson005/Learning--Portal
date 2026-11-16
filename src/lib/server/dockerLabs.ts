@@ -17,6 +17,10 @@ const MAX_CONCURRENT = Number(process.env.LABS_MAX_CONCURRENT || 24)
 const MEM_LIMIT = process.env.LABS_MEM || "512m"
 const CPU_LIMIT = process.env.LABS_CPUS || "1"
 const PIDS_LIMIT = process.env.LABS_PIDS || "256"
+// Host IP the lab target ports bind to. Set to the DGX's VPN IP so lab targets
+// (deliberately vulnerable) are reachable ONLY over the VPN, never on the
+// public/LAN interface. Empty = bind all interfaces (0.0.0.0) — avoid in prod.
+const LAB_BIND_IP = process.env.LABS_BIND_IP || ""
 
 /** Docker CLI's raw daemon-unreachable errors are cryptic — surface something actionable. */
 function friendlyDockerError(rawMessage: string): string {
@@ -177,7 +181,9 @@ export async function startLab(userId: string, labId: string) {
         "--security-opt",
         "no-new-privileges",
         "-p",
-        `${port}:${lab.containerPort}`,
+        LAB_BIND_IP
+          ? `${LAB_BIND_IP}:${port}:${lab.containerPort}`
+          : `${port}:${lab.containerPort}`,
         lab.dockerImage,
       ],
       { timeout: 30_000 },

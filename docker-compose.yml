@@ -46,8 +46,12 @@ services:
       LABS_PIDS: ${LABS_PIDS:-256}
       LABS_PORT_MIN: ${LABS_PORT_MIN:-18100}
       LABS_PORT_MAX: ${LABS_PORT_MAX:-18160}
+      # Bind lab target ports to this host IP only (set to the DGX VPN IP so
+      # vulnerable targets are reachable only over the VPN).
+      LABS_BIND_IP: ${BIND_IP:-}
     ports:
-      - "3000:3000"
+      # BIND_IP restricts the portal to one interface (the VPN IP). Unset = all.
+      - "${BIND_IP:-0.0.0.0}:3000:3000"
     volumes:
       # Lets the app create/stop lab containers on the host. The lab containers
       # publish their own host ports directly, so the app only needs 3000.
