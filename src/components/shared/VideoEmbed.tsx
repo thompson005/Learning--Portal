@@ -1,5 +1,8 @@
 "use client"
 
+import { useState } from "react"
+import { AlertTriangle, ExternalLink } from "lucide-react"
+
 /**
  * Turn a YouTube watch/share/playlist/shorts URL into its /embed/ form so the
  * video can play inside the portal. Returns null for anything that isn't a
@@ -58,7 +61,27 @@ export function isEmbeddableVideo(url: string): boolean {
 
 export function VideoEmbed({ url, title }: { url: string; title: string }) {
   const embed = toYouTubeEmbed(url)
+  const [failed, setFailed] = useState(false)
   if (!embed) return null
+
+  // If the frame fails to load (blocked network, offline, removed video), fall
+  // back to a link so the learner can still reach it.
+  if (failed) {
+    return (
+      <a
+        href={url}
+        target="_blank"
+        rel="noreferrer"
+        className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-3 text-sm shadow-tile"
+      >
+        <AlertTriangle className="h-4 w-4 shrink-0 text-brand-orange" />
+        <span className="min-w-0 flex-1 truncate">
+          Couldn&apos;t load player — open {title} on YouTube
+        </span>
+        <ExternalLink className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+      </a>
+    )
+  }
 
   return (
     <div className="overflow-hidden rounded-xl border border-border bg-card shadow-tile">
@@ -71,6 +94,7 @@ export function VideoEmbed({ url, title }: { url: string; title: string }) {
           referrerPolicy="strict-origin-when-cross-origin"
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
           allowFullScreen
+          onError={() => setFailed(true)}
         />
       </div>
       <p className="truncate px-3 py-2 text-xs font-medium text-muted-foreground">

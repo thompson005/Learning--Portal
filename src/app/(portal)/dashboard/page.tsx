@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button"
 import { ProgressRing } from "@/components/dashboard/ProgressRing"
 import { RankBadge } from "@/components/dashboard/RankBadge"
 import { AchievementsPanel } from "@/components/dashboard/AchievementsPanel"
+import { EmptyState } from "@/components/shared/EmptyState"
 import {
   getOverallProgress,
   getRecentActivity,
@@ -315,9 +316,13 @@ export default function DashboardPage() {
               </div>
             ))
           ) : (
-            <p className="py-3 text-sm text-muted-foreground">
-              No activity yet — start your first topic to see it here.
-            </p>
+            <EmptyState
+              icon={BookOpen}
+              title="No activity yet"
+              description="Open your first topic and it'll show up here as you go."
+              actionLabel="Start learning"
+              actionHref={nextModule ? `/modules/${nextModule.id}` : "/modules"}
+            />
           )}
         </div>
       </section>

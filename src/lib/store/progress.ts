@@ -22,8 +22,15 @@ function defaultProgress(): UserProgress {
     topicQuizzes: {},
     moduleQuizzes: {},
     checkpoints: {},
+    activityDates: [],
+    lastTopicId: undefined,
     lastUpdated: new Date().toISOString(),
   }
+}
+
+/** Local calendar date as yyyy-mm-dd (not UTC — the streak follows the learner's own day). */
+function todayKey(d = new Date()): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
 }
 
 export function getProgress(): UserProgress {
@@ -40,10 +47,20 @@ export function getProgress(): UserProgress {
       topicQuizzes: parsed.topicQuizzes ?? {},
       moduleQuizzes: parsed.moduleQuizzes ?? {},
       checkpoints: parsed.checkpoints ?? {},
+      activityDates: parsed.activityDates ?? [],
     }
   } catch {
     return defaultProgress()
   }
+}
+
+/** Records that the learner did something today (for the streak). Call from
+ * real learner actions, never from hydration. */
+function markActivityToday(progress: UserProgress): UserProgress {
+  const key = todayKey()
+  const dates = progress.activityDates ?? []
+  if (!dates.includes(key)) progress.activityDates = [...dates, key]
+  return progress
 }
 
 function saveProgress(progress: UserProgress) {
@@ -82,7 +99,59 @@ export function updateTopicStatus(
   }
 
   progress.topics[topicId] = next
+  markActivityToday(progress)
   saveProgress(progress)
+}
+
+/** Remember the topic the learner most recently opened, for resume. */
+export function setLastTopic(topicId: string) {
+  const progress = getProgress()
+  if (progress.lastTopicId === topicId) return
+  progress.lastTopicId = topicId
+  saveProgress(progress)
+}
+
+export function getLastTopic(): string | undefined {
+  return getProgress().lastTopicId
+}
+
+/** Daily streak from recorded activity dates. `current` counts back from today
+ * (or yesterday, so a streak isn't "broken" until a full day is missed). */
+export function getStreak(): { current: number; longest: number; active: boolean } {
+  const dates = (getProgress().activityDates ?? []).slice().sort()
+  if (dates.length === 0) return { current: 0, longest: 0, active: false }
+
+  const set = new Set(dates)
+  const dayMs = 24 * 60 * 60 * 1000
+  const atKey = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
+
+  // longest run of consecutive days anywhere in the history
+  let longest = 1
+  let run = 1
+  for (let i = 1; i < dates.length; i++) {
+    const prev = new Date(dates[i - 1])
+    const cur = new Date(dates[i])
+    if (Math.round((cur.getTime() - prev.getTime()) / dayMs) === 1) {
+      run += 1
+      longest = Math.max(longest, run)
+    } else {
+      run = 1
+    }
+  }
+
+  // current streak, anchored to today or yesterday
+  const today = new Date()
+  const activeToday = set.has(atKey(today))
+  const cursor = new Date(today)
+  if (!activeToday) cursor.setTime(cursor.getTime() - dayMs)
+  let current = 0
+  while (set.has(atKey(cursor))) {
+    current += 1
+    cursor.setTime(cursor.getTime() - dayMs)
+  }
+
+  return { current, longest, active: activeToday }
 }
 
 export function updateLabStatus(labId: string, update: Partial<LabProgress>) {
@@ -100,6 +169,7 @@ export function updateLabStatus(labId: string, update: Partial<LabProgress>) {
   }
 
   progress.labs[labId] = next
+  markActivityToday(progress)
   saveProgress(progress)
 }
 
@@ -349,6 +419,8 @@ export function importProgress(json: string): void {
     topicQuizzes: parsed.topicQuizzes ?? {},
     moduleQuizzes: parsed.moduleQuizzes ?? {},
     checkpoints: parsed.checkpoints ?? {},
+    activityDates: parsed.activityDates ?? [],
+    lastTopicId: parsed.lastTopicId,
   })
 }
 
@@ -380,6 +452,7 @@ export function recordTopicQuizAttempt(
     answers,
   }
   progress.topicQuizzes[topicId] = attempt
+  markActivityToday(progress)
   saveProgress(progress)
 }
 
@@ -397,6 +470,7 @@ export function recordModuleQuizAttempt(
     answers,
   }
   progress.moduleQuizzes[moduleId] = attempt
+  markActivityToday(progress)
   saveProgress(progress)
 }
 

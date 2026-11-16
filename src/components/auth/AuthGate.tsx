@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 
 import { AuthContext, type AuthUser } from "@/components/auth/AuthContext"
 import { AuthScreen } from "@/components/auth/AuthScreen"
-import { LogoMark } from "@/components/shared/Logo"
+import { PortalSkeleton } from "@/components/layout/PortalSkeleton"
 import {
   getProgress,
   importProgress,
@@ -88,11 +88,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   }, [])
 
   if (status === "loading") {
-    return (
-      <div className="flex min-h-dvh items-center justify-center bg-dot-grid">
-        <LogoMark className="h-10 w-auto animate-pulse" />
-      </div>
-    )
+    return <PortalSkeleton />
   }
 
   if (status === "out" || !user) {

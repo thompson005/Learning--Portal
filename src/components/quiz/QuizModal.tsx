@@ -49,6 +49,9 @@ export function QuizModal({
   )
   const [answers, setAnswers] = useState<(number | null)[]>(() => questions.map(() => null))
   const [submitted, setSubmitted] = useState(false)
+  // Practice mode = retrying only the questions you missed; not scored, so it
+  // never overwrites your real attempt.
+  const [practice, setPractice] = useState(false)
 
   // Fresh shuffle every time the quiz is opened, so a retake (or reopening)
   // never repeats the same option order.
@@ -57,6 +60,7 @@ export function QuizModal({
       setDeck(questions.map(shuffleQuestion))
       setAnswers(questions.map(() => null))
       setSubmitted(false)
+      setPractice(false)
     }
   }, [open, questions])
 
@@ -71,6 +75,8 @@ export function QuizModal({
 
   function handleSubmit() {
     setSubmitted(true)
+    // Practice runs are feedback-only — never recorded.
+    if (practice) return
     const score = deck.reduce(
       (sum, q, i) => sum + (answers[i] === q.correctIndex ? 1 : 0),
       0
@@ -82,7 +88,20 @@ export function QuizModal({
     setDeck(questions.map(shuffleQuestion))
     setAnswers(questions.map(() => null))
     setSubmitted(false)
+    setPractice(false)
   }
+
+  function handlePracticeWrong() {
+    const wrong = deck.filter((q, i) => answers[i] !== q.correctIndex)
+    setDeck(wrong.map(shuffleQuestion))
+    setAnswers(wrong.map(() => null))
+    setSubmitted(false)
+    setPractice(true)
+  }
+
+  const wrongCount = submitted
+    ? deck.reduce((n, q, i) => n + (answers[i] !== q.correctIndex ? 1 : 0), 0)
+    : 0
 
   function handleClose(next: boolean) {
     if (!next) {
@@ -103,9 +122,13 @@ export function QuizModal({
         <DialogHeader>
           <DialogTitle className="font-display text-xl font-semibold">{title}</DialogTitle>
           <DialogDescription>
-            {submitted
-              ? `You scored ${score}/${questions.length}.`
-              : `${questions.length} question${questions.length > 1 ? "s" : ""} — select the best answer for each.`}
+            {practice && !submitted
+              ? `Practice — ${deck.length} missed question${deck.length > 1 ? "s" : ""}, not scored.`
+              : submitted
+              ? practice
+                ? "Practice run — not scored."
+                : `You scored ${score}/${deck.length}.`
+              : `${deck.length} question${deck.length > 1 ? "s" : ""} — select the best answer for each.`}
           </DialogDescription>
         </DialogHeader>
 
@@ -170,9 +193,20 @@ export function QuizModal({
 
         <div className="flex justify-end gap-2">
           {submitted ? (
-            <Button variant="outline" onClick={handleRetake}>
-              <RotateCcw className="h-4 w-4" /> Retake
-            </Button>
+            <>
+              {wrongCount > 0 && (
+                <Button
+                  variant="teal"
+                  className="bg-brand-orange hover:bg-brand-orange/90"
+                  onClick={handlePracticeWrong}
+                >
+                  Practice wrong (<span className="font-mono">{wrongCount}</span>)
+                </Button>
+              )}
+              <Button variant="outline" onClick={handleRetake}>
+                <RotateCcw className="h-4 w-4" /> {practice ? "Full quiz" : "Retake"}
+              </Button>
+            </>
           ) : (
             <Button
               variant="teal"
@@ -180,7 +214,7 @@ export function QuizModal({
               onClick={handleSubmit}
               disabled={!allAnswered}
             >
-              Submit Quiz
+              {practice ? "Check answers" : "Submit Quiz"}
             </Button>
           )}
         </div>

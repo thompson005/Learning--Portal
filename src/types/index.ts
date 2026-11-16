@@ -269,6 +269,10 @@ export interface UserProgress {
   moduleQuizzes: Record<string, QuizAttempt>
   /** Slide checkpoint answers, keyed by `${ownerId}::${slideIndex}` — true once answered correctly. */
   checkpoints: Record<string, boolean>
+  /** Local-date (yyyy-mm-dd) strings on which the learner did something — drives the daily streak. */
+  activityDates?: string[]
+  /** The topic the learner most recently opened — powers "resume exactly where you left off". */
+  lastTopicId?: string
   lastUpdated: string
 }
 
