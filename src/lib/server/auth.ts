@@ -24,7 +24,11 @@ export async function createSession(adminUserId: string) {
   const cookieStore = await cookies()
   cookieStore.set(SESSION_COOKIE, session.id, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    // See userAuth.ts: HTTP self-host needs INSECURE_COOKIES=1, else the
+    // browser drops this cookie and admin login won't stick.
+    secure:
+      process.env.NODE_ENV === "production" &&
+      process.env.INSECURE_COOKIES !== "1",
     sameSite: "lax",
     path: "/",
     expires: session.expiresAt,

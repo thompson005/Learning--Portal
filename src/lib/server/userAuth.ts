@@ -53,7 +53,12 @@ export async function createUserSession(userId: string) {
   const cookieStore = await cookies()
   cookieStore.set(SESSION_COOKIE, session.id, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    // Secure cookies require HTTPS. A self-host served over plain HTTP (e.g. on
+    // a VPN) must set INSECURE_COOKIES=1 or the browser drops the session and
+    // login silently fails. HTTPS deploys (Vercel) leave it unset.
+    secure:
+      process.env.NODE_ENV === "production" &&
+      process.env.INSECURE_COOKIES !== "1",
     sameSite: "lax",
     path: "/",
     expires: session.expiresAt,
