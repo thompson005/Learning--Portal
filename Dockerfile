@@ -41,6 +41,7 @@ COPY --from=build /app/public ./public
 # Prisma CLI (for `prisma db push`) are all present at runtime.
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/prisma ./prisma
+COPY --from=build /app/scripts ./scripts
 
 EXPOSE 3000
 CMD ["node", "server.js"]
