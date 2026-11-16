@@ -10,7 +10,6 @@ import {
   CalendarDays,
   LineChart,
   Library,
-  UserCog,
   Settings,
   ChevronsLeft,
   ChevronsRight,
@@ -192,16 +191,8 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         <div>
           {!collapsed && <p className="sharp-section-title px-1 pb-2">System</p>}
           <ul className="space-y-1.5">
-            <li>
-              <NavKey
-                href="/admin"
-                label="Admin"
-                icon={UserCog}
-                active={pathname.startsWith("/admin")}
-                collapsed={collapsed}
-                onNavigate={onNavigate}
-              />
-            </li>
+            {/* Admin is intentionally not listed — it's a staff-only endpoint
+                reachable at /admin, not shown to normal learners. */}
             <li>
               <NavKey
                 href="/settings"

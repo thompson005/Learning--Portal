@@ -27,6 +27,19 @@ const STAT_COLOR = {
   purple: "text-brand-purple",
 } as const
 
+const PHASE_ACCENT = {
+  1: "text-brand-green",
+  2: "text-brand-orange",
+  3: "text-brand-blue",
+  4: "text-brand-purple",
+} as const
+const PHASE_BAR = {
+  1: "bg-brand-green",
+  2: "bg-brand-orange",
+  3: "bg-brand-blue",
+  4: "bg-brand-purple",
+} as const
+
 function StatTile({
   icon: Icon,
   color,
@@ -39,7 +52,7 @@ function StatTile({
   label: string
 }) {
   return (
-    <div className="rounded-lg border border-border bg-muted/20 p-4 text-center">
+    <div className="bg-card p-4 text-center shadow-tile">
       <Icon className={cn("mx-auto h-5 w-5", STAT_COLOR[color])} />
       <p
         className={cn(
@@ -115,26 +128,35 @@ export default function LabsPage() {
   const xpEarned = completed * XP_PER_LAB
   const xpTotal = LABS.length * XP_PER_LAB
 
+  // Group the filtered labs under their module, in curriculum order, so the
+  // page reads as an organized track rather than one long flat list.
+  const grouped = CURRICULUM.map((m) => ({
+    module: m,
+    labs: filtered.filter((l) => l.moduleId === m.id),
+    allLabs: LABS.filter((l) => l.moduleId === m.id),
+  })).filter((g) => g.labs.length > 0)
+
   return (
     <div className="space-y-6">
-      <div className="rounded-xl border border-border bg-card p-6">
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+      <div className="hero-gradient relative overflow-hidden p-6 md:p-8">
+        <div className="bg-dot-grid pointer-events-none absolute inset-0 opacity-40" />
+        <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <p className="font-mono text-xs font-semibold uppercase tracking-widest text-brand-orange">
               Hands-On Labs
             </p>
             <h1 className="mt-1 font-display text-3xl font-semibold tracking-tight text-foreground md:text-4xl">
-              Labs Tracker
+              Labs
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              {LABS.length} hands-on labs · {dockerCount} run live in Docker ·{" "}
-              {xpTotal.toLocaleString()} XP up for grabs
+              {LABS.length} hands-on labs · {dockerCount} with a live Docker
+              target · {xpTotal.toLocaleString()} XP up for grabs
             </p>
           </div>
           <ProgressRing
             value={percent}
-            size={104}
-            strokeWidth={9}
+            size={120}
+            strokeWidth={10}
             label="Labs Complete"
             gradient
           />
@@ -187,21 +209,59 @@ export default function LabsPage() {
         </div>
       </div>
 
-      <div className="space-y-3">
-        {filtered.length === 0 ? (
-          <p className="py-8 text-center text-sm text-muted-foreground">
-            No labs match these filters.
-          </p>
-        ) : (
-          filtered.map((lab) => (
-            <LabCard
-              key={lab.id}
-              lab={lab}
-              moduleName={moduleName(lab.moduleId)}
-            />
-          ))
-        )}
-      </div>
+      {grouped.length === 0 ? (
+        <p className="py-8 text-center text-sm text-muted-foreground">
+          No labs match these filters.
+        </p>
+      ) : (
+        <div className="space-y-8">
+          {grouped.map(({ module: m, labs, allLabs }) => {
+            const done = allLabs.filter(
+              (l) => statusMap[l.id] === "completed",
+            ).length
+            const pct = allLabs.length
+              ? Math.round((done / allLabs.length) * 100)
+              : 0
+            return (
+              <section key={m.id} className="space-y-3">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-border pb-2.5">
+                  <span
+                    className={cn(
+                      "font-mono text-xs font-semibold uppercase tracking-widest",
+                      PHASE_ACCENT[m.month],
+                    )}
+                  >
+                    {m.shortName}
+                  </span>
+                  <span className="font-display text-lg font-semibold text-foreground">
+                    {m.name}
+                  </span>
+                  <div className="ml-auto flex items-center gap-2">
+                    <div className="h-1.5 w-20 overflow-hidden rounded-full bg-muted">
+                      <div
+                        className={cn("h-full rounded-full", PHASE_BAR[m.month])}
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                    <span className="font-mono text-[11px] text-muted-foreground">
+                      {done}/{allLabs.length}
+                    </span>
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  {labs.map((lab) => (
+                    <LabCard
+                      key={lab.id}
+                      lab={lab}
+                      moduleName={moduleName(lab.moduleId)}
+                    />
+                  ))}
+                </div>
+              </section>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }

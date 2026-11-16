@@ -51,6 +51,13 @@ const DIFFICULTY_COLOR = {
   hard: "#ef4444",
 } as const
 
+// The local Docker lab runner only exists in a local/self-hosted deployment
+// with Docker on the host. On a serverless host (e.g. Vercel) there is no
+// Docker, so the "Start Lab" control is gated behind this build-time flag and
+// learners use the online alternative instead. Set NEXT_PUBLIC_LABS_DOCKER=1
+// locally to enable it.
+const DOCKER_ENABLED = process.env.NEXT_PUBLIC_LABS_DOCKER === "1"
+
 interface VerifyResult {
   verified: boolean
   confidence: "high" | "medium" | "low"
@@ -590,7 +597,26 @@ export function LabCard({ lab, moduleName }: { lab: Lab; moduleName: string }) {
             </div>
           )}
 
-          {lab.dockerImage && lab.containerPort && <LabEnvironment lab={lab} />}
+          {DOCKER_ENABLED && lab.dockerImage && lab.containerPort && (
+            <LabEnvironment lab={lab} />
+          )}
+
+          {!DOCKER_ENABLED && lab.dockerImage && !lab.onlineAlternative && (
+            <div className="rounded-lg border border-border bg-muted/30 p-3">
+              <p className="flex items-center gap-1.5 font-mono text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                <Container className="h-3.5 w-3.5" /> Local Docker lab
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                This lab&apos;s target runs in Docker (
+                <code className="rounded bg-muted px-1 py-0.5">
+                  {lab.dockerImage}
+                </code>
+                ). Follow the walkthrough and success criteria above; run the
+                target on your own machine, then upload a completion screenshot
+                below to mark it done.
+              </p>
+            </div>
+          )}
 
           {lab.onlineAlternative && (
             <div className="space-y-2 rounded-lg border border-brand-teal/30 bg-brand-teal/[0.05] p-3">

@@ -22,6 +22,8 @@ import { ProgressBar } from "@/components/shared/ProgressBar"
 import { TopicRow } from "@/components/modules/TopicRow"
 import { VideoEmbed, isEmbeddableVideo } from "@/components/shared/VideoEmbed"
 import { useFocusMode } from "@/components/layout/FocusMode"
+import { LabCard } from "@/components/labs/LabCard"
+import { LABS } from "@/lib/data/labs"
 import { QuizModal } from "@/components/quiz/QuizModal"
 import { CURRICULUM } from "@/lib/data/curriculum"
 import {
@@ -100,6 +102,7 @@ function ModuleDetailContent({
     : []
   const moduleVideos = moduleResources.filter((r) => isEmbeddableVideo(r.url))
   const moduleLinks = moduleResources.filter((r) => !isEmbeddableVideo(r.url))
+  const moduleLabs = mod ? LABS.filter((l) => l.moduleId === mod.id) : []
 
   useEffect(() => {
     if (!mod) return
@@ -210,6 +213,11 @@ function ModuleDetailContent({
             <TabsTrigger value="topics">
               Topics (<span className="font-mono">{mod.topics.length}</span>)
             </TabsTrigger>
+            {moduleLabs.length > 0 && (
+              <TabsTrigger value="labs">
+                Labs (<span className="font-mono">{moduleLabs.length}</span>)
+              </TabsTrigger>
+            )}
             <TabsTrigger value="resources">Resources</TabsTrigger>
           </TabsList>
 
@@ -300,6 +308,18 @@ function ModuleDetailContent({
               ))}
             </div>
           </TabsContent>
+
+          {moduleLabs.length > 0 && (
+            <TabsContent value="labs" className="space-y-3">
+              <p className="px-1 text-sm text-muted-foreground">
+                Hands-on labs for this module — apply what you learned in the
+                topics above.
+              </p>
+              {moduleLabs.map((lab) => (
+                <LabCard key={lab.id} lab={lab} moduleName={mod.shortName} />
+              ))}
+            </TabsContent>
+          )}
 
           <TabsContent value="resources" className="space-y-4">
             {moduleVideos.length > 0 && (
