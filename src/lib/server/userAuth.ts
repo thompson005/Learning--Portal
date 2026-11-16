@@ -17,8 +17,15 @@ export async function signUp(email: string, name: string, password: string) {
   const existing = await prisma.user.findUnique({ where: { email: normalized } })
   if (existing) return { error: "An account with this email already exists." as const }
   const passwordHash = await bcrypt.hash(password, 10)
+  const now = new Date()
   const user = await prisma.user.create({
-    data: { email: normalized, name: name.trim(), passwordHash },
+    data: {
+      email: normalized,
+      name: name.trim(),
+      passwordHash,
+      lastLoginAt: now,
+      lastSeenAt: now,
+    },
   })
   await createUserSession(user.id)
   return { user: toSafe(user) }
@@ -30,6 +37,11 @@ export async function login(email: string, password: string) {
   if (!user) return { error: "No account found for that email." as const }
   const valid = await bcrypt.compare(password, user.passwordHash)
   if (!valid) return { error: "Incorrect password." as const }
+  const now = new Date()
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { lastLoginAt: now, lastSeenAt: now },
+  })
   await createUserSession(user.id)
   return { user: toSafe(user) }
 }

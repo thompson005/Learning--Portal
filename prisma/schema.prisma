@@ -31,7 +31,27 @@ model User {
   progressJson String        @default("{}")
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
+  lastLoginAt  DateTime?
+  lastSeenAt   DateTime?
   sessions     UserSession[]
+  activity     ActivityDay[]
+}
+
+// Per-learner, per-day time-on-portal, captured automatically from a client
+// heartbeat (only while the tab is visible and focused). Replaces the manual
+// "Number of hours" column of the old daily-learning-log spreadsheet.
+model ActivityDay {
+  id            String   @id @default(cuid())
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId        String
+  day           String   // yyyy-mm-dd in the learner's local date
+  activeSeconds Int      @default(0)
+  sessions      Int      @default(1)
+  firstAt       DateTime @default(now())
+  lastAt        DateTime @default(now())
+
+  @@unique([userId, day])
+  @@index([userId])
 }
 
 model UserSession {

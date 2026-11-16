@@ -1,7 +1,16 @@
 "use client"
 
 import { Fragment, useEffect, useState } from "react"
-import { ChevronDown, ChevronRight, Download, Users } from "lucide-react"
+import {
+  ChevronDown,
+  ChevronRight,
+  Download,
+  Users,
+  Clock,
+  LogIn,
+  CalendarDays,
+  Timer,
+} from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 
@@ -15,12 +24,21 @@ interface ModuleStat {
   percent: number
 }
 
+interface DailyLogRow {
+  day: string
+  activeSeconds: number
+  topics: string[]
+  labs: string[]
+}
+
 interface Learner {
   id: string
   email: string
   name: string
   createdAt: string
   updatedAt: string
+  lastLoginAt: string | null
+  lastSeenAt: string | null
   stats: {
     topicsCompleted: number
     topicsTotal: number
@@ -34,6 +52,17 @@ interface Learner {
     rank: string
     modules: ModuleStat[]
   }
+  activity: {
+    totalSeconds: number
+    activeDays: number
+    todaySeconds: number
+    weekSeconds: number
+    sessions: number
+    avgSessionMinutes: number
+    firstDay: string | null
+    lastDay: string | null
+  }
+  dailyLog: DailyLogRow[]
 }
 
 function fmtDate(iso: string): string {
@@ -43,6 +72,72 @@ function fmtDate(iso: string): string {
     month: "short",
     day: "numeric",
   })
+}
+
+function fmtDayString(day: string): string {
+  // day is "yyyy-mm-dd" — render without timezone shifting
+  const [y, m, d] = day.split("-").map(Number)
+  return new Date(y, m - 1, d).toLocaleDateString(undefined, {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  })
+}
+
+function fmtDuration(seconds: number): string {
+  if (seconds <= 0) return "0m"
+  const h = Math.floor(seconds / 3600)
+  const m = Math.round((seconds % 3600) / 60)
+  if (h === 0) return `${m}m`
+  return m === 0 ? `${h}h` : `${h}h ${m}m`
+}
+
+function fmtDateTime(iso: string | null): string {
+  if (!iso) return "Never"
+  return new Date(iso).toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  })
+}
+
+function fmtRelative(iso: string | null): string {
+  if (!iso) return "Never"
+  const diff = Date.now() - new Date(iso).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 3) return "Online now"
+  if (mins < 60) return `${mins}m ago`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return `${hrs}h ago`
+  const days = Math.floor(hrs / 24)
+  return `${days}d ago`
+}
+
+function isOnline(iso: string | null): boolean {
+  if (!iso) return false
+  return Date.now() - new Date(iso).getTime() < 3 * 60000
+}
+
+function ActivityStat({
+  icon,
+  label,
+  value,
+}: {
+  icon: React.ReactNode
+  label: string
+  value: string
+}) {
+  return (
+    <div className="rounded-lg border border-border bg-card p-2.5">
+      <p className="flex items-center gap-1 font-mono text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+        {icon} {label}
+      </p>
+      <p className="mt-1 truncate text-sm font-semibold text-foreground">
+        {value}
+      </p>
+    </div>
+  )
 }
 
 function barColor(percent: number): string {
@@ -73,7 +168,11 @@ export function LearnersPanel() {
       "Name",
       "Email",
       "Joined",
-      "Last active",
+      "Last login",
+      "Last seen",
+      "Total time on portal (h)",
+      "Active days",
+      "Sessions",
       "Rank",
       "XP",
       "Topics completed",
@@ -88,7 +187,11 @@ export function LearnersPanel() {
       l.name,
       l.email,
       fmtDate(l.createdAt),
-      fmtDate(l.updatedAt),
+      fmtDateTime(l.lastLoginAt),
+      fmtDateTime(l.lastSeenAt),
+      (l.activity.totalSeconds / 3600).toFixed(1),
+      String(l.activity.activeDays),
+      String(l.activity.sessions),
       l.stats.rank,
       String(l.stats.xp),
       String(l.stats.topicsCompleted),
@@ -159,9 +262,9 @@ export function LearnersPanel() {
               <th className="p-3 text-center">XP</th>
               <th className="p-3 text-center">Topics</th>
               <th className="p-3 text-center">Labs</th>
-              <th className="p-3 text-center">Quizzes</th>
               <th className="p-3 text-center">Overall</th>
-              <th className="p-3 text-center">Last active</th>
+              <th className="p-3 text-center">On portal</th>
+              <th className="p-3 text-center">Last seen</th>
             </tr>
           </thead>
           <tbody>
@@ -203,9 +306,6 @@ export function LearnersPanel() {
                     <td className="p-3 text-center font-mono">
                       {l.stats.labsCompleted}/{l.stats.labsTotal}
                     </td>
-                    <td className="p-3 text-center font-mono">
-                      {l.stats.topicQuizzesPassed + l.stats.moduleQuizzesPassed}
-                    </td>
                     <td className="p-3">
                       <div className="flex items-center gap-2">
                         <div className="h-1.5 w-16 overflow-hidden rounded-full bg-muted">
@@ -219,13 +319,121 @@ export function LearnersPanel() {
                         </span>
                       </div>
                     </td>
-                    <td className="p-3 text-center text-xs text-muted-foreground">
-                      {fmtDate(l.updatedAt)}
+                    <td className="p-3 text-center font-mono text-xs">
+                      {fmtDuration(l.activity.totalSeconds)}
+                    </td>
+                    <td className="p-3 text-center text-xs">
+                      <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+                        {isOnline(l.lastSeenAt) && (
+                          <span className="h-1.5 w-1.5 rounded-full bg-brand-green" />
+                        )}
+                        {fmtRelative(l.lastSeenAt)}
+                      </span>
                     </td>
                   </tr>
                   {open && (
                     <tr className="border-b border-border bg-muted/20">
                       <td colSpan={8} className="p-4">
+                        {/* Activity summary */}
+                        <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+                          <ActivityStat
+                            icon={<LogIn className="h-3.5 w-3.5" />}
+                            label="Last login"
+                            value={fmtDateTime(l.lastLoginAt)}
+                          />
+                          <ActivityStat
+                            icon={<Clock className="h-3.5 w-3.5" />}
+                            label="Last seen"
+                            value={
+                              isOnline(l.lastSeenAt)
+                                ? "Online now"
+                                : fmtDateTime(l.lastSeenAt)
+                            }
+                          />
+                          <ActivityStat
+                            icon={<Timer className="h-3.5 w-3.5" />}
+                            label="Total on portal"
+                            value={fmtDuration(l.activity.totalSeconds)}
+                          />
+                          <ActivityStat
+                            icon={<Timer className="h-3.5 w-3.5" />}
+                            label="This week"
+                            value={fmtDuration(l.activity.weekSeconds)}
+                          />
+                          <ActivityStat
+                            icon={<CalendarDays className="h-3.5 w-3.5" />}
+                            label="Active days"
+                            value={String(l.activity.activeDays)}
+                          />
+                          <ActivityStat
+                            icon={<Clock className="h-3.5 w-3.5" />}
+                            label="Avg session"
+                            value={`${l.activity.avgSessionMinutes}m`}
+                          />
+                        </div>
+
+                        {/* Auto daily learning log */}
+                        <p className="mb-2 font-mono text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+                          Daily learning log — auto-tracked
+                        </p>
+                        {l.dailyLog.length === 0 ? (
+                          <p className="mb-4 text-xs text-muted-foreground">
+                            No activity recorded yet.
+                          </p>
+                        ) : (
+                          <div className="mb-4 max-h-72 overflow-y-auto rounded-lg border border-border bg-card">
+                            <table className="w-full min-w-[560px] text-xs">
+                              <thead className="sticky top-0 bg-muted/60">
+                                <tr className="text-left font-mono text-[10px] uppercase tracking-wide text-muted-foreground">
+                                  <th className="p-2">Date</th>
+                                  <th className="p-2">On portal</th>
+                                  <th className="p-2">Topics completed</th>
+                                  <th className="p-2">Labs completed</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {l.dailyLog.map((row) => (
+                                  <tr
+                                    key={row.day}
+                                    className="border-t border-border align-top"
+                                  >
+                                    <td className="whitespace-nowrap p-2 font-medium">
+                                      {fmtDayString(row.day)}
+                                    </td>
+                                    <td className="whitespace-nowrap p-2 font-mono text-muted-foreground">
+                                      {fmtDuration(row.activeSeconds)}
+                                    </td>
+                                    <td className="p-2 text-muted-foreground">
+                                      {row.topics.length > 0 ? (
+                                        <span>
+                                          <span className="font-mono text-foreground">
+                                            {row.topics.length}
+                                          </span>{" "}
+                                          — {row.topics.join(", ")}
+                                        </span>
+                                      ) : (
+                                        "—"
+                                      )}
+                                    </td>
+                                    <td className="p-2 text-muted-foreground">
+                                      {row.labs.length > 0 ? (
+                                        <span>
+                                          <span className="font-mono text-foreground">
+                                            {row.labs.length}
+                                          </span>{" "}
+                                          — {row.labs.join(", ")}
+                                        </span>
+                                      ) : (
+                                        "—"
+                                      )}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+
                         <p className="mb-3 font-mono text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
                           Per-module completion — joined {fmtDate(l.createdAt)}
                         </p>

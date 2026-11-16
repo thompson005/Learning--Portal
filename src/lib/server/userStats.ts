@@ -18,8 +18,14 @@ type Attempt = { score: number; total: number; lastAttempt?: string }
 export interface StoredProgress {
   name?: string
   startDate?: string
-  topics?: Record<string, { status?: string } | undefined>
-  labs?: Record<string, { status?: string } | undefined>
+  topics?: Record<
+    string,
+    { status?: string; dateStarted?: string; dateCompleted?: string } | undefined
+  >
+  labs?: Record<
+    string,
+    { status?: string; dateCompleted?: string } | undefined
+  >
   topicQuizzes?: Record<string, Attempt>
   moduleQuizzes?: Record<string, Attempt>
   checkpoints?: Record<string, boolean>
@@ -128,3 +134,110 @@ export function computeUserStats(progressJson: string): UserStats {
 }
 
 export const TOTAL_RANKS = RANKS.length
+
+// ---------------------------------------------------------------------------
+// Activity + auto daily-learning-log (replaces the manual tracking spreadsheet)
+// ---------------------------------------------------------------------------
+
+export interface ActivityDayInput {
+  day: string
+  activeSeconds: number
+  sessions: number
+}
+
+export interface DailyLogRow {
+  day: string
+  activeSeconds: number
+  topics: string[]
+  labs: string[]
+}
+
+export interface ActivitySummary {
+  totalSeconds: number
+  activeDays: number
+  todaySeconds: number
+  weekSeconds: number
+  sessions: number
+  avgSessionMinutes: number
+  firstDay: string | null
+  lastDay: string | null
+}
+
+function localDayString(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
+}
+
+const topicTitleById = new Map(
+  CURRICULUM.flatMap((m) => m.topics).map((t) => [t.id, t.title]),
+)
+const labTitleById = new Map(LABS.map((l) => [l.id, `${l.id}: ${l.title}`]))
+
+export function computeActivitySummary(
+  days: ActivityDayInput[],
+): ActivitySummary {
+  const totalSeconds = days.reduce((s, d) => s + d.activeSeconds, 0)
+  const sessions = days.reduce((s, d) => s + d.sessions, 0)
+  const sorted = [...days].sort((a, b) => a.day.localeCompare(b.day))
+  const today = localDayString(new Date())
+  const weekCutoff = localDayString(new Date(Date.now() - 6 * 86400_000))
+  return {
+    totalSeconds,
+    activeDays: days.filter((d) => d.activeSeconds > 0).length,
+    todaySeconds: days.find((d) => d.day === today)?.activeSeconds ?? 0,
+    weekSeconds: days
+      .filter((d) => d.day >= weekCutoff)
+      .reduce((s, d) => s + d.activeSeconds, 0),
+    sessions,
+    avgSessionMinutes:
+      sessions > 0 ? Math.round(totalSeconds / sessions / 60) : 0,
+    firstDay: sorted[0]?.day ?? null,
+    lastDay: sorted[sorted.length - 1]?.day ?? null,
+  }
+}
+
+/**
+ * Rebuilds the "daily learning log" automatically: for each day the learner was
+ * active (or completed something), what topics/labs they finished and how long
+ * they were on the portal. No manual entry required.
+ */
+export function computeDailyLog(
+  progressJson: string,
+  days: ActivityDayInput[],
+): DailyLogRow[] {
+  const p = parse(progressJson)
+  const topicsByDay = new Map<string, string[]>()
+  const labsByDay = new Map<string, string[]>()
+
+  for (const [id, tp] of Object.entries(p.topics ?? {})) {
+    if (tp?.status === "completed" && tp.dateCompleted) {
+      const day = tp.dateCompleted.slice(0, 10)
+      const arr = topicsByDay.get(day) ?? []
+      arr.push(topicTitleById.get(id) ?? id)
+      topicsByDay.set(day, arr)
+    }
+  }
+  for (const [id, lp] of Object.entries(p.labs ?? {})) {
+    if (lp?.status === "completed" && lp.dateCompleted) {
+      const day = lp.dateCompleted.slice(0, 10)
+      const arr = labsByDay.get(day) ?? []
+      arr.push(labTitleById.get(id) ?? id)
+      labsByDay.set(day, arr)
+    }
+  }
+
+  const allDays = new Set<string>([
+    ...days.map((d) => d.day),
+    ...topicsByDay.keys(),
+    ...labsByDay.keys(),
+  ])
+  const secondsByDay = new Map(days.map((d) => [d.day, d.activeSeconds]))
+
+  return Array.from(allDays)
+    .sort((a, b) => b.localeCompare(a)) // newest first
+    .map((day) => ({
+      day,
+      activeSeconds: secondsByDay.get(day) ?? 0,
+      topics: topicsByDay.get(day) ?? [],
+      labs: labsByDay.get(day) ?? [],
+    }))
+}
