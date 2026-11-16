@@ -51,7 +51,9 @@ services:
       LABS_BIND_IP: ${BIND_IP:-}
     ports:
       # BIND_IP restricts the portal to one interface (the VPN IP). Unset = all.
-      - "${BIND_IP:-0.0.0.0}:3000:3000"
+      # WEB_PORT is the host port — set to 80 so users type a bare hostname with
+      # no :port (e.g. http://lms.technieum.net).
+      - "${BIND_IP:-0.0.0.0}:${WEB_PORT:-3000}:3000"
     volumes:
       # Lets the app create/stop lab containers on the host. The lab containers
       # publish their own host ports directly, so the app only needs 3000.
