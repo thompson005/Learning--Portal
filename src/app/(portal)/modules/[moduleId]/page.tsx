@@ -23,9 +23,8 @@ import { TopicRow } from "@/components/modules/TopicRow"
 import { VideoEmbed, isEmbeddableVideo } from "@/components/shared/VideoEmbed"
 import { useFocusMode } from "@/components/layout/FocusMode"
 import { LabCard } from "@/components/labs/LabCard"
-import { LABS } from "@/lib/data/labs"
+import { trackForModuleId, setActiveTrackId, getActiveTrack } from "@/lib/data/tracks/registry"
 import { QuizModal } from "@/components/quiz/QuizModal"
-import { CURRICULUM } from "@/lib/data/curriculum"
 import {
   getModuleCompletionPercent,
   getModuleQuiz,
@@ -39,12 +38,6 @@ import { cn, dedupeResources } from "@/lib/utils"
 import type { QuizAttempt } from "@/types"
 
 const MONTH_BAR = { 1: "green", 2: "orange", 3: "blue", 4: "purple" } as const
-const PHASE_NAME = {
-  1: "Foundations",
-  2: "Core Offensive Skills",
-  3: "Exploitation + Reporting",
-  4: "Advanced Offensive Security",
-} as const
 
 export default function ModuleDetailPage({
   params,
@@ -64,7 +57,13 @@ function ModuleDetailContent({
   params: Promise<{ moduleId: string }>
 }) {
   const { moduleId } = use(params)
-  const mod = CURRICULUM.find((m) => m.id === moduleId)
+  const owningTrack = trackForModuleId(moduleId) ?? getActiveTrack()
+  const mod = owningTrack.curriculum.find((m) => m.id === moduleId)
+  // Opening a module from another track switches the active track to it, so the
+  // sidebar, progress and quizzes all line up with what's on screen.
+  useEffect(() => {
+    if (mod) setActiveTrackId(owningTrack.id)
+  }, [mod, owningTrack.id])
   const searchParams = useSearchParams()
   const focusTopic = searchParams.get("topic")
   const { focus, toggle: toggleFocus } = useFocusMode()
@@ -102,7 +101,7 @@ function ModuleDetailContent({
     : []
   const moduleVideos = moduleResources.filter((r) => isEmbeddableVideo(r.url))
   const moduleLinks = moduleResources.filter((r) => !isEmbeddableVideo(r.url))
-  const moduleLabs = mod ? LABS.filter((l) => l.moduleId === mod.id) : []
+  const moduleLabs = mod ? owningTrack.labs.filter((l) => l.moduleId === mod.id) : []
 
   useEffect(() => {
     if (!mod) return
@@ -135,7 +134,7 @@ function ModuleDetailContent({
             All Modules
           </p>
           <nav className="flex gap-1 overflow-x-auto lg:flex-col lg:overflow-visible">
-            {CURRICULUM.map((m) => (
+            {owningTrack.curriculum.map((m) => (
               <Link
                 key={m.id}
                 href={`/modules/${m.id}`}
@@ -160,7 +159,7 @@ function ModuleDetailContent({
               variant={MONTH_BAR[mod.month] as "green" | "orange" | "blue"}
               className="rounded-md"
             >
-              {PHASE_NAME[mod.month]}
+              {(owningTrack.phases.find((p) => p.month === mod.month)?.name ?? "")}
             </Badge>
             <button
               onClick={toggleFocus}
@@ -198,7 +197,7 @@ function ModuleDetailContent({
                 downloadCertificate({
                   learnerName: getProgress().name,
                   moduleName: mod.name,
-                  phaseName: PHASE_NAME[mod.month],
+                  phaseName: (owningTrack.phases.find((p) => p.month === mod.month)?.name ?? ""),
                 })
               }
             >

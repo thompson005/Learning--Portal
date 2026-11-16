@@ -12,42 +12,44 @@ import {
   MapPin,
 } from "lucide-react"
 
-import { CURRICULUM } from "@/lib/data/curriculum"
-import { LABS } from "@/lib/data/labs"
 import {
   getModuleCompletionPercent,
   getOverallProgress,
 } from "@/lib/store/progress"
+import { activeCurriculum, activeLabs, getActiveTrack } from "@/lib/data/tracks/registry"
+import { useActiveTrackId } from "@/lib/data/tracks/useTrack"
+import type { Module } from "@/types"
 import { ProgressRing } from "@/components/dashboard/ProgressRing"
 import { cn } from "@/lib/utils"
 
-const PHASES = [
-  { month: 1, name: "Foundations", text: "text-brand-green", dot: "bg-brand-green", soft: "bg-brand-green/10", ring: "ring-brand-green/30" },
-  { month: 2, name: "Core Offensive Skills", text: "text-brand-orange", dot: "bg-brand-orange", soft: "bg-brand-orange/10", ring: "ring-brand-orange/30" },
-  { month: 3, name: "Exploitation + Reporting", text: "text-brand-blue", dot: "bg-brand-blue", soft: "bg-brand-blue/10", ring: "ring-brand-blue/30" },
-  { month: 4, name: "Advanced Offensive Security", text: "text-brand-purple", dot: "bg-brand-purple", soft: "bg-brand-purple/10", ring: "ring-brand-purple/30" },
-] as const
+const PHASE_STYLE: Record<number, { text: string; dot: string; soft: string; ring: string }> = {
+  1: { text: "text-brand-green", dot: "bg-brand-green", soft: "bg-brand-green/10", ring: "ring-brand-green/30" },
+  2: { text: "text-brand-orange", dot: "bg-brand-orange", soft: "bg-brand-orange/10", ring: "ring-brand-orange/30" },
+  3: { text: "text-brand-blue", dot: "bg-brand-blue", soft: "bg-brand-blue/10", ring: "ring-brand-blue/30" },
+  4: { text: "text-brand-purple", dot: "bg-brand-purple", soft: "bg-brand-purple/10", ring: "ring-brand-purple/30" },
+}
 
-type Phase = (typeof PHASES)[number]
+interface Phase { month: number; name: string; text: string; dot: string; soft: string; ring: string }
 type Status = "done" | "active" | "todo"
 
 function labsFor(moduleId: string) {
-  return LABS.filter((l) => l.moduleId === moduleId)
+  return activeLabs().filter((l) => l.moduleId === moduleId)
 }
 
 function moduleCode(id: string) {
-  const m = id.match(/^m(\d+)/)
+  const m = id.match(/m(\d+)/)
   return m ? `M${m[1].padStart(2, "0")}` : id.toUpperCase()
 }
 
 export function RoadmapTrack({ showHeader = true }: { showHeader?: boolean }) {
+  const trackId = useActiveTrackId()
   const [percents, setPercents] = useState<Record<string, number>>({})
   const [overall, setOverall] = useState({ percentComplete: 0 })
 
   useEffect(() => {
     function refresh() {
       const next: Record<string, number> = {}
-      for (const m of CURRICULUM) next[m.id] = getModuleCompletionPercent(m.id)
+      for (const m of activeCurriculum()) next[m.id] = getModuleCompletionPercent(m.id)
       setPercents(next)
       setOverall(getOverallProgress())
     }
@@ -55,30 +57,37 @@ export function RoadmapTrack({ showHeader = true }: { showHeader?: boolean }) {
     window.addEventListener("technieum:progress-changed", refresh)
     return () =>
       window.removeEventListener("technieum:progress-changed", refresh)
-  }, [])
+  }, [trackId])
+
+  const PHASES: Phase[] = getActiveTrack().phases.map((p) => ({
+    month: p.month,
+    name: p.name,
+    ...(PHASE_STYLE[p.month] ?? PHASE_STYLE[1]),
+  }))
 
   // The first not-yet-finished module is "you are here".
   const currentId = useMemo(() => {
-    for (const m of CURRICULUM) if ((percents[m.id] ?? 0) < 100) return m.id
+    for (const m of activeCurriculum()) if ((percents[m.id] ?? 0) < 100) return m.id
     return null
-  }, [percents])
+  }, [percents, trackId])
 
-  const modulesDone = CURRICULUM.filter((m) => (percents[m.id] ?? 0) === 100).length
+  const modulesDone = activeCurriculum().filter((m) => (percents[m.id] ?? 0) === 100).length
 
   // Flatten into an ordered list of phase headers + module nodes sharing one spine.
   const rows = useMemo(() => {
     const out: (
       | { kind: "phase"; phase: Phase }
-      | { kind: "module"; phase: Phase; mod: (typeof CURRICULUM)[number] }
+      | { kind: "module"; phase: Phase; mod: Module }
     )[] = []
     for (const phase of PHASES) {
-      const mods = CURRICULUM.filter((m) => m.month === phase.month)
+      const mods = activeCurriculum().filter((m) => m.month === phase.month)
       if (mods.length === 0) continue
       out.push({ kind: "phase", phase })
       for (const mod of mods) out.push({ kind: "module", phase, mod })
     }
     return out
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trackId])
 
   return (
     <div className="space-y-6">
@@ -100,7 +109,7 @@ export function RoadmapTrack({ showHeader = true }: { showHeader?: boolean }) {
             </p>
             <p className="mt-3 font-mono text-xs text-muted-foreground">
               <span className="font-semibold text-foreground">{modulesDone}</span>{" "}
-              of {CURRICULUM.length} modules complete
+              of {activeCurriculum().length} modules complete
             </p>
           </div>
           <div className="shrink-0">

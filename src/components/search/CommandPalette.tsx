@@ -14,8 +14,7 @@ import {
   Search,
 } from "lucide-react"
 
-import { CURRICULUM } from "@/lib/data/curriculum"
-import { LABS } from "@/lib/data/labs"
+import { TRACKS, setActiveTrackId } from "@/lib/data/tracks/registry"
 
 type Item = {
   id: string
@@ -23,6 +22,7 @@ type Item = {
   hint: string
   href: string
   group: "Pages" | "Modules" | "Topics" | "Labs"
+  trackId?: string
 }
 
 const PAGES: { label: string; href: string; icon: typeof Search }[] = [
@@ -70,32 +70,39 @@ export function CommandPalette() {
     for (const p of PAGES) {
       out.push({ id: `page:${p.href}`, label: p.label, hint: "Page", href: p.href, group: "Pages" })
     }
-    for (const m of CURRICULUM) {
-      out.push({
-        id: `mod:${m.id}`,
-        label: m.name,
-        hint: m.shortName,
-        href: `/modules/${m.id}`,
-        group: "Modules",
-      })
-      for (const t of m.topics) {
+    const multi = TRACKS.length > 1
+    for (const track of TRACKS) {
+      const tag = multi ? `${track.shortName} · ` : ""
+      for (const m of track.curriculum) {
         out.push({
-          id: `topic:${t.id}`,
-          label: t.title,
-          hint: `${m.shortName} · Topic ${t.number}`,
-          href: `/modules/${m.id}?topic=${t.id}`,
-          group: "Topics",
+          id: `mod:${m.id}`,
+          label: m.name,
+          hint: `${tag}${m.shortName}`,
+          href: `/modules/${m.id}`,
+          group: "Modules",
+          trackId: track.id,
+        })
+        for (const t of m.topics) {
+          out.push({
+            id: `topic:${t.id}`,
+            label: t.title,
+            hint: `${tag}${m.shortName} · T${t.number}`,
+            href: `/modules/${m.id}?topic=${t.id}`,
+            group: "Topics",
+            trackId: track.id,
+          })
+        }
+      }
+      for (const l of track.labs) {
+        out.push({
+          id: `lab:${l.id}`,
+          label: l.title,
+          hint: `${tag}Lab ${l.number} · ${l.difficulty}`,
+          href: `/labs?lab=${l.id}`,
+          group: "Labs",
+          trackId: track.id,
         })
       }
-    }
-    for (const l of LABS) {
-      out.push({
-        id: `lab:${l.id}`,
-        label: l.title,
-        hint: `Lab ${l.number} · ${l.difficulty}`,
-        href: `/labs?lab=${l.id}`,
-        group: "Labs",
-      })
     }
     return out
   }, [])
@@ -106,7 +113,8 @@ export function CommandPalette() {
     return g
   }, [items])
 
-  function go(href: string) {
+  function go(href: string, trackId?: string) {
+    if (trackId) setActiveTrackId(trackId)
     setOpen(false)
     router.push(href)
   }
@@ -149,7 +157,7 @@ export function CommandPalette() {
                 <Command.Item
                   key={it.id}
                   value={`${it.label} ${it.hint}`}
-                  onSelect={() => go(it.href)}
+                  onSelect={() => go(it.href, it.trackId)}
                   className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-foreground data-[selected=true]:bg-brand-orange/10 data-[selected=true]:text-brand-orange"
                 >
                   <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />

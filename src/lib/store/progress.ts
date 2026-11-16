@@ -1,7 +1,9 @@
-import { CURRICULUM } from "@/lib/data/curriculum"
-import { LABS } from "@/lib/data/labs"
-import { TOPIC_QUIZZES } from "@/lib/data/topicQuizzes"
-import { MODULE_QUIZZES } from "@/lib/data/moduleQuizzes"
+import {
+  activeCurriculum,
+  activeLabs,
+  activeTopicQuizzes,
+  activeModuleQuizzes,
+} from "@/lib/data/tracks/registry"
 import type {
   LabProgress,
   QuizAttempt,
@@ -182,7 +184,7 @@ export function getLabStatus(labId: string): Status {
 }
 
 export function getModuleCompletionPercent(moduleId: string): number {
-  const mod = CURRICULUM.find((m) => m.id === moduleId)
+  const mod = activeCurriculum().find((m) => m.id === moduleId)
   if (!mod || mod.topics.length === 0) return 0
   const progress = getProgress()
   const completed = mod.topics.filter(
@@ -192,7 +194,7 @@ export function getModuleCompletionPercent(moduleId: string): number {
 }
 
 export function getMonthCompletionPercent(month: 1 | 2 | 3): number {
-  const topics = CURRICULUM.filter((m) => m.month === month).flatMap(
+  const topics = activeCurriculum().filter((m) => m.month === month).flatMap(
     (m) => m.topics,
   )
   if (topics.length === 0) return 0
@@ -222,24 +224,24 @@ export function getOverallProgress(): {
   percentComplete: number
 } {
   const progress = getProgress()
-  const allTopics = CURRICULUM.flatMap((m) => m.topics)
+  const allTopics = activeCurriculum().flatMap((m) => m.topics)
   const topicsCompleted = allTopics.filter(
     (t) => progress.topics[t.id]?.status === "completed",
   ).length
-  const labsCompleted = LABS.filter(
+  const labsCompleted = activeLabs().filter(
     (l) => progress.labs[l.id]?.status === "completed",
   ).length
   const currentWeek = getCurrentWeek(progress.startDate)
   const currentMonth =
     currentWeek <= 4 ? 1 : currentWeek <= 8 ? 2 : currentWeek <= 12 ? 3 : 4
-  const totalItems = allTopics.length + LABS.length
+  const totalItems = allTopics.length + activeLabs().length
   const completedItems = topicsCompleted + labsCompleted
 
   return {
     topicsCompleted,
     topicsTotal: allTopics.length,
     labsCompleted,
-    labsTotal: LABS.length,
+    labsTotal: activeLabs().length,
     currentWeek,
     currentMonth,
     percentComplete:
@@ -249,7 +251,7 @@ export function getOverallProgress(): {
 
 export function getNextTopic() {
   const progress = getProgress()
-  const allTopics = CURRICULUM.flatMap((m) =>
+  const allTopics = activeCurriculum().flatMap((m) =>
     m.topics.map((t) => ({ ...t, moduleId: m.id })),
   )
   return allTopics.find(
@@ -269,7 +271,7 @@ export function getRecentActivity(limit = 5): RecentActivityItem[] {
   const progress = getProgress()
   const items: RecentActivityItem[] = []
 
-  for (const mod of CURRICULUM) {
+  for (const mod of activeCurriculum()) {
     for (const topic of mod.topics) {
       const tp = progress.topics[topic.id]
       if (tp?.status === "completed" && tp.dateCompleted) {
@@ -283,7 +285,7 @@ export function getRecentActivity(limit = 5): RecentActivityItem[] {
       }
     }
   }
-  for (const lab of LABS) {
+  for (const lab of activeLabs()) {
     const lp = progress.labs[lab.id]
     if (lp?.status === "completed" && lp.dateCompleted) {
       items.push({
@@ -306,14 +308,14 @@ export function getWeeklyActivityData(): { week: string; completed: number }[] {
   const weekCounts = new Map<number, number>()
   for (let w = 1; w <= 12; w++) weekCounts.set(w, 0)
 
-  for (const mod of CURRICULUM) {
+  for (const mod of activeCurriculum()) {
     for (const topic of mod.topics) {
       if (progress.topics[topic.id]?.status === "completed") {
         weekCounts.set(topic.week, (weekCounts.get(topic.week) ?? 0) + 1)
       }
     }
   }
-  for (const lab of LABS) {
+  for (const lab of activeLabs()) {
     if (progress.labs[lab.id]?.status === "completed") {
       weekCounts.set(lab.week, (weekCounts.get(lab.week) ?? 0) + 1)
     }
@@ -332,7 +334,7 @@ export function getMonthlyBarData(): {
 }[] {
   const progress = getProgress()
   return ([1, 2, 3, 4] as const).map((month) => {
-    const topics = CURRICULUM.filter((m) => m.month === month).flatMap(
+    const topics = activeCurriculum().filter((m) => m.month === month).flatMap(
       (m) => m.topics,
     )
     const completed = topics.filter(
@@ -348,7 +350,7 @@ export function getModuleHeatmapData(): {
   month: 1 | 2 | 3 | 4
   percent: number
 }[] {
-  return CURRICULUM.map((m) => ({
+  return activeCurriculum().map((m) => ({
     id: m.id,
     shortName: m.shortName,
     month: m.month,
@@ -363,7 +365,7 @@ export function getLabDifficultyBreakdown(): {
 }[] {
   const progress = getProgress()
   return (["easy", "medium", "hard"] as const).map((difficulty) => {
-    const labsOfDifficulty = LABS.filter((l) => l.difficulty === difficulty)
+    const labsOfDifficulty = activeLabs().filter((l) => l.difficulty === difficulty)
     const completed = labsOfDifficulty.filter(
       (l) => progress.labs[l.id]?.status === "completed",
     ).length
@@ -381,7 +383,7 @@ export function getTopicTypeBreakdown(): {
   total: number
 }[] {
   const progress = getProgress()
-  const allTopics = CURRICULUM.flatMap((m) => m.topics)
+  const allTopics = activeCurriculum().flatMap((m) => m.topics)
   return (["theory", "lab", "setup", "exercise"] as const).map((type) => {
     const topicsOfType = allTopics.filter((t) => t.type === type)
     const completed = topicsOfType.filter(
@@ -396,7 +398,7 @@ export function getWeekProgress(week: number): {
   total: number
 } {
   const progress = getProgress()
-  const topics = CURRICULUM.flatMap((m) => m.topics).filter(
+  const topics = activeCurriculum().flatMap((m) => m.topics).filter(
     (t) => t.week === week,
   )
   const completed = topics.filter(
@@ -485,9 +487,9 @@ export function getModuleQuizAttempt(
 }
 
 export function getTopicQuiz(topicId: string) {
-  return TOPIC_QUIZZES.find((q) => q.topicId === topicId)
+  return activeTopicQuizzes().find((q) => q.topicId === topicId)
 }
 
 export function getModuleQuiz(moduleId: string) {
-  return MODULE_QUIZZES.find((q) => q.moduleId === moduleId)
+  return activeModuleQuizzes().find((q) => q.moduleId === moduleId)
 }

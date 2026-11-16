@@ -23,8 +23,14 @@ import { Logo, LogoMark } from "@/components/shared/Logo"
 import { SearchTrigger } from "@/components/search/CommandPalette"
 import { Search } from "lucide-react"
 import { getOverallProgress, getNextTopic } from "@/lib/store/progress"
-import { CURRICULUM } from "@/lib/data/curriculum"
-import { LABS } from "@/lib/data/labs"
+import {
+  activeCurriculum,
+  activeLabs,
+  TRACKS,
+  getActiveTrackId,
+  setActiveTrackId,
+} from "@/lib/data/tracks/registry"
+import { useActiveTrackId } from "@/lib/data/tracks/useTrack"
 
 const MAIN_NAV = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -37,7 +43,7 @@ const MAIN_NAV = [
 const REFERENCE_NAV = [{ href: "/glossary", label: "Glossary", icon: Library }]
 
 function formatModuleCode(moduleId: string) {
-  const m = moduleId.match(/^m(\d+)/)
+  const m = moduleId.match(/m(\d+)/)
   return m ? `M${m[1].padStart(2, "0")}` : moduleId.toUpperCase()
 }
 
@@ -90,6 +96,7 @@ function NavKey({
 export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname()
   const { user, logout } = useAuth()
+  const trackId = useActiveTrackId()
   const [collapsed, setCollapsed] = useState(false)
   const [percent, setPercent] = useState(0)
   const [operation, setOperation] = useState<{ code: string; title: string; moduleId: string } | null>(null)
@@ -107,10 +114,10 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
     refresh()
     window.addEventListener("technieum:progress-changed", refresh)
     return () => window.removeEventListener("technieum:progress-changed", refresh)
-  }, [])
+  }, [trackId])
 
-  const totalTopics = CURRICULUM.reduce((s, m) => s + m.topics.length, 0)
-  const totalLabs = LABS.length
+  const totalTopics = activeCurriculum().reduce((s, m) => s + m.topics.length, 0)
+  const totalLabs = activeLabs().length
 
   return (
     <aside
@@ -141,6 +148,27 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           <SearchTrigger className="flex w-full items-center gap-2 px-3 py-2 text-sm text-muted-foreground shadow-chip transition-colors hover:text-foreground" />
         )}
       </div>
+
+      {!collapsed && (
+        <div className="px-3 pt-2.5">
+          <p className="sharp-section-title px-1 pb-1">Track</p>
+          <select
+            value={trackId}
+            onChange={(e) => {
+              setActiveTrackId(e.target.value)
+              onNavigate?.()
+            }}
+            className="w-full cursor-pointer rounded-lg bg-card px-2.5 py-2 text-sm font-medium text-foreground shadow-chip outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/40"
+            aria-label="Switch course track"
+          >
+            {TRACKS.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       <nav className="flex-1 space-y-6 overflow-y-auto px-3 py-4">
         <div>

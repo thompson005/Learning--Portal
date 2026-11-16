@@ -1,5 +1,4 @@
-import { CURRICULUM } from "@/lib/data/curriculum"
-import { LABS } from "@/lib/data/labs"
+import { activeCurriculum, activeLabs } from "@/lib/data/tracks/registry"
 import {
   getProgress,
   getOverallProgress,
@@ -31,14 +30,14 @@ export const RANKS: Rank[] = [
 
 export function getXp(): number {
   const progress = getProgress()
-  const allTopics = CURRICULUM.flatMap((m) => m.topics)
+  const allTopics = activeCurriculum().flatMap((m) => m.topics)
 
   const topicXp =
     allTopics.filter((t) => progress.topics[t.id]?.status === "completed")
       .length * XP_PER_TOPIC
 
   const labXp =
-    LABS.filter((l) => progress.labs[l.id]?.status === "completed").length *
+    activeLabs().filter((l) => progress.labs[l.id]?.status === "completed").length *
     XP_PER_LAB
 
   const topicQuizXp =
@@ -96,7 +95,7 @@ export function getAchievements(): Achievement[] {
     ...Object.values(progress.topicQuizzes),
     ...Object.values(progress.moduleQuizzes),
   ].some((a) => a.total > 0 && a.score === a.total)
-  const anyModuleComplete = CURRICULUM.some(
+  const anyModuleComplete = activeCurriculum().some(
     (m) => getModuleCompletionPercent(m.id) === 100,
   )
 

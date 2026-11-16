@@ -15,8 +15,8 @@ import { Input } from "@/components/ui/input"
 import { ProgressRing } from "@/components/dashboard/ProgressRing"
 import { LabCard } from "@/components/labs/LabCard"
 import { LabFilters, type LabFilterState } from "@/components/labs/LabFilters"
-import { LABS } from "@/lib/data/labs"
-import { CURRICULUM } from "@/lib/data/curriculum"
+import { activeLabs, activeCurriculum } from "@/lib/data/tracks/registry"
+import { useActiveTrackId } from "@/lib/data/tracks/useTrack"
 import { getProgress } from "@/lib/store/progress"
 import { XP_PER_LAB } from "@/lib/store/gamification"
 
@@ -77,12 +77,13 @@ export default function LabsPage() {
   })
   const [search, setSearch] = useState("")
   const [statusMap, setStatusMap] = useState<Record<string, string>>({})
+  const trackId = useActiveTrackId()
 
   useEffect(() => {
     function refresh() {
       const progress = getProgress()
       const map: Record<string, string> = {}
-      LABS.forEach((l) => {
+      activeLabs().forEach((l) => {
         map[l.id] = progress.labs[l.id]?.status ?? "not_started"
       })
       setStatusMap(map)
@@ -91,19 +92,20 @@ export default function LabsPage() {
     window.addEventListener("technieum:progress-changed", refresh)
     return () =>
       window.removeEventListener("technieum:progress-changed", refresh)
-  }, [])
+  }, [trackId])
 
   const moduleName = (id: string) =>
-    CURRICULUM.find((m) => m.id === id)?.shortName ?? id
+    activeCurriculum().find((m) => m.id === id)?.shortName ?? id
   const modules = useMemo(
     () =>
-      CURRICULUM.filter((m) => LABS.some((l) => l.moduleId === m.id)).map(
+      activeCurriculum().filter((m) => activeLabs().some((l) => l.moduleId === m.id)).map(
         (m) => ({ id: m.id, shortName: m.shortName }),
       ),
-    [],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [trackId],
   )
 
-  const filtered = LABS.filter((lab) => {
+  const filtered = activeLabs().filter((lab) => {
     if (filters.moduleId !== "all" && lab.moduleId !== filters.moduleId)
       return false
     if (filters.difficulty !== "all" && lab.difficulty !== filters.difficulty)
@@ -121,19 +123,19 @@ export default function LabsPage() {
   const inProgress = Object.values(statusMap).filter(
     (s) => s === "in_progress",
   ).length
-  const remaining = LABS.length - completed - inProgress
-  const dockerCount = LABS.filter((l) => l.dockerImage).length
+  const remaining = activeLabs().length - completed - inProgress
+  const dockerCount = activeLabs().filter((l) => l.dockerImage).length
   const percent =
-    LABS.length === 0 ? 0 : Math.round((completed / LABS.length) * 100)
+    activeLabs().length === 0 ? 0 : Math.round((completed / activeLabs().length) * 100)
   const xpEarned = completed * XP_PER_LAB
-  const xpTotal = LABS.length * XP_PER_LAB
+  const xpTotal = activeLabs().length * XP_PER_LAB
 
   // Group the filtered labs under their module, in curriculum order, so the
   // page reads as an organized track rather than one long flat list.
-  const grouped = CURRICULUM.map((m) => ({
+  const grouped = activeCurriculum().map((m) => ({
     module: m,
     labs: filtered.filter((l) => l.moduleId === m.id),
-    allLabs: LABS.filter((l) => l.moduleId === m.id),
+    allLabs: activeLabs().filter((l) => l.moduleId === m.id),
   })).filter((g) => g.labs.length > 0)
 
   return (
@@ -149,7 +151,7 @@ export default function LabsPage() {
               Labs
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              {LABS.length} hands-on labs · {dockerCount} with a live Docker
+              {activeLabs().length} hands-on labs · {dockerCount} with a live Docker
               target · {xpTotal.toLocaleString()} XP up for grabs
             </p>
           </div>

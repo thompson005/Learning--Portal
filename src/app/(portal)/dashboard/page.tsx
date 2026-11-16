@@ -25,29 +25,21 @@ import {
   getProgress,
   type RecentActivityItem,
 } from "@/lib/store/progress"
-import { CURRICULUM } from "@/lib/data/curriculum"
-import { LABS } from "@/lib/data/labs"
-
-// The four learning phases, in suggested order — not a schedule. Each maps to a
-// module `month` group purely for ordering; there are no weeks or deadlines.
-const PHASE_DEFS = [
-  { label: "Foundations", month: 1 },
-  { label: "Core Offensive Skills", month: 2 },
-  { label: "Exploitation + Reporting", month: 3 },
-  { label: "Advanced Offensive Security", month: 4 },
-] as const
+import { activeCurriculum, getActiveTrack } from "@/lib/data/tracks/registry"
+import { useActiveTrackId } from "@/lib/data/tracks/useTrack"
 
 const DEFAULT_OVERALL = {
   topicsCompleted: 0,
-  topicsTotal: CURRICULUM.flatMap((m) => m.topics).length,
+  topicsTotal: 0,
   labsCompleted: 0,
-  labsTotal: LABS.length,
+  labsTotal: 0,
   currentWeek: 1,
   currentMonth: 1,
   percentComplete: 0,
 }
 
 export default function DashboardPage() {
+  const trackId = useActiveTrackId()
   const [mounted, setMounted] = useState(false)
   const [name, setName] = useState("")
   const [overall, setOverall] = useState(DEFAULT_OVERALL)
@@ -82,7 +74,7 @@ export default function DashboardPage() {
       const lastId = getLastTopic()
       let r: { moduleId: string; topicId: string; label: string } | null = null
       if (lastId && progress.topics[lastId]?.status !== "completed") {
-        for (const m of CURRICULUM) {
+        for (const m of activeCurriculum()) {
           const t = m.topics.find((tp) => tp.id === lastId)
           if (t) {
             r = { moduleId: m.id, topicId: t.id, label: t.title }
@@ -93,7 +85,7 @@ export default function DashboardPage() {
       if (!r) {
         const nt = getNextTopic()
         if (nt) {
-          const m = CURRICULUM.find((mm) => mm.id === nt.moduleId)
+          const m = activeCurriculum().find((mm) => mm.id === nt.moduleId)
           r = { moduleId: nt.moduleId, topicId: nt.id, label: m?.shortName ?? nt.title }
         }
       }
@@ -112,33 +104,33 @@ export default function DashboardPage() {
     window.addEventListener("technieum:progress-changed", refresh)
     return () =>
       window.removeEventListener("technieum:progress-changed", refresh)
-  }, [])
+  }, [trackId])
 
   const PHASES = useMemo(
     () =>
-      PHASE_DEFS.map((p) => {
-        const topics = CURRICULUM.filter((m) => m.month === p.month).flatMap(
-          (m) => m.topics,
-        )
+      getActiveTrack().phases.map((p) => {
+        const topics = activeCurriculum()
+          .filter((m) => m.month === p.month)
+          .flatMap((m) => m.topics)
         const done = topics.filter((t) => completedTopicIds.has(t.id)).length
         return {
-          label: p.label,
+          label: p.name,
           done,
           total: topics.length,
           percent: topics.length ? Math.round((done / topics.length) * 100) : 0,
         }
       }),
-    [completedTopicIds],
+    [completedTopicIds, trackId],
   )
 
   const phasesComplete = PHASES.filter((p) => p.percent === 100).length
 
   const nextModule = nextTopic
-    ? CURRICULUM.find((m) => m.id === nextTopic.moduleId)
+    ? activeCurriculum().find((m) => m.id === nextTopic.moduleId)
     : undefined
   const upNextTopic = useMemo(() => {
     if (!nextTopic) return undefined
-    const mod = CURRICULUM.find((m) => m.id === nextTopic.moduleId)
+    const mod = activeCurriculum().find((m) => m.id === nextTopic.moduleId)
     if (!mod) return undefined
     const idx = mod.topics.findIndex((t) => t.id === nextTopic.id)
     return mod.topics[idx + 1] ?? mod.topics[0]

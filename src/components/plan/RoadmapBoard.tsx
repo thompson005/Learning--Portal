@@ -4,48 +4,55 @@ import { Fragment, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { Check, ChevronRight, MapPin, Flag } from "lucide-react"
 
-import { CURRICULUM } from "@/lib/data/curriculum"
-import { LABS } from "@/lib/data/labs"
 import { getModuleCompletionPercent } from "@/lib/store/progress"
+import { activeCurriculum, activeLabs, getActiveTrack } from "@/lib/data/tracks/registry"
+import { useActiveTrackId } from "@/lib/data/tracks/useTrack"
 import { cn } from "@/lib/utils"
 
-const PHASES = [
-  { month: 1, name: "Foundations", text: "text-brand-green", dot: "bg-brand-green", border: "border-brand-green/40", soft: "bg-brand-green/10" },
-  { month: 2, name: "Core Offensive", text: "text-brand-orange", dot: "bg-brand-orange", border: "border-brand-orange/40", soft: "bg-brand-orange/10" },
-  { month: 3, name: "Exploitation + Reporting", text: "text-brand-blue", dot: "bg-brand-blue", border: "border-brand-blue/40", soft: "bg-brand-blue/10" },
-  { month: 4, name: "Advanced Offensive", text: "text-brand-purple", dot: "bg-brand-purple", border: "border-brand-purple/40", soft: "bg-brand-purple/10" },
-] as const
+const PHASE_STYLE: Record<number, { text: string; dot: string; border: string; soft: string }> = {
+  1: { text: "text-brand-green", dot: "bg-brand-green", border: "border-brand-green/40", soft: "bg-brand-green/10" },
+  2: { text: "text-brand-orange", dot: "bg-brand-orange", border: "border-brand-orange/40", soft: "bg-brand-orange/10" },
+  3: { text: "text-brand-blue", dot: "bg-brand-blue", border: "border-brand-blue/40", soft: "bg-brand-blue/10" },
+  4: { text: "text-brand-purple", dot: "bg-brand-purple", border: "border-brand-purple/40", soft: "bg-brand-purple/10" },
+}
 
 function moduleCode(id: string) {
-  const m = id.match(/^m(\d+)/)
+  const m = id.match(/m(\d+)/)
   return m ? `M${m[1].padStart(2, "0")}` : id.toUpperCase()
 }
 
 export function RoadmapBoard() {
+  const trackId = useActiveTrackId()
   const [percents, setPercents] = useState<Record<string, number>>({})
 
   useEffect(() => {
     function refresh() {
       const next: Record<string, number> = {}
-      for (const m of CURRICULUM) next[m.id] = getModuleCompletionPercent(m.id)
+      for (const m of activeCurriculum()) next[m.id] = getModuleCompletionPercent(m.id)
       setPercents(next)
     }
     refresh()
     window.addEventListener("technieum:progress-changed", refresh)
     return () =>
       window.removeEventListener("technieum:progress-changed", refresh)
-  }, [])
+  }, [trackId])
+
+  const PHASES = getActiveTrack().phases.map((p) => ({
+    month: p.month,
+    name: p.name,
+    ...(PHASE_STYLE[p.month] ?? PHASE_STYLE[1]),
+  }))
 
   const currentId = useMemo(() => {
-    for (const m of CURRICULUM) if ((percents[m.id] ?? 0) < 100) return m.id
+    for (const m of activeCurriculum()) if ((percents[m.id] ?? 0) < 100) return m.id
     return null
-  }, [percents])
+  }, [percents, trackId])
 
   return (
     <div className="overflow-x-auto pb-3">
       <div className="flex min-w-max items-stretch gap-2">
         {PHASES.map((phase, pi) => {
-          const mods = CURRICULUM.filter((m) => m.month === phase.month)
+          const mods = activeCurriculum().filter((m) => m.month === phase.month)
           const done = mods.filter((m) => (percents[m.id] ?? 0) === 100).length
           return (
             <Fragment key={phase.month}>
@@ -77,7 +84,7 @@ export function RoadmapBoard() {
                     const status =
                       percent === 100 ? "done" : percent > 0 ? "active" : "todo"
                     const isCurrent = mod.id === currentId
-                    const labs = LABS.filter((l) => l.moduleId === mod.id).length
+                    const labs = activeLabs().filter((l) => l.moduleId === mod.id).length
                     return (
                       <Link
                         key={mod.id}

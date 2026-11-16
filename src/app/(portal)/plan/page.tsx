@@ -6,12 +6,13 @@ import { LayoutGrid, List } from "lucide-react"
 import { RoadmapBoard } from "@/components/plan/RoadmapBoard"
 import { RoadmapTrack } from "@/components/plan/RoadmapTrack"
 import { ProgressRing } from "@/components/dashboard/ProgressRing"
-import { getOverallProgress } from "@/lib/store/progress"
-import { CURRICULUM } from "@/lib/data/curriculum"
-import { getModuleCompletionPercent } from "@/lib/store/progress"
+import { getOverallProgress, getModuleCompletionPercent } from "@/lib/store/progress"
+import { activeCurriculum, getActiveTrack } from "@/lib/data/tracks/registry"
+import { useActiveTrackId } from "@/lib/data/tracks/useTrack"
 import { cn } from "@/lib/utils"
 
 export default function PlanPage() {
+  const trackId = useActiveTrackId()
   const [view, setView] = useState<"map" | "list">("map")
   const [percent, setPercent] = useState(0)
   const [modulesDone, setModulesDone] = useState(0)
@@ -20,7 +21,7 @@ export default function PlanPage() {
     function refresh() {
       setPercent(getOverallProgress().percentComplete)
       setModulesDone(
-        CURRICULUM.filter((m) => getModuleCompletionPercent(m.id) === 100)
+        activeCurriculum().filter((m) => getModuleCompletionPercent(m.id) === 100)
           .length,
       )
     }
@@ -28,7 +29,7 @@ export default function PlanPage() {
     window.addEventListener("technieum:progress-changed", refresh)
     return () =>
       window.removeEventListener("technieum:progress-changed", refresh)
-  }, [])
+  }, [trackId])
 
   return (
     <div className="space-y-6">
@@ -41,17 +42,17 @@ export default function PlanPage() {
               Your learning path
             </p>
             <h1 className="mt-2 font-display text-4xl font-semibold tracking-tight text-foreground md:text-5xl">
-              Roadmap
+              {getActiveTrack().name}
             </h1>
             <p className="mt-2 max-w-md text-sm text-muted-foreground">
-              The whole programme at a glance. Follow the path left to right, or
-              jump to any module. Finish one to light up the next.
+              The whole {getActiveTrack().name} path at a glance. Follow it left
+              to right, or jump to any module. Finish one to light up the next.
             </p>
             <p className="mt-3 font-mono text-xs text-muted-foreground">
               <span className="font-semibold text-foreground">
                 {modulesDone}
               </span>{" "}
-              of {CURRICULUM.length} modules complete
+              of {activeCurriculum().length} modules complete
             </p>
           </div>
           <div className="shrink-0">
