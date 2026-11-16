@@ -40,7 +40,7 @@ function moduleCode(id: string) {
   return m ? `M${m[1].padStart(2, "0")}` : id.toUpperCase()
 }
 
-export function RoadmapTrack() {
+export function RoadmapTrack({ showHeader = true }: { showHeader?: boolean }) {
   const [percents, setPercents] = useState<Record<string, number>>({})
   const [overall, setOverall] = useState({ percentComplete: 0 })
 
@@ -83,6 +83,7 @@ export function RoadmapTrack() {
   return (
     <div className="space-y-6">
       {/* Header with overall progress */}
+      {showHeader && (
       <div className="hero-gradient relative overflow-hidden p-6 md:p-8">
         <div className="bg-dot-grid pointer-events-none absolute inset-0 opacity-40" />
         <div className="relative flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
@@ -113,6 +114,7 @@ export function RoadmapTrack() {
           </div>
         </div>
       </div>
+      )}
 
       {/* The track */}
       <div className="space-y-0">
