@@ -5,10 +5,11 @@
 FROM node:20-bookworm-slim AS deps
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends openssl && rm -rf /var/lib/apt/lists/*
+# Copy the Prisma schema BEFORE npm ci — the package's postinstall runs
+# `prisma generate`, which needs prisma/schema.prisma to exist.
 COPY package.json package-lock.json ./
-RUN npm ci
 COPY prisma ./prisma
-RUN npx prisma generate
+RUN npm ci
 
 # ---- build -------------------------------------------------------------------
 FROM node:20-bookworm-slim AS build
