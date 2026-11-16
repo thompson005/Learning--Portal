@@ -25,6 +25,7 @@ import {
 import { CURRICULUM } from "@/lib/data/curriculum"
 import type { ManagerTrainee } from "@/types"
 import { LearnersPanel } from "./LearnersPanel"
+import { LeaderboardPanel } from "./LeaderboardPanel"
 
 const STATUS_PILL: Record<0 | 1 | 2, string> = {
   0: "border-brand-red/30 bg-brand-red/10",
@@ -57,7 +58,9 @@ export default function AdminDashboardPage() {
   const [trainees, setTrainees] = useState<ManagerTrainee[]>([])
   const [newName, setNewName] = useState("")
   const [loading, setLoading] = useState(true)
-  const [view, setView] = useState<"learners" | "cohort">("learners")
+  const [view, setView] = useState<"learners" | "leaderboard" | "cohort">(
+    "learners",
+  )
 
   async function refresh() {
     const res = await fetch("/api/admin/trainees")
@@ -199,6 +202,16 @@ export default function AdminDashboardPage() {
             Registered Learners
           </button>
           <button
+            onClick={() => setView("leaderboard")}
+            className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+              view === "leaderboard"
+                ? "bg-brand-orange/10 text-brand-orange"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Leaderboard
+          </button>
+          <button
             onClick={() => setView("cohort")}
             className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
               view === "cohort"
@@ -211,6 +224,7 @@ export default function AdminDashboardPage() {
         </div>
 
         {view === "learners" && <LearnersPanel />}
+        {view === "leaderboard" && <LeaderboardPanel />}
 
         {view === "cohort" && (
           <>

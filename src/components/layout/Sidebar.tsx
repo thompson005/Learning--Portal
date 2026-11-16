@@ -21,6 +21,8 @@ import {
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/components/auth/AuthContext"
 import { Logo, LogoMark } from "@/components/shared/Logo"
+import { SearchTrigger } from "@/components/search/CommandPalette"
+import { Search } from "lucide-react"
 import { getOverallProgress, getNextTopic } from "@/lib/store/progress"
 import { CURRICULUM } from "@/lib/data/curriculum"
 import { LABS } from "@/lib/data/labs"
@@ -122,6 +124,23 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
     >
       <div className="flex items-center gap-2.5 border-b border-border px-4 py-5">
         {collapsed ? <LogoMark /> : <Logo />}
+      </div>
+
+      <div className="px-3 pt-3">
+        {collapsed ? (
+          <button
+            onClick={() =>
+              window.dispatchEvent(new CustomEvent("technieum:open-search"))
+            }
+            aria-label="Search"
+            title="Search (⌘K)"
+            className="flex w-full items-center justify-center py-2 text-muted-foreground shadow-chip hover:text-foreground"
+          >
+            <Search className="h-4 w-4" />
+          </button>
+        ) : (
+          <SearchTrigger className="flex w-full items-center gap-2 px-3 py-2 text-sm text-muted-foreground shadow-chip transition-colors hover:text-foreground" />
+        )}
       </div>
 
       <nav className="flex-1 space-y-6 overflow-y-auto px-3 py-4">

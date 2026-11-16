@@ -15,11 +15,13 @@ import { Button } from "@/components/ui/button"
 import { ProgressRing } from "@/components/dashboard/ProgressRing"
 import { RankBadge } from "@/components/dashboard/RankBadge"
 import { AchievementsPanel } from "@/components/dashboard/AchievementsPanel"
+import { StreakBadge } from "@/components/dashboard/StreakBadge"
 import { EmptyState } from "@/components/shared/EmptyState"
 import {
   getOverallProgress,
   getRecentActivity,
   getNextTopic,
+  getLastTopic,
   getProgress,
   type RecentActivityItem,
 } from "@/lib/store/progress"
@@ -53,6 +55,9 @@ export default function DashboardPage() {
   const [nextTopic, setNextTopic] =
     useState<ReturnType<typeof getNextTopic>>(undefined)
   const [today, setToday] = useState("")
+  const [resume, setResume] = useState<
+    { moduleId: string; topicId: string; label: string } | null
+  >(null)
   const [completedTopicIds, setCompletedTopicIds] = useState<Set<string>>(
     new Set(),
   )
@@ -71,6 +76,28 @@ export default function DashboardPage() {
             .map(([id]) => id),
         ),
       )
+
+      // Resume exactly where you left off: the last topic opened (if not
+      // finished), else the next not-started topic.
+      const lastId = getLastTopic()
+      let r: { moduleId: string; topicId: string; label: string } | null = null
+      if (lastId && progress.topics[lastId]?.status !== "completed") {
+        for (const m of CURRICULUM) {
+          const t = m.topics.find((tp) => tp.id === lastId)
+          if (t) {
+            r = { moduleId: m.id, topicId: t.id, label: t.title }
+            break
+          }
+        }
+      }
+      if (!r) {
+        const nt = getNextTopic()
+        if (nt) {
+          const m = CURRICULUM.find((mm) => mm.id === nt.moduleId)
+          r = { moduleId: nt.moduleId, topicId: nt.id, label: m?.shortName ?? nt.title }
+        }
+      }
+      setResume(r)
     }
     refresh()
     setToday(
@@ -127,6 +154,7 @@ export default function DashboardPage() {
             <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
               {today || " "}
             </p>
+            <div className="mt-2.5"><StreakBadge /></div>
             <h1 className="mt-3 font-display text-4xl font-semibold leading-[1.05] tracking-tight text-foreground md:text-6xl">
               {name ? `Welcome back, ${name.split(" ")[0]}` : "Welcome back"}
             </h1>
@@ -135,10 +163,10 @@ export default function DashboardPage() {
                 ? "Pick up where you left off — your next operation is ready."
                 : "You've cleared the board. Revisit a lab or sharpen a skill."}
             </p>
-            {nextTopic && nextModule && (
+            {resume && (
               <Button asChild size="lg" className="mt-6">
-                <Link href={`/modules/${nextModule.id}`}>
-                  Resume {nextModule.shortName} <ArrowRight className="h-4 w-4" />
+                <Link href={`/modules/${resume.moduleId}?topic=${resume.topicId}`}>
+                  Resume {resume.label} <ArrowRight className="h-4 w-4" />
                 </Link>
               </Button>
             )}
@@ -202,7 +230,7 @@ export default function DashboardPage() {
                 {nextTopic.description}
               </p>
               <Button asChild className="mt-5">
-                <Link href={`/modules/${nextModule.id}`}>
+                <Link href={`/modules/${nextModule.id}?topic=${nextTopic.id}`}>
                   Open topic <ArrowRight className="h-4 w-4" />
                 </Link>
               </Button>
@@ -230,7 +258,9 @@ export default function DashboardPage() {
                 {upNextTopic.description}
               </p>
               <Button asChild variant="outline" className="mt-5">
-                <Link href={`/modules/${nextModule?.id}`}>Preview</Link>
+                <Link href={`/modules/${nextModule?.id}?topic=${upNextTopic.id}`}>
+                  Preview
+                </Link>
               </Button>
             </>
           ) : (

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { ChevronDown, ExternalLink, HelpCircle, Star } from "lucide-react"
 import { toast } from "sonner"
 
@@ -26,6 +26,7 @@ import {
   getTopicQuizAttempt,
   recordTopicQuizAttempt,
   updateTopicStatus,
+  setLastTopic,
 } from "@/lib/store/progress"
 import { getXp } from "@/lib/store/gamification"
 import { RESOURCE_ADDITIONS } from "@/lib/data/resourceAdditions"
@@ -41,8 +42,15 @@ const TYPE_VARIANT: Record<
   exercise: "green",
 }
 
-export function TopicRow({ topic }: { topic: Topic }) {
-  const [expanded, setExpanded] = useState(false)
+export function TopicRow({
+  topic,
+  defaultExpanded = false,
+}: {
+  topic: Topic
+  defaultExpanded?: boolean
+}) {
+  const [expanded, setExpanded] = useState(defaultExpanded)
+  const rootRef = useRef<HTMLDivElement>(null)
   const [status, setStatus] = useState<Status>("not_started")
   const [selfScore, setSelfScore] = useState<number | undefined>(undefined)
   const [notes, setNotes] = useState("")
@@ -73,6 +81,21 @@ export function TopicRow({ topic }: { topic: Topic }) {
     setQuizAttempt(getTopicQuizAttempt(topic.id))
   }, [topic.id])
 
+  // Resume: when this row is the deep-linked topic, open it, scroll to it, and
+  // record it as the last-opened topic.
+  useEffect(() => {
+    if (!defaultExpanded) return
+    setLastTopic(topic.id)
+    if (getProgress().topics[topic.id]?.status === "not_started") {
+      updateTopicStatus(topic.id, { status: "in_progress" })
+      setStatus("in_progress")
+    }
+    const t = setTimeout(() => {
+      rootRef.current?.scrollIntoView({ behavior: "smooth", block: "center" })
+    }, 150)
+    return () => clearTimeout(t)
+  }, [defaultExpanded, topic.id])
+
   function handleStatusChange(next: Status) {
     const xpBefore = getXp()
     setStatus(next)
@@ -86,6 +109,7 @@ export function TopicRow({ topic }: { topic: Topic }) {
   function handleExpand() {
     const next = !expanded
     setExpanded(next)
+    if (next) setLastTopic(topic.id)
     if (next && status === "not_started") {
       updateTopicStatus(topic.id, { status: "in_progress" })
       setStatus("in_progress")
@@ -122,10 +146,11 @@ export function TopicRow({ topic }: { topic: Topic }) {
   }
 
   return (
-    <div className="rounded-xl border border-border bg-card">
+    <div ref={rootRef} className="rounded-xl border border-border bg-card">
       <div
         role="button"
         tabIndex={0}
+        data-topic-header
         onClick={handleExpand}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
@@ -133,7 +158,7 @@ export function TopicRow({ topic }: { topic: Topic }) {
             handleExpand()
           }
         }}
-        className="flex w-full cursor-pointer items-center gap-3 px-4 py-3 text-left"
+        className="flex w-full cursor-pointer items-center gap-3 px-4 py-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/40"
       >
         <span className="w-7 shrink-0 font-mono text-xs text-muted-foreground">
           {topic.number}

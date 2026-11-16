@@ -1,14 +1,17 @@
 "use client"
 
-import { use, useEffect, useState } from "react"
+import { Suspense, use, useEffect, useRef, useState } from "react"
 import Link from "next/link"
-import { notFound } from "next/navigation"
+import { notFound, useSearchParams } from "next/navigation"
 import {
   Award,
   ExternalLink,
   HelpCircle,
   Target,
   ListChecks,
+  Maximize2,
+  Minimize2,
+  Download,
 } from "lucide-react"
 
 import { Card, CardContent } from "@/components/ui/card"
@@ -18,6 +21,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ProgressBar } from "@/components/shared/ProgressBar"
 import { TopicRow } from "@/components/modules/TopicRow"
 import { VideoEmbed, isEmbeddableVideo } from "@/components/shared/VideoEmbed"
+import { useFocusMode } from "@/components/layout/FocusMode"
 import { QuizModal } from "@/components/quiz/QuizModal"
 import { CURRICULUM } from "@/lib/data/curriculum"
 import {
@@ -25,7 +29,9 @@ import {
   getModuleQuiz,
   getModuleQuizAttempt,
   recordModuleQuizAttempt,
+  getProgress,
 } from "@/lib/store/progress"
+import { downloadCertificate } from "@/lib/cert"
 import { RESOURCE_ADDITIONS } from "@/lib/data/resourceAdditions"
 import { cn, dedupeResources } from "@/lib/utils"
 import type { QuizAttempt } from "@/types"
@@ -43,13 +49,49 @@ export default function ModuleDetailPage({
 }: {
   params: Promise<{ moduleId: string }>
 }) {
+  return (
+    <Suspense fallback={null}>
+      <ModuleDetailContent params={params} />
+    </Suspense>
+  )
+}
+
+function ModuleDetailContent({
+  params,
+}: {
+  params: Promise<{ moduleId: string }>
+}) {
   const { moduleId } = use(params)
   const mod = CURRICULUM.find((m) => m.id === moduleId)
+  const searchParams = useSearchParams()
+  const focusTopic = searchParams.get("topic")
+  const { focus, toggle: toggleFocus } = useFocusMode()
+  const topicsListRef = useRef<HTMLDivElement>(null)
   const [percent, setPercent] = useState(0)
   const [quizOpen, setQuizOpen] = useState(false)
   const [quizAttempt, setQuizAttempt] = useState<QuizAttempt | undefined>(
     undefined,
   )
+
+  // j / k move focus between topic headers; Enter/Space (handled in TopicRow)
+  // expands the focused one.
+  function handleTopicsKey(e: React.KeyboardEvent) {
+    if (e.key !== "j" && e.key !== "k") return
+    const headers = Array.from(
+      topicsListRef.current?.querySelectorAll<HTMLElement>(
+        "[data-topic-header]",
+      ) ?? [],
+    )
+    if (headers.length === 0) return
+    const current = headers.indexOf(document.activeElement as HTMLElement)
+    const delta = e.key === "j" ? 1 : -1
+    const nextIdx =
+      current === -1
+        ? 0
+        : Math.min(Math.max(current + delta, 0), headers.length - 1)
+    e.preventDefault()
+    headers[nextIdx]?.focus()
+  }
 
   const moduleQuiz = mod ? getModuleQuiz(mod.id) : undefined
   const extraModuleResources = mod ? (RESOURCE_ADDITIONS[mod.id] ?? []) : []
@@ -110,13 +152,25 @@ export default function ModuleDetailPage({
 
       <div className="min-w-0 flex-1 space-y-4">
         <div className="rounded-xl border border-border bg-card p-6">
-          <div className="mb-1 flex items-center gap-2">
+          <div className="mb-1 flex items-center justify-between gap-2">
             <Badge
               variant={MONTH_BAR[mod.month] as "green" | "orange" | "blue"}
               className="rounded-md"
             >
               {PHASE_NAME[mod.month]}
             </Badge>
+            <button
+              onClick={toggleFocus}
+              className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground shadow-chip transition-colors hover:text-foreground"
+              title={focus ? "Exit focus mode" : "Focus mode — hide the sidebar for reading"}
+            >
+              {focus ? (
+                <Minimize2 className="h-3.5 w-3.5" />
+              ) : (
+                <Maximize2 className="h-3.5 w-3.5" />
+              )}
+              {focus ? "Exit focus" : "Focus mode"}
+            </button>
           </div>
           <h1 className="font-display text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
             {mod.name}
@@ -131,9 +185,26 @@ export default function ModuleDetailPage({
               color={MONTH_BAR[mod.month] as "green" | "orange" | "blue"}
             />
           </div>
+
+          {percent === 100 && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-4"
+              onClick={() =>
+                downloadCertificate({
+                  learnerName: getProgress().name,
+                  moduleName: mod.name,
+                  phaseName: PHASE_NAME[mod.month],
+                })
+              }
+            >
+              <Download className="h-4 w-4" /> Download certificate
+            </Button>
+          )}
         </div>
 
-        <Tabs defaultValue="overview">
+        <Tabs defaultValue={focusTopic ? "topics" : "overview"}>
           <TabsList>
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="topics">
@@ -210,9 +281,24 @@ export default function ModuleDetailPage({
           </TabsContent>
 
           <TabsContent value="topics" className="space-y-2">
-            {mod.topics.map((topic) => (
-              <TopicRow key={topic.id} topic={topic} />
-            ))}
+            <p className="px-1 pb-1 font-mono text-[11px] text-muted-foreground">
+              Tip: press <kbd className="rounded border border-border px-1">j</kbd>/
+              <kbd className="rounded border border-border px-1">k</kbd> to move,{" "}
+              <kbd className="rounded border border-border px-1">Enter</kbd> to open.
+            </p>
+            <div
+              ref={topicsListRef}
+              onKeyDown={handleTopicsKey}
+              className="space-y-2"
+            >
+              {mod.topics.map((topic) => (
+                <TopicRow
+                  key={topic.id}
+                  topic={topic}
+                  defaultExpanded={topic.id === focusTopic}
+                />
+              ))}
+            </div>
           </TabsContent>
 
           <TabsContent value="resources" className="space-y-4">

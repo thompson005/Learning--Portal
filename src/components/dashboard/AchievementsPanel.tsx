@@ -30,9 +30,9 @@ export function AchievementsPanel() {
             key={a.id}
             title={a.description}
             className={cn(
-              "flex flex-col items-center gap-1.5 rounded-lg border p-3 text-center transition-colors",
+              "flex flex-col items-center gap-1.5 rounded-lg border p-3 text-center transition-transform",
               a.unlocked
-                ? "border-brand-orange/30 bg-brand-orange/[0.06]"
+                ? "border-brand-orange/30 bg-brand-orange/[0.06] hover:scale-[1.03]"
                 : "border-border bg-muted/20 opacity-50",
             )}
           >
