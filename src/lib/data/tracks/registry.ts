@@ -4,6 +4,7 @@ import { CURRICULUM } from "@/lib/data/curriculum"
 import { LABS } from "@/lib/data/labs"
 import { TOPIC_QUIZZES } from "@/lib/data/topicQuizzes"
 import { MODULE_QUIZZES } from "@/lib/data/moduleQuizzes"
+import { CYBER_EXTRA_LABS } from "./cyberExtraLabs"
 
 import { AI_CURRICULUM } from "./aiCurriculum"
 import { AI_TOPIC_QUIZZES } from "./aiTopicQuizzes"
@@ -31,7 +32,7 @@ export const TRACKS: Track[] = [
     shortName: "Offensive Security",
     blurb: "The core pentesting path — networks, web, exploitation, reporting.",
     curriculum: CURRICULUM,
-    labs: LABS,
+    labs: [...LABS, ...CYBER_EXTRA_LABS],
     topicQuizzes: TOPIC_QUIZZES,
     moduleQuizzes: MODULE_QUIZZES,
     phases: [

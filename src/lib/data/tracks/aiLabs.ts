@@ -1,364 +1,392 @@
 import type { Lab } from "@/types"
 
+// Real open-source AI-security labs (verified image refs / repos).
 export const AI_LABS: Lab[] = [
   {
     "id": "ai-L01",
     "number": 1,
     "week": 1,
-    "moduleId": "ai-m1",
-    "title": "Dissect a Local LLM",
-    "description": "Run a local model, inspect its tokenizer and sampling parameters, and observe how temperature and system prompts change outputs for an identical user query.",
-    "platform": "Ollama + local LLM (Llama 3.1 / Mistral)",
+    "moduleId": "ai-m4",
+    "title": "OWASP PromptMe",
+    "description": "Work through 10 CTF-style challenges mapped to the OWASP LLM Top 10 (prompt injection, prompt leaking, insecure output handling, etc.) against an intentionally vulnerable chatbot app. Needs a local LLM via Ollama (no paid API key). Official OWASP repo ships no Dockerfile/compose for the app; the fork khaledibnalwalid/PromptMe-Lite adds docker-compose (frontend+API+db). Internal app port not documented - build from repo. arm64 fine (pure Python + Ollama is multi-arch). Do not expose publicly.",
+    "platform": "Self-host: build from GitHub repo",
     "difficulty": "easy",
     "estimatedHours": 2,
-    "objective": "Run a local model, inspect its tokenizer and sampling parameters, and observe how temperature and system prompts change outputs for an identical user query."
+    "objective": "Work through 10 CTF-style challenges mapped to the OWASP LLM Top 10 (prompt injection, prompt leaking, insecure output handling, etc.) against an intentionally vulnerable chatbot app.",
+    "instructions": [
+      "Clone the repo: git clone https://github.com/OWASP/www-project-promptme",
+      "Clone repo, run a local model via Ollama (ollama/ollama image, port 11434), then start the PromptMe Python app per its README.",
+      "Open the app in your browser once it is up (see the README for the port).",
+      "Attack the target per the lab objective, then record your findings."
+    ],
+    "resources": [
+      {
+        "title": "OWASP PromptMe — GitHub repo",
+        "url": "https://github.com/OWASP/www-project-promptme",
+        "type": "tool"
+      }
+    ],
+    "onlineAlternative": {
+      "label": "Lakera Gandalf (gandalf.lakera.ai) for the same prompt-injection skills.",
+      "url": "https://gandalf.lakera.ai/",
+      "note": "No-setup online alternative."
+    }
   },
   {
     "id": "ai-L02",
     "number": 2,
     "week": 1,
-    "moduleId": "ai-m1",
-    "title": "Map the Attack Surface of a Sample Chatbot",
-    "description": "Diagram every trust boundary in a provided RAG chatbot stack and classify each data flow as trusted or untrusted.",
-    "platform": "local Docker (sample RAG chatbot)",
-    "difficulty": "easy",
+    "moduleId": "ai-m3",
+    "title": "AI-Goat (dhammon)",
+    "description": "Local, fully offline vulnerable-LLM CTF: attack chatbots per challenge (prompt injection, data leakage, insecure output handling) with an optional CTFd scoreboard. No API key: runs Vicuna (LLaMA-derived, ~8GB) locally via llama-cpp-python, pulled from HuggingFace. Ports 9001/9002 (chatbots) and 8000 (CTFd) confirmed from README. Install pulls a prebuilt 'ai-base' image and optional 'ai-ctfd' from the author's Docker Hub - no version tags published, so keep buildFromRepo. Needs Docker+compose, ~8GB disk, >=16GB RAM. arm64 unverified; the local llama build is likely x86-tuned - test before relying on it on the DGX. ARM64: unverified — test the build on the DGX first.",
+    "platform": "Self-host: build from GitHub repo",
+    "difficulty": "medium",
     "estimatedHours": 2,
-    "objective": "Diagram every trust boundary in a provided RAG chatbot stack and classify each data flow as trusted or untrusted."
+    "objective": "Local, fully offline vulnerable-LLM CTF: attack chatbots per challenge (prompt injection, data leakage, insecure output handling) with an optional CTFd scoreboard.",
+    "instructions": [
+      "Clone the repo: git clone https://github.com/dhammon/ai-goat",
+      "git clone; pip3 install -r requirements.txt; ./ai-goat.py --install; ./ai-goat.py --run 1 (challenge 1 chatbot on 9001, challenge 2 on 9002; optional CTFd on 8000).",
+      "The app listens on container port 9001. Open it in your browser once it is up.",
+      "Attack the target per the lab objective, then record your findings."
+    ],
+    "resources": [
+      {
+        "title": "AI-Goat (dhammon) — GitHub repo",
+        "url": "https://github.com/dhammon/ai-goat",
+        "type": "tool"
+      }
+    ]
   },
   {
     "id": "ai-L03",
     "number": 3,
     "week": 1,
-    "moduleId": "ai-m2",
-    "title": "Threat-Model an AI Feature",
-    "description": "Given a product spec for an AI email assistant, produce a prioritized attack-surface map and top-five test plan.",
-    "platform": "PortSwigger-style (worksheet + sample app)",
-    "difficulty": "easy",
+    "moduleId": "ai-m6",
+    "title": "Damn Vulnerable LLM Agent (WithSecure / Reversec)",
+    "description": "Exploit a LangChain ReAct agent chatbot via Thought/Action/Observation injection to pivot across users and leak data - classic agent prompt-injection lab. Streamlit default port 8501 confirmed. Requires an OpenAI API key (env.list) for the Docker path; works best with GPT-4-class models. Non-Docker runs also support HuggingFace or local Ollama. Apache-2.0. Builds natively so arm64 is fine. No prebuilt image published - build from repo. Repo now mirrored under ReversecLabs (WithSecure rebrand).",
+    "platform": "Self-host: build from GitHub repo",
+    "difficulty": "medium",
     "estimatedHours": 2,
-    "objective": "Given a product spec for an AI email assistant, produce a prioritized attack-surface map and top-five test plan."
+    "objective": "Exploit a LangChain ReAct agent chatbot via Thought/Action/Observation injection to pivot across users and leak data - classic agent prompt-injection lab.",
+    "instructions": [
+      "Clone the repo: git clone https://github.com/WithSecureLabs/damn-vulnerable-llm-agent",
+      "docker build -t dvla . ; docker run --env-file env.list -p 8501:8501 dvla (Streamlit UI on 8501).",
+      "The app listens on container port 8501. Open it in your browser once it is up.",
+      "Attack the target per the lab objective, then record your findings."
+    ],
+    "resources": [
+      {
+        "title": "Damn Vulnerable LLM Agent (WithSecure / Reversec) — GitHub repo",
+        "url": "https://github.com/WithSecureLabs/damn-vulnerable-llm-agent",
+        "type": "tool"
+      }
+    ]
   },
   {
     "id": "ai-L04",
     "number": 4,
     "week": 1,
-    "moduleId": "ai-m2",
-    "title": "Find the Classic Bug Behind the AI",
-    "description": "Reach an SSRF via the chatbot's URL-fetch tool and prove it can hit an internal metadata endpoint.",
-    "platform": "local Docker (deliberately vulnerable LLM app)",
+    "moduleId": "ai-m6",
+    "title": "Damn Vulnerable MCP Server (DVMCP)",
+    "description": "10 challenges against intentionally vulnerable Model Context Protocol servers: tool poisoning, prompt injection via tools, excessive agency, auth bypass - drive it from any MCP client. No prebuilt image - build from repo. No LLM key needed to run the server (you attack it with an MCP client/agent of your choice). MIT. Challenges listen on 9001-9015. 'Not stable on Windows' - use Docker/Linux (fine on the ARM host). Builds natively so arm64 OK. See also Kyze-Labs DVMCP v2 (docker-compose with an inspector UI on 5173).",
+    "platform": "Self-host: build from GitHub repo",
     "difficulty": "medium",
     "estimatedHours": 2,
-    "objective": "Reach an SSRF via the chatbot's URL-fetch tool and prove it can hit an internal metadata endpoint."
+    "objective": "10 challenges against intentionally vulnerable Model Context Protocol servers: tool poisoning, prompt injection via tools, excessive agency, auth bypass - drive it from any MCP client.",
+    "instructions": [
+      "Clone the repo: git clone https://github.com/harishsg993010/damn-vulnerable-MCP-server",
+      "docker build -t dvmcp . ; docker run -p 9001-9015:9001-9015 dvmcp (each challenge is a Streamable HTTP MCP server, e.g. http://localhost:9001/mcp).",
+      "The app listens on container port 9001. Open it in your browser once it is up.",
+      "Attack the target per the lab objective, then record your findings."
+    ],
+    "resources": [
+      {
+        "title": "Damn Vulnerable MCP Server (DVMCP) — GitHub repo",
+        "url": "https://github.com/harishsg993010/damn-vulnerable-MCP-server",
+        "type": "tool"
+      }
+    ]
   },
   {
     "id": "ai-L05",
     "number": 5,
     "week": 1,
-    "moduleId": "ai-m3",
-    "title": "Stand Up the Full Lab",
-    "description": "Bring up a local model, a vulnerable LLM app, and garak/promptfoo, and run one baseline scan end to end.",
-    "platform": "local Docker + Ollama",
-    "difficulty": "easy",
+    "moduleId": "ai-m6",
+    "title": "MCPGoat",
+    "description": "26 challenges / 78 flags against a vulnerable MCP server, plus a harness that shows a real LLM agent being exploited - hands-on MCP pentesting with escalating difficulty. No prebuilt image - build from repo. Node 18+ base, builds natively (arm64 OK). Port 7332. Bind to 127.0.0.1 only - never expose. The agent-exploitation harness may need an LLM API key/model to drive the agent; core challenges run without. Independent project (not WebGoat).",
+    "platform": "Self-host: build from GitHub repo",
+    "difficulty": "hard",
     "estimatedHours": 2,
-    "objective": "Bring up a local model, a vulnerable LLM app, and garak/promptfoo, and run one baseline scan end to end."
+    "objective": "26 challenges / 78 flags against a vulnerable MCP server, plus a harness that shows a real LLM agent being exploited - hands-on MCP pentesting with escalating difficulty.",
+    "instructions": [
+      "Clone the repo: git clone https://github.com/SabyasachiDhal/MCPGoat",
+      "docker compose up --build -> http://127.0.0.1:7332 (or docker build -t mcpgoat . && docker run --rm -p 127.0.0.1:7332:7332 mcpgoat). Set -e MCPGOAT_LEVEL=difficult to raise difficulty.",
+      "The app listens on container port 7332. Open it in your browser once it is up.",
+      "Attack the target per the lab objective, then record your findings."
+    ],
+    "resources": [
+      {
+        "title": "MCPGoat — GitHub repo",
+        "url": "https://github.com/SabyasachiDhal/MCPGoat",
+        "type": "tool"
+      }
+    ]
   },
   {
     "id": "ai-L06",
     "number": 6,
     "week": 1,
     "moduleId": "ai-m3",
-    "title": "Fix the Docker API Mismatch",
-    "description": "Diagnose and resolve a 'client version too old / minimum supported API version' error so lab containers start cleanly.",
-    "platform": "local Docker (Windows/WSL2)",
-    "difficulty": "easy",
+    "title": "Broken LLM Integration App",
+    "description": "Attack a realistic LLM-integrated web app: Prompt Injection, Prompt Leaking (with blacklist and Prompt-Hardener defense tiers), P2SQL Injection, and LLM4Shell (RCE via LangChain). No prebuilt image - build from repo via docker-compose. Requires an OpenAI API key. Stack: React + FastAPI + LangChain + MySQL. Great for the P2SQL / SQL-injection-via-LLM module. Internal ports set by compose (frontend/backend) - not pinned in README. Builds natively so arm64 OK.",
+    "platform": "Self-host: build from GitHub repo",
+    "difficulty": "medium",
     "estimatedHours": 2,
-    "objective": "Diagnose and resolve a 'client version too old / minimum supported API version' error so lab containers start cleanly."
+    "objective": "Attack a realistic LLM-integrated web app: Prompt Injection, Prompt Leaking (with blacklist and Prompt-Hardener defense tiers), P2SQL Injection, and LLM4Shell (RCE via LangChain).",
+    "instructions": [
+      "Clone the repo: git clone https://github.com/13o-bbr-bbq/Broken_LLM_Integration_App",
+      "docker compose up (React frontend + FastAPI backend + MySQL). Set OpenAI key in backend .env (LLM_PROVIDER=openai).",
+      "Open the app in your browser once it is up (see the README for the port).",
+      "Attack the target per the lab objective, then record your findings."
+    ],
+    "resources": [
+      {
+        "title": "Broken LLM Integration App — GitHub repo",
+        "url": "https://github.com/13o-bbr-bbq/Broken_LLM_Integration_App",
+        "type": "tool"
+      }
+    ]
   },
   {
     "id": "ai-L07",
     "number": 7,
-    "week": 2,
-    "moduleId": "ai-m4",
-    "title": "Break the System Prompt",
-    "description": "Extract a hidden system prompt and then make the assistant violate its stated rules.",
-    "platform": "PortSwigger-style (prompt-injection challenge)",
+    "week": 1,
+    "moduleId": "ai-m3",
+    "title": "LLMVault",
+    "description": "25 offline labs across all 10 OWASP LLM Top 10 (2025) categories in three tiers (Core/Advanced/Expert), plus 3 Live-Mode scenarios against a real local model. No prebuilt image - build from repo. No API key ever for Play Mode (scripted assistants). Live Mode optionally uses Ollama (OLLAMA_HOST) or any OpenAI-compatible endpoint. Flask + gunicorn, port 5000, builds natively (arm64 OK). Bind 127.0.0.1:5000. Good low-friction starter lab.",
+    "platform": "Self-host: build from GitHub repo",
     "difficulty": "easy",
     "estimatedHours": 2,
-    "objective": "Extract a hidden system prompt and then make the assistant violate its stated rules."
+    "objective": "25 offline labs across all 10 OWASP LLM Top 10 (2025) categories in three tiers (Core/Advanced/Expert), plus 3 Live-Mode scenarios against a real local model.",
+    "instructions": [
+      "Clone the repo: git clone https://github.com/CyberSunil/LLMVault",
+      "docker compose up --build -> http://127.0.0.1:5000 (or docker build -t llmvault . && docker run -p 5000:5000 llmvault).",
+      "The app listens on container port 5000. Open it in your browser once it is up.",
+      "Attack the target per the lab objective, then record your findings."
+    ],
+    "resources": [
+      {
+        "title": "LLMVault — GitHub repo",
+        "url": "https://github.com/CyberSunil/LLMVault",
+        "type": "tool"
+      }
+    ]
   },
   {
     "id": "ai-L08",
     "number": 8,
-    "week": 2,
-    "moduleId": "ai-m4",
-    "title": "Indirect Injection via a Poisoned Document",
-    "description": "Plant hidden instructions in an uploaded document so another user's summary request leaks data to an attacker URL.",
-    "platform": "local Docker (RAG chatbot)",
-    "difficulty": "medium",
+    "week": 1,
+    "moduleId": "ai-m3",
+    "title": "Damn Vulnerable AI Platform (DVAP)",
+    "description": "Broad self-hosted AI-security range: agent security, data/identity issues, and domain scenarios (banking, healthcare) for red/blue teaming, CTF and benchmarking - 100% local. No prebuilt image - build from repo via docker-compose. Author states no cloud, no paid APIs, no data leaves the host - ideal for the air-gapped DGX Spark. Multi-service compose (frontend + Postgres); internal ports not pinned in README. arm64 unverified but all-standard stack, likely builds natively - test the compose build on arm. ARM64: unverified — test the build on the DGX first.",
+    "platform": "Self-host: build from GitHub repo",
+    "difficulty": "hard",
     "estimatedHours": 2,
-    "objective": "Plant hidden instructions in an uploaded document so another user's summary request leaks data to an attacker URL."
+    "objective": "Broad self-hosted AI-security range: agent security, data/identity issues, and domain scenarios (banking, healthcare) for red/blue teaming, CTF and benchmarking - 100% local.",
+    "instructions": [
+      "Clone the repo: git clone https://github.com/sonuoffsec/DVAP",
+      "git clone; cp .env.example .env; docker compose up -d (builds a dvap-web frontend image; brings up Postgres + backend).",
+      "Open the app in your browser once it is up (see the README for the port).",
+      "Attack the target per the lab objective, then record your findings."
+    ],
+    "resources": [
+      {
+        "title": "Damn Vulnerable AI Platform (DVAP) — GitHub repo",
+        "url": "https://github.com/sonuoffsec/DVAP",
+        "type": "tool"
+      }
+    ]
   },
   {
     "id": "ai-L09",
     "number": 9,
-    "week": 2,
-    "moduleId": "ai-m4",
-    "title": "Injection-to-Exfiltration Chain",
-    "description": "Chain an indirect injection into the image-render channel to beacon conversation data out, then propose the fix that breaks it.",
-    "platform": "local Docker (agentic assistant with tools)",
-    "difficulty": "hard",
+    "week": 1,
+    "moduleId": "ai-m13",
+    "title": "Microsoft AI Red Teaming Playground Labs",
+    "description": "12 guided AI red-teaming challenges (direct/indirect prompt injection, jailbreaks, guardrail bypass, Crescendo multi-turn) from Microsoft's Black Hat USA 2024 course, on a Chat-Copilot-based app. No prebuilt image - build from repo via docker-compose. Port 5000 confirmed from README. Needs Azure OpenAI (endpoint+key, plus text-embedding-ada-002 and a chat deploy like gpt-4o) OR a plain OpenAI API key (docker-compose-openai.yaml). MIT. 12 labs. arm64 unconfirmed (Chat Copilot is .NET + Node) - test a native build. This is the 'Microsoft AI red-teaming lab' the request asked for. ARM64: unverified — test the build on the DGX first.",
+    "platform": "Self-host: build from GitHub repo",
+    "difficulty": "medium",
     "estimatedHours": 2,
-    "objective": "Chain an indirect injection into the image-render channel to beacon conversation data out, then propose the fix that breaks it."
+    "objective": "12 guided AI red-teaming challenges (direct/indirect prompt injection, jailbreaks, guardrail bypass, Crescendo multi-turn) from Microsoft's Black Hat USA 2024 course, on a Chat-Copilot-based app.",
+    "instructions": [
+      "Clone the repo: git clone https://github.com/microsoft/AI-Red-Teaming-Playground-Labs",
+      "docker-compose up (Azure OpenAI) or docker compose -f docker-compose-openai.yaml up (OpenAI). Access http://localhost:5000/login?auth=[KEY] (use 127.0.0.1 on macOS).",
+      "The app listens on container port 5000. Open it in your browser once it is up.",
+      "Attack the target per the lab objective, then record your findings."
+    ],
+    "resources": [
+      {
+        "title": "Microsoft AI Red Teaming Playground Labs — GitHub repo",
+        "url": "https://github.com/microsoft/AI-Red-Teaming-Playground-Labs",
+        "type": "tool"
+      }
+    ],
+    "onlineAlternative": {
+      "label": "Microsoft Learn 'AI Red Teaming 101' limited series references the same challeng",
+      "url": "https://gandalf.lakera.ai/",
+      "note": "No-setup online alternative."
+    }
   },
   {
     "id": "ai-L10",
     "number": 10,
-    "week": 2,
-    "moduleId": "ai-m5",
-    "title": "Manual Jailbreak Ladder",
-    "description": "Reproduce three jailbreak families against a locally aligned model and record which succeed and why.",
-    "platform": "Ollama + local LLM",
-    "difficulty": "easy",
+    "week": 1,
+    "moduleId": "ai-m13",
+    "title": "NVIDIA garak (LLM vulnerability scanner)",
+    "description": "Lab = point the scanner at a target model/app and run automated probes (jailbreaks, prompt injection, toxicity, data leakage, encoding attacks) to generate a vulnerability report. No official Docker image on Docker Hub/NGC (confirmed) - install via pip (pure Python, arm64 fine) or build your own (~2.65GB community image). Attacker TOOL, not a container to open - needs a target endpoint; API key only if the target requires one. From a container reach a host model via host.docker.internal. Pin the version (probe set drifts between releases).",
+    "platform": "Self-host: build from GitHub repo",
+    "difficulty": "medium",
     "estimatedHours": 2,
-    "objective": "Reproduce three jailbreak families against a locally aligned model and record which succeed and why."
+    "objective": "Lab = point the scanner at a target model/app and run automated probes (jailbreaks, prompt injection, toxicity, data leakage, encoding attacks) to generate a vulnerability report.",
+    "instructions": [
+      "Clone the repo: git clone https://github.com/NVIDIA/garak",
+      "pip install garak ; garak --model_type openai --model_name gpt-4 --probes promptinject (or target a local Ollama/REST endpoint). Can also build a small Docker image around the pip install.",
+      "Open the app in your browser once it is up (see the README for the port).",
+      "Attack the target per the lab objective, then record your findings."
+    ],
+    "resources": [
+      {
+        "title": "NVIDIA garak (LLM vulnerability scanner) — GitHub repo",
+        "url": "https://github.com/NVIDIA/garak",
+        "type": "tool"
+      }
+    ]
   },
   {
     "id": "ai-L11",
     "number": 11,
-    "week": 2,
-    "moduleId": "ai-m5",
-    "title": "Automated GCG-Style Suffix",
-    "description": "Generate an adversarial suffix against an open-weight model and test its transfer to a second local model.",
-    "platform": "local GPU / cloud GPU (open-weight model)",
+    "week": 1,
+    "moduleId": "ai-m13",
+    "title": "Microsoft PyRIT (Python Risk Identification Toolkit)",
+    "description": "Lab = run PyRIT's automated attack orchestrators (single- and multi-turn, converters, scorers) against a target model/app to find jailbreaks and responsible-AI risks. No published container (confirmed) - pip install (pure Python, arm64 fine). Attacker TOOL, not a container to open. Model/platform-agnostic; needs a target endpoint and its key. Pairs well as the attacker against the other vulnerable apps in this list. Microsoft's flagship AI red-teaming toolkit.",
+    "platform": "Self-host: build from GitHub repo",
     "difficulty": "hard",
     "estimatedHours": 2,
-    "objective": "Generate an adversarial suffix against an open-weight model and test its transfer to a second local model."
+    "objective": "Lab = run PyRIT's automated attack orchestrators (single- and multi-turn, converters, scorers) against a target model/app to find jailbreaks and responsible-AI risks.",
+    "instructions": [
+      "Clone the repo: git clone https://github.com/Azure/PyRIT",
+      "pip install pyrit ; use pyrit_scan (CLI) or pyrit_shell, or drive it as a Python framework in a notebook against your target.",
+      "Open the app in your browser once it is up (see the README for the port).",
+      "Attack the target per the lab objective, then record your findings."
+    ],
+    "resources": [
+      {
+        "title": "Microsoft PyRIT (Python Risk Identification Toolkit) — GitHub repo",
+        "url": "https://github.com/Azure/PyRIT",
+        "type": "tool"
+      }
+    ]
   },
   {
     "id": "ai-L12",
     "number": 12,
-    "week": 2,
-    "moduleId": "ai-m5",
-    "title": "Multi-Turn Crescendo Benchmark",
-    "description": "Run an automated multi-turn escalation and report the attack-success-rate before and after a simple guardrail.",
-    "platform": "PyRIT + local LLM",
-    "difficulty": "medium",
+    "week": 1,
+    "moduleId": "ai-m13",
+    "title": "promptfoo (red-team / eval)",
+    "description": "Lab = scaffold a red-team project and scan a target LLM/app for prompt injection, jailbreaks, PII leakage, data poisoning with OWASP/NIST presets; review findings in a self-hosted web UI. VERIFIED: official image ghcr.io/promptfoo/promptfoo:latest exists on GHCR; port 3000 confirmed from self-hosting docs. arm64 confirmed - CI publishes multi-arch (buildcache-linux-arm64 tag present; 'implement multi-arch Docker image build and push' in release notes). Run 'docker manifest inspect ghcr.io/promptfoo/promptfoo:latest' on the DGX to double-check the arm64 entry before mass pulls. Without your own model key, generation/grading use Promptfoo's hosted inference - set PROMPTFOO_DISABLE_REMOTE_GENERATION=true and use local providers for air-gapped use. Node-based.",
+    "platform": "In-house Docker (one-click)",
+    "difficulty": "easy",
     "estimatedHours": 2,
-    "objective": "Run an automated multi-turn escalation and report the attack-success-rate before and after a simple guardrail."
+    "objective": "Lab = scaffold a red-team project and scan a target LLM/app for prompt injection, jailbreaks, PII leakage, data poisoning with OWASP/NIST presets; review findings in a self-hosted web UI.",
+    "dockerImage": "ghcr.io/promptfoo/promptfoo:latest",
+    "containerPort": 3000,
+    "resources": [
+      {
+        "title": "promptfoo (red-team / eval) — GitHub repo",
+        "url": "https://github.com/promptfoo/promptfoo",
+        "type": "tool"
+      }
+    ],
+    "onlineAlternative": {
+      "label": "Promptfoo Enterprise (hosted) for team dashboards.",
+      "url": "https://gandalf.lakera.ai/",
+      "note": "No-setup online alternative."
+    }
   },
   {
     "id": "ai-L13",
     "number": 13,
-    "week": 2,
+    "week": 1,
     "moduleId": "ai-m6",
-    "title": "Over-Privileged Agent Takeover",
-    "description": "Abuse an agent's over-broad tools to perform an action the user never authorized, then re-scope the tools to block it.",
-    "platform": "local Docker (LangChain agent with tools)",
+    "title": "Damn Vulnerable AI Agent (DVAA, opena2a)",
+    "description": "Exploit a deliberately vulnerable autonomous AI agent - tool abuse, excessive agency, memory/identity attacks - across 19+ agents and a dashboard, for agentic-AI security practice. VERIFIED on Docker Hub: opena2a/dvaa, latest == 0.9.2, manifest has BOTH linux/amd64 and linux/arm64 (~65MB each) - arm64 confirmed, pullable as-is. Dashboard port 9000; agents 7001-7021. NO LLM key needed for the default Compose setup (simulated LLM backend, zero external deps); an OpenAI/Anthropic key is optional only for live kill-chain narration. Bind to 127.0.0.1. Complements DVMCP/MCPGoat for the agent-security module.",
+    "platform": "In-house Docker (one-click)",
     "difficulty": "medium",
     "estimatedHours": 2,
-    "objective": "Abuse an agent's over-broad tools to perform an action the user never authorized, then re-scope the tools to block it."
+    "objective": "Exploit a deliberately vulnerable autonomous AI agent - tool abuse, excessive agency, memory/identity attacks - across 19+ agents and a dashboard, for agentic-AI security practice.",
+    "dockerImage": "opena2a/dvaa:0.9.2",
+    "containerPort": 9000,
+    "resources": [
+      {
+        "title": "Damn Vulnerable AI Agent (DVAA, opena2a) — GitHub repo",
+        "url": "https://github.com/opena2a-org/damn-vulnerable-ai-agent",
+        "type": "tool"
+      }
+    ]
   },
   {
     "id": "ai-L14",
     "number": 14,
-    "week": 2,
-    "moduleId": "ai-m6",
-    "title": "Poison the Vector Store",
-    "description": "Insert a poisoned document that hijacks answers to a target query, and add retrieval-time controls that neutralize it.",
-    "platform": "local Docker (RAG + Chroma/pgvector)",
-    "difficulty": "medium",
+    "week": 1,
+    "moduleId": "ai-m4",
+    "title": "WithSecure LLM Vulnerable Recruitment App",
+    "description": "Indirect prompt injection lab: a CV-screening LLM app where poisoned resume content manipulates the model's hiring decision. No prebuilt image - run from repo (plain Python app; confirm whether README ships a Dockerfile, else wrap it). Requires an OpenAI API key. Small, focused indirect-prompt-injection demo - good quick module. Builds natively (arm64 OK).",
+    "platform": "Self-host: build from GitHub repo",
+    "difficulty": "easy",
     "estimatedHours": 2,
-    "objective": "Insert a poisoned document that hijacks answers to a target query, and add retrieval-time controls that neutralize it."
+    "objective": "Indirect prompt injection lab: a CV-screening LLM app where poisoned resume content manipulates the model's hiring decision.",
+    "instructions": [
+      "Clone the repo: git clone https://github.com/WithSecureLabs/llm-vulnerable-recruitment-app",
+      "Clone and run per README (Python app); set an OpenAI API key.",
+      "Open the app in your browser once it is up (see the README for the port).",
+      "Attack the target per the lab objective, then record your findings."
+    ],
+    "resources": [
+      {
+        "title": "WithSecure LLM Vulnerable Recruitment App — GitHub repo",
+        "url": "https://github.com/WithSecureLabs/llm-vulnerable-recruitment-app",
+        "type": "tool"
+      }
+    ]
   },
   {
     "id": "ai-L15",
     "number": 15,
-    "week": 2,
-    "moduleId": "ai-m6",
-    "title": "Malicious MCP Tool",
-    "description": "Build a tool-poisoning MCP server that exfiltrates context on connect, then demonstrate review/sandbox controls that stop it.",
-    "platform": "local Docker (MCP client + server)",
-    "difficulty": "hard",
-    "estimatedHours": 2,
-    "objective": "Build a tool-poisoning MCP server that exfiltrates context on connect, then demonstrate review/sandbox controls that stop it."
-  },
-  {
-    "id": "ai-L16",
-    "number": 16,
-    "week": 2,
-    "moduleId": "ai-m7",
-    "title": "OWASP LLM Scorecard",
-    "description": "Assess a provided app against all ten OWASP LLM items and produce a prioritized, evidence-backed scorecard.",
-    "platform": "local Docker (sample LLM app) + promptfoo",
-    "difficulty": "medium",
-    "estimatedHours": 2,
-    "objective": "Assess a provided app against all ten OWASP LLM items and produce a prioritized, evidence-backed scorecard."
-  },
-  {
-    "id": "ai-L17",
-    "number": 17,
-    "week": 3,
-    "moduleId": "ai-m8",
-    "title": "Backdoor a Classifier",
-    "description": "Insert a clean-label backdoor that keeps benign accuracy high but flips on a secret trigger, and quantify the poison budget.",
-    "platform": "local (PyTorch / scikit-learn)",
-    "difficulty": "hard",
-    "estimatedHours": 2,
-    "objective": "Insert a clean-label backdoor that keeps benign accuracy high but flips on a secret trigger, and quantify the poison budget."
-  },
-  {
-    "id": "ai-L18",
-    "number": 18,
-    "week": 3,
-    "moduleId": "ai-m8",
-    "title": "Hunt a Trojaned Model",
-    "description": "Given weights of unknown provenance, use detection techniques to decide whether a backdoor is present.",
-    "platform": "local (ART / activation analysis)",
-    "difficulty": "medium",
-    "estimatedHours": 2,
-    "objective": "Given weights of unknown provenance, use detection techniques to decide whether a backdoor is present."
-  },
-  {
-    "id": "ai-L19",
-    "number": 19,
-    "week": 3,
-    "moduleId": "ai-m9",
-    "title": "Steal a Black-Box Classifier",
-    "description": "Query a black-box model and train a surrogate that matches it closely, then show rate-limiting degrades the attack.",
-    "platform": "local Docker (victim API + surrogate trainer)",
-    "difficulty": "medium",
-    "estimatedHours": 2,
-    "objective": "Query a black-box model and train a surrogate that matches it closely, then show rate-limiting degrades the attack."
-  },
-  {
-    "id": "ai-L20",
-    "number": 20,
-    "week": 3,
-    "moduleId": "ai-m9",
-    "title": "Membership Inference Attack",
-    "description": "Build a membership-inference attack and measure how differential-privacy training reduces its advantage.",
-    "platform": "local (shadow models)",
-    "difficulty": "hard",
-    "estimatedHours": 2,
-    "objective": "Build a membership-inference attack and measure how differential-privacy training reduces its advantage."
-  },
-  {
-    "id": "ai-L21",
-    "number": 21,
-    "week": 3,
-    "moduleId": "ai-m10",
-    "title": "Malicious Pickle RCE",
-    "description": "Craft a model artifact that executes code on load, then show ModelScan/safetensors blocking it.",
-    "platform": "local Docker (isolated)",
-    "difficulty": "medium",
-    "estimatedHours": 2,
-    "objective": "Craft a model artifact that executes code on load, then show ModelScan/safetensors blocking it."
-  },
-  {
-    "id": "ai-L22",
-    "number": 22,
-    "week": 3,
-    "moduleId": "ai-m10",
-    "title": "Harden a Model Pipeline",
-    "description": "Add scan-on-ingest, signing and sandboxed loading to a pipeline and prove a poisoned artifact is now rejected.",
-    "platform": "local Docker (MLflow + registry)",
-    "difficulty": "hard",
-    "estimatedHours": 2,
-    "objective": "Add scan-on-ingest, signing and sandboxed loading to a pipeline and prove a poisoned artifact is now rejected."
-  },
-  {
-    "id": "ai-L23",
-    "number": 23,
-    "week": 3,
-    "moduleId": "ai-m11",
-    "title": "Evade an Image Classifier",
-    "description": "Generate adversarial examples that fool a CNN under an epsilon budget, then measure how adversarial training restores accuracy.",
-    "platform": "local (ART / Foolbox)",
-    "difficulty": "medium",
-    "estimatedHours": 2,
-    "objective": "Generate adversarial examples that fool a CNN under an epsilon budget, then measure how adversarial training restores accuracy."
-  },
-  {
-    "id": "ai-L24",
-    "number": 24,
-    "week": 3,
-    "moduleId": "ai-m11",
-    "title": "ATLAS Emulation Campaign",
-    "description": "Run a multi-technique ATLAS-mapped emulation against a model and report coverage and detection gaps.",
-    "platform": "local Docker (Counterfit + target model)",
-    "difficulty": "medium",
-    "estimatedHours": 2,
-    "objective": "Run a multi-technique ATLAS-mapped emulation against a model and report coverage and detection gaps."
-  },
-  {
-    "id": "ai-L25",
-    "number": 25,
-    "week": 4,
-    "moduleId": "ai-m12",
-    "title": "Deploy and Tune Guardrails",
-    "description": "Wrap a vulnerable chatbot in guardrails and measure the drop in injection/jailbreak success versus false-positive cost.",
-    "platform": "local Docker (LLM Guard / NeMo Guardrails)",
-    "difficulty": "medium",
-    "estimatedHours": 2,
-    "objective": "Wrap a vulnerable chatbot in guardrails and measure the drop in injection/jailbreak success versus false-positive cost."
-  },
-  {
-    "id": "ai-L26",
-    "number": 26,
-    "week": 4,
-    "moduleId": "ai-m12",
-    "title": "Bypass Your Own Guardrail",
-    "description": "Red-team the guardrail you deployed, report the bypass rate, and add a second layer that closes the gap.",
-    "platform": "local Docker (guardrail + promptfoo)",
-    "difficulty": "hard",
-    "estimatedHours": 2,
-    "objective": "Red-team the guardrail you deployed, report the bypass rate, and add a second layer that closes the gap."
-  },
-  {
-    "id": "ai-L27",
-    "number": 27,
-    "week": 4,
-    "moduleId": "ai-m13",
-    "title": "Full Red-Team Engagement",
-    "description": "Run a scoped engagement end to end and deliver a framework-mapped report with verified, reproducible PoCs.",
-    "platform": "local Docker (realistic LLM app) + garak/PyRIT/promptfoo",
-    "difficulty": "hard",
-    "estimatedHours": 2,
-    "objective": "Run a scoped engagement end to end and deliver a framework-mapped report with verified, reproducible PoCs."
-  },
-  {
-    "id": "ai-L28",
-    "number": 28,
-    "week": 4,
-    "moduleId": "ai-m13",
-    "title": "Red-Team in CI",
-    "description": "Wire an attack regression suite into CI that fails the build when a known bypass reappears.",
-    "platform": "local Docker (CI pipeline + promptfoo)",
-    "difficulty": "medium",
-    "estimatedHours": 2,
-    "objective": "Wire an attack regression suite into CI that fails the build when a known bypass reappears."
-  },
-  {
-    "id": "ai-L29",
-    "number": 29,
-    "week": 4,
-    "moduleId": "ai-m14",
-    "title": "Harden a Full LLM Stack",
-    "description": "Add gateway guardrails, secrets management, isolation and spend caps to a vulnerable stack and re-test to prove measurable risk reduction.",
-    "platform": "local Docker (gateway + model + tools + RAG)",
-    "difficulty": "hard",
-    "estimatedHours": 2,
-    "objective": "Add gateway guardrails, secrets management, isolation and spend caps to a vulnerable stack and re-test to prove measurable risk reduction."
-  },
-  {
-    "id": "ai-L30",
-    "number": 30,
-    "week": 4,
-    "moduleId": "ai-m14",
-    "title": "Governance Mapping",
-    "description": "Map the hardened stack's controls to NIST AI RMF and OWASP LLM items and produce a gap-and-remediation table.",
-    "platform": "PortSwigger-style (worksheet)",
+    "week": 1,
+    "moduleId": "ai-m4",
+    "title": "Lakera Gandalf (online prompt-injection game)",
+    "description": "7 escalating levels + bonus (Gandalf the White): trick an LLM guardian into revealing a secret password through prompt injection and social engineering. NOT self-hostable - hosted by Lakera, no official Docker image (the linked GitHub is Microsoft's related 'gandalf_vs_gandalf' automation, not the game). Cannot run on the DGX docker runner. Listed as the canonical 'Gandalf-style' onboarding exercise; use LLMVault/PromptMe for the in-house offline equivalent. ARM64: unverified — test the build on the DGX first.",
+    "platform": "Self-host: build from GitHub repo",
     "difficulty": "easy",
     "estimatedHours": 2,
-    "objective": "Map the hardened stack's controls to NIST AI RMF and OWASP LLM items and produce a gap-and-remediation table."
+    "objective": "7 escalating levels + bonus (Gandalf the White): trick an LLM guardian into revealing a secret password through prompt injection and social engineering.",
+    "instructions": [
+      "Clone the repo: git clone https://github.com/microsoft/gandalf_vs_gandalf",
+      "Play online at https://gandalf.lakera.ai (no install). For self-hosted practice, substitute LLMVault or PromptMe which cover the same skill offline.",
+      "Open the app in your browser once it is up (see the README for the port).",
+      "Attack the target per the lab objective, then record your findings."
+    ],
+    "resources": [
+      {
+        "title": "Lakera Gandalf (online prompt-injection game) — GitHub repo",
+        "url": "https://github.com/microsoft/gandalf_vs_gandalf",
+        "type": "tool"
+      }
+    ],
+    "onlineAlternative": {
+      "label": "https://gandalf.lakera.ai (primary); also Gandalf: Agent Breaker for agent explo",
+      "url": "https://gandalf.lakera.ai (primary); also Gandalf: Agent Breaker for agent exploitation.",
+      "note": "No-setup online alternative."
+    }
   }
 ]
