@@ -26,8 +26,12 @@ done
 
 ENV_FILE="${SYNC_ENV_FILE:-.env.sync}"
 [ -f "$ENV_FILE" ] || { echo "Missing $ENV_FILE (see header of this script)." >&2; exit 1; }
-set -a; . "./$ENV_FILE"; set +a
-: "${SRC_DATABASE_URL:?SRC_DATABASE_URL not set in $ENV_FILE}"
+# Parsed as data (never executed as shell), so odd characters in the URL are safe.
+SRC_DATABASE_URL=$(sed -n 's/^SRC_DATABASE_URL=//p' "$ENV_FILE" | head -1 | tr -d "'\"" | sed 's/^ *//;s/ *$//')
+case "$SRC_DATABASE_URL" in
+  postgres://*|postgresql://*) ;;
+  *) echo "$ENV_FILE does not contain a valid SRC_DATABASE_URL (must start with postgresql://). Delete the file and re-run." >&2; exit 1 ;;
+esac
 export SRC_DATABASE_URL   # passed to containers by name, so it never appears on a command line
 
 # The pg client must be at least as new as the live server.
