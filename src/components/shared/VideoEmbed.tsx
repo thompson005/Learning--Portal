@@ -59,10 +59,22 @@ export function isEmbeddableVideo(url: string): boolean {
   return toYouTubeEmbed(url) !== null
 }
 
-export function VideoEmbed({ url, title }: { url: string; title: string }) {
+export function VideoEmbed({
+  url,
+  title,
+  autoplay = false,
+}: {
+  url: string
+  title: string
+  /** Start muted-autoplay (browsers only allow autoplay when muted). */
+  autoplay?: boolean
+}) {
   const embed = toYouTubeEmbed(url)
   const [failed, setFailed] = useState(false)
   if (!embed) return null
+  const src = autoplay
+    ? embed + (embed.includes("?") ? "&" : "?") + "autoplay=1&mute=1"
+    : embed
 
   // If the frame fails to load (blocked network, offline, removed video), fall
   // back to a link so the learner can still reach it.
@@ -87,7 +99,7 @@ export function VideoEmbed({ url, title }: { url: string; title: string }) {
     <div className="overflow-hidden rounded-xl border border-border bg-card shadow-tile">
       <div className="relative aspect-video w-full bg-muted">
         <iframe
-          src={embed}
+          src={src}
           title={title}
           className="absolute inset-0 h-full w-full"
           loading="lazy"

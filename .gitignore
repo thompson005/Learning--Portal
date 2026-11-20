@@ -62,3 +62,6 @@ scripts/aicontent-results.json
 
 scripts/content-workflow.js
 scripts/content-results.json
+
+scripts/video-workflow.js
+scripts/video-results.json

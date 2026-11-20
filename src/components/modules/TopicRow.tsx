@@ -1,7 +1,15 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { ChevronDown, ExternalLink, HelpCircle, Star } from "lucide-react"
+import {
+  BookText,
+  ChevronDown,
+  ExternalLink,
+  HelpCircle,
+  PlayCircle,
+  Star,
+  Video,
+} from "lucide-react"
 import { toast } from "sonner"
 
 import { cn, dedupeResources } from "@/lib/utils"
@@ -50,6 +58,7 @@ export function TopicRow({
   defaultExpanded?: boolean
 }) {
   const [expanded, setExpanded] = useState(defaultExpanded)
+  const [mode, setMode] = useState<"read" | "watch">("read")
   const rootRef = useRef<HTMLDivElement>(null)
   const [status, setStatus] = useState<Status>("not_started")
   const [selfScore, setSelfScore] = useState<number | undefined>(undefined)
@@ -71,6 +80,7 @@ export function TopicRow({
   // non-embeddable videos) stays a link.
   const videoResources = allResources.filter((r) => isEmbeddableVideo(r.url))
   const linkResources = allResources.filter((r) => !isEmbeddableVideo(r.url))
+  const primaryVideo = videoResources[0]
 
   useEffect(() => {
     const tp = getProgress().topics[topic.id]
@@ -279,7 +289,48 @@ export function TopicRow({
             </div>
           )}
 
-          {topic.slides && topic.slides.length > 0 ? (
+          {/* Prefer video? A Read / Watch switch when a video exists. */}
+          {primaryVideo && (
+            <div className="inline-flex items-center rounded-full border border-border bg-card p-0.5 text-xs shadow-chip">
+              <button
+                onClick={() => setMode("read")}
+                className={cn(
+                  "flex items-center gap-1.5 rounded-full px-3 py-1 font-medium transition-colors",
+                  mode === "read"
+                    ? "bg-brand-orange/10 text-brand-orange"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                <BookText className="h-3.5 w-3.5" /> Read
+              </button>
+              <button
+                onClick={() => setMode("watch")}
+                className={cn(
+                  "flex items-center gap-1.5 rounded-full px-3 py-1 font-medium transition-colors",
+                  mode === "watch"
+                    ? "bg-brand-orange/10 text-brand-orange"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                <PlayCircle className="h-3.5 w-3.5" /> Watch
+              </button>
+            </div>
+          )}
+
+          {mode === "watch" && primaryVideo ? (
+            <Reveal delay={60}>
+              <div className="space-y-2">
+                <VideoEmbed
+                  url={primaryVideo.url}
+                  title={primaryVideo.title}
+                  autoplay
+                />
+                <p className="font-mono text-[11px] text-muted-foreground">
+                  Prefer reading? Switch to Read above.
+                </p>
+              </div>
+            </Reveal>
+          ) : topic.slides && topic.slides.length > 0 ? (
             <Reveal delay={60}>
               <LabSlideshow
                 slides={topic.slides}
@@ -327,6 +378,21 @@ export function TopicRow({
                 </Reveal>
               )}
             </>
+          )}
+
+          {/* No embedded video yet — always give a one-tap way to watch one. */}
+          {!primaryVideo && (
+            <a
+              href={`https://www.youtube.com/results?search_query=${encodeURIComponent(
+                topic.title + " explained",
+              )}`}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1.5 text-xs font-medium text-brand-orange hover:underline"
+            >
+              <Video className="h-4 w-4" /> Prefer to watch? Find a video on
+              YouTube
+            </a>
           )}
 
           {topic.exercises && topic.exercises.length > 0 && (
