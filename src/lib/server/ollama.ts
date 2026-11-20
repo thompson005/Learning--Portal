@@ -126,3 +126,96 @@ export async function* ollamaChatStream(
 }
 
 export const tutorModel = OLLAMA_MODEL
+
+// ---------------------------------------------------------------------------
+// DeepSeek backend (OpenAI-compatible). Used when DEEPSEEK_API_KEY is set, so
+// the tutor works everywhere — not only where a local Ollama is running. Cheap,
+// efficient models; capped tokens per call to keep spend bounded.
+// ---------------------------------------------------------------------------
+
+const DEEPSEEK_KEY = process.env.DEEPSEEK_API_KEY || ""
+const DEEPSEEK_URL = (process.env.DEEPSEEK_URL || "https://api.deepseek.com").replace(/\/$/, "")
+const DEEPSEEK_MODEL = process.env.DEEPSEEK_MODEL || "deepseek-chat"
+
+export function useDeepSeek(): boolean {
+  return Boolean(DEEPSEEK_KEY)
+}
+
+/** Streams a chat completion from DeepSeek (OpenAI-compatible SSE). Yields
+ *  content deltas. Throws on network/timeout/non-200 so the route can fall back. */
+export async function* deepseekChatStream(
+  messages: ChatMessage[],
+  opts: { temperature?: number; maxTokens?: number } = {},
+): AsyncGenerator<string> {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS)
+  try {
+    const res = await fetch(`${DEEPSEEK_URL}/chat/completions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${DEEPSEEK_KEY}`,
+      },
+      body: JSON.stringify({
+        model: DEEPSEEK_MODEL,
+        messages,
+        stream: true,
+        temperature: opts.temperature ?? 0.3,
+        max_tokens: opts.maxTokens ?? 600,
+      }),
+      signal: controller.signal,
+    })
+    if (!res.ok || !res.body) throw new Error(`DeepSeek error ${res.status}`)
+
+    const reader = res.body.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ""
+
+    const emit = function* (line: string): Generator<string> {
+      const t = line.trim()
+      if (!t.startsWith("data:")) return
+      const payload = t.slice(5).trim()
+      if (!payload || payload === "[DONE]") return
+      try {
+        const obj = JSON.parse(payload) as {
+          choices?: { delta?: { content?: string } }[]
+        }
+        const delta = obj?.choices?.[0]?.delta?.content
+        if (delta) yield delta
+      } catch {
+        /* partial/non-JSON SSE line — buffered or skipped */
+      }
+    }
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+      let nl: number
+      while ((nl = buffer.indexOf("\n")) !== -1) {
+        const line = buffer.slice(0, nl)
+        buffer = buffer.slice(nl + 1)
+        yield* emit(line)
+      }
+    }
+    yield* emit(buffer)
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+/** Unified tutor stream: DeepSeek when keyed (works everywhere), else the local
+ *  Ollama model. The route wraps this and streams a graceful fallback on error. */
+export function tutorChatStream(
+  messages: ChatMessage[],
+  opts: { temperature?: number; maxTokens?: number } = {},
+): AsyncGenerator<string> {
+  return useDeepSeek()
+    ? deepseekChatStream(messages, opts)
+    : ollamaChatStream(messages, opts)
+}
+
+/** Which backend is active, for UI labelling. */
+export function tutorBackend(): "deepseek" | "ollama" {
+  return useDeepSeek() ? "deepseek" : "ollama"
+}

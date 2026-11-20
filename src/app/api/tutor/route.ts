@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server"
 
-import { ollamaChatStream, type ChatMessage } from "@/lib/server/ollama"
+import { tutorChatStream, type ChatMessage } from "@/lib/server/ollama"
 
 export const runtime = "nodejs"
 export const maxDuration = 60
@@ -103,7 +103,7 @@ export async function POST(req: NextRequest) {
     async start(controller) {
       let any = false
       try {
-        for await (const delta of ollamaChatStream(messages, {
+        for await (const delta of tutorChatStream(messages, {
           temperature,
           maxTokens,
         })) {

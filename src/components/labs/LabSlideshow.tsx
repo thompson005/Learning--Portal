@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button"
 import { TiltCard } from "@/components/ui3d/TiltCard"
 import { LabDiagramView } from "@/components/labs/diagrams/DiagramRenderer"
 import { InteractiveText } from "@/components/learn/InteractiveText"
+import { ExplainMore } from "@/components/learn/ExplainMore"
 import { getProgress, recordCheckpoint } from "@/lib/store/progress"
 import type { LabSlide } from "@/types"
 
@@ -201,6 +202,7 @@ function SlideContent({
       >
         <InteractiveText text={slide.body} />
       </p>
+      {interactive && <ExplainMore title={slide.title} body={slide.body} />}
       {slide.diagram && (
         <div className={cn("mt-4", diagram.className)} style={diagram.style}>
           <TiltCard max={5}>
