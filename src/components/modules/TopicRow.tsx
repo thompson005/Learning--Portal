@@ -15,13 +15,6 @@ import { LabSlideshow } from "@/components/labs/LabSlideshow"
 import { ExerciseBlock } from "@/components/exercises/ExerciseBlock"
 import { InteractiveText } from "@/components/learn/InteractiveText"
 import { VideoEmbed, isEmbeddableVideo } from "@/components/shared/VideoEmbed"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { QuizModal } from "@/components/quiz/QuizModal"
 import {
@@ -30,6 +23,7 @@ import {
   getTopicQuizAttempt,
   recordTopicQuizAttempt,
   updateTopicStatus,
+  markTopicCompleted,
   setLastTopic,
   getStreak,
 } from "@/lib/store/progress"
@@ -129,16 +123,18 @@ export function TopicRow({
     )
   }
 
-  function handleStatusChange(next: Status) {
+  // Portal-driven completion — the learner finished the walkthrough. No manual
+  // control; marks completed + auto-skips earlier untouched topics.
+  function handleAutoComplete() {
+    if (status === "completed") return
     const xpBefore = getXp()
-    const wasCompleted = status === "completed"
-    setStatus(next)
-    updateTopicStatus(topic.id, { status: next })
+    markTopicCompleted(topic.id)
+    setStatus("completed")
     const tp = getProgress().topics[topic.id]
     setDates({ started: tp?.dateStarted, completed: tp?.dateCompleted })
     const gained = getXp() - xpBefore
     if (gained > 0) toast.success(`+${gained} XP earned!`)
-    if (next === "completed" && !wasCompleted) fireLessonComplete(gained)
+    fireLessonComplete(gained)
   }
 
   function handleExpand() {
@@ -171,7 +167,7 @@ export function TopicRow({
       status !== "completed" &&
       status !== "skipped"
     ) {
-      updateTopicStatus(topic.id, { status: "completed" })
+      markTopicCompleted(topic.id)
       setStatus("completed")
       const tp = getProgress().topics[topic.id]
       setDates({ started: tp?.dateStarted, completed: tp?.dateCompleted })
@@ -227,22 +223,7 @@ export function TopicRow({
         >
           {topic.type}
         </Badge>
-        <div onClick={(e) => e.stopPropagation()}>
-          <Select
-            value={status}
-            onValueChange={(v) => handleStatusChange(v as Status)}
-          >
-            <SelectTrigger className="h-8 w-[130px] text-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="not_started">Not Started</SelectItem>
-              <SelectItem value="in_progress">In Progress</SelectItem>
-              <SelectItem value="completed">Completed</SelectItem>
-              <SelectItem value="skipped">Skipped</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+        <StatusBadge status={status} className="rounded-md" />
         <ChevronDown
           className={cn(
             "h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-300",
@@ -300,7 +281,11 @@ export function TopicRow({
 
           {topic.slides && topic.slides.length > 0 ? (
             <Reveal delay={60}>
-              <LabSlideshow slides={topic.slides} ownerId={topic.id} />
+              <LabSlideshow
+                slides={topic.slides}
+                ownerId={topic.id}
+                onComplete={handleAutoComplete}
+              />
             </Reveal>
           ) : (
             <>

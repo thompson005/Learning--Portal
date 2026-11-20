@@ -239,9 +239,13 @@ function SlideContent({
 export function LabSlideshow({
   slides,
   ownerId,
+  onComplete,
 }: {
   slides: LabSlide[]
   ownerId: string
+  /** Fired once when the learner finishes the whole walkthrough (reaches the
+   *  final slide and its check, if any, is answered). Drives auto-completion. */
+  onComplete?: () => void
 }) {
   const [index, setIndex] = useState(0)
   const [outgoing, setOutgoing] = useState<{
@@ -297,6 +301,17 @@ export function LabSlideshow({
   const offset = CIRCUMFERENCE - ((index + 1) / total) * CIRCUMFERENCE
   // Active recall: a slide with a quick-check must be answered before advancing.
   const mustAnswer = !!slide.check && !answered.has(index)
+
+  // Auto-completion: the lesson is "done" once the learner is on the final
+  // slide and its check (if any) has been answered. Fire onComplete once.
+  const lessonDone = isFinal && !mustAnswer
+  const doneFired = useRef(false)
+  useEffect(() => {
+    if (lessonDone && !doneFired.current) {
+      doneFired.current = true
+      onComplete?.()
+    }
+  }, [lessonDone, onComplete])
 
   function go(next: number) {
     const clamped = Math.max(0, Math.min(total - 1, next))

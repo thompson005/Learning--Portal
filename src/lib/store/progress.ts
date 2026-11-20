@@ -105,6 +105,28 @@ export function updateTopicStatus(
   saveProgress(progress)
 }
 
+/** Automatically mark a topic completed (called by the portal when the learner
+ *  actually finishes the lesson — never a manual control). Also auto-skips any
+ *  earlier not-started topics in the same module, since the learner moved past
+ *  them. Returns true if it newly completed the topic. */
+export function markTopicCompleted(topicId: string): boolean {
+  if ((getProgress().topics[topicId]?.status ?? "not_started") === "completed")
+    return false
+  updateTopicStatus(topicId, { status: "completed" })
+  const mod = activeCurriculum().find((m) =>
+    m.topics.some((t) => t.id === topicId),
+  )
+  if (mod) {
+    const idx = mod.topics.findIndex((t) => t.id === topicId)
+    for (let i = 0; i < idx; i++) {
+      const t = mod.topics[i]
+      if ((getProgress().topics[t.id]?.status ?? "not_started") === "not_started")
+        updateTopicStatus(t.id, { status: "skipped" })
+    }
+  }
+  return true
+}
+
 /** Remember the topic the learner most recently opened, for resume. */
 export function setLastTopic(topicId: string) {
   const progress = getProgress()
