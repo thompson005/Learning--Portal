@@ -16,7 +16,6 @@ import {
   YAxis,
 } from "recharts"
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -26,6 +25,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { GlassCard } from "@/components/ui3d/GlassCard"
+import { MeshGradient } from "@/components/ui3d/MeshGradient"
+import { Reveal } from "@/components/ui3d/Reveal"
 import { ProgressRing } from "@/components/dashboard/ProgressRing"
 import { WeeklyActivity } from "@/components/dashboard/WeeklyActivity"
 import {
@@ -57,6 +59,15 @@ const TYPE_COLORS: Record<string, string> = {
   lab: "hsl(var(--sev-medium))",
   setup: "hsl(var(--sev-high))",
   exercise: "hsl(var(--sev-low))",
+}
+
+// Small uppercase mono micro-label used atop each glass panel.
+function PanelLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+      {children}
+    </p>
+  )
 }
 
 export default function ProgressPage() {
@@ -130,72 +141,74 @@ export default function ProgressPage() {
   const pieData = difficulty.map((d) => ({ name: d.difficulty, completed: d.completed, remaining: d.remaining }))
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="font-mono text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-            Progress Report
-          </p>
-          <h1 className="mt-1 font-display text-3xl font-semibold tracking-tight text-foreground">My Progress</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Full breakdown of your journey through the programme.</p>
+    <div className="space-y-8">
+      {/* Hero */}
+      <section className="glass-strong relative overflow-hidden rounded-3xl p-6 md:p-10">
+        <MeshGradient />
+        <div className="relative flex flex-wrap items-end justify-between gap-6">
+          <div className="min-w-0">
+            <PanelLabel>Progress Report</PanelLabel>
+            <h1 className="mt-3 font-display text-4xl font-semibold leading-[1.05] tracking-tight text-foreground md:text-5xl">
+              My Progress
+            </h1>
+            <p className="mt-3 max-w-md text-sm text-muted-foreground">
+              Full breakdown of your journey through the programme.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" onClick={handleExport}>
+              <Download className="h-4 w-4" /> Export
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleImportClick}>
+              <Upload className="h-4 w-4" /> Import
+            </Button>
+            <input ref={fileInputRef} type="file" accept="application/json" className="hidden" onChange={handleFileChange} />
+            <Button variant="destructive" size="sm" onClick={() => setResetOpen(true)}>
+              <RotateCcw className="h-4 w-4" /> Reset
+            </Button>
+          </div>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={handleExport}>
-            <Download className="h-4 w-4" /> Export
-          </Button>
-          <Button variant="outline" size="sm" onClick={handleImportClick}>
-            <Upload className="h-4 w-4" /> Import
-          </Button>
-          <input ref={fileInputRef} type="file" accept="application/json" className="hidden" onChange={handleFileChange} />
-          <Button variant="destructive" size="sm" onClick={() => setResetOpen(true)}>
-            <RotateCcw className="h-4 w-4" /> Reset
-          </Button>
-        </div>
+      </section>
+
+      {/* Overall + month-by-month */}
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+        <Reveal className="lg:col-span-1">
+          <GlassCard className="flex h-full items-center justify-center p-6">
+            <div className="flex flex-col items-center gap-3">
+              <PanelLabel>Overall Completion</PanelLabel>
+              <ProgressRing value={overall.percentComplete} size={160} label="Complete" gradient />
+              <p className="text-xs text-muted-foreground">
+                {overall.topicsCompleted + overall.labsCompleted} of {overall.topicsTotal + overall.labsTotal} items done
+              </p>
+            </div>
+          </GlassCard>
+        </Reveal>
+
+        <Reveal delay={80} className="lg:col-span-2">
+          <GlassCard className="h-full p-6">
+            <PanelLabel>Month-by-Month Completion</PanelLabel>
+            <div className="mt-4 h-56">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={monthly} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
+                  <XAxis dataKey="month" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
+                  <YAxis allowDecimals={false} tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
+                  <Tooltip
+                    contentStyle={{ background: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }}
+                  />
+                  <Bar dataKey="completed" fill="hsl(var(--primary))" radius={[0, 0, 0, 0]} name="Completed" />
+                  <Bar dataKey="total" fill="hsl(var(--muted-foreground) / 0.25)" radius={[0, 0, 0, 0]} name="Total" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </GlassCard>
+        </Reveal>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <Card className="flex items-center justify-center lg:col-span-1">
-          <CardContent className="flex flex-col items-center gap-3 p-6">
-            <p className="font-mono text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-              Overall Completion
-            </p>
-            <ProgressRing value={overall.percentComplete} size={160} label="Complete" gradient />
-            <p className="text-xs text-muted-foreground">
-              {overall.topicsCompleted + overall.labsCompleted} of {overall.topicsTotal + overall.labsTotal} items done
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="font-mono text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-              Month-by-Month Completion
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="h-56">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={monthly} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
-                <XAxis dataKey="month" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
-                <YAxis allowDecimals={false} tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
-                <Tooltip
-                  contentStyle={{ background: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }}
-                />
-                <Bar dataKey="completed" fill="hsl(var(--primary))" radius={[0, 0, 0, 0]} name="Completed" />
-                <Bar dataKey="total" fill="hsl(var(--muted-foreground) / 0.25)" radius={[0, 0, 0, 0]} name="Total" />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="font-mono text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-            Module Completion Heatmap
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-8">
+      {/* Heatmap */}
+      <Reveal>
+        <GlassCard className="p-6">
+          <PanelLabel>Module Completion Heatmap</PanelLabel>
+          <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-8">
             {/* The completion fade belongs to the FILL, not the tile. Applied
                 to the whole element it faded the label too, so an untouched
                 month rendered white text at 0.25 alpha — 2.3:1, unreadable.
@@ -216,76 +229,72 @@ export default function ProgressPage() {
               </div>
             ))}
           </div>
-        </CardContent>
-      </Card>
+        </GlassCard>
+      </Reveal>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="font-mono text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-              Weekly Activity
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <WeeklyActivity data={weekly} />
-          </CardContent>
-        </Card>
+      {/* Weekly activity + lab difficulty */}
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+        <Reveal>
+          <GlassCard className="h-full p-6">
+            <PanelLabel>Weekly Activity</PanelLabel>
+            <div className="mt-4">
+              <WeeklyActivity data={weekly} />
+            </div>
+          </GlassCard>
+        </Reveal>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="font-mono text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-              Lab Difficulty Breakdown
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="h-56">
+        <Reveal delay={80}>
+          <GlassCard className="h-full p-6">
+            <PanelLabel>Lab Difficulty Breakdown</PanelLabel>
+            <div className="mt-4 h-56">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={pieData}
+                    dataKey="completed"
+                    nameKey="name"
+                    innerRadius={45}
+                    outerRadius={75}
+                    paddingAngle={2}
+                  >
+                    {pieData.map((entry) => (
+                      <Cell key={entry.name} fill={DIFFICULTY_COLORS[entry.name]} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    contentStyle={{ background: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }}
+                  />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </GlassCard>
+        </Reveal>
+      </div>
+
+      {/* Topic type breakdown */}
+      <Reveal>
+        <GlassCard className="p-6">
+          <PanelLabel>Topic Type Breakdown</PanelLabel>
+          <div className="mt-4 h-56">
             <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={pieData}
-                  dataKey="completed"
-                  nameKey="name"
-                  innerRadius={45}
-                  outerRadius={75}
-                  paddingAngle={2}
-                >
-                  {pieData.map((entry) => (
-                    <Cell key={entry.name} fill={DIFFICULTY_COLORS[entry.name]} />
-                  ))}
-                </Pie>
+              <BarChart data={typeBreakdown} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
+                <XAxis dataKey="type" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
+                <YAxis allowDecimals={false} tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
                 <Tooltip
                   contentStyle={{ background: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }}
                 />
-                <Legend wrapperStyle={{ fontSize: 11 }} />
-              </PieChart>
+                <Bar dataKey="completed" radius={[0, 0, 0, 0]} name="Completed">
+                  {typeBreakdown.map((entry) => (
+                    <Cell key={entry.type} fill={TYPE_COLORS[entry.type]} />
+                  ))}
+                </Bar>
+                <Bar dataKey="total" fill="hsl(var(--muted-foreground) / 0.25)" radius={[0, 0, 0, 0]} name="Total" />
+              </BarChart>
             </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="font-mono text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-            Topic Type Breakdown
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="h-56">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={typeBreakdown} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
-              <XAxis dataKey="type" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
-              <YAxis allowDecimals={false} tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
-              <Tooltip
-                contentStyle={{ background: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }}
-              />
-              <Bar dataKey="completed" radius={[0, 0, 0, 0]} name="Completed">
-                {typeBreakdown.map((entry) => (
-                  <Cell key={entry.type} fill={TYPE_COLORS[entry.type]} />
-                ))}
-              </Bar>
-              <Bar dataKey="total" fill="hsl(var(--muted-foreground) / 0.25)" radius={[0, 0, 0, 0]} name="Total" />
-            </BarChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
+          </div>
+        </GlassCard>
+      </Reveal>
 
       <Dialog open={resetOpen} onOpenChange={(o) => { setResetOpen(o); if (!o) setResetConfirmStep(0) }}>
         <DialogContent className="rounded-xl border-border">

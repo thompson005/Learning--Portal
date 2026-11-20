@@ -5,6 +5,8 @@ import * as Icons from "lucide-react"
 import { Lock, Trophy } from "lucide-react"
 
 import { cn } from "@/lib/utils"
+import { MeshGradient } from "@/components/ui3d/MeshGradient"
+import { Reveal } from "@/components/ui3d/Reveal"
 import { getAchievements, type Achievement } from "@/lib/store/gamification"
 
 type Filter = "all" | "unlocked" | "locked" | string
@@ -104,7 +106,8 @@ export default function AchievementsPage() {
   return (
     <div className="space-y-6">
       {/* Hero */}
-      <section className="hero-gradient relative overflow-hidden p-6 md:p-8">
+      <section className="glass-strong relative overflow-hidden rounded-3xl p-6 md:p-8">
+        <MeshGradient />
         <div className="bg-dot-grid pointer-events-none absolute inset-0 opacity-40" />
         <div className="relative flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
           <div className="min-w-0">
@@ -181,12 +184,14 @@ export default function AchievementsPage() {
       {/* Grid */}
       {visible.length > 0 ? (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-          {visible.map((a) => (
-            <BadgeCard key={a.id} a={a} />
+          {visible.map((a, i) => (
+            <Reveal key={a.id} delay={Math.min(i, 10) * 40} className="h-full">
+              <BadgeCard a={a} />
+            </Reveal>
           ))}
         </div>
       ) : mounted ? (
-        <div className="bg-card shadow-tile rounded-2xl border border-border p-10 text-center">
+        <div className="glass rounded-2xl p-10 text-center">
           <Trophy className="mx-auto h-6 w-6 text-muted-foreground/60" aria-hidden="true" />
           <p className="mt-3 text-sm text-muted-foreground">
             Nothing here yet for this filter.
@@ -209,8 +214,8 @@ function BadgeCard({ a }: { a: Achievement }) {
   return (
     <div
       className={cn(
-        "relative flex flex-col items-center overflow-hidden rounded-2xl border border-border bg-card p-5 text-center shadow-tile",
-        a.unlocked ? "badge-shine card-interactive" : "opacity-60",
+        "glass lift relative flex h-full flex-col items-center overflow-hidden rounded-2xl p-5 text-center",
+        a.unlocked ? "badge-shine" : "opacity-60",
       )}
     >
       {/* Tier-colored circular icon */}

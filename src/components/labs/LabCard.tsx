@@ -387,7 +387,7 @@ export function LabCard({ lab, moduleName }: { lab: Lab; moduleName: string }) {
 
   return (
     <div
-      className="accent-bar overflow-hidden rounded-xl border border-border bg-card pl-1"
+      className="accent-bar lift glass overflow-hidden rounded-2xl pl-1"
       style={
         {
           "--accent-bar-color": DIFFICULTY_COLOR[lab.difficulty],

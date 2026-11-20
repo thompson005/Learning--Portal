@@ -17,6 +17,7 @@ import { toast } from "sonner"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { TiltCard } from "@/components/ui3d/TiltCard"
 import { LabDiagramView } from "@/components/labs/diagrams/DiagramRenderer"
 import { InteractiveText } from "@/components/learn/InteractiveText"
 import { getProgress, recordCheckpoint } from "@/lib/store/progress"
@@ -182,7 +183,7 @@ function SlideContent({
     <>
       <h4
         className={cn(
-          "font-display text-base font-semibold",
+          "font-display text-lg font-semibold tracking-tight",
           isFinal ? "text-brand-orange-strong" : "text-brand-orange",
           title.className,
         )}
@@ -201,8 +202,12 @@ function SlideContent({
         <InteractiveText text={slide.body} />
       </p>
       {slide.diagram && (
-        <div className={cn("mt-3", diagram.className)} style={diagram.style}>
-          <DiagramWithReplay diagram={slide.diagram} animate={animate} />
+        <div className={cn("mt-4", diagram.className)} style={diagram.style}>
+          <TiltCard max={5}>
+            <div className="glass rounded-2xl p-3 elev-2 md:p-4">
+              <DiagramWithReplay diagram={slide.diagram} animate={animate} />
+            </div>
+          </TiltCard>
         </div>
       )}
       {slide.check && interactive && (
@@ -309,12 +314,12 @@ export function LabSlideshow({
 
   return (
     <div
-      className="grid grid-cols-[224px_1fr] overflow-hidden rounded-xl border border-border bg-card shadow-[0_10px_30px_-12px_rgba(14,13,11,0.18)] outline-none dark:shadow-[0_10px_30px_-12px_rgba(0,0,0,0.5)]"
+      className="glass-strong grid grid-cols-1 overflow-hidden rounded-2xl outline-none md:grid-cols-[228px_1fr]"
       tabIndex={0}
       onKeyDown={handleKeyDown}
     >
       {/* Left rail — the whole journey, always visible */}
-      <nav className="flex flex-col border-r border-border bg-muted/20">
+      <nav className="flex flex-col border-b border-border/60 bg-white/35 md:border-b-0 md:border-r">
         <div className="flex items-center gap-2.5 border-b border-border px-3 py-3">
           <div className="relative inline-flex h-14 w-14 shrink-0 items-center justify-center">
             <svg width={RING_SIZE} height={RING_SIZE} className="-rotate-90">
@@ -437,7 +442,7 @@ export function LabSlideshow({
       </nav>
 
       {/* Right pane — current slide content */}
-      <div className="relative overflow-hidden p-6">
+      <div className="relative overflow-hidden p-5 md:p-7">
         <div className="relative">
           {outgoing && (
             <div

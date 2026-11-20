@@ -52,7 +52,7 @@ export function RankLadder() {
   }
 
   return (
-    <div className="rounded-2xl border border-border bg-card p-6 shadow-raised sm:p-7">
+    <div className="glass rounded-2xl p-6 sm:p-7">
       {/* Header */}
       <div className="mb-6 flex items-start justify-between gap-4">
         <div className="flex items-center gap-2">

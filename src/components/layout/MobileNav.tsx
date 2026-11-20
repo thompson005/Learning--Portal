@@ -32,7 +32,7 @@ export function MobileNav() {
       {moreOpen && (
         <div className="fixed inset-0 z-40 bg-black/60 md:hidden" onClick={() => setMoreOpen(false)}>
           <div
-            className="animate-in slide-in-from-bottom-2 absolute bottom-14 left-0 right-0 rounded-t-2xl border-t border-border bg-card p-4 shadow-lg duration-200 ease-out motion-reduce:animate-none"
+            className="animate-in slide-in-from-bottom-2 absolute inset-x-3 bottom-[4.75rem] rounded-2xl glass-strong elev-3 p-4 duration-200 ease-out motion-reduce:animate-none"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-2 flex items-center justify-between">
@@ -53,8 +53,8 @@ export function MobileNav() {
                       href={item.href}
                       onClick={() => setMoreOpen(false)}
                       className={cn(
-                        "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
-                        active ? "bg-brand-orange/10 text-brand-orange" : "text-foreground hover:bg-muted"
+                        "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
+                        active ? "bg-brand-orange/10 text-brand-orange" : "text-foreground hover:bg-black/5"
                       )}
                     >
                       <Icon className="h-4 w-4" />
@@ -68,7 +68,7 @@ export function MobileNav() {
         </div>
       )}
 
-      <nav className="fixed inset-x-0 bottom-0 z-30 flex h-14 items-center justify-around border-t border-border bg-brand-ink md:hidden">
+      <nav className="fixed inset-x-3 bottom-2 z-30 flex h-14 items-center justify-around rounded-2xl glass-strong elev-3 md:hidden">
         {TABS.map((item) => {
           const active = pathname.startsWith(item.href)
           const Icon = item.icon
@@ -78,7 +78,7 @@ export function MobileNav() {
               href={item.href}
               className={cn(
                 "flex flex-1 flex-col items-center gap-0.5 py-1.5 text-[10px] font-medium transition-colors",
-                active ? "text-brand-orange" : "text-brand-cream/60"
+                active ? "text-brand-orange" : "text-muted-foreground"
               )}
             >
               <Icon className="h-5 w-5" />
@@ -90,7 +90,7 @@ export function MobileNav() {
           onClick={() => setMoreOpen(true)}
           className={cn(
             "flex flex-1 flex-col items-center gap-0.5 py-1.5 text-[10px] font-medium transition-colors",
-            isMoreActive ? "text-brand-orange" : "text-brand-cream/60"
+            isMoreActive ? "text-brand-orange" : "text-muted-foreground"
           )}
         >
           <MoreHorizontal className="h-5 w-5" />

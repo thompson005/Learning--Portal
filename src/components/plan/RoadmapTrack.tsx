@@ -1,5 +1,6 @@
 "use client"
 
+// Refined Light 3D restyle.
 import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import {
@@ -20,6 +21,9 @@ import { activeCurriculum, activeLabs, getActiveTrack } from "@/lib/data/tracks/
 import { useActiveTrackId } from "@/lib/data/tracks/useTrack"
 import type { Module } from "@/types"
 import { ProgressRing } from "@/components/dashboard/ProgressRing"
+import { MeshGradient } from "@/components/ui3d/MeshGradient"
+import { TiltCard } from "@/components/ui3d/TiltCard"
+import { Reveal } from "@/components/ui3d/Reveal"
 import { cn } from "@/lib/utils"
 
 const PHASE_STYLE: Record<number, { text: string; dot: string; soft: string; ring: string }> = {
@@ -93,8 +97,8 @@ export function RoadmapTrack({ showHeader = true }: { showHeader?: boolean }) {
     <div className="space-y-6">
       {/* Header with overall progress */}
       {showHeader && (
-      <div className="hero-gradient relative overflow-hidden p-6 md:p-8">
-        <div className="bg-dot-grid pointer-events-none absolute inset-0 opacity-40" />
+      <section className="glass-strong relative overflow-hidden rounded-3xl p-6 md:p-10">
+        <MeshGradient />
         <div className="relative flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
             <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
@@ -122,7 +126,7 @@ export function RoadmapTrack({ showHeader = true }: { showHeader?: boolean }) {
             />
           </div>
         </div>
-      </div>
+      </section>
       )}
 
       {/* The track */}
@@ -132,7 +136,12 @@ export function RoadmapTrack({ showHeader = true }: { showHeader?: boolean }) {
 
           if (row.kind === "phase") {
             return (
-              <div key={`phase-${row.phase.month}`} className="flex gap-4">
+              <Reveal
+                key={`phase-${row.phase.month}`}
+                as="div"
+                delay={Math.min(i * 50, 360)}
+                className="flex gap-4"
+              >
                 <div className="flex w-10 flex-col items-center">
                   <span
                     className={cn(
@@ -154,7 +163,7 @@ export function RoadmapTrack({ showHeader = true }: { showHeader?: boolean }) {
                     {row.phase.name}
                   </h2>
                 </div>
-              </div>
+              </Reveal>
             )
           }
 
@@ -167,7 +176,12 @@ export function RoadmapTrack({ showHeader = true }: { showHeader?: boolean }) {
           const topicsDone = Math.round((percent / 100) * mod.topics.length)
 
           return (
-            <div key={mod.id} className="flex gap-4">
+            <Reveal
+              key={mod.id}
+              as="div"
+              delay={Math.min(i * 50, 360)}
+              className="flex gap-4"
+            >
               {/* Spine + node */}
               <div className="flex w-10 flex-col items-center">
                 <span
@@ -199,10 +213,11 @@ export function RoadmapTrack({ showHeader = true }: { showHeader?: boolean }) {
               </div>
 
               {/* Card */}
+              <TiltCard className="mb-5 flex-1">
               <Link
                 href={`/modules/${mod.id}`}
                 className={cn(
-                  "group mb-5 block flex-1 rounded-xl bg-card p-5 shadow-tile transition-all hover:-translate-y-0.5 hover:shadow-lift",
+                  "glass lift group block h-full rounded-2xl p-5",
                   isCurrent && "ring-2 ring-brand-orange/30",
                 )}
               >
@@ -281,7 +296,8 @@ export function RoadmapTrack({ showHeader = true }: { showHeader?: boolean }) {
                   </div>
                 )}
               </Link>
-            </div>
+              </TiltCard>
+            </Reveal>
           )
         })}
 

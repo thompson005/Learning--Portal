@@ -14,11 +14,12 @@ import {
   Download,
 } from "lucide-react"
 
-import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ProgressBar } from "@/components/shared/ProgressBar"
+import { GlassCard } from "@/components/ui3d/GlassCard"
+import { MeshGradient } from "@/components/ui3d/MeshGradient"
 import { TopicRow } from "@/components/modules/TopicRow"
 import { VideoEmbed, isEmbeddableVideo } from "@/components/shared/VideoEmbed"
 import { useFocusMode } from "@/components/layout/FocusMode"
@@ -129,7 +130,7 @@ function ModuleDetailContent({
   return (
     <div className="flex flex-col gap-6 lg:flex-row">
       <aside className="shrink-0 lg:w-56">
-        <div className="rounded-xl border border-border bg-card p-3 lg:sticky lg:top-4">
+        <div className="glass rounded-2xl p-3 lg:sticky lg:top-4">
           <p className="mb-2 px-1 font-mono text-xs font-semibold uppercase tracking-widest text-muted-foreground">
             All Modules
           </p>
@@ -153,58 +154,61 @@ function ModuleDetailContent({
       </aside>
 
       <div className="min-w-0 flex-1 space-y-4">
-        <div className="rounded-xl border border-border bg-card p-6">
-          <div className="mb-1 flex items-center justify-between gap-2">
-            <Badge
-              variant={MONTH_BAR[mod.month] as "green" | "orange" | "blue"}
-              className="rounded-md"
-            >
-              {(owningTrack.phases.find((p) => p.month === mod.month)?.name ?? "")}
-            </Badge>
-            <button
-              onClick={toggleFocus}
-              className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground shadow-chip transition-colors hover:text-foreground"
-              title={focus ? "Exit focus mode" : "Focus mode — hide the sidebar for reading"}
-            >
-              {focus ? (
-                <Minimize2 className="h-3.5 w-3.5" />
-              ) : (
-                <Maximize2 className="h-3.5 w-3.5" />
-              )}
-              {focus ? "Exit focus" : "Focus mode"}
-            </button>
-          </div>
-          <h1 className="font-display text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
-            {mod.name}
-          </h1>
-          <div className="mt-3 max-w-sm">
-            <div className="mb-1 flex justify-between font-mono text-xs text-muted-foreground">
-              <span>Progress</span>
-              <span>{percent}%</span>
+        <section className="glass-strong relative overflow-hidden rounded-3xl p-6 md:p-8">
+          <MeshGradient />
+          <div className="relative">
+            <div className="mb-1 flex items-center justify-between gap-2">
+              <Badge
+                variant={MONTH_BAR[mod.month] as "green" | "orange" | "blue"}
+                className="rounded-md"
+              >
+                {(owningTrack.phases.find((p) => p.month === mod.month)?.name ?? "")}
+              </Badge>
+              <button
+                onClick={toggleFocus}
+                className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground shadow-chip transition-colors hover:text-foreground"
+                title={focus ? "Exit focus mode" : "Focus mode — hide the sidebar for reading"}
+              >
+                {focus ? (
+                  <Minimize2 className="h-3.5 w-3.5" />
+                ) : (
+                  <Maximize2 className="h-3.5 w-3.5" />
+                )}
+                {focus ? "Exit focus" : "Focus mode"}
+              </button>
             </div>
-            <ProgressBar
-              value={percent}
-              color={MONTH_BAR[mod.month] as "green" | "orange" | "blue"}
-            />
-          </div>
+            <h1 className="font-display text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
+              {mod.name}
+            </h1>
+            <div className="mt-3 max-w-sm">
+              <div className="mb-1 flex justify-between font-mono text-xs text-muted-foreground">
+                <span>Progress</span>
+                <span>{percent}%</span>
+              </div>
+              <ProgressBar
+                value={percent}
+                color={MONTH_BAR[mod.month] as "green" | "orange" | "blue"}
+              />
+            </div>
 
-          {percent === 100 && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="mt-4"
-              onClick={() =>
-                downloadCertificate({
-                  learnerName: getProgress().name,
-                  moduleName: mod.name,
-                  phaseName: (owningTrack.phases.find((p) => p.month === mod.month)?.name ?? ""),
-                })
-              }
-            >
-              <Download className="h-4 w-4" /> Download certificate
-            </Button>
-          )}
-        </div>
+            {percent === 100 && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-4"
+                onClick={() =>
+                  downloadCertificate({
+                    learnerName: getProgress().name,
+                    moduleName: mod.name,
+                    phaseName: (owningTrack.phases.find((p) => p.month === mod.month)?.name ?? ""),
+                  })
+                }
+              >
+                <Download className="h-4 w-4" /> Download certificate
+              </Button>
+            )}
+          </div>
+        </section>
 
         <Tabs defaultValue={focusTopic ? "topics" : "overview"}>
           <TabsList>
@@ -221,69 +225,65 @@ function ModuleDetailContent({
           </TabsList>
 
           <TabsContent value="overview" className="space-y-4">
-            <Card>
-              <CardContent className="space-y-4 p-5">
-                <p className="text-sm leading-relaxed">{mod.description}</p>
+            <GlassCard className="space-y-4 p-5">
+              <p className="text-sm leading-relaxed">{mod.description}</p>
 
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="flex items-center gap-2 text-sm">
+                  <ListChecks className="h-4 w-4 text-brand-orange" />
+                  <span>
+                    <span className="font-mono">{mod.topics.length}</span>{" "}
+                    topics
+                  </span>
+                </div>
+                {mod.prerequisites && mod.prerequisites.length > 0 && (
                   <div className="flex items-center gap-2 text-sm">
-                    <ListChecks className="h-4 w-4 text-brand-orange" />
-                    <span>
-                      <span className="font-mono">{mod.topics.length}</span>{" "}
-                      topics
-                    </span>
+                    <Target className="h-4 w-4 text-brand-orange" />
+                    <span>{mod.prerequisites.join(", ")}</span>
                   </div>
-                  {mod.prerequisites && mod.prerequisites.length > 0 && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <Target className="h-4 w-4 text-brand-orange" />
-                      <span>{mod.prerequisites.join(", ")}</span>
-                    </div>
-                  )}
-                </div>
+                )}
+              </div>
 
-                <div>
-                  <p className="mb-1.5 font-mono text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                    Learning Outcomes
-                  </p>
-                  <ul className="list-inside list-disc space-y-1 text-sm">
-                    {mod.outcomes.map((o, i) => (
-                      <li key={i}>{o}</li>
-                    ))}
-                  </ul>
-                </div>
-              </CardContent>
-            </Card>
+              <div>
+                <p className="mb-1.5 font-mono text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                  Learning Outcomes
+                </p>
+                <ul className="list-inside list-disc space-y-1 text-sm">
+                  {mod.outcomes.map((o, i) => (
+                    <li key={i}>{o}</li>
+                  ))}
+                </ul>
+              </div>
+            </GlassCard>
 
             {moduleQuiz && (
-              <Card className="rounded-xl border-brand-orange/25 bg-brand-orange/[0.03]">
-                <CardContent className="flex items-center gap-3 p-5">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-orange/15">
-                    <Award className="h-5 w-5 text-brand-orange" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold text-brand-orange">
-                      Module Quiz (
-                      <span className="font-mono">
-                        {moduleQuiz.questions.length}
-                      </span>{" "}
-                      questions)
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {quizAttempt
-                        ? `Last score: ${quizAttempt.score}/${quizAttempt.total} (${Math.round((quizAttempt.score / quizAttempt.total) * 100)}%)`
-                        : "Test your understanding of the full module."}
-                    </p>
-                  </div>
-                  <Button
-                    variant="teal"
-                    className="bg-brand-orange hover:bg-brand-orange/90"
-                    onClick={() => setQuizOpen(true)}
-                  >
-                    <HelpCircle className="h-4 w-4" />{" "}
-                    {quizAttempt ? "Retake" : "Take Quiz"}
-                  </Button>
-                </CardContent>
-              </Card>
+              <GlassCard className="flex items-center gap-3 p-5 ring-1 ring-brand-orange/20">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-orange/15">
+                  <Award className="h-5 w-5 text-brand-orange" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-brand-orange">
+                    Module Quiz (
+                    <span className="font-mono">
+                      {moduleQuiz.questions.length}
+                    </span>{" "}
+                    questions)
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {quizAttempt
+                      ? `Last score: ${quizAttempt.score}/${quizAttempt.total} (${Math.round((quizAttempt.score / quizAttempt.total) * 100)}%)`
+                      : "Test your understanding of the full module."}
+                  </p>
+                </div>
+                <Button
+                  variant="teal"
+                  className="bg-brand-orange hover:bg-brand-orange/90"
+                  onClick={() => setQuizOpen(true)}
+                >
+                  <HelpCircle className="h-4 w-4" />{" "}
+                  {quizAttempt ? "Retake" : "Take Quiz"}
+                </Button>
+              </GlassCard>
             )}
           </TabsContent>
 
@@ -322,54 +322,50 @@ function ModuleDetailContent({
 
           <TabsContent value="resources" className="space-y-4">
             {moduleVideos.length > 0 && (
-              <Card>
-                <CardContent className="space-y-3 p-5">
-                  <p className="font-mono text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                    Watch
-                  </p>
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    {moduleVideos.map((r) => (
-                      <VideoEmbed key={r.url} url={r.url} title={r.title} />
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
+              <GlassCard className="space-y-3 p-5">
+                <p className="font-mono text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                  Watch
+                </p>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  {moduleVideos.map((r) => (
+                    <VideoEmbed key={r.url} url={r.url} title={r.title} />
+                  ))}
+                </div>
+              </GlassCard>
             )}
-            <Card>
-              <CardContent className="p-5">
-                {moduleLinks.length > 0 ? (
-                  <ul className="divide-y divide-border">
-                    {moduleLinks.map((r) => (
-                      <li
-                        key={r.url}
-                        className="flex items-center gap-2 py-2.5 text-sm first:pt-0 last:pb-0"
+            <GlassCard className="p-5">
+              {moduleLinks.length > 0 ? (
+                <ul className="divide-y divide-border">
+                  {moduleLinks.map((r) => (
+                    <li
+                      key={r.url}
+                      className="flex items-center gap-2 py-2.5 text-sm first:pt-0 last:pb-0"
+                    >
+                      <Badge
+                        variant="outline"
+                        className="rounded-md font-mono text-[10px] uppercase"
                       >
-                        <Badge
-                          variant="outline"
-                          className="rounded-md font-mono text-[10px] uppercase"
-                        >
-                          {r.type}
-                        </Badge>
-                        <a
-                          href={r.url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex items-center gap-1 text-brand-orange hover:underline"
-                        >
-                          {r.title} <ExternalLink className="h-3 w-3" />
-                        </a>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-sm text-muted-foreground">
-                    {moduleVideos.length > 0
-                      ? "All curated resources for this module are videos — watch them above."
-                      : "No curated resources for this module yet."}
-                  </p>
-                )}
-              </CardContent>
-            </Card>
+                        {r.type}
+                      </Badge>
+                      <a
+                        href={r.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 text-brand-orange hover:underline"
+                      >
+                        {r.title} <ExternalLink className="h-3 w-3" />
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  {moduleVideos.length > 0
+                    ? "All curated resources for this module are videos — watch them above."
+                    : "No curated resources for this module yet."}
+                </p>
+              )}
+            </GlassCard>
           </TabsContent>
         </Tabs>
       </div>

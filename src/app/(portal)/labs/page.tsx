@@ -12,6 +12,9 @@ import {
 
 import { cn } from "@/lib/utils"
 import { Input } from "@/components/ui/input"
+import { GlassCard } from "@/components/ui3d/GlassCard"
+import { MeshGradient } from "@/components/ui3d/MeshGradient"
+import { Reveal } from "@/components/ui3d/Reveal"
 import { ProgressRing } from "@/components/dashboard/ProgressRing"
 import { LabCard } from "@/components/labs/LabCard"
 import { LabFilters, type LabFilterState } from "@/components/labs/LabFilters"
@@ -52,7 +55,7 @@ function StatTile({
   label: string
 }) {
   return (
-    <div className="bg-card p-4 text-center shadow-tile">
+    <GlassCard className="p-4 text-center">
       <Icon className={cn("mx-auto h-5 w-5", STAT_COLOR[color])} />
       <p
         className={cn(
@@ -65,7 +68,7 @@ function StatTile({
       <p className="mt-0.5 font-mono text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
         {label}
       </p>
-    </div>
+    </GlassCard>
   )
 }
 
@@ -140,8 +143,8 @@ export default function LabsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="hero-gradient relative overflow-hidden p-6 md:p-8">
-        <div className="bg-dot-grid pointer-events-none absolute inset-0 opacity-40" />
+      <section className="glass-strong relative overflow-hidden rounded-3xl p-6 md:p-10">
+        <MeshGradient />
         <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <p className="font-mono text-xs font-semibold uppercase tracking-widest text-brand-orange">
@@ -164,7 +167,7 @@ export default function LabsPage() {
           />
         </div>
 
-        <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="relative mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
           <StatTile
             icon={CheckCircle2}
             color="green"
@@ -190,9 +193,9 @@ export default function LabsPage() {
             label="XP Earned"
           />
         </div>
-      </div>
+      </section>
 
-      <div className="rounded-xl border border-border bg-card p-3">
+      <div className="glass rounded-2xl p-3">
         <div className="flex flex-col gap-3 md:flex-row md:items-center">
           <div className="relative flex-1">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -251,12 +254,13 @@ export default function LabsPage() {
                   </div>
                 </div>
                 <div className="space-y-3">
-                  {labs.map((lab) => (
-                    <LabCard
-                      key={lab.id}
-                      lab={lab}
-                      moduleName={moduleName(lab.moduleId)}
-                    />
+                  {labs.map((lab, i) => (
+                    <Reveal key={lab.id} delay={Math.min(i, 6) * 55}>
+                      <LabCard
+                        lab={lab}
+                        moduleName={moduleName(lab.moduleId)}
+                      />
+                    </Reveal>
                   ))}
                 </div>
               </section>

@@ -32,7 +32,7 @@ export function QuestsPanel() {
 
   return (
     <section
-      className="rounded-2xl border border-border bg-card p-5 shadow-tile sm:p-6"
+      className="glass rounded-2xl p-5 sm:p-6"
       aria-label="Quests"
     >
       <header className="mb-5 flex items-center justify-between gap-3">

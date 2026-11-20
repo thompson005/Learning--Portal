@@ -89,7 +89,7 @@ function NavKey({
       </span>
       {!collapsed && <span className="flex-1">{label}</span>}
       {!collapsed && !!badge && (
-        <span className="rounded-full px-1.5 py-0.5 font-mono text-[10px] shadow-chip">{badge}</span>
+        <span className="rounded-full bg-brand-orange/10 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-brand-orange">{badge}</span>
       )}
     </Link>
   )
@@ -124,9 +124,10 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <aside
       className={cn(
-        // Sidebar resolves to the page colour like every other surface — it is
-        // separated by edge, not fill. Collapsed rail is 76px per the pack.
-        "flex h-full flex-col bg-background text-foreground shadow-raised transition-all duration-300",
+        // Refined Light 3D: a frosted glass panel that floats on the canvas,
+        // separated by a hairline + layered shadow (glass-strong keeps the
+        // text-heavy nav high-contrast). Collapsed rail is 76px per the pack.
+        "m-2 flex h-[calc(100%-1rem)] flex-col overflow-hidden rounded-2xl glass-strong text-foreground transition-all duration-300",
         collapsed ? "w-[76px]" : "w-64"
       )}
     >
@@ -138,7 +139,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         <Link
           href="/paths"
           onClick={onNavigate}
-          className="mx-3 mt-3 flex items-center justify-between rounded-lg bg-card px-3 py-2 shadow-chip transition-colors hover:text-brand-orange"
+          className="mx-3 mt-3 flex items-center justify-between rounded-xl glass elev-1 px-3 py-2 transition-colors hover:text-brand-orange"
           title="Switch track"
         >
           <span className="min-w-0">
@@ -161,7 +162,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
             }
             aria-label="Search"
             title="Search (⌘K)"
-            className="flex w-full items-center justify-center py-2 text-muted-foreground shadow-chip hover:text-foreground"
+            className="flex w-full items-center justify-center rounded-xl glass elev-1 py-2 text-muted-foreground transition-colors hover:text-foreground"
           >
             <Search className="h-4 w-4" />
           </button>
@@ -237,13 +238,13 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
 
       {!collapsed && operation && (
         <div className="border-t border-border px-3 py-3">
-          <div className="p-3 shadow-tile">
+          <div className="rounded-xl glass elev-1 p-3">
             <p className="sharp-section-title">Current Operation</p>
             <p className="mt-1.5 font-mono text-sm font-bold text-foreground">{operation.code}</p>
             <p className="truncate text-xs text-muted-foreground">{operation.title}</p>
             <div className="mt-2 flex items-center gap-2">
-              <div className="h-1.5 flex-1 overflow-hidden shadow-well">
-                <div className="h-full bg-brand-orange" style={{ width: `${percent}%` }} />
+              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
+                <div className="h-full rounded-full bg-brand-orange" style={{ width: `${percent}%` }} />
               </div>
               <span className="font-mono text-[10px] text-muted-foreground">{percent}%</span>
             </div>
@@ -268,7 +269,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
               collapsed && "justify-center",
             )}
           >
-            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full font-mono text-[11px] font-bold uppercase text-brand-orange shadow-chip">
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-orange/10 font-mono text-[11px] font-bold uppercase text-brand-orange">
               {user.name.slice(0, 1)}
             </span>
             {!collapsed && (

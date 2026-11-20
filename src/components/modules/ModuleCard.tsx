@@ -7,6 +7,7 @@ import { ArrowRight, BookOpen, FlaskConical } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ProgressBar } from "@/components/shared/ProgressBar"
+import { GlassCard } from "@/components/ui3d/GlassCard"
 import { getModuleCompletionPercent } from "@/lib/store/progress"
 import type { Module } from "@/types"
 
@@ -59,10 +60,16 @@ export function ModuleCard({
   const colors = MONTH_COLOR[module.month]
 
   return (
-    <div
-      className="accent-bar flex flex-col gap-3 rounded-xl border border-border bg-card p-5 pl-6 transition-shadow hover:shadow-md"
-      style={{ "--accent-bar-color": colors.hex } as React.CSSProperties}
+    <GlassCard
+      lift
+      className="relative flex h-full flex-col gap-3 overflow-hidden p-5 pl-6"
     >
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-y-0 left-0 w-[3px]"
+        style={{ background: colors.hex }}
+      />
+
       <div className="flex items-start justify-between gap-2">
         <span className="font-display text-3xl font-semibold leading-none text-brand-orange">
           {formatModuleNumber(module.id)}
@@ -108,6 +115,6 @@ export function ModuleCard({
           <ArrowRight className="h-4 w-4" />
         </Link>
       </Button>
-    </div>
+    </GlassCard>
   )
 }

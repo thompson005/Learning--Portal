@@ -6,6 +6,7 @@ import { LayoutGrid, List } from "lucide-react"
 import { RoadmapBoard } from "@/components/plan/RoadmapBoard"
 import { RoadmapTrack } from "@/components/plan/RoadmapTrack"
 import { ProgressRing } from "@/components/dashboard/ProgressRing"
+import { MeshGradient } from "@/components/ui3d/MeshGradient"
 import { getOverallProgress, getModuleCompletionPercent } from "@/lib/store/progress"
 import { activeCurriculum, getActiveTrack } from "@/lib/data/tracks/registry"
 import { useActiveTrackId } from "@/lib/data/tracks/useTrack"
@@ -34,8 +35,8 @@ export default function PlanPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="hero-gradient relative overflow-hidden p-6 md:p-8">
-        <div className="bg-dot-grid pointer-events-none absolute inset-0 opacity-40" />
+      <section className="glass-strong relative overflow-hidden rounded-3xl p-6 md:p-10">
+        <MeshGradient />
         <div className="relative flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
             <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
@@ -65,14 +66,14 @@ export default function PlanPage() {
             />
           </div>
         </div>
-      </div>
+      </section>
 
       {/* View toggle */}
       <div className="flex items-center justify-between">
         <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">
           {view === "map" ? "Map view" : "Detailed list"}
         </p>
-        <div className="inline-flex rounded-lg bg-card p-1 shadow-chip">
+        <div className="glass inline-flex rounded-xl p-1">
           <button
             onClick={() => setView("map")}
             className={cn(

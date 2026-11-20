@@ -114,7 +114,7 @@ export function ActivityHeatmap() {
   const hasActivity = snap.active.size > 0
 
   return (
-    <div className="rounded-xl border border-border bg-card p-5 shadow-tile sm:p-6">
+    <div className="glass rounded-2xl p-5 sm:p-6">
       {/* Header */}
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div>

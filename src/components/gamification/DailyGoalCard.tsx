@@ -103,7 +103,7 @@ export function DailyGoalCard() {
     return (
       <section
         aria-label="Daily goal"
-        className="rounded-2xl border border-border bg-card p-5 shadow-tile"
+        className="glass rounded-2xl p-5"
       >
         <div className="flex items-center gap-2">
           <Target className="h-4 w-4 text-brand-orange" aria-hidden />
@@ -121,7 +121,7 @@ export function DailyGoalCard() {
   return (
     <section
       aria-label="Daily goal"
-      className="rounded-2xl border border-border bg-card p-5 shadow-tile"
+      className="glass rounded-2xl p-5"
     >
       {/* Header */}
       <div className="flex items-center justify-between">

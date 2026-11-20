@@ -7,6 +7,7 @@ import { Check, ChevronRight, MapPin, Flag } from "lucide-react"
 import { getModuleCompletionPercent } from "@/lib/store/progress"
 import { activeCurriculum, activeLabs, getActiveTrack } from "@/lib/data/tracks/registry"
 import { useActiveTrackId } from "@/lib/data/tracks/useTrack"
+import { Reveal } from "@/components/ui3d/Reveal"
 import { cn } from "@/lib/utils"
 
 const PHASE_STYLE: Record<number, { text: string; dot: string; border: string; soft: string }> = {
@@ -58,7 +59,7 @@ export function RoadmapBoard() {
             <Fragment key={phase.month}>
               <div className="flex w-[250px] shrink-0 flex-col">
                 {/* Phase header */}
-                <div className={cn("mb-3 rounded-xl border p-3 shadow-tile", phase.border, phase.soft)}>
+                <div className="glass mb-3 rounded-2xl p-3">
                   <div className="flex items-center gap-2">
                     <span className={cn("flex h-6 w-6 items-center justify-center rounded-lg text-white", phase.dot)}>
                       <span className="font-mono text-[11px] font-bold">
@@ -79,19 +80,23 @@ export function RoadmapBoard() {
 
                 {/* Module nodes, stacked and spine-connected */}
                 <div className="relative flex flex-col gap-2">
-                  {mods.map((mod) => {
+                  {mods.map((mod, mi) => {
                     const percent = percents[mod.id] ?? 0
                     const status =
                       percent === 100 ? "done" : percent > 0 ? "active" : "todo"
                     const isCurrent = mod.id === currentId
                     const labs = activeLabs().filter((l) => l.moduleId === mod.id).length
                     return (
-                      <Link
+                      <Reveal
                         key={mod.id}
+                        as="div"
+                        delay={Math.min(pi * 90 + mi * 60, 420)}
+                      >
+                      <Link
                         href={`/modules/${mod.id}`}
                         title={mod.outcomes[0]}
                         className={cn(
-                          "group relative rounded-xl bg-card p-3 shadow-tile transition-all hover:-translate-y-0.5 hover:shadow-lift",
+                          "glass lift group relative block rounded-2xl p-3",
                           isCurrent && "ring-2 ring-brand-orange/40",
                         )}
                       >
@@ -135,6 +140,7 @@ export function RoadmapBoard() {
                           />
                         </div>
                       </Link>
+                      </Reveal>
                     )
                   })}
                 </div>
@@ -154,7 +160,7 @@ export function RoadmapBoard() {
         <div className="flex w-8 shrink-0 items-center justify-center pt-16">
           <ChevronRight className="h-6 w-6 text-muted-foreground/50" />
         </div>
-        <div className="flex w-[160px] shrink-0 flex-col items-center justify-center rounded-xl bg-gradient-ember p-4 text-center text-white shadow-tile">
+        <div className="elev-2 flex w-[160px] shrink-0 flex-col items-center justify-center rounded-2xl bg-gradient-ember p-4 text-center text-white">
           <Flag className="h-6 w-6" />
           <p className="mt-2 font-display text-sm font-semibold">
             Apex Operator

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { ChevronsUp, Sparkles, Zap } from "lucide-react"
 
 import { CountUp } from "@/components/gamification/CountUp"
+import { MeshGradient } from "@/components/ui3d/MeshGradient"
 import { getXp, getLevel, getRank } from "@/lib/store/gamification"
 import type { LevelInfo } from "@/lib/store/gamification"
 
@@ -41,7 +42,8 @@ export function LevelCard() {
   const progress = Math.max(0, Math.min(100, level.progress))
 
   return (
-    <div className="hero-gradient relative overflow-hidden rounded-2xl border border-border bg-card shadow-raised">
+    <div className="glass-strong relative overflow-hidden rounded-2xl">
+      <MeshGradient strength={0.6} />
       <div className="bg-dot-grid pointer-events-none absolute inset-0 opacity-40" />
 
       <div className="relative flex flex-col gap-6 p-6 sm:p-8">
