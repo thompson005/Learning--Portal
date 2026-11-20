@@ -4,8 +4,8 @@ import type { Module } from "@/types"
 export const AI_CURRICULUM: Module[] = [
   {
     "id": "ai-m1",
-    "name": "AI, ML and LLM Primer for Security Practitioners",
-    "shortName": "AI-ML-Sec-Primer",
+    "name": "AI & LLMs: A Security Primer",
+    "shortName": "AI/ML Primer",
     "month": 1,
     "weeks": [
       1
@@ -1302,8 +1302,8 @@ export const AI_CURRICULUM: Module[] = [
   },
   {
     "id": "ai-m2",
-    "name": "The AI and LLM Attack Surface",
-    "shortName": "AI-Attack-Surface",
+    "name": "The AI Attack Surface",
+    "shortName": "Attack Surface",
     "month": 1,
     "weeks": [
       1
@@ -2638,8 +2638,8 @@ export const AI_CURRICULUM: Module[] = [
   },
   {
     "id": "ai-m3",
-    "name": "Building Your AI Security Lab and Toolchain",
-    "shortName": "AI-Sec-Lab-Setup",
+    "name": "Build Your AI Hacking Lab",
+    "shortName": "Lab Setup",
     "month": 1,
     "weeks": [
       1
@@ -4013,8 +4013,8 @@ export const AI_CURRICULUM: Module[] = [
   },
   {
     "id": "ai-m4",
-    "name": "Prompt Injection: Direct and Indirect",
-    "shortName": "Prompt-Injection",
+    "name": "Prompt Injection: Direct & Indirect",
+    "shortName": "Prompt Injection",
     "month": 2,
     "weeks": [
       2
@@ -5374,7 +5374,7 @@ export const AI_CURRICULUM: Module[] = [
   },
   {
     "id": "ai-m5",
-    "name": "Jailbreaks and Model Manipulation",
+    "name": "Jailbreaks & Model Manipulation",
     "shortName": "Jailbreaks",
     "month": 2,
     "weeks": [
@@ -6563,8 +6563,8 @@ export const AI_CURRICULUM: Module[] = [
   },
   {
     "id": "ai-m6",
-    "name": "Insecure LLM Application Design: Agents, RAG and Tools",
-    "shortName": "Insecure-LLM-Apps",
+    "name": "Insecure LLM Apps: Agents, RAG & Tools",
+    "shortName": "Insecure LLM Apps",
     "month": 2,
     "weeks": [
       2
@@ -8041,7 +8041,7 @@ export const AI_CURRICULUM: Module[] = [
   {
     "id": "ai-m7",
     "name": "OWASP LLM Top 10 Deep Dive",
-    "shortName": "OWASP-LLM-Top10",
+    "shortName": "OWASP LLM Top 10",
     "month": 2,
     "weeks": [
       2
@@ -9419,8 +9419,8 @@ export const AI_CURRICULUM: Module[] = [
   },
   {
     "id": "ai-m8",
-    "name": "Training-Data and Model Poisoning",
-    "shortName": "Data-Model-Poison",
+    "name": "Poisoning the Well: Data & Model Poisoning",
+    "shortName": "Data/Model Poisoning",
     "month": 3,
     "weeks": [
       3
@@ -10612,8 +10612,8 @@ export const AI_CURRICULUM: Module[] = [
   },
   {
     "id": "ai-m9",
-    "name": "Model Extraction, Inversion and Privacy Attacks",
-    "shortName": "Model-Extraction",
+    "name": "Stealing Models: Extraction & Inversion",
+    "shortName": "Model Extraction",
     "month": 3,
     "weeks": [
       3
@@ -11879,8 +11879,8 @@ export const AI_CURRICULUM: Module[] = [
   },
   {
     "id": "ai-m10",
-    "name": "Model and MLOps Supply Chain Security",
-    "shortName": "Model-Supply-Chain",
+    "name": "AI Supply-Chain Security",
+    "shortName": "Supply Chain",
     "month": 3,
     "weeks": [
       3
@@ -13141,8 +13141,8 @@ export const AI_CURRICULUM: Module[] = [
   },
   {
     "id": "ai-m11",
-    "name": "OWASP ML Top 10 and MITRE ATLAS",
-    "shortName": "ML-Top10-ATLAS",
+    "name": "OWASP ML Top 10 & MITRE ATLAS",
+    "shortName": "ML Top 10 & ATLAS",
     "month": 3,
     "weeks": [
       3
@@ -14440,8 +14440,8 @@ export const AI_CURRICULUM: Module[] = [
   },
   {
     "id": "ai-m12",
-    "name": "Guardrails and LLM Defenses",
-    "shortName": "Guardrails-Defense",
+    "name": "Guardrails & LLM Defenses",
+    "shortName": "Guardrails",
     "month": 4,
     "weeks": [
       4
@@ -15776,8 +15776,8 @@ export const AI_CURRICULUM: Module[] = [
   },
   {
     "id": "ai-m13",
-    "name": "Red-Teaming and Testing LLM Applications",
-    "shortName": "LLM-Red-Teaming",
+    "name": "Red-Teaming LLM Applications",
+    "shortName": "LLM Red-Teaming",
     "month": 4,
     "weeks": [
       4
@@ -17100,8 +17100,8 @@ export const AI_CURRICULUM: Module[] = [
   },
   {
     "id": "ai-m14",
-    "name": "Securing AI Pipelines, Deployment and Governance",
-    "shortName": "Secure-AI-Pipelines",
+    "name": "Securing AI Pipelines & Governance",
+    "shortName": "Secure AI Pipelines",
     "month": 4,
     "weeks": [
       4

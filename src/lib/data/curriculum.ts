@@ -5,8 +5,8 @@ export const CURRICULUM: Module[] = [
   // ============================================================
   {
     id: "m0",
-    name: "M0: Computer Hardware Basics",
-    shortName: "Hardware Basics",
+    name: "Inside the Machine",
+    shortName: "Inside the Machine",
     month: 1,
     weeks: [1],
     description:
@@ -973,8 +973,8 @@ export const CURRICULUM: Module[] = [
   // ============================================================
   {
     id: "m1",
-    name: "M1: Introduction to Cybersecurity",
-    shortName: "Intro to CyberSec",
+    name: "The Security Mindset",
+    shortName: "Security Mindset",
     month: 1,
     weeks: [1],
     description:
@@ -1936,8 +1936,8 @@ export const CURRICULUM: Module[] = [
   // ============================================================
   {
     id: "m2",
-    name: "M2: Networking",
-    shortName: "Networking",
+    name: "How Networks Really Work",
+    shortName: "How Networks Work",
     month: 1,
     weeks: [2],
     description:
@@ -4381,8 +4381,8 @@ export const CURRICULUM: Module[] = [
   // ============================================================
   {
     id: "m3-linux",
-    name: "M3: OS Basics - Linux",
-    shortName: "Linux Basics",
+    name: "Command the Linux Terminal",
+    shortName: "Linux Terminal",
     month: 1,
     weeks: [3],
     description:
@@ -7354,8 +7354,8 @@ export const CURRICULUM: Module[] = [
   // ============================================================
   {
     id: "m3-windows",
-    name: "M3: OS Basics - Windows",
-    shortName: "Windows Basics",
+    name: "Windows From the Inside",
+    shortName: "Windows Internals",
     month: 1,
     weeks: [4],
     description:
@@ -10288,8 +10288,8 @@ export const CURRICULUM: Module[] = [
   // ============================================================
   {
     id: "m4",
-    name: "M4: Application Basics",
-    shortName: "App Basics",
+    name: "How Apps Are Built — and Broken",
+    shortName: "How Apps Work",
     month: 2,
     weeks: [5],
     description:
@@ -11830,8 +11830,8 @@ export const CURRICULUM: Module[] = [
   // ============================================================
   {
     id: "m5",
-    name: "M5: Cryptography Basics",
-    shortName: "Cryptography",
+    name: "Secrets, Ciphers & Hashing",
+    shortName: "Crypto Foundations",
     month: 2,
     weeks: [5],
     description:
@@ -13310,8 +13310,8 @@ export const CURRICULUM: Module[] = [
   // ============================================================
   {
     id: "m6",
-    name: "M6: Corporate Networks",
-    shortName: "Corporate Networks",
+    name: "Inside the Enterprise Network",
+    shortName: "Enterprise Networks",
     month: 2,
     weeks: [6],
     description:
@@ -15459,7 +15459,7 @@ export const CURRICULUM: Module[] = [
   // ============================================================
   {
     id: "m7",
-    name: "M7: Ethical Hacking Lifecycle & Recon",
+    name: "The Hacker's Playbook: Recon",
     shortName: "Recon & Lifecycle",
     month: 2,
     weeks: [6, 7],
@@ -17361,7 +17361,7 @@ export const CURRICULUM: Module[] = [
   // ============================================================
   {
     id: "m8",
-    name: "M8: Burp Suite 101",
+    name: "Burp Suite: Your Web-Hacking Lab",
     shortName: "Burp Suite",
     month: 2,
     weeks: [8],
@@ -19331,8 +19331,8 @@ export const CURRICULUM: Module[] = [
   // ============================================================
   {
     id: "m9",
-    name: "M9: OWASP Top 10 - Web Attacks Part 1",
-    shortName: "OWASP Top 10 Pt.1",
+    name: "OWASP Top 10: Web's Deadliest Flaws — Part I",
+    shortName: "OWASP Top 10 · I",
     month: 3,
     weeks: [9],
     description:
@@ -22070,8 +22070,8 @@ export const CURRICULUM: Module[] = [
   // ============================================================
   {
     id: "m10",
-    name: "M10: OWASP Top 10 - Web Attacks Part 2",
-    shortName: "OWASP Top 10 Pt.2",
+    name: "OWASP Top 10: Web's Deadliest Flaws — Part II",
+    shortName: "OWASP Top 10 · II",
     month: 3,
     weeks: [10],
     description:
@@ -25212,7 +25212,7 @@ export const CURRICULUM: Module[] = [
   // ============================================================
   {
     id: "m11",
-    name: "M11: Network Exploitation & Credentials",
+    name: "Breaking In: Network Exploitation",
     shortName: "Network Exploitation",
     month: 3,
     weeks: [11],
@@ -27755,8 +27755,8 @@ export const CURRICULUM: Module[] = [
   // ============================================================
   {
     id: "m12",
-    name: "M12: Python Scripting for Security",
-    shortName: "Python Scripting",
+    name: "Weaponizing Python",
+    shortName: "Python for Hackers",
     month: 3,
     weeks: [11],
     description:
@@ -29654,7 +29654,7 @@ export const CURRICULUM: Module[] = [
   // ============================================================
   {
     id: "m13",
-    name: "M13: Hacking with AI",
+    name: "Hacking With AI",
     shortName: "Hacking with AI",
     month: 3,
     weeks: [11],
@@ -31678,8 +31678,8 @@ export const CURRICULUM: Module[] = [
   // ============================================================
   {
     id: "m14",
-    name: "M14: Blue Team / Defensive Security Intro",
-    shortName: "Blue Team Intro",
+    name: "The Defender's Playbook",
+    shortName: "Blue Team",
     month: 3,
     weeks: [12],
     description:
@@ -33162,7 +33162,7 @@ export const CURRICULUM: Module[] = [
   // ============================================================
   {
     id: "m15",
-    name: "M15: Careers & Certifications",
+    name: "Your Path Into Security",
     shortName: "Careers & Certs",
     month: 3,
     weeks: [12],
@@ -34209,8 +34209,8 @@ export const CURRICULUM: Module[] = [
   },
   {
     id: "m16",
-    name: "M16: Active Directory Attacks",
-    shortName: "AD Attacks",
+    name: "Owning Active Directory",
+    shortName: "Active Directory",
     month: 4,
     weeks: [13],
     description:
@@ -36273,7 +36273,7 @@ export const CURRICULUM: Module[] = [
   },
   {
     id: "m17",
-    name: "M17: Windows Privilege Escalation & Pivoting",
+    name: "Escalate & Pivot: Windows Post-Exploitation",
     shortName: "Privesc & Pivoting",
     month: 4,
     weeks: [14],
@@ -38394,8 +38394,8 @@ export const CURRICULUM: Module[] = [
   },
   {
     id: "m18",
-    name: "M18: Buffer Overflow & Exploit Development",
-    shortName: "Buffer Overflow",
+    name: "Exploit Dev: Smashing the Stack",
+    shortName: "Buffer Overflows",
     month: 4,
     weeks: [15],
     description:
@@ -39835,7 +39835,7 @@ export const CURRICULUM: Module[] = [
   },
   {
     id: "m19",
-    name: "M19: Wireless Security",
+    name: "Hacking Wi-Fi",
     shortName: "Wireless Security",
     month: 4,
     weeks: [15],
@@ -41087,8 +41087,8 @@ export const CURRICULUM: Module[] = [
   },
   {
     id: "m20",
-    name: "M20: Cloud Security Basics",
-    shortName: "Cloud Security",
+    name: "Cloud Security Primer",
+    shortName: "Cloud Primer",
     month: 4,
     weeks: [16],
     description:
@@ -42843,8 +42843,8 @@ export const CURRICULUM: Module[] = [
   },
   {
     id: "m21",
-    name: "M21: Professional Reporting",
-    shortName: "Professional Reporting",
+    name: "Writing the Pentest Report",
+    shortName: "Pro Reporting",
     month: 4,
     weeks: [16],
     description:

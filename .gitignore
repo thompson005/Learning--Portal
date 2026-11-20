@@ -59,3 +59,6 @@ scripts/glossary-results.json
 
 scripts/aicontent-workflow.js
 scripts/aicontent-results.json
+
+scripts/content-workflow.js
+scripts/content-results.json

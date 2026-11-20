@@ -4,8 +4,8 @@ import type { Module } from "@/types"
 export const CLOUD_CURRICULUM: Module[] = [
   {
     "id": "cloud-m1",
-    "name": "Cloud Computing Fundamentals & the Shared Responsibility Model",
-    "shortName": "Cloud Fundamentals",
+    "name": "How the Cloud Actually Works",
+    "shortName": "Cloud Foundations",
     "month": 1,
     "weeks": [
       1
@@ -1359,8 +1359,8 @@ export const CLOUD_CURRICULUM: Module[] = [
   },
   {
     "id": "cloud-m2",
-    "name": "Cloud Identity & IAM Fundamentals",
-    "shortName": "IAM Foundations",
+    "name": "Who Can Do What: Cloud IAM",
+    "shortName": "Cloud IAM",
     "month": 1,
     "weeks": [
       1
@@ -2781,7 +2781,7 @@ export const CLOUD_CURRICULUM: Module[] = [
   },
   {
     "id": "cloud-m3",
-    "name": "Cloud Reconnaissance & Enumeration",
+    "name": "Mapping the Cloud: Recon",
     "shortName": "Cloud Recon",
     "month": 1,
     "weeks": [
@@ -3911,8 +3911,8 @@ export const CLOUD_CURRICULUM: Module[] = [
   },
   {
     "id": "cloud-m4",
-    "name": "IAM Attacks & Privilege Escalation",
-    "shortName": "IAM Attacks & PrivEsc",
+    "name": "Escalating Privileges in the Cloud",
+    "shortName": "IAM Privesc",
     "month": 2,
     "weeks": [
       2
@@ -6034,8 +6034,8 @@ export const CLOUD_CURRICULUM: Module[] = [
   },
   {
     "id": "cloud-m5",
-    "name": "Storage Security & Data Exposure",
-    "shortName": "Storage & Data Exposure",
+    "name": "Exposed Buckets & Data Leaks",
+    "shortName": "Data Exposure",
     "month": 2,
     "weeks": [
       2
@@ -7183,8 +7183,8 @@ export const CLOUD_CURRICULUM: Module[] = [
   },
   {
     "id": "cloud-m6",
-    "name": "Secrets Management in the Cloud",
-    "shortName": "Secrets Management",
+    "name": "Hunting Cloud Secrets",
+    "shortName": "Secrets",
     "month": 2,
     "weeks": [
       2
@@ -8312,8 +8312,8 @@ export const CLOUD_CURRICULUM: Module[] = [
   },
   {
     "id": "cloud-m7",
-    "name": "Cloud Networking & SSRF-to-Metadata",
-    "shortName": "Cloud Networking & SSRF",
+    "name": "SSRF to Cloud Takeover",
+    "shortName": "SSRF & Metadata",
     "month": 3,
     "weeks": [
       3
@@ -9556,8 +9556,8 @@ export const CLOUD_CURRICULUM: Module[] = [
   },
   {
     "id": "cloud-m8",
-    "name": "Serverless & Event-Driven Security",
-    "shortName": "Serverless Security",
+    "name": "Attacking Serverless",
+    "shortName": "Serverless",
     "month": 3,
     "weeks": [
       3
@@ -10660,7 +10660,7 @@ export const CLOUD_CURRICULUM: Module[] = [
   },
   {
     "id": "cloud-m9",
-    "name": "Container & Kubernetes Security",
+    "name": "Breaking Containers & Kubernetes",
     "shortName": "Containers & K8s",
     "month": 3,
     "weeks": [
@@ -12234,7 +12234,7 @@ export const CLOUD_CURRICULUM: Module[] = [
   },
   {
     "id": "cloud-m10",
-    "name": "Cloud Logging, Monitoring & Detection",
+    "name": "Catching the Attacker: Cloud Detection",
     "shortName": "Logging & Detection",
     "month": 4,
     "weeks": [
@@ -13387,8 +13387,8 @@ export const CLOUD_CURRICULUM: Module[] = [
   },
   {
     "id": "cloud-m11",
-    "name": "Cloud Attack Paths & Post-Exploitation",
-    "shortName": "Attack Paths & PostEx",
+    "name": "Cloud Attack Paths",
+    "shortName": "Attack Paths",
     "month": 4,
     "weeks": [
       4
@@ -15125,7 +15125,7 @@ export const CLOUD_CURRICULUM: Module[] = [
   },
   {
     "id": "cloud-m12",
-    "name": "CSPM, Compliance & Hardening at Scale",
+    "name": "Hardening the Cloud at Scale",
     "shortName": "CSPM & Hardening",
     "month": 4,
     "weeks": [
@@ -16752,8 +16752,8 @@ export const CLOUD_CURRICULUM: Module[] = [
   },
   {
     "id": "cloud-m13",
-    "name": "Multi-Cloud Security: Azure & GCP",
-    "shortName": "Azure & GCP Security",
+    "name": "Beyond AWS: Azure & GCP",
+    "shortName": "Azure & GCP",
     "month": 4,
     "weeks": [
       4
