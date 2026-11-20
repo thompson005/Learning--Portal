@@ -5,6 +5,11 @@ import type { Resource } from "@/types"
 export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
   "m0-1": [
     {
+      "title": "The Central Processing Unit (CPU): Crash Course Computer Science #7",
+      "url": "https://www.youtube.com/watch?v=FZGugFqdr60",
+      "type": "video"
+    },
+    {
       "title": "Professor Messer: Computer Basics",
       "url": "https://www.professormesser.com",
       "type": "video"
@@ -21,6 +26,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
     }
   ],
   "m0-2": [
+    {
+      "title": "RAM vs ROM Explained: Volatile vs Non-Volatile Memory",
+      "url": "https://www.youtube.com/watch?v=bzkpKhgfG4g",
+      "type": "video"
+    },
     {
       "title": "NIST SP 800-88 Media Sanitization",
       "url": "https://csrc.nist.gov/publications/detail/sp/800-88/rev-1/final",
@@ -39,6 +49,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
   ],
   "m0-3": [
     {
+      "title": "SSD vs HDD vs NVMe — Differences Explained (Which Is Fastest?)",
+      "url": "https://www.youtube.com/watch?v=O9ZIQmCIxKE",
+      "type": "video"
+    },
+    {
       "title": "Professor Messer: Storage Devices",
       "url": "https://www.professormesser.com",
       "type": "video"
@@ -56,6 +71,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
   ],
   "m0-4": [
     {
+      "title": "Every Computer Component Explained Simply in 15 Minutes!",
+      "url": "https://www.youtube.com/watch?v=N3wHA98OznU",
+      "type": "video"
+    },
+    {
       "title": "UEFI vs Legacy BIOS - Microsoft Learn",
       "url": "https://learn.microsoft.com/windows-hardware/manufacture/desktop/uefi-and-legacy-bios",
       "type": "link"
@@ -72,6 +92,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
     }
   ],
   "m0-5": [
+    {
+      "title": "How a Computer Starts Up",
+      "url": "https://www.youtube.com/watch?v=X24fwVhz4cs",
+      "type": "video"
+    },
     {
       "title": "Linux Boot Process - Red Hat",
       "url": "https://www.redhat.com/sysadmin/linux-boot-process",
@@ -107,6 +132,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
   ],
   "m1-1": [
     {
+      "title": "Cybersecurity Explained: What Beginners Need to Know",
+      "url": "https://www.youtube.com/watch?v=tPQwevg4-PI",
+      "type": "video"
+    },
+    {
       "title": "NIST Cybersecurity Framework",
       "url": "https://www.nist.gov/cyberframework",
       "type": "link"
@@ -123,6 +153,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
     }
   ],
   "m1-2": [
+    {
+      "title": "The CIA Triad - CompTIA Security+ SY0-701 - 1.2",
+      "url": "https://www.youtube.com/watch?v=SBcDGb9l6yo",
+      "type": "video"
+    },
     {
       "title": "NIST SP 800-12 (CIA Triad overview)",
       "url": "https://csrc.nist.gov/pubs/sp/800/12/r1/final",
@@ -141,6 +176,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
   ],
   "m1-3": [
     {
+      "title": "Red Team, Blue Team, Purple Team & White Team Explained",
+      "url": "https://www.youtube.com/watch?v=e3x29G2Jkbg",
+      "type": "video"
+    },
+    {
       "title": "CompTIA Security+ overview",
       "url": "https://www.comptia.org/certifications/security",
       "type": "link"
@@ -158,6 +198,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
   ],
   "m1-4": [
     {
+      "title": "What Is Cybersecurity? Viruses, Malware and Phishing Explained",
+      "url": "https://www.youtube.com/watch?v=2xljJIWUTFQ",
+      "type": "video"
+    },
+    {
       "title": "MITRE ATT&CK",
       "url": "https://attack.mitre.org",
       "type": "link"
@@ -174,6 +219,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
     }
   ],
   "m1-5": [
+    {
+      "title": "What Is a Zero-Day Vulnerability?",
+      "url": "https://www.youtube.com/watch?v=kSmZSmTThnI",
+      "type": "video"
+    },
     {
       "title": "cve.mitre.org",
       "url": "https://cve.mitre.org",
@@ -255,6 +305,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
   ],
   "m2-1": [
     {
+      "title": "OSI Model Explained",
+      "url": "https://www.youtube.com/watch?v=vv4y_uOneC0",
+      "type": "video"
+    },
+    {
       "title": "Professor Messer: OSI Model",
       "url": "https://www.professormesser.com",
       "type": "video"
@@ -271,6 +326,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
     }
   ],
   "m2-2": [
+    {
+      "title": "TCP/IP Model Explained (4 Layers, OSI vs TCP/IP & Real-World Data Flow) [CCNA]",
+      "url": "https://www.youtube.com/watch?v=IjIZGyMwUdI",
+      "type": "video"
+    },
     {
       "title": "Cloudflare: What is TCP/IP?",
       "url": "https://www.cloudflare.com/learning/ddos/glossary/tcp-ip/",
@@ -289,6 +349,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
   ],
   "m2-3": [
     {
+      "title": "Learn in 10 minutes how I subnet without any calculator/paper - Subnetting made easy",
+      "url": "https://www.youtube.com/watch?v=GEuC-aVXKEc",
+      "type": "video"
+    },
+    {
       "title": "subnettingpractice.com",
       "url": "https://subnettingpractice.com",
       "type": "tool"
@@ -306,6 +371,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
   ],
   "m2-4": [
     {
+      "title": "Common Network Ports and Protocols",
+      "url": "https://www.youtube.com/watch?v=bwqM7XjqBBg",
+      "type": "video"
+    },
+    {
       "title": "IANA Service Name and Port Number Registry",
       "url": "https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xhtml",
       "type": "link"
@@ -317,6 +387,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
     }
   ],
   "m2-5": [
+    {
+      "title": "ARP Explained - Address Resolution Protocol",
+      "url": "https://www.youtube.com/watch?v=cn8Zxh9bPio",
+      "type": "video"
+    },
     {
       "title": "Cloudflare: What is ARP?",
       "url": "https://www.cloudflare.com/learning/ddos/glossary/address-resolution-protocol-arp/",
@@ -335,6 +410,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
   ],
   "m2-6": [
     {
+      "title": "TCP vs UDP Comparison",
+      "url": "https://www.youtube.com/watch?v=uwoD5YsGACg",
+      "type": "video"
+    },
+    {
       "title": "Cloudflare: What is UDP?",
       "url": "https://www.cloudflare.com/learning/ddos/glossary/user-datagram-protocol-udp/",
       "type": "link"
@@ -352,6 +432,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
   ],
   "m2-7": [
     {
+      "title": "Hub, Switch, & Router Explained - What's the difference?",
+      "url": "https://www.youtube.com/watch?v=1z0ULvg_pW8",
+      "type": "video"
+    },
+    {
       "title": "Cisco Networking Basics",
       "url": "https://www.cisco.com/c/en/us/solutions/small-business/resource-center/networking/networking-basics.html",
       "type": "link"
@@ -363,6 +448,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
     }
   ],
   "m2-8": [
+    {
+      "title": "Every type of firewall is explained in 8 minutes.",
+      "url": "https://www.youtube.com/watch?v=X6C1HLDgnIA",
+      "type": "video"
+    },
     {
       "title": "Cloudflare: What is a Firewall?",
       "url": "https://www.cloudflare.com/learning/security/what-is-a-firewall/",
@@ -381,6 +471,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
   ],
   "m2-9": [
     {
+      "title": "Proxy vs VPN Explained — What's the Difference?",
+      "url": "https://www.youtube.com/watch?v=c4lWN6DnY5w",
+      "type": "video"
+    },
+    {
       "title": "Cloudflare: What is a VPN?",
       "url": "https://www.cloudflare.com/learning/access-management/what-is-a-vpn/",
       "type": "link"
@@ -392,6 +487,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
     }
   ],
   "m2-10": [
+    {
+      "title": "NAT Explained - Network Address Translation",
+      "url": "https://www.youtube.com/watch?v=FTUV0t6JaDA",
+      "type": "video"
+    },
     {
       "title": "Cloudflare: What is NAT?",
       "url": "https://www.cloudflare.com/learning/network-layer/what-is-nat/",
@@ -405,6 +505,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
   ],
   "m2-11": [
     {
+      "title": "What happens when you type a URL into your browser?",
+      "url": "https://www.youtube.com/watch?v=AlkDbnbv7dk",
+      "type": "video"
+    },
+    {
       "title": "What happens when you type a URL and press Enter",
       "url": "https://github.com/alex/what-happens-when",
       "type": "link"
@@ -417,6 +522,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
   ],
   "m2-12": [
     {
+      "title": "Wireshark Tutorial for Beginners",
+      "url": "https://www.youtube.com/watch?v=TkCSr30UojM",
+      "type": "video"
+    },
+    {
       "title": "Wireshark",
       "url": "https://www.wireshark.org",
       "type": "tool"
@@ -428,6 +538,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
     }
   ],
   "m2-13": [
+    {
+      "title": "Practice Examples - Subnetting Mastery - Part 4 of 7",
+      "url": "https://www.youtube.com/watch?v=SM0kdVfhxZ0",
+      "type": "video"
+    },
     {
       "title": "subnettingpractice.com",
       "url": "https://subnettingpractice.com",
@@ -494,6 +609,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
   ],
   "m3-linux-1": [
     {
+      "title": "Every Linux Distribution Explained in 18 Minutes",
+      "url": "https://www.youtube.com/watch?v=0-lWDLsBd9U",
+      "type": "video"
+    },
+    {
       "title": "Kali Linux official documentation",
       "url": "https://www.kali.org/docs/",
       "type": "link"
@@ -511,6 +631,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
   ],
   "m3-linux-2": [
     {
+      "title": "Linux Directories Explained in 100 Seconds",
+      "url": "https://www.youtube.com/watch?v=42iQKuQodW4",
+      "type": "video"
+    },
+    {
       "title": "Linux Filesystem Hierarchy - hier(7) man page",
       "url": "https://man7.org/linux/man-pages/man7/hier.7.html",
       "type": "link"
@@ -522,6 +647,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
     }
   ],
   "m3-linux-3": [
+    {
+      "title": "Beginner Linux for Ethical Hackers - Navigating the File System",
+      "url": "https://www.youtube.com/watch?v=r8giT8BBdw8",
+      "type": "video"
+    },
     {
       "title": "explainshell.com",
       "url": "https://explainshell.com",
@@ -540,6 +670,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
   ],
   "m3-linux-4": [
     {
+      "title": "Linux Commands Tutorial - Using Pipes & I/O Redirection",
+      "url": "https://www.youtube.com/watch?v=3XZ3pRI0ego",
+      "type": "video"
+    },
+    {
       "title": "explainshell.com",
       "url": "https://explainshell.com",
       "type": "tool"
@@ -556,6 +691,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
     }
   ],
   "m3-linux-5": [
+    {
+      "title": "Mastering Linux File Permissions with chmod, chgrp, SUID, SGID",
+      "url": "https://www.youtube.com/watch?v=L-Pusqukti0",
+      "type": "video"
+    },
     {
       "title": "GTFOBins",
       "url": "https://gtfobins.github.io",
@@ -574,6 +714,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
   ],
   "m3-linux-6": [
     {
+      "title": "Using Linux Man Pages",
+      "url": "https://www.youtube.com/watch?v=Ce_bc6zgbQw",
+      "type": "video"
+    },
+    {
       "title": "man7.org",
       "url": "https://man7.org",
       "type": "link"
@@ -585,6 +730,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
     }
   ],
   "m3-linux-7": [
+    {
+      "title": "Background Jobs in Linux and other commands like ps kill jobs fg bg and nohup",
+      "url": "https://www.youtube.com/watch?v=aIBRoC-yJaQ",
+      "type": "video"
+    },
     {
       "title": "ps(1) man page",
       "url": "https://man7.org/linux/man-pages/man1/ps.1.html",
@@ -598,6 +748,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
   ],
   "m3-linux-8": [
     {
+      "title": "Ultimate Guide to Managing Users and Groups in Linux: All You Need!",
+      "url": "https://www.youtube.com/watch?v=0V1nGY76PBU",
+      "type": "video"
+    },
+    {
       "title": "passwd(5) man page",
       "url": "https://man7.org/linux/man-pages/man5/passwd.5.html",
       "type": "link"
@@ -610,6 +765,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
   ],
   "m3-linux-9": [
     {
+      "title": "Linux for Beginners: systemd start/stop services & journalctl",
+      "url": "https://www.youtube.com/watch?v=jZfNVROoF74",
+      "type": "video"
+    },
+    {
       "title": "systemd documentation",
       "url": "https://www.freedesktop.org/wiki/Software/systemd/",
       "type": "link"
@@ -621,6 +781,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
     }
   ],
   "m3-linux-10": [
+    {
+      "title": "Linux Network Troubleshooting Commands (ip, ifconfig, netstat, ufw, traceroute, dig)",
+      "url": "https://www.youtube.com/watch?v=rCdQnnaWZlA",
+      "type": "video"
+    },
     {
       "title": "ss(8) man page",
       "url": "https://man7.org/linux/man-pages/man8/ss.8.html",
@@ -752,6 +917,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
   ],
   "m3-windows-1": [
     {
+      "title": "Kernel Mode vs User Mode: Why it Matters, What You Need to Know",
+      "url": "https://www.youtube.com/watch?v=GB7JTXeGcs0",
+      "type": "video"
+    },
+    {
       "title": "Microsoft Learn: Windows editions",
       "url": "https://learn.microsoft.com/windows/whats-new/windows-editions",
       "type": "link"
@@ -763,6 +933,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
     }
   ],
   "m3-windows-2": [
+    {
+      "title": "How to Change Directory, Copy, Rename & Delete Files in CMD Windows 7 (Simple)",
+      "url": "https://www.youtube.com/watch?v=xNXtttJUREk",
+      "type": "video"
+    },
     {
       "title": "SS64 CMD reference",
       "url": "https://ss64.com/nt/",
@@ -776,6 +951,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
   ],
   "m3-windows-3": [
     {
+      "title": "NTFS Permissions Basics",
+      "url": "https://www.youtube.com/watch?v=v5NbXlk5hIg",
+      "type": "video"
+    },
+    {
       "title": "Microsoft Learn: NTFS overview",
       "url": "https://learn.microsoft.com/windows-server/storage/file-server/ntfs-overview",
       "type": "link"
@@ -787,6 +967,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
     }
   ],
   "m3-windows-4": [
+    {
+      "title": "Windows Registry Explained: Regedit, Hives, Keys & Safe Editing",
+      "url": "https://www.youtube.com/watch?v=N8EyCRHP9ks",
+      "type": "video"
+    },
     {
       "title": "Microsoft Learn: Windows Registry",
       "url": "https://learn.microsoft.com/windows/win32/sysinfo/registry",
@@ -800,6 +985,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
   ],
   "m3-windows-5": [
     {
+      "title": "Net user - Windows Command Line Tool for user management",
+      "url": "https://www.youtube.com/watch?v=GwA8pfdIYHM",
+      "type": "video"
+    },
+    {
       "title": "Microsoft Learn: net user",
       "url": "https://learn.microsoft.com/windows-server/administration/windows-commands/net-user",
       "type": "link"
@@ -811,6 +1001,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
     }
   ],
   "m3-windows-6": [
+    {
+      "title": "How to Use iCACLS Command to Manage File and Folder Permissions on Windows machine",
+      "url": "https://www.youtube.com/watch?v=Y5fLIbaBz-U",
+      "type": "video"
+    },
     {
       "title": "Microsoft Learn: icacls",
       "url": "https://learn.microsoft.com/windows-server/administration/windows-commands/icacls",
@@ -824,6 +1019,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
   ],
   "m3-windows-7": [
     {
+      "title": "Windows Command Line: Tasklist and Taskkill",
+      "url": "https://www.youtube.com/watch?v=dUNqfpe_PLA",
+      "type": "video"
+    },
+    {
       "title": "Microsoft Learn: tasklist",
       "url": "https://learn.microsoft.com/windows-server/administration/windows-commands/tasklist",
       "type": "link"
@@ -835,6 +1035,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
     }
   ],
   "m3-windows-8": [
+    {
+      "title": "PowerShell for Beginners (Full Course)",
+      "url": "https://www.youtube.com/watch?v=EPdA7ap9agA",
+      "type": "video"
+    },
     {
       "title": "Microsoft PowerShell Docs",
       "url": "https://learn.microsoft.com/powershell/",
@@ -848,6 +1053,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
   ],
   "m3-windows-9": [
     {
+      "title": "Essential Windows Network Commands — ipconfig, flushdns, tracert, nslookup, netstat",
+      "url": "https://www.youtube.com/watch?v=P6gx3_PWkvU",
+      "type": "video"
+    },
+    {
       "title": "SS64.com CMD reference",
       "url": "https://ss64.com",
       "type": "link"
@@ -860,6 +1070,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
   ],
   "m3-windows-10": [
     {
+      "title": "Windows Defender Firewall Explained: Port Blocking, App Internet Control & Network Logs",
+      "url": "https://www.youtube.com/watch?v=OTGfYZiBINs",
+      "type": "video"
+    },
+    {
       "title": "Microsoft Learn: Microsoft Defender Antivirus",
       "url": "https://learn.microsoft.com/microsoft-365/security/defender-endpoint/microsoft-defender-antivirus-windows",
       "type": "link"
@@ -871,6 +1086,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
     }
   ],
   "m3-windows-11": [
+    {
+      "title": "Windows Event Viewer Tutorial: A Step by Step Guide",
+      "url": "https://www.youtube.com/watch?v=08WZXnicLBo",
+      "type": "video"
+    },
     {
       "title": "Windows Event ID reference (ultimatewindowssecurity.com)",
       "url": "https://www.ultimatewindowssecurity.com/securitylog/encyclopedia",
@@ -973,6 +1193,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
   ],
   "m4-1": [
     {
+      "title": "The Differences Between Thick, Thin, and Zero Clients",
+      "url": "https://www.youtube.com/watch?v=O_fHDIMXOuU",
+      "type": "video"
+    },
+    {
       "title": "OWASP Mobile Application Security",
       "url": "https://owasp.org/www-project-mobile-app-security/",
       "type": "link"
@@ -989,6 +1214,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
     }
   ],
   "m4-2": [
+    {
+      "title": "SDLC Explained for Beginners",
+      "url": "https://www.youtube.com/watch?v=6-RGhVtdXbo",
+      "type": "video"
+    },
     {
       "title": "OWASP SAMM",
       "url": "https://owaspsamm.org",
@@ -1007,6 +1237,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
   ],
   "m4-3": [
     {
+      "title": "What is HTML, CSS and JavaScript? What is Frontend and Backend Development?",
+      "url": "https://www.youtube.com/watch?v=U8542COlBiU",
+      "type": "video"
+    },
+    {
       "title": "MDN Web Docs",
       "url": "https://developer.mozilla.org",
       "type": "link"
@@ -1023,6 +1258,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
     }
   ],
   "m4-4": [
+    {
+      "title": "Every Backend Framework Explained in 5 Minutes!",
+      "url": "https://www.youtube.com/watch?v=x0Tjjcb-2K0",
+      "type": "video"
+    },
     {
       "title": "Node.js documentation",
       "url": "https://nodejs.org/en/docs",
@@ -1041,6 +1281,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
   ],
   "m4-5": [
     {
+      "title": "Understand the Difference Between SOAP and REST APIs",
+      "url": "https://www.youtube.com/watch?v=bPNfu0IZhoE",
+      "type": "video"
+    },
+    {
       "title": "MDN HTTP documentation",
       "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP",
       "type": "link"
@@ -1057,6 +1302,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
     }
   ],
   "m4-6": [
+    {
+      "title": "SQL vs. NoSQL: What's the difference?",
+      "url": "https://www.youtube.com/watch?v=Q5aTUc7c4jg",
+      "type": "video"
+    },
     {
       "title": "OWASP SQL Injection Prevention Cheat Sheet",
       "url": "https://cheatsheetseries.owasp.org/cheatsheets/SQL_Injection_Prevention_Cheat_Sheet.html",
@@ -1075,6 +1325,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
   ],
   "m4-7": [
     {
+      "title": "The essentials of HTTP cookie attributes",
+      "url": "https://www.youtube.com/watch?v=CZ8geW9Zh4U",
+      "type": "video"
+    },
+    {
       "title": "OWASP Session Management Cheat Sheet",
       "url": "https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html",
       "type": "link"
@@ -1091,6 +1346,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
     }
   ],
   "m4-8": [
+    {
+      "title": "Authentication Explained: Sessions, JWT & OAuth",
+      "url": "https://www.youtube.com/watch?v=V8utm_77TEs",
+      "type": "video"
+    },
     {
       "title": "OWASP Authentication Cheat Sheet",
       "url": "https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html",
@@ -1109,6 +1369,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
   ],
   "m4-9": [
     {
+      "title": "RBAC vs ABAC Explained with Real-World Examples",
+      "url": "https://www.youtube.com/watch?v=6GRaRY4OKa8",
+      "type": "video"
+    },
+    {
       "title": "OWASP Access Control Cheat Sheet",
       "url": "https://cheatsheetseries.owasp.org/cheatsheets/Access_Control_Cheat_Sheet.html",
       "type": "link"
@@ -1125,6 +1390,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
     }
   ],
   "m4-10": [
+    {
+      "title": "Cookie Manipulation in Chrome Dev Tools",
+      "url": "https://www.youtube.com/watch?v=rqH3WoP2qAs",
+      "type": "video"
+    },
     {
       "title": "Chrome DevTools documentation",
       "url": "https://developer.chrome.com/docs/devtools/",
@@ -1172,6 +1442,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
   ],
   "m5-1": [
     {
+      "title": "Encoding vs Encryption vs Hashing Explained",
+      "url": "https://www.youtube.com/watch?v=QTTOh9E47l8",
+      "type": "video"
+    },
+    {
       "title": "OWASP Cryptographic Failures",
       "url": "https://owasp.org/Top10/A02_2021-Cryptographic_Failures/",
       "type": "link"
@@ -1188,6 +1463,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
     }
   ],
   "m5-2": [
+    {
+      "title": "What is Base64 Encoding and How does it work?",
+      "url": "https://www.youtube.com/watch?v=sAG2WCaCTLI",
+      "type": "video"
+    },
     {
       "title": "MDN - Base64",
       "url": "https://developer.mozilla.org/en-US/docs/Glossary/Base64",
@@ -1206,6 +1486,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
   ],
   "m5-3": [
     {
+      "title": "What is AES - Advanced Encryption Standard",
+      "url": "https://www.youtube.com/watch?v=6uIvuOOj0ug",
+      "type": "video"
+    },
+    {
       "title": "NIST FIPS 197 (AES)",
       "url": "https://csrc.nist.gov/pubs/fips/197/final",
       "type": "link"
@@ -1222,6 +1507,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
     }
   ],
   "m5-4": [
+    {
+      "title": "Public Key Cryptography - Computerphile",
+      "url": "https://www.youtube.com/watch?v=GSIDS_lvRv4",
+      "type": "video"
+    },
     {
       "title": "CryptoHack",
       "url": "https://cryptohack.org",
@@ -1240,6 +1530,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
   ],
   "m5-5": [
     {
+      "title": "Hashing and Hashing Algorithms - md5 sha1 sha256 sha2 sha3 - Cryptography Essentials",
+      "url": "https://www.youtube.com/watch?v=QZY3IjFBtFY",
+      "type": "video"
+    },
+    {
       "title": "OWASP Password Storage Cheat Sheet",
       "url": "https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html",
       "type": "link"
@@ -1256,6 +1551,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
     }
   ],
   "m5-6": [
+    {
+      "title": "What is a digital signature?",
+      "url": "https://www.youtube.com/watch?v=3L3zpON8IXM",
+      "type": "video"
+    },
     {
       "title": "CryptoHack",
       "url": "https://cryptohack.org",
@@ -1274,6 +1574,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
   ],
   "m5-7": [
     {
+      "title": "Networking 201, Part 44: TLS & Certificates Explained",
+      "url": "https://www.youtube.com/watch?v=YFrjjJIGApA",
+      "type": "video"
+    },
+    {
       "title": "MDN - Transport Layer Security",
       "url": "https://developer.mozilla.org/en-US/docs/Web/Security/Transport_Layer_Security",
       "type": "link"
@@ -1290,6 +1595,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
     }
   ],
   "m5-8": [
+    {
+      "title": "Secret Key Exchange (Diffie-Hellman) - Computerphile",
+      "url": "https://www.youtube.com/watch?v=NmM9HA2MQGI",
+      "type": "video"
+    },
     {
       "title": "CryptoHack",
       "url": "https://cryptohack.org",
@@ -1308,6 +1618,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
   ],
   "m5-9": [
     {
+      "title": "Base64 Encoding Explained!",
+      "url": "https://www.youtube.com/watch?v=8v4moossLXo",
+      "type": "video"
+    },
+    {
       "title": "CyberChef",
       "url": "https://gchq.github.io/CyberChef/",
       "type": "tool"
@@ -1319,6 +1634,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
     }
   ],
   "m5-10": [
+    {
+      "title": "OpenSSL Tutorials #3: RSA key Creation and Digital Signature",
+      "url": "https://www.youtube.com/watch?v=611mxXLc9Vk",
+      "type": "video"
+    },
     {
       "title": "OpenSSL documentation",
       "url": "https://www.openssl.org/docs/",
@@ -1373,6 +1693,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
   ],
   "m6-1": [
     {
+      "title": "Three-Tier Hierarchical Network Design Explained",
+      "url": "https://www.youtube.com/watch?v=0IXhBqrn_lg",
+      "type": "video"
+    },
+    {
       "title": "Cisco Networking Academy",
       "url": "https://www.netacad.com",
       "type": "platform"
@@ -1390,6 +1715,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
   ],
   "m6-2": [
     {
+      "title": "Network Topologies Explained: Star, Bus, Ring, Mesh",
+      "url": "https://www.youtube.com/watch?v=9CV1pAi4QrI",
+      "type": "video"
+    },
+    {
       "title": "Cisco Networking Academy",
       "url": "https://www.netacad.com",
       "type": "platform"
@@ -1401,6 +1731,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
     }
   ],
   "m6-3": [
+    {
+      "title": "VLAN Explained",
+      "url": "https://www.youtube.com/watch?v=jC6MJTh9fRE",
+      "type": "video"
+    },
     {
       "title": "Cisco Networking Academy",
       "url": "https://www.netacad.com",
@@ -1414,6 +1749,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
   ],
   "m6-4": [
     {
+      "title": "What is a DMZ? (Demilitarized Zone)",
+      "url": "https://www.youtube.com/watch?v=dqlzQXo1wqo",
+      "type": "video"
+    },
+    {
       "title": "Cisco Networking Academy",
       "url": "https://www.netacad.com",
       "type": "platform"
@@ -1426,6 +1766,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
   ],
   "m6-5": [
     {
+      "title": "Remote Access VPN vs. Site-to-Site VPN",
+      "url": "https://www.youtube.com/watch?v=mJ9EwFBSnOI",
+      "type": "video"
+    },
+    {
       "title": "Cisco Networking Academy",
       "url": "https://www.netacad.com",
       "type": "platform"
@@ -1437,6 +1782,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
     }
   ],
   "m6-6": [
+    {
+      "title": "Active Directory Explained in 5 minutes",
+      "url": "https://www.youtube.com/watch?v=OfXJlmuoc20",
+      "type": "video"
+    },
     {
       "title": "Microsoft Active Directory Domain Services documentation",
       "url": "https://learn.microsoft.com/en-us/windows-server/identity/ad-ds/ad-ds-getting-started",
@@ -1455,6 +1805,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
   ],
   "m6-7": [
     {
+      "title": "Understanding Zero Trust Architecture",
+      "url": "https://www.youtube.com/watch?v=JUe6OZ1VbUk",
+      "type": "video"
+    },
+    {
       "title": "NIST SP 800-207 (Zero Trust Architecture)",
       "url": "https://csrc.nist.gov/pubs/sp/800/207/final",
       "type": "link"
@@ -1466,6 +1821,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
     }
   ],
   "m6-8": [
+    {
+      "title": "EDR vs. Antivirus: Which One Should You Choose?",
+      "url": "https://www.youtube.com/watch?v=QqAm6qab_cg",
+      "type": "video"
+    },
     {
       "title": "Microsoft Defender for Endpoint documentation",
       "url": "https://learn.microsoft.com/en-us/microsoft-365/security/defender-endpoint/",
@@ -1479,6 +1839,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
   ],
   "m6-9": [
     {
+      "title": "IDS vs IPS - What's the difference?",
+      "url": "https://www.youtube.com/watch?v=OUmBimnGrC8",
+      "type": "video"
+    },
+    {
       "title": "Snort documentation",
       "url": "https://www.snort.org",
       "type": "tool"
@@ -1491,6 +1856,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
   ],
   "m6-10": [
     {
+      "title": "What is a Web Application Firewall?",
+      "url": "https://www.youtube.com/watch?v=h7aO0D_Skaw",
+      "type": "video"
+    },
+    {
       "title": "OWASP - Web Application Firewall",
       "url": "https://owasp.org/www-community/Web_Application_Firewall",
       "type": "link"
@@ -1502,6 +1872,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
     }
   ],
   "m6-11": [
+    {
+      "title": "What is VDI (Virtual Desktop Infrastructure)?",
+      "url": "https://www.youtube.com/watch?v=Nz9r3HxI8qI",
+      "type": "video"
+    },
     {
       "title": "VMware Horizon documentation",
       "url": "https://docs.vmware.com/en/VMware-Horizon/index.html",
@@ -1568,6 +1943,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
   ],
   "m7-1": [
     {
+      "title": "5 PHASES of HACKING you must know.",
+      "url": "https://www.youtube.com/watch?v=wBxJfLo4ar0",
+      "type": "video"
+    },
+    {
       "title": "MITRE ATT&CK",
       "url": "https://attack.mitre.org",
       "type": "link"
@@ -1579,6 +1959,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
     }
   ],
   "m7-2": [
+    {
+      "title": "Passive Information Gathering - Offensive Security",
+      "url": "https://www.youtube.com/watch?v=sap3T4gHG9w",
+      "type": "video"
+    },
     {
       "title": "OSINT Framework",
       "url": "https://osintframework.com",
@@ -1597,6 +1982,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
   ],
   "m7-3": [
     {
+      "title": "Active Reconnaissance - TryHackMe Junior Penetration Tester: 5.2",
+      "url": "https://www.youtube.com/watch?v=nBboVLWahoI",
+      "type": "video"
+    },
+    {
       "title": "Nmap official documentation",
       "url": "https://nmap.org/book/man.html",
       "type": "link"
@@ -1608,6 +1998,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
     }
   ],
   "m7-4": [
+    {
+      "title": "Nmap: The Basics",
+      "url": "https://www.youtube.com/watch?v=qI3vxPxPXwA",
+      "type": "video"
+    },
     {
       "title": "Nmap official documentation",
       "url": "https://nmap.org/book/man.html",
@@ -1621,6 +2016,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
   ],
   "m7-5": [
     {
+      "title": "Nmap Tutorial Series 4 - Nmap Scripts (NSE)",
+      "url": "https://www.youtube.com/watch?v=qC2ss7pa1UU",
+      "type": "video"
+    },
+    {
       "title": "Nmap NSE documentation",
       "url": "https://nmap.org/book/nse.html",
       "type": "link"
@@ -1632,6 +2032,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
     }
   ],
   "m7-6": [
+    {
+      "title": "Quick Subdomain Enumeration for Bug Bounty Hunters",
+      "url": "https://www.youtube.com/watch?v=Z8Rc3tUzuzM",
+      "type": "video"
+    },
     {
       "title": "subfinder (ProjectDiscovery)",
       "url": "https://github.com/projectdiscovery/subfinder",
@@ -1650,6 +2055,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
   ],
   "m7-7": [
     {
+      "title": "Complete Installing & Using Nessus & OpenVAS",
+      "url": "https://www.youtube.com/watch?v=6JoJmY-B-mM",
+      "type": "video"
+    },
+    {
       "title": "Nessus Essentials",
       "url": "https://www.tenable.com/products/nessus/nessus-essentials",
       "type": "tool"
@@ -1661,6 +2071,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
     }
   ],
   "m7-8": [
+    {
+      "title": "Linux Privilege Escalation Theory Explained",
+      "url": "https://www.youtube.com/watch?v=yfqUOtCMazo",
+      "type": "video"
+    },
     {
       "title": "GTFOBins",
       "url": "https://gtfobins.github.io",
@@ -1674,6 +2089,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
   ],
   "m7-9": [
     {
+      "title": "Metasploit Post Modules & Post Exploitation Persistence, Meterpreter Commands & More",
+      "url": "https://www.youtube.com/watch?v=Pcv8RV44TkI",
+      "type": "video"
+    },
+    {
       "title": "MITRE ATT&CK",
       "url": "https://attack.mitre.org",
       "type": "link"
@@ -1685,6 +2105,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
     }
   ],
   "m7-10": [
+    {
+      "title": "Professional Penetration Test Report Guide",
+      "url": "https://www.youtube.com/watch?v=q8Lj8yOim5o",
+      "type": "video"
+    },
     {
       "title": "PTES (Penetration Testing Execution Standard)",
       "url": "http://www.pentest-standard.org",
@@ -1698,6 +2123,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
   ],
   "m7-11": [
     {
+      "title": "The Rules of Engagement For Performing Penetration Testing",
+      "url": "https://www.youtube.com/watch?v=xuuj9hQYlcs",
+      "type": "video"
+    },
+    {
       "title": "PTES Pre-engagement",
       "url": "http://www.pentest-standard.org",
       "type": "link"
@@ -1709,6 +2139,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
     }
   ],
   "m7-12": [
+    {
+      "title": "Zero to Hero Pentesting: Episode 5 - Scanning Tools (Nmap, Nessus, BurpSuite, etc.) & Tactics",
+      "url": "https://www.youtube.com/watch?v=t9aAhuG0LkE",
+      "type": "video"
+    },
     {
       "title": "Metasploitable2",
       "url": "https://sourceforge.net/projects/metasploitable/files/Metasploitable2/",
@@ -1785,6 +2220,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
   ],
   "m8-1": [
     {
+      "title": "Introduction to Burp Suite (for beginners)",
+      "url": "https://www.youtube.com/watch?v=24dUQ1LvopE",
+      "type": "video"
+    },
+    {
       "title": "PortSwigger Burp Suite documentation",
       "url": "https://portswigger.net/burp/documentation",
       "type": "link"
@@ -1796,6 +2236,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
     }
   ],
   "m8-2": [
+    {
+      "title": "How to install Foxy Proxy & CA Certificate in Burp Suite Community Edition",
+      "url": "https://www.youtube.com/watch?v=k0ArNUws1eA",
+      "type": "video"
+    },
     {
       "title": "PortSwigger - Getting started with Burp Proxy",
       "url": "https://portswigger.net/burp/documentation/desktop/getting-started",
@@ -1809,12 +2254,22 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
   ],
   "m8-3": [
     {
+      "title": "How to intercept HTTP requests and responses using Burp Suite",
+      "url": "https://www.youtube.com/watch?v=ouDe5sJ_uC8",
+      "type": "video"
+    },
+    {
       "title": "PortSwigger Burp Proxy documentation",
       "url": "https://portswigger.net/burp/documentation/desktop/tools/proxy",
       "type": "link"
     }
   ],
   "m8-4": [
+    {
+      "title": "How to resend individual requests with Burp Repeater",
+      "url": "https://www.youtube.com/watch?v=_Wifm2g9ugg",
+      "type": "video"
+    },
     {
       "title": "PortSwigger Repeater documentation",
       "url": "https://portswigger.net/burp/documentation/desktop/tools/repeater",
@@ -1823,12 +2278,22 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
   ],
   "m8-5": [
     {
+      "title": "Intruder attack types",
+      "url": "https://www.youtube.com/watch?v=2E8FimmSrVA",
+      "type": "video"
+    },
+    {
       "title": "PortSwigger Intruder documentation",
       "url": "https://portswigger.net/burp/documentation/desktop/tools/intruder",
       "type": "link"
     }
   ],
   "m8-6": [
+    {
+      "title": "Learn Burp Suite Decoder Tab In ONLY 5 Minutes!",
+      "url": "https://www.youtube.com/watch?v=o8XnnJAhugE",
+      "type": "video"
+    },
     {
       "title": "PortSwigger Decoder documentation",
       "url": "https://portswigger.net/burp/documentation/desktop/tools/decoder",
@@ -1842,6 +2307,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
   ],
   "m8-7": [
     {
+      "title": "How to scan a website for vulnerabilities using Burp Scanner",
+      "url": "https://www.youtube.com/watch?v=VP9eQhUASYQ",
+      "type": "video"
+    },
+    {
       "title": "PortSwigger Burp Scanner documentation",
       "url": "https://portswigger.net/burp/documentation/scanner",
       "type": "link"
@@ -1849,12 +2319,22 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
   ],
   "m8-8": [
     {
+      "title": "How to use target scope in Burp Suite",
+      "url": "https://www.youtube.com/watch?v=0mTg2BsYVmg",
+      "type": "video"
+    },
+    {
       "title": "PortSwigger Target/Scope documentation",
       "url": "https://portswigger.net/burp/documentation/desktop/tools/target",
       "type": "link"
     }
   ],
   "m8-9": [
+    {
+      "title": "How to Intercept Credentials with Burp Suite in Kali Linux?",
+      "url": "https://www.youtube.com/watch?v=hjzpRgtjN-A",
+      "type": "video"
+    },
     {
       "title": "PortSwigger Web Security Academy",
       "url": "https://portswigger.net/web-security",
@@ -1868,6 +2348,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
   ],
   "m8-10": [
     {
+      "title": "Burp Suite: Repeater - TryHackMe Junior Penetration Tester 4.2",
+      "url": "https://www.youtube.com/watch?v=dJy0dVlWGtI",
+      "type": "video"
+    },
+    {
       "title": "PortSwigger - SQL injection",
       "url": "https://portswigger.net/web-security/sql-injection",
       "type": "platform"
@@ -1879,6 +2364,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
     }
   ],
   "m8-11": [
+    {
+      "title": "Bruteforce Attacks with BurpSuite on DVWA",
+      "url": "https://www.youtube.com/watch?v=uwJG2gDEkyM",
+      "type": "video"
+    },
     {
       "title": "PortSwigger Intruder documentation",
       "url": "https://portswigger.net/burp/documentation/desktop/tools/intruder",
@@ -1962,6 +2452,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
   ],
   "m9-1": [
     {
+      "title": "An Introduction to the OWASP Top 10 (Web Application Security Risks)",
+      "url": "https://www.youtube.com/watch?v=zNC2gUJHy-M",
+      "type": "video"
+    },
+    {
       "title": "OWASP Top Ten Project",
       "url": "https://owasp.org/www-project-top-ten/",
       "type": "link"
@@ -1978,6 +2473,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
     }
   ],
   "m9-2": [
+    {
+      "title": "Cross-Site Scripting (XSS) Explained",
+      "url": "https://www.youtube.com/watch?v=EoaDgUgS6QA",
+      "type": "video"
+    },
     {
       "title": "PortSwigger: Cross-site scripting",
       "url": "https://portswigger.net/web-security/cross-site-scripting",
@@ -2001,6 +2501,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
   ],
   "m9-3": [
     {
+      "title": "SQL Injection (manual exploitation then sqlmap)",
+      "url": "https://www.youtube.com/watch?v=Dk6Fp3k9_m0",
+      "type": "video"
+    },
+    {
       "title": "PortSwigger: SQL injection",
       "url": "https://portswigger.net/web-security/sql-injection",
       "type": "link"
@@ -2017,6 +2522,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
     }
   ],
   "m9-4": [
+    {
+      "title": "IDOR Explained: The Most Common Web App Vulnerability",
+      "url": "https://www.youtube.com/watch?v=vliEtDxQWNc",
+      "type": "video"
+    },
     {
       "title": "PortSwigger: Access control vulnerabilities",
       "url": "https://portswigger.net/web-security/access-control",
@@ -2035,6 +2545,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
   ],
   "m9-5": [
     {
+      "title": "Path Traversal Explained: How Hackers Read Any File",
+      "url": "https://www.youtube.com/watch?v=V29E6eqm6uA",
+      "type": "video"
+    },
+    {
       "title": "PortSwigger: Path traversal",
       "url": "https://portswigger.net/web-security/file-path-traversal",
       "type": "link"
@@ -2051,6 +2566,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
     }
   ],
   "m9-6": [
+    {
+      "title": "OS Command Injection Explained",
+      "url": "https://www.youtube.com/watch?v=5Feb3sWd1Ko",
+      "type": "video"
+    },
     {
       "title": "PortSwigger: OS command injection",
       "url": "https://portswigger.net/web-security/os-command-injection",
@@ -2069,6 +2589,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
   ],
   "m9-7": [
     {
+      "title": "Cross-Site Request Forgery (CSRF) Attack Explained",
+      "url": "https://www.youtube.com/watch?v=uWMIOF93AO0",
+      "type": "video"
+    },
+    {
       "title": "PortSwigger: CSRF",
       "url": "https://portswigger.net/web-security/csrf",
       "type": "link"
@@ -2085,6 +2610,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
     }
   ],
   "m9-8": [
+    {
+      "title": "Portswigger - XSS - Lab #1 Reflected XSS into HTML context with nothing encoded",
+      "url": "https://www.youtube.com/watch?v=jOYyjuuifQ4",
+      "type": "video"
+    },
     {
       "title": "PortSwigger: Cross-site scripting",
       "url": "https://portswigger.net/web-security/cross-site-scripting",
@@ -2103,6 +2633,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
   ],
   "m9-9": [
     {
+      "title": "SQL injection UNION attack, retrieving data from other tables (Video solution)",
+      "url": "https://www.youtube.com/watch?v=qWUELXgQtWU",
+      "type": "video"
+    },
+    {
       "title": "PortSwigger: SQL injection",
       "url": "https://portswigger.net/web-security/sql-injection",
       "type": "link"
@@ -2120,6 +2655,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
   ],
   "m9-10": [
     {
+      "title": "IDOR Hacking For Privilege Escalation - PortSwigger Web Security Academy Series",
+      "url": "https://www.youtube.com/watch?v=ByGLoCufYF8",
+      "type": "video"
+    },
+    {
       "title": "PortSwigger: Access control vulnerabilities",
       "url": "https://portswigger.net/web-security/access-control",
       "type": "link"
@@ -2131,6 +2671,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
     }
   ],
   "m9-11": [
+    {
+      "title": "7 - SQL Injection (low/med/high) - Damn Vulnerable Web Application (DVWA)",
+      "url": "https://www.youtube.com/watch?v=5bj1pFmyyBA",
+      "type": "video"
+    },
     {
       "title": "DVWA",
       "url": "https://github.com/digininja/DVWA",
@@ -2149,6 +2694,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
   ],
   "m10-1": [
     {
+      "title": "What is SSRF (server-side request forgery)?",
+      "url": "https://www.youtube.com/watch?v=seaAfeNq1BI",
+      "type": "video"
+    },
+    {
       "title": "PortSwigger: SSRF",
       "url": "https://portswigger.net/web-security/ssrf",
       "type": "link"
@@ -2165,6 +2715,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
     }
   ],
   "m10-2": [
+    {
+      "title": "Local File Inclusion (LFI) Explained in 14 Minutes (With Examples)",
+      "url": "https://www.youtube.com/watch?v=v0mxB-OFoyc",
+      "type": "video"
+    },
     {
       "title": "PortSwigger: Path traversal",
       "url": "https://portswigger.net/web-security/file-path-traversal",
@@ -2183,6 +2738,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
   ],
   "m10-3": [
     {
+      "title": "Server-Side Template Injections Explained",
+      "url": "https://www.youtube.com/watch?v=SN6EVIG4c-0",
+      "type": "video"
+    },
+    {
       "title": "PortSwigger: Server-side template injection",
       "url": "https://portswigger.net/web-security/server-side-template-injection",
       "type": "link"
@@ -2199,6 +2759,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
     }
   ],
   "m10-4": [
+    {
+      "title": "LESSON 58: File Upload Vulnerabilities Explained (DVWA)",
+      "url": "https://www.youtube.com/watch?v=5bAMYR-uIw0",
+      "type": "video"
+    },
     {
       "title": "PortSwigger: File upload vulnerabilities",
       "url": "https://portswigger.net/web-security/file-upload",
@@ -2217,6 +2782,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
   ],
   "m10-5": [
     {
+      "title": "Business Logic Vulnerabilities \"Business Logic Flaws\"",
+      "url": "https://www.youtube.com/watch?v=Jf13fdFEcXQ",
+      "type": "video"
+    },
+    {
       "title": "PortSwigger: Business logic vulnerabilities",
       "url": "https://portswigger.net/web-security/logic-flaws",
       "type": "link"
@@ -2229,6 +2799,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
   ],
   "m10-6": [
     {
+      "title": "Information Disclosure Vulnerabilities Explained — Web Application Security for Beginners",
+      "url": "https://www.youtube.com/watch?v=uv_I0z-xQmE",
+      "type": "video"
+    },
+    {
       "title": "PortSwigger: Information disclosure",
       "url": "https://portswigger.net/web-security/information-disclosure",
       "type": "link"
@@ -2240,6 +2815,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
     }
   ],
   "m10-7": [
+    {
+      "title": "Cryptographic Failures: OWASP Top 10 A02 Explained with Examples",
+      "url": "https://www.youtube.com/watch?v=cftWboGdETE",
+      "type": "video"
+    },
     {
       "title": "OWASP Top 10:2021 A02 Cryptographic Failures",
       "url": "https://owasp.org/Top10/2021/A02_2021-Cryptographic_Failures/",
@@ -2258,6 +2838,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
   ],
   "m10-8": [
     {
+      "title": "OWASP TOP 10 API Vulnerabilities Explained",
+      "url": "https://www.youtube.com/watch?v=lingSkYcGfU",
+      "type": "video"
+    },
+    {
       "title": "OWASP API Security Project",
       "url": "https://owasp.org/API-Security/",
       "type": "link"
@@ -2269,6 +2854,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
     }
   ],
   "m10-9": [
+    {
+      "title": "OWASP LLM01:2025 Prompt Injection Explained - Attacks, Examples, and Defenses",
+      "url": "https://www.youtube.com/watch?v=yTUaOiCaHLY",
+      "type": "video"
+    },
     {
       "title": "OWASP GenAI Security Project: Top 10 for LLM & GenAI",
       "url": "https://genai.owasp.org/llm-top-10/",
@@ -2282,6 +2872,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
   ],
   "m10-10": [
     {
+      "title": "Basic SSRF Exploitation: PortSwigger Lab Walkthrough",
+      "url": "https://www.youtube.com/watch?v=5iEyP5Bx0Xs",
+      "type": "video"
+    },
+    {
       "title": "PortSwigger: SSRF",
       "url": "https://portswigger.net/web-security/ssrf",
       "type": "link"
@@ -2293,6 +2888,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
     }
   ],
   "m10-11": [
+    {
+      "title": "4 - File Inclusion (LFI/RFI) (low/med/high) - Damn Vulnerable Web Application (DVWA)",
+      "url": "https://www.youtube.com/watch?v=KY58WcX7OZ4",
+      "type": "video"
+    },
     {
       "title": "DVWA",
       "url": "https://github.com/digininja/DVWA",
@@ -2306,6 +2906,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
   ],
   "m10-12": [
     {
+      "title": "PortSwigger ALL File Upload Vulnerabilities Lab Solution",
+      "url": "https://www.youtube.com/watch?v=uzJPys6f0Uw",
+      "type": "video"
+    },
+    {
       "title": "PortSwigger: File upload vulnerabilities",
       "url": "https://portswigger.net/web-security/file-upload",
       "type": "link"
@@ -2318,6 +2923,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
   ],
   "m10-13": [
     {
+      "title": "Portswigger Web Academy - Server-Side Template Injection (SSTI) - Live Walkthrough",
+      "url": "https://www.youtube.com/watch?v=p6ElHfcnlSw",
+      "type": "video"
+    },
+    {
       "title": "PortSwigger: Server-side template injection",
       "url": "https://portswigger.net/web-security/server-side-template-injection",
       "type": "link"
@@ -2329,6 +2939,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
     }
   ],
   "m10-14": [
+    {
+      "title": "Business Logic Vulnerabilities",
+      "url": "https://www.youtube.com/watch?v=fSsPMPHTYmA",
+      "type": "video"
+    },
     {
       "title": "PortSwigger: Business logic vulnerabilities",
       "url": "https://portswigger.net/web-security/logic-flaws",
@@ -2541,6 +3156,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
   ],
   "m11-1": [
     {
+      "title": "Reverse Shell vs Bind Shell : The #1 Reason Hackers Have a Favorite",
+      "url": "https://www.youtube.com/watch?v=iXQFJF7RH9Q",
+      "type": "video"
+    },
+    {
       "title": "ired.team Red Team Notes",
       "url": "https://www.ired.team/",
       "type": "link"
@@ -2557,6 +3177,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
     }
   ],
   "m11-2": [
+    {
+      "title": "Types of Payloads in Metasploit Explained",
+      "url": "https://www.youtube.com/watch?v=ljWylxrHRLg",
+      "type": "video"
+    },
     {
       "title": "Metasploit Unleashed",
       "url": "https://www.offsec.com/metasploit-unleashed/",
@@ -2575,6 +3200,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
   ],
   "m11-3": [
     {
+      "title": "Metasploit For Beginners - #1 - The Basics - Modules, Exploits & Payloads",
+      "url": "https://www.youtube.com/watch?v=8lR27r8Y_ik",
+      "type": "video"
+    },
+    {
       "title": "Metasploit Unleashed",
       "url": "https://www.offsec.com/metasploit-unleashed/",
       "type": "link"
@@ -2591,6 +3221,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
     }
   ],
   "m11-4": [
+    {
+      "title": "Password Cracking With Hashcat",
+      "url": "https://www.youtube.com/watch?v=kN1m-QxmYXo",
+      "type": "video"
+    },
     {
       "title": "Hashcat",
       "url": "https://hashcat.net/hashcat/",
@@ -2609,6 +3244,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
   ],
   "m11-5": [
     {
+      "title": "Password Cracking with John the Ripper",
+      "url": "https://www.youtube.com/watch?v=frL21o37klM",
+      "type": "video"
+    },
+    {
       "title": "John the Ripper",
       "url": "https://www.openwall.com/john/",
       "type": "tool"
@@ -2626,6 +3266,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
   ],
   "m11-6": [
     {
+      "title": "How to use Hydra to brute force login pages",
+      "url": "https://www.youtube.com/watch?v=2tJgPyRITGc",
+      "type": "video"
+    },
+    {
       "title": "THC-Hydra",
       "url": "https://github.com/vanhauser-thc/thc-hydra",
       "type": "tool"
@@ -2642,6 +3287,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
     }
   ],
   "m11-7": [
+    {
+      "title": "Linux Privilege Escalation Techniques",
+      "url": "https://www.youtube.com/watch?v=zkzZnkxRP0A",
+      "type": "video"
+    },
     {
       "title": "GTFOBins",
       "url": "https://gtfobins.github.io",
@@ -2665,6 +3315,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
   ],
   "m11-8": [
     {
+      "title": "Windows Privilege Escalation Techniques",
+      "url": "https://www.youtube.com/watch?v=cqB3WJDo-DA",
+      "type": "video"
+    },
+    {
       "title": "LOLBAS Project",
       "url": "https://lolbas-project.github.io/",
       "type": "link"
@@ -2686,6 +3341,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
     }
   ],
   "m11-9": [
+    {
+      "title": "Lateral Movement and Pivoting",
+      "url": "https://www.youtube.com/watch?v=8qnHyIu6EPI",
+      "type": "video"
+    },
     {
       "title": "ired.team Red Team Notes",
       "url": "https://www.ired.team/",
@@ -2720,6 +3380,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
     }
   ],
   "m11-11": [
+    {
+      "title": "Cracking password using wordlist attack from the RockYou.txt wordlist",
+      "url": "https://www.youtube.com/watch?v=5DanuEllbc4",
+      "type": "video"
+    },
     {
       "title": "Hashcat",
       "url": "https://hashcat.net/hashcat/",
@@ -2760,6 +3425,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
   ],
   "m12-1": [
     {
+      "title": "Python Tutorial For Beginners",
+      "url": "https://www.youtube.com/watch?v=BE4Y0Z9fUkw",
+      "type": "video"
+    },
+    {
       "title": "Python Docs",
       "url": "https://docs.python.org/3/",
       "type": "link"
@@ -2776,6 +3446,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
     }
   ],
   "m12-2": [
+    {
+      "title": "Python Socket Programming Tutorial",
+      "url": "https://www.youtube.com/watch?v=3QiPPX-KeSc",
+      "type": "video"
+    },
     {
       "title": "Python socket module docs",
       "url": "https://docs.python.org/3/library/socket.html",
@@ -2794,6 +3469,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
   ],
   "m12-3": [
     {
+      "title": "MAC Address Spoofer - Python for Ethical Hacking",
+      "url": "https://www.youtube.com/watch?v=RQ69DxR8LFU",
+      "type": "video"
+    },
+    {
       "title": "Python argparse docs",
       "url": "https://docs.python.org/3/library/argparse.html",
       "type": "link"
@@ -2810,6 +3490,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
     }
   ],
   "m12-4": [
+    {
+      "title": "Python 3 Programming Tutorial - Sockets simple port scanner",
+      "url": "https://www.youtube.com/watch?v=szm3camsf8k",
+      "type": "video"
+    },
     {
       "title": "Python socket module docs",
       "url": "https://docs.python.org/3/library/socket.html",
@@ -2828,6 +3513,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
   ],
   "m12-5": [
     {
+      "title": "Create Your Own Python SUBDOMAIN ENUMERATION TOOL",
+      "url": "https://www.youtube.com/watch?v=E5BklV9I2-4",
+      "type": "video"
+    },
+    {
       "title": "Requests library docs",
       "url": "https://requests.readthedocs.io",
       "type": "link"
@@ -2845,6 +3535,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
   ],
   "m12-6": [
     {
+      "title": "Website Bruteforcer using Python Requests [Ethical Hacking]",
+      "url": "https://www.youtube.com/watch?v=q397v79AeDs",
+      "type": "video"
+    },
+    {
       "title": "Requests library docs",
       "url": "https://requests.readthedocs.io",
       "type": "link"
@@ -2861,6 +3556,11 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
     }
   ],
   "m12-7": [
+    {
+      "title": "How to Use ChatGPT for Cybersecurity Full Tutorial",
+      "url": "https://www.youtube.com/watch?v=6vKRrskI8cc",
+      "type": "video"
+    },
     {
       "title": "Ollama",
       "url": "https://ollama.com",
