@@ -580,3 +580,147 @@
     animation: none;
   }
 }
+
+/* ===========================================================================
+ * REFINED LIGHT 3D — premium elevation layer over the light base.
+ * Glassmorphism, animated mesh gradients, layered depth, spring motion,
+ * pointer tilt and scroll reveals. One bold accent (ember orange) kept.
+ * Apply via .glass / .elev-* / .tilt3d / .reveal utilities + the MeshGradient,
+ * GlassCard, TiltCard and Reveal primitives in src/components/ui3d.
+ * ========================================================================= */
+:root {
+  --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-smooth: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Glass */
+  --glass-bg: rgba(255, 255, 255, 0.62);
+  --glass-bg-strong: rgba(255, 255, 255, 0.82);
+  --glass-border: rgba(255, 255, 255, 0.85);
+  --glass-blur: 18px;
+
+  /* Layered depth — soft, premium, light-canvas safe */
+  --elev-1: 0 1px 2px rgba(17, 24, 39, 0.05), 0 4px 12px rgba(17, 24, 39, 0.06);
+  --elev-2: 0 2px 6px rgba(17, 24, 39, 0.06), 0 14px 32px rgba(17, 24, 39, 0.1);
+  --elev-3: 0 10px 24px rgba(17, 24, 39, 0.1), 0 36px 70px rgba(17, 24, 39, 0.16);
+
+  /* Mesh hero palette (pastel, light) */
+  --mesh-1: 255, 176, 115; /* ember soft */
+  --mesh-2: 255, 122, 31; /* orange */
+  --mesh-3: 142, 68, 173; /* violet accent */
+  --mesh-4: 56, 189, 180; /* teal accent */
+}
+
+/* Soft layered page backdrop — a calm, premium wash under the dot grid. */
+.app-canvas {
+  background:
+    radial-gradient(1200px 600px at 12% -5%, rgba(255, 176, 115, 0.14), transparent 60%),
+    radial-gradient(1000px 700px at 100% 0%, rgba(142, 68, 173, 0.08), transparent 55%),
+    radial-gradient(900px 600px at 50% 120%, rgba(56, 189, 180, 0.07), transparent 60%),
+    hsl(var(--background));
+}
+
+/* Glassmorphic surface. */
+.glass {
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.3);
+  backdrop-filter: blur(var(--glass-blur)) saturate(1.3);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--elev-2);
+}
+.glass-strong {
+  background: var(--glass-bg-strong);
+  -webkit-backdrop-filter: blur(calc(var(--glass-blur) + 6px)) saturate(1.4);
+  backdrop-filter: blur(calc(var(--glass-blur) + 6px)) saturate(1.4);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--elev-3);
+}
+
+.elev-1 { box-shadow: var(--elev-1); }
+.elev-2 { box-shadow: var(--elev-2); }
+.elev-3 { box-shadow: var(--elev-3); }
+
+/* Pointer tilt — set --rx/--ry from JS (TiltCard). GPU-friendly. */
+.tilt3d {
+  transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg))
+    translateZ(0);
+  transition: transform 180ms var(--ease-smooth);
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+
+/* Scroll reveal — initial hidden, .is-in plays a spring-ish rise. */
+.reveal {
+  opacity: 0;
+  transform: translateY(18px);
+}
+.reveal.is-in {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity 0.6s var(--ease-smooth),
+    transform 0.7s var(--ease-smooth);
+}
+@media (prefers-reduced-motion: reduce) {
+  .reveal,
+  .reveal.is-in {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
+
+/* Spring hover-raise for interactive cards (richer than card-interactive). */
+.lift {
+  transition:
+    transform 0.28s var(--spring),
+    box-shadow 0.28s var(--ease-smooth);
+}
+.lift:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--elev-3);
+}
+@media (prefers-reduced-motion: reduce) {
+  .lift:hover { transform: none; }
+}
+
+/* Animated conic sheen for hero accents / rings. */
+@keyframes sheen-spin {
+  to { transform: rotate(1turn); }
+}
+.sheen::before {
+  content: "";
+  position: absolute;
+  inset: -40%;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0 20%,
+    rgba(255, 122, 31, 0.18) 40%,
+    transparent 55% 100%
+  );
+  animation: sheen-spin 8s linear infinite;
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sheen::before { animation: none; }
+}
+
+/* Animated mesh-gradient blobs (used by the MeshGradient primitive). */
+@keyframes mesh-drift-a {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(8%, 6%) scale(1.08); }
+  66% { transform: translate(-6%, 4%) scale(0.96); }
+}
+@keyframes mesh-drift-b {
+  0%, 100% { transform: translate(0, 0) scale(1.05); }
+  50% { transform: translate(-7%, -6%) scale(0.95); }
+}
+.mesh-blob {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(42px);
+  opacity: 0.55;
+  will-change: transform;
+}
+@media (prefers-reduced-motion: reduce) {
+  .mesh-blob { animation: none !important; }
+}

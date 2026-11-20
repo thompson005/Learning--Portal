@@ -24,6 +24,8 @@ import { RankLadder } from "@/components/gamification/RankLadder"
 import { ActivityHeatmap } from "@/components/gamification/ActivityHeatmap"
 import { CountUp } from "@/components/gamification/CountUp"
 import { Trophy } from "lucide-react"
+import { MeshGradient } from "@/components/ui3d/MeshGradient"
+import { Reveal } from "@/components/ui3d/Reveal"
 import {
   getOverallProgress,
   getRecentActivity,
@@ -146,8 +148,8 @@ export default function DashboardPage() {
   return (
     <div className="space-y-5">
       {/* Command hero */}
-      <section className="hero-gradient relative overflow-hidden p-6 md:p-8">
-        <div className="bg-dot-grid pointer-events-none absolute inset-0 opacity-40" />
+      <section className="glass-strong relative overflow-hidden rounded-3xl p-6 md:p-10">
+        <MeshGradient />
         <div className="relative flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
           <div className="min-w-0">
             <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
@@ -203,7 +205,7 @@ export default function DashboardPage() {
       <ActivityHeatmap />
 
       {/* Stat strip */}
-      <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <Reveal as="section" className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatTile
           icon={<BookOpen className="h-4 w-4" />}
           value={overall.topicsCompleted}
@@ -222,10 +224,10 @@ export default function DashboardPage() {
           total={PHASES.length}
           label="Phases complete"
         />
-        <div className="bg-card shadow-tile p-4">
+        <div className="glass lift rounded-2xl p-4">
           <RankBadge />
         </div>
-      </section>
+      </Reveal>
 
       {/* Continue + Up next */}
       <section className="grid grid-cols-1 gap-4 lg:grid-cols-5">
@@ -401,7 +403,7 @@ function StatTile({
   label: string
 }) {
   return (
-    <div className="bg-card shadow-tile p-4">
+    <div className="glass lift rounded-2xl p-4">
       <div className="flex items-center justify-between">
         <span className="text-brand-orange">{icon}</span>
         <span className="font-mono text-[11px] text-muted-foreground">

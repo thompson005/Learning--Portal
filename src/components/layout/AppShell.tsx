@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils"
 function Shell({ children }: { children: React.ReactNode }) {
   const { focus } = useFocusMode()
   return (
-    <div className="flex h-dvh w-full overflow-hidden">
+    <div className="app-canvas flex h-dvh w-full overflow-hidden">
       <div className={cn("hidden md:flex", focus && "md:hidden")}>
         <Sidebar />
       </div>
