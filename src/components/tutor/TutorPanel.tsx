@@ -126,6 +126,10 @@ export function TutorPanel() {
     async (question: string, history: { role: Msg["role"]; content: string }[]) => {
       const assistantId = nextId()
       setStreaming(true)
+      // Let the companion (Teki) show a "thinking" status while we stream.
+      window.dispatchEvent(
+        new CustomEvent("technieum:tutor-busy", { detail: { busy: true } }),
+      )
       setMessages((m) => [
         ...m,
         { id: assistantId, role: "assistant", content: "", pending: true },
@@ -181,6 +185,9 @@ export function TutorPanel() {
         )
       } finally {
         setStreaming(false)
+        window.dispatchEvent(
+          new CustomEvent("technieum:tutor-busy", { detail: { busy: false } }),
+        )
       }
     },
     [],
@@ -264,17 +271,8 @@ export function TutorPanel() {
       {/* Explain-selection floater (hidden while the panel is open) */}
       <SelectionAsk onAsk={askAboutSelection} disabled={render} />
 
-      {/* Launcher */}
-      {!open && (
-        <button
-          onClick={() => setOpen(true)}
-          aria-label="Open AI tutor"
-          className="fixed bottom-20 right-4 z-40 flex items-center gap-2 rounded-full bg-brand-orange px-4 py-3 text-sm font-semibold text-white shadow-lift transition-transform hover:scale-105 motion-reduce:transition-none md:bottom-6"
-        >
-          <Bot className="h-5 w-5" />
-          <span className="hidden sm:inline">Ask AI</span>
-        </button>
-      )}
+      {/* The launcher is the Teki companion (mounted in AppShell); it opens this
+          panel via the shared "technieum:open-tutor" event. */}
 
       {/* Panel */}
       {render && (

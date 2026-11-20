@@ -244,6 +244,11 @@ export function LabSlideshow({
     toast.success("Topic walkthrough complete!", {
       icon: <Sparkles className="h-4 w-4" />,
     })
+    window.dispatchEvent(
+      new CustomEvent("technieum:companion", {
+        detail: { mood: "happy", text: "You finished the walkthrough! 🎉" },
+      }),
+    )
     if (
       typeof window !== "undefined" &&
       !window.matchMedia?.("(prefers-reduced-motion: reduce)").matches

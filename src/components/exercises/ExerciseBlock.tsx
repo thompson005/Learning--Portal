@@ -126,6 +126,11 @@ function reward(storeKey: string) {
   if (earned) {
     toast.success("Exercise solved! +5 XP", { icon: <Zap className="h-4 w-4" /> })
     fireConfetti()
+    window.dispatchEvent(
+      new CustomEvent("technieum:companion", {
+        detail: { mood: "happy", text: "Nailed it! +5 XP 🎯" },
+      }),
+    )
   }
 }
 
