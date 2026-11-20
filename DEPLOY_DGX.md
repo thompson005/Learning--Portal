@@ -38,6 +38,11 @@ docker compose exec app npx prisma db push
 
 # 5. Seed the admin account (reads DEFAULT_ADMIN_* from the environment)
 docker compose exec app npx prisma db seed
+
+# 6. Pull the AI-tutor model (one-time; uses the DGX GPU). Small + fast:
+docker compose exec ollama ollama pull llama3.2:3b
+#    For stronger answers on the DGX, pull a larger model and set OLLAMA_MODEL:
+#    docker compose exec ollama ollama pull llama3.1:8b   # then OLLAMA_MODEL=llama3.1:8b in .env
 ```
 
 Then open `http://<host>:3000`. Admin lives at `http://<host>:3000/admin`
