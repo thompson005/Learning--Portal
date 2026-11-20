@@ -17,6 +17,13 @@ import { RankBadge } from "@/components/dashboard/RankBadge"
 import { AchievementsPanel } from "@/components/dashboard/AchievementsPanel"
 import { StreakBadge } from "@/components/dashboard/StreakBadge"
 import { EmptyState } from "@/components/shared/EmptyState"
+import { LevelCard } from "@/components/gamification/LevelCard"
+import { DailyGoalCard } from "@/components/gamification/DailyGoalCard"
+import { QuestsPanel } from "@/components/gamification/QuestsPanel"
+import { RankLadder } from "@/components/gamification/RankLadder"
+import { ActivityHeatmap } from "@/components/gamification/ActivityHeatmap"
+import { CountUp } from "@/components/gamification/CountUp"
+import { Trophy } from "lucide-react"
 import {
   getOverallProgress,
   getRecentActivity,
@@ -176,6 +183,25 @@ export default function DashboardPage() {
         </div>
       </section>
 
+      {/* Level + daily goal */}
+      <section className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <LevelCard />
+        <DailyGoalCard />
+      </section>
+
+      {/* Quests + rank ladder */}
+      <section className="grid grid-cols-1 gap-4 lg:grid-cols-5">
+        <div className="lg:col-span-3">
+          <QuestsPanel />
+        </div>
+        <div className="lg:col-span-2">
+          <RankLadder />
+        </div>
+      </section>
+
+      {/* Activity heatmap */}
+      <ActivityHeatmap />
+
       {/* Stat strip */}
       <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatTile
@@ -298,7 +324,18 @@ export default function DashboardPage() {
         </div>
       </section>
 
-      <AchievementsPanel />
+      <div className="space-y-2">
+        <AchievementsPanel />
+        <div className="flex justify-end">
+          <Link
+            href="/achievements"
+            className="flex items-center gap-1 text-sm font-medium text-brand-orange hover:underline"
+          >
+            <Trophy className="h-3.5 w-3.5" /> Full trophy case{" "}
+            <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
+        </div>
+      </div>
 
       {/* Recent activity */}
       <section className="bg-card shadow-tile p-6">
@@ -371,9 +408,10 @@ function StatTile({
           /{total}
         </span>
       </div>
-      <p className="mt-3 font-mono text-4xl font-semibold leading-none text-foreground">
-        {value}
-      </p>
+      <CountUp
+        value={value}
+        className="mt-3 block font-mono text-4xl font-semibold leading-none text-foreground"
+      />
       <p className="mt-1.5 text-xs text-muted-foreground">{label}</p>
     </div>
   )

@@ -16,6 +16,7 @@ import {
   ArrowRight,
   LogOut,
   Route,
+  Trophy,
 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
@@ -38,6 +39,7 @@ const MAIN_NAV = [
   { href: "/modules", label: "Modules", icon: BookOpen, badge: "count-modules" as const },
   { href: "/labs", label: "Labs", icon: FlaskConical, badge: "count-labs" as const },
   { href: "/progress", label: "Progress", icon: LineChart },
+  { href: "/achievements", label: "Achievements", icon: Trophy },
 ]
 
 const REFERENCE_NAV = [{ href: "/glossary", label: "Glossary", icon: Library }]
