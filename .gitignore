@@ -65,3 +65,8 @@ scripts/content-results.json
 
 scripts/video-workflow.js
 scripts/video-results.json
+
+# DB backups + live-sync secrets (never commit)
+/backups/*
+!/backups/.gitkeep
+.env.sync

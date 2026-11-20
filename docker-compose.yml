@@ -8,10 +8,33 @@
 # mounted socket), publishing it on a host port in LABS_PORT_MIN..MAX. Open that
 # range on the host firewall so learners can reach their lab target.
 
+# Cap container logs so they can never fill the disk.
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
 services:
   db:
     image: postgres:16
     restart: unless-stopped
+    logging: *logging
+    # Never published on the host: only reachable by the app / migrate / db-backup on the compose network.
+    shm_size: 256mb
+    stop_grace_period: 60s   # let Postgres shut down cleanly (no crash recovery on restart)
+    command:
+      - postgres
+      - -c
+      - password_encryption=scram-sha-256
+      - -c
+      - max_connections=100
+      - -c
+      - shared_buffers=256MB
+      - -c
+      - log_min_duration_statement=1000
+      - -c
+      - log_connections=off
     environment:
       POSTGRES_USER: technieum
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
@@ -31,6 +54,7 @@ services:
   ollama:
     image: ollama/ollama:latest
     restart: unless-stopped
+    logging: *logging
     environment:
       OLLAMA_KEEP_ALIVE: ${OLLAMA_KEEP_ALIVE:-10m}
       OLLAMA_MAX_LOADED_MODELS: ${OLLAMA_MAX_LOADED_MODELS:-2}
@@ -59,15 +83,64 @@ services:
     entrypoint: ["/bin/sh", "-c", "for m in $$LAB_MODELS; do ollama pull $$m; done"]
     networks: [labnet]
 
-  app:
-    build:
+  # One-shot: brings the schema up to date (Prisma Migrate) before the app starts.
+  # Baselines a database that was created earlier with `db push`. Never drops data.
+  migrate:
+    build: &appbuild
       context: .
       args:
         NEXT_PUBLIC_LABS_DOCKER: "1"
+    image: technieum-portal:local
+    restart: "no"
+    logging: *logging
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://technieum:${POSTGRES_PASSWORD:-change-me}@db:5432/technieum?schema=public
+      DB_SYNC_LEGACY: ${DB_SYNC_LEGACY:-0}
+    command: ["node", "scripts/db/migrate.mjs"]
+
+  # Verified pg_dump every day (BACKUP_HOUR_UTC) + once at start. Rotation: 14 daily /
+  # 8 weekly / 12 monthly into ./backups on the host. Healthy only if a backup is < 30h old.
+  db-backup:
+    image: postgres:16
+    restart: unless-stopped
+    logging: *logging
+    user: "${BACKUP_UID:-1000}:${BACKUP_GID:-1000}"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGHOST: db
+      PGUSER: technieum
+      PGPASSWORD: ${POSTGRES_PASSWORD:-change-me}
+      PGDATABASE: technieum
+      BACKUP_HOUR_UTC: ${BACKUP_HOUR_UTC:-02}
+      BACKUP_KEEP_DAILY: ${BACKUP_KEEP_DAILY:-14}
+      BACKUP_KEEP_WEEKLY: ${BACKUP_KEEP_WEEKLY:-8}
+      BACKUP_KEEP_MONTHLY: ${BACKUP_KEEP_MONTHLY:-12}
+    volumes:
+      - ./backups:/backups
+      - ./scripts/db/backup-loop.sh:/scripts/backup-loop.sh:ro
+    entrypoint: ["/bin/sh", "/scripts/backup-loop.sh"]
+    healthcheck:
+      test: ["CMD-SHELL", "find /backups/daily -name '*.dump' -mmin -1800 | grep -q ."]
+      interval: 15m
+      timeout: 10s
+      retries: 1
+      start_period: 10m
+
+  app:
+    build: *appbuild
+    image: technieum-portal:local
+    logging: *logging
     restart: unless-stopped
     depends_on:
       db:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     environment:
       DATABASE_URL: postgresql://technieum:${POSTGRES_PASSWORD:-change-me}@db:5432/technieum?schema=public
       SESSION_SECRET: ${SESSION_SECRET:-change-me-to-a-long-random-string}

@@ -33,8 +33,8 @@ cp .env.docker.example .env
 # 3. Build + start (first build takes a few minutes)
 docker compose up -d --build
 
-# 4. Create the database tables
-docker compose exec app npx prisma db push
+# 4. (nothing to do) the one-shot `migrate` service creates/updates the tables
+#    automatically before the app starts — see "Database" below.
 
 # 5. Seed the admin account (reads DEFAULT_ADMIN_* from the environment)
 docker compose exec app npx prisma db seed
@@ -44,12 +44,45 @@ docker compose exec app npx prisma db seed
 Then open `http://<host>:3000`. Admin lives at `http://<host>:3000/admin`
 (unlisted) with the `DEFAULT_ADMIN_*` credentials you set.
 
+## Database: migrations, backups, sync from the live site
+
+**Schema.** Managed with Prisma Migrate (`prisma/migrations`). The one-shot `migrate`
+service runs before the app on every `docker compose up`. A database created earlier
+with `db push` is checked against the schema and baselined automatically; if it differs
+it stops (the app will not start on a mismatched DB) and tells you how to align it
+(`DB_SYNC_LEGACY=1`, after a backup). It never drops data.
+
+**Backups.** The `db-backup` service takes a verified `pg_dump` at start and daily at
+`BACKUP_HOUR_UTC`, into `./backups/{daily,weekly,monthly}` (14 / 8 / 12 kept). A backup
+only counts if the archive verifies; the container turns unhealthy if none is < 30h old
+(`docker compose ps`). Make the folder yours first: `mkdir -p backups` as your user and
+set `BACKUP_UID/GID` to `id` output.
+```bash
+scripts/db/backup-now.sh                       # backup now
+scripts/db/restore.sh backups/daily/<file>.dump   # restore (safety backup first, asks to confirm)
+```
+Backups on the same disk do not survive a disk failure: copy `./backups` off the box
+too, e.g. a nightly `rsync -a ./backups/ user@other-host:/srv/technieum-backups/`.
+They contain password hashes: keep the folder private (not in git, not shared).
+
+**Sync from the live site (lms.technieum.cloud).** One-way, re-runnable; copies the live
+*data* into this host (schema always comes from this repo).
+1. Get the live DB's *direct (non-pooled)* connection string (Vercel project -> Settings
+   -> Environment Variables, or the DB provider's dashboard).
+2. Put it in `.env.sync` (gitignored): `SRC_DATABASE_URL='postgresql://...sslmode=require'`
+   then `chmod 600 .env.sync`.
+3. `scripts/db/sync-from-live.sh` — checks schema match, backs up local first, replaces
+   local data with the live snapshot in one transaction, and compares row counts.
+Not copied: login sessions (`Session`, `UserSession`) and `LabRun`; everyone logs in
+again. Each run **replaces** local data, so accounts created only on this host are lost
+(they are in the safety backup).
+
 ## Updating to a new version
 
 ```bash
 git pull
 docker compose up -d --build
-docker compose exec app npx prisma db push   # only if the schema changed
+# schema changes apply automatically via the `migrate` service on every `up`
 ```
 
 ## How the labs run (one-lab-per-user)
