@@ -3685,6 +3685,7 @@ export const LABS: Lab[] = [
     completionIndicator: `Screenshots of an alert() firing on each of Mutillidae's three XSS pages -- Reflected (First Order), Persistent (Second Order), and DOM-Based -- at security level 0, plus one screenshot showing the same payload neutralised after the security level was raised.`,
     dockerImage: "citizenstig/nowasp",
     containerPort: 80,
+    imagePlatform: "linux/amd64",
     slides: [
       {
         title: "Set up Mutillidae and confirm level 0",
@@ -3828,8 +3829,8 @@ export const LABS: Lab[] = [
       },
     ],
     completionIndicator: `The raw HTTP response (browser or curl) showing DSVW returning username/password rows from a UNION-based SQL injection payload, paired with the specific line of DSVW's Python source that built the query via string formatting.`,
-    dockerImage: "appsecco/dsvw",
-    containerPort: 8000,
+    buildContext: "https://github.com/stamparm/DSVW.git#master",
+    containerPort: 65412,
     slides: [
       {
         title: "One tiny app, read the source",
@@ -3838,9 +3839,9 @@ export const LABS: Lab[] = [
           type: "container-arch",
           hostLabel: "localhost:18080",
           containerLabel: "dsvw container",
-          image: "appsecco/dsvw",
+          image: "DSVW (built from source)",
           hostPort: 18080,
-          containerPort: 8000,
+          containerPort: 65412,
         },
       },
       {
@@ -3976,6 +3977,7 @@ export const LABS: Lab[] = [
     completionIndicator: `Screenshots showing (a) another user's data returned after changing only an id/user parameter (IDOR) and (b) a privileged Mutillidae page reached directly by URL with no admin login, both at security level 0, plus confirmation that raising the security level blocks the same two requests.`,
     dockerImage: "citizenstig/nowasp",
     containerPort: 80,
+    imagePlatform: "linux/amd64",
     slides: [
       {
         title: "Two shapes of one flaw",
@@ -4636,6 +4638,7 @@ export const LABS: Lab[] = [
     completionIndicator: `Screenshots showing the bWAPP-hosted PHP shell returning ?cmd=id output at low security, plus the same code execution achieved after bypassing the medium Content-Type check (relabeled image/jpeg) and the high extension check (alternate/double extension), with the exact bypass noted per level.`,
     dockerImage: "raesene/bwapp",
     containerPort: 80,
+    imagePlatform: "linux/amd64",
     slides: [
       {
         title: "Install bWAPP, then upload at low",
@@ -4778,8 +4781,8 @@ export const LABS: Lab[] = [
       },
     ],
     completionIndicator: `The raw response showing DSVW evaluating a single-brace format-field payload ({0.__class__} returning a Python class) and a follow-up payload reaching the os module (e.g. {1.__dict__[system]} rendering the os.system built-in), paired with the DSVW source line -- tmpl.format(open(__file__), os) -- that rendered user input as the format string.`,
-    dockerImage: "appsecco/dsvw",
-    containerPort: 8000,
+    buildContext: "https://github.com/stamparm/DSVW.git#master",
+    containerPort: 65412,
     slides: [
       {
         title: "One tiny app, a readable sink",
@@ -4788,9 +4791,9 @@ export const LABS: Lab[] = [
           type: "container-arch",
           hostLabel: "localhost:18080",
           containerLabel: "dsvw container",
-          image: "appsecco/dsvw",
+          image: "DSVW (built from source)",
           hostPort: 18080,
-          containerPort: 8000,
+          containerPort: 65412,
         },
       },
       {
@@ -4929,6 +4932,7 @@ export const LABS: Lab[] = [
     completionIndicator: `Screenshots of the intercepted bWAPP Order Tickets POST with a tampered ticket_price (and/or negative ticket_quantity) accepted by the server at low security, plus confirmation that raising the security level rejects or re-derives the same tampered request.`,
     dockerImage: "raesene/bwapp",
     containerPort: 80,
+    imagePlatform: "linux/amd64",
     slides: [
       {
         title: "Install bWAPP, place a baseline order",
@@ -6357,6 +6361,7 @@ export const LABS: Lab[] = [
       "Screenshot showing a successful exploit at security level 'low' and the same attack re-run at 'medium', for all three categories (SQLi, Stored XSS, OS Command Injection), with a note on what the medium filter changed.",
     dockerImage: "raesene/bwapp",
     containerPort: 80,
+    imagePlatform: "linux/amd64",
     instructions: [
       `Click 'Start Lab' above, then browse to http://localhost:18080/install.php once and click the button to install bWAPP's database -- a one-time step every fresh bWAPP container needs`,
       `Log in with bWAPP's documented default credentials: bee / bug`,
@@ -6439,6 +6444,7 @@ export const LABS: Lab[] = [
       "Burp Repeater screenshot showing the successful LFI request/response against the vulnerable 'page' parameter, captured both with hints enabled and with the security level reset to hints-off.",
     dockerImage: "citizenstig/nowasp",
     containerPort: 80,
+    imagePlatform: "linux/amd64",
     instructions: [
       `Click 'Start Lab' above, then browse to http://localhost:18080/set-up-database.php once and click the setup button (Mutillidae's own one-time database initialization)`,
       `Configure Burp Suite (or your browser) to proxy through 127.0.0.1:8080 and confirm you can see Mutillidae's traffic in Burp's HTTP history`,
@@ -6518,8 +6524,8 @@ export const LABS: Lab[] = [
     },
     completionIndicator:
       "A written tally of categories attempted vs solved within the 45-minute window, with the working payload noted for each solved category.",
-    dockerImage: "appsecco/dsvw",
-    containerPort: 8000,
+    buildContext: "https://github.com/stamparm/DSVW.git#master",
+    containerPort: 65412,
     instructions: [
       `Click 'Start Lab' above, then browse to http://localhost:18080/ to see DSVW's full list of vulnerability categories on the landing page`,
       `Set a 45-minute timer before you open the first category`,

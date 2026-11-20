@@ -2,7 +2,9 @@ import { execFile } from "node:child_process"
 import { promisify } from "node:util"
 
 import { prisma as db } from "@/lib/server/db"
-import { LABS } from "@/lib/data/labs"
+import { findLab } from "@/lib/data/tracks/registry"
+import { hasDockerTarget } from "@/lib/labTarget"
+import type { Lab } from "@/types"
 
 const execFileAsync = promisify(execFile)
 
@@ -122,10 +124,83 @@ export async function stopUserActiveLabRun(userId: string) {
   return active
 }
 
+// ---- image preparation ------------------------------------------------------
+
+/** Builds in flight, keyed by image tag, so two learners starting the same
+ *  build-from-source lab at once share ONE build instead of racing. */
+const inflightBuilds = new Map<string, Promise<void>>()
+
+async function imageExists(tag: string): Promise<boolean> {
+  try {
+    await execFileAsync("docker", ["image", "inspect", tag])
+    return true
+  } catch {
+    return false
+  }
+}
+
+function stderrTail(err: unknown, n = 700): string {
+  const e = err as { stderr?: string; message?: string }
+  return ((e?.stderr || e?.message || "") + "").trim().slice(-n)
+}
+
+/** Returns the image to run: pulls a published image, or builds the lab from its
+ *  Git repo once (then reuses the cached image on every later start). */
+async function ensureImage(lab: Lab): Promise<string> {
+  if (lab.dockerImage) {
+    const args = ["pull"]
+    if (lab.imagePlatform) args.push("--platform", lab.imagePlatform)
+    args.push(lab.dockerImage)
+    // Best-effort refresh; a cached image still runs if the pull fails.
+    await execFileAsync("docker", args, { timeout: 240_000 }).catch(() => {})
+    return lab.dockerImage
+  }
+
+  const ctx = lab.buildContext as string
+  // Build sources come from our own lab data, but never build from anywhere else.
+  if (!/^https:\/\/github\.com\//.test(ctx)) {
+    throw new Error("This lab's build source is not an allowed repository.")
+  }
+  const tag = `technieum-lab-img-${lab.id.toLowerCase()}`
+  if (await imageExists(tag)) return tag
+
+  let build = inflightBuilds.get(tag)
+  if (!build) {
+    build = (async () => {
+      const args = ["build", "-t", tag]
+      if (lab.imagePlatform) args.push("--platform", lab.imagePlatform)
+      args.push(ctx)
+      await execFileAsync("docker", args, {
+        timeout: 20 * 60_000,
+        maxBuffer: 32 * 1024 * 1024,
+      })
+    })().finally(() => inflightBuilds.delete(tag))
+    inflightBuilds.set(tag, build)
+  }
+  try {
+    await build
+  } catch (err) {
+    throw new Error(
+      `Building the lab from source failed (${ctx}). ${stderrTail(err)}`,
+    )
+  }
+  return tag
+}
+
+function explainExit(logs: string, lab: Lab): string {
+  if (/exec format error/i.test(logs) || /no matching manifest/i.test(logs)) {
+    const hint = lab.imagePlatform
+      ? "It needs the one-time amd64 emulation setup on the host (see DEPLOY_DGX.md)."
+      : "An admin needs to switch it to an ARM-compatible image."
+    return `This lab's image is not built for the server's CPU (ARM64). ${hint}\n\nLast logs:\n${logs}`
+  }
+  return `Container exited immediately after starting. Last logs:\n${logs}`
+}
+
 export async function startLab(userId: string, labId: string) {
-  const lab = LABS.find((l) => l.id === labId)
+  const lab = findLab(labId)
   if (!lab) throw new Error("Unknown lab id.")
-  if (!lab.dockerImage || !lab.containerPort) {
+  if (!hasDockerTarget(lab)) {
     throw new Error("This lab has no runnable Docker environment configured.")
   }
 
@@ -160,10 +235,7 @@ export async function startLab(userId: string, labId: string) {
   })
 
   try {
-    // Best-effort image refresh; a cached image still runs if this fails.
-    await execFileAsync("docker", ["pull", lab.dockerImage], {
-      timeout: 240_000,
-    }).catch(() => {})
+    const image = await ensureImage(lab)
 
     const { stdout } = await execFileAsync(
       "docker",
@@ -172,6 +244,7 @@ export async function startLab(userId: string, labId: string) {
         "-d",
         "--name",
         containerName,
+        ...(lab.imagePlatform ? ["--platform", lab.imagePlatform] : []),
         "--memory",
         MEM_LIMIT,
         "--cpus",
@@ -184,17 +257,17 @@ export async function startLab(userId: string, labId: string) {
         LAB_BIND_IP
           ? `${LAB_BIND_IP}:${port}:${lab.containerPort}`
           : `${port}:${lab.containerPort}`,
-        lab.dockerImage,
+        image,
       ],
-      { timeout: 30_000 },
+      { timeout: 60_000 },
     )
     const containerId = stdout.trim()
 
-    await new Promise((resolve) => setTimeout(resolve, 2000))
+    await new Promise((resolve) => setTimeout(resolve, 2500))
     if (!(await isContainerRunning(containerName))) {
       const logs = await containerLogsTail(containerName)
       await execFileAsync("docker", ["rm", "-f", containerName]).catch(() => {})
-      const message = `Container exited immediately after starting. Last logs:\n${logs}`
+      const message = explainExit(logs, lab)
       await db.labRun.update({
         where: { id: run.id },
         data: { status: "failed", errorMessage: message.slice(0, 500) },

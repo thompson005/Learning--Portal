@@ -37,6 +37,11 @@ import { getXp, XP_PER_LAB } from "@/lib/store/gamification"
 import { RESOURCE_ADDITIONS } from "@/lib/data/resourceAdditions"
 import { LabSlideshow } from "@/components/labs/LabSlideshow"
 import { HintList } from "@/components/labs/HintList"
+import {
+  buildsFromSource,
+  dockerTargetSource,
+  hasDockerTarget,
+} from "@/lib/labTarget"
 import type { Lab, Status } from "@/types"
 
 const DIFFICULTY_VARIANT = {
@@ -214,7 +219,9 @@ function LabEnvironment({ lab }: { lab: Lab }) {
       </p>
       <p className="text-xs text-muted-foreground">
         Spins up{" "}
-        <code className="rounded bg-muted px-1 py-0.5">{lab.dockerImage}</code>{" "}
+        <code className="rounded bg-muted px-1 py-0.5">
+          {dockerTargetSource(lab)}
+        </code>{" "}
         as your own lab target. You can run one lab at a time — starting this
         one stops any other lab you have open.
       </p>
@@ -269,8 +276,9 @@ function LabEnvironment({ lab }: { lab: Lab }) {
       </div>
       {busy && !isThisRunning && (
         <p className="text-xs text-muted-foreground">
-          First launch pulls the image and can take a few minutes — later
-          launches are instant.
+          {buildsFromSource(lab)
+            ? "First launch builds this lab from source and can take several minutes — later launches are instant."
+            : "First launch pulls the image and can take a few minutes — later launches are instant."}
         </p>
       )}
       {error && <p className="text-xs text-brand-red">{error}</p>}
@@ -368,7 +376,7 @@ export function LabCard({ lab, moduleName }: { lab: Lab; moduleName: string }) {
             <span className="inline-flex items-center gap-1 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
               {lab.difficulty}
             </span>
-            {lab.dockerImage && (
+            {hasDockerTarget(lab) && (
               <span className="inline-flex items-center gap-1 rounded-full bg-brand-blue/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-brand-blue">
                 <Container className="h-3 w-3" /> Docker
               </span>
@@ -548,11 +556,11 @@ export function LabCard({ lab, moduleName }: { lab: Lab; moduleName: string }) {
             </div>
           )}
 
-          {DOCKER_ENABLED && lab.dockerImage && lab.containerPort && (
+          {DOCKER_ENABLED && hasDockerTarget(lab) && (
             <LabEnvironment lab={lab} />
           )}
 
-          {!DOCKER_ENABLED && lab.dockerImage && !lab.onlineAlternative && (
+          {!DOCKER_ENABLED && hasDockerTarget(lab) && !lab.onlineAlternative && (
             <div className="rounded-lg border border-border bg-muted/30 p-3">
               <p className="flex items-center gap-1.5 font-mono text-xs font-semibold uppercase tracking-widest text-muted-foreground">
                 <Container className="h-3.5 w-3.5" /> Local Docker lab
@@ -560,7 +568,7 @@ export function LabCard({ lab, moduleName }: { lab: Lab; moduleName: string }) {
               <p className="mt-1 text-xs text-muted-foreground">
                 This lab&apos;s target runs in Docker (
                 <code className="rounded bg-muted px-1 py-0.5">
-                  {lab.dockerImage}
+                  {dockerTargetSource(lab)}
                 </code>
                 ). Follow the walkthrough and success criteria above; run the
                 target on your own machine, then mark it complete below when

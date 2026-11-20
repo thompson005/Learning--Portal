@@ -20,6 +20,7 @@ import { LabCard } from "@/components/labs/LabCard"
 import { LabFilters, type LabFilterState } from "@/components/labs/LabFilters"
 import { activeLabs, activeCurriculum } from "@/lib/data/tracks/registry"
 import { useActiveTrackId } from "@/lib/data/tracks/useTrack"
+import { hasDockerTarget } from "@/lib/labTarget"
 import { getProgress } from "@/lib/store/progress"
 import { XP_PER_LAB } from "@/lib/store/gamification"
 
@@ -127,7 +128,7 @@ export default function LabsPage() {
     (s) => s === "in_progress",
   ).length
   const remaining = activeLabs().length - completed - inProgress
-  const dockerCount = activeLabs().filter((l) => l.dockerImage).length
+  const dockerCount = activeLabs().filter(hasDockerTarget).length
   const percent =
     activeLabs().length === 0 ? 0 : Math.round((completed / activeLabs().length) * 100)
   const xpEarned = completed * XP_PER_LAB

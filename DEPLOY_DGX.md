@@ -64,6 +64,29 @@ docker compose exec app npx prisma db push   # only if the schema changed
 - Each lab container runs with `--memory`, `--cpus`, `--pids-limit`, and
   `--security-opt no-new-privileges`.
 
+## Lab images: pulled, built from source, or emulated
+
+A lab runs in one click when it has a **prebuilt image** or a **Git repo the
+portal can `docker build`** (see `dockerImage` / `buildContext` in the lab data).
+
+- **Build-from-source labs** (MCPGoat, LLMVault, DVGA, DSVW) are built once on the
+  first start — expect a few minutes — then cached as `technieum-lab-img-<lab>`.
+  The app image includes `git` and the buildx plugin for this. Two learners
+  starting the same lab at once share one build.
+- **amd64-only images** (Mutillidae `citizenstig/nowasp`, bWAPP `raesene/bwapp`)
+  have no ARM build. They run under CPU emulation, which needs this **one-time**
+  host setup (persists across reboots):
+
+  ```bash
+  sudo apt-get install -y qemu-user-static binfmt-support
+  ```
+
+  Without it those labs fail with an "image is not built for the server's CPU"
+  message. They are slower under emulation; raise `LABS_MEM` if they run out of RAM.
+- **Not one-click:** labs that need a database or several services (vuln-bank,
+  NodeGoat, crAPI, BrokenCrystals, most AI red-team stacks) or an OpenAI key keep
+  step-by-step instructions instead of a Start button.
+
 ## Running efficiently on the DGX
 
 - Size `LABS_MAX_CONCURRENT` to RAM: with `LABS_MEM=512m`, 24 labs ≈ 12 GB — well

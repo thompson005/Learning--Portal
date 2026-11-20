@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 
 import { startLab } from "@/lib/server/dockerLabs"
 import { getCurrentUserId } from "@/lib/server/userAuth"
-import { LABS } from "@/lib/data/labs"
+import { findLab } from "@/lib/data/tracks/registry"
 
 export const runtime = "nodejs"
 export const maxDuration = 300
@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json().catch(() => null)
   const labId = typeof body?.labId === "string" ? body.labId : null
-  if (!labId || !LABS.some((l) => l.id === labId)) {
+  if (!labId || !findLab(labId)) {
     return NextResponse.json({ error: "Unknown lab id." }, { status: 400 })
   }
 

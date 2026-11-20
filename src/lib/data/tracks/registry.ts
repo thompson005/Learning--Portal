@@ -112,6 +112,17 @@ export function getActiveTrack(): Track {
   return getTrack(getActiveTrackId())
 }
 
+/** Look up a lab by id across ALL tracks (Offensive core + extras, AI, Cloud).
+ *  Server code must use this — never a single track's list — or labs from the
+ *  other tracks are reported as "Unknown lab id". */
+export function findLab(labId: string): Lab | undefined {
+  for (const t of TRACKS) {
+    const lab = t.labs.find((l) => l.id === labId)
+    if (lab) return lab
+  }
+  return undefined
+}
+
 // Which track owns a given module/topic/lab id (ids are globally unique).
 export function trackForModuleId(moduleId: string): Track | undefined {
   return TRACKS.find((t) => t.curriculum.some((m) => m.id === moduleId))

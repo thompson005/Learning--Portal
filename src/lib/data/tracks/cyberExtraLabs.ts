@@ -9,8 +9,8 @@ export const CYBER_EXTRA_LABS: Lab[] = [
     "week": 9,
     "moduleId": "m10",
     "title": "vuln-bank (Commando-X) — Vulnerable Bank",
-    "description": "Learner attacks a deliberately vulnerable online-banking web app: broken auth/JWT, BOLA/BOPLA on money-transfer and loan endpoints, GraphQL SQLi + introspection, file-upload path traversal/SSRF, race conditions on transfers, plus an AI support-chatbot for prompt-injection and authz-bypass practice. VERIFIED: repo live, docker-compose.yml present, app on port 5000, MIT license. No published Docker Hub image so buildFromRepo. Flask + PostgreSQL on multi-arch base images -> builds natively on ARM64 (no prebuilt manifest to check). AI chatbot = 'Real LLM with DeepSeek API / Mock Mode'; mock fallback auto-engages when no API key set -> use that to avoid DeepSeek spend (TIP LLM spend gate). THE vuln-bank the request asked for.",
-    "platform": "Self-host: build from GitHub repo",
+    "description": "Learner attacks a deliberately vulnerable online-banking web app: broken auth/JWT, BOLA/BOPLA on money-transfer and loan endpoints, GraphQL SQLi + introspection, file-upload path traversal/SSRF, race conditions on transfers, plus an AI support-chatbot for prompt-injection and authz-bypass practice. VERIFIED: repo live, docker-compose.yml present, app on port 5000, MIT license. No published Docker Hub image so buildFromRepo. Flask + PostgreSQL on multi-arch base images -> builds natively on ARM64 (no prebuilt manifest to check). AI chatbot = 'Real LLM with DeepSeek API / Mock Mode'; mock fallback auto-engages when no API key set -> use that to avoid DeepSeek spend (TIP LLM spend gate). THE vuln-bank the request asked for. Needs a PostgreSQL service alongside the app (docker-compose).",
+    "platform": "Self-host (multi-service)",
     "difficulty": "medium",
     "estimatedHours": 2,
     "objective": "Learner attacks a deliberately vulnerable online-banking web app: broken auth/JWT, BOLA/BOPLA on money-transfer and loan endpoints, GraphQL SQLi + introspection, file-upload path traversal/SSRF, race conditions on transfers, plus an AI support-chatbot for prompt-injection and authz-bypass practice.",
@@ -102,8 +102,8 @@ export const CYBER_EXTRA_LABS: Lab[] = [
     "week": 9,
     "moduleId": "m9",
     "title": "OWASP NodeGoat",
-    "description": "Deliberately vulnerable Node.js/Express + MongoDB retirement-savings app mapped to the OWASP Top 10, with an in-app /tutorial walking through each flaw (NoSQLi, SSJS injection, insecure direct object refs, weak crypto). VERIFIED: Dockerfile + docker-compose.yml present (app + MongoDB), default port 4000 (PORT env overrides; npm run dev uses 5000). No published official image -> buildFromRepo. Node + Mongo base images are multi-arch so builds natively on ARM64. 401k/finance app, good complement to vuln-bank.",
-    "platform": "Self-host: build from GitHub repo",
+    "description": "Deliberately vulnerable Node.js/Express + MongoDB retirement-savings app mapped to the OWASP Top 10, with an in-app /tutorial walking through each flaw (NoSQLi, SSJS injection, insecure direct object refs, weak crypto). VERIFIED: Dockerfile + docker-compose.yml present (app + MongoDB), default port 4000 (PORT env overrides; npm run dev uses 5000). No published official image -> buildFromRepo. Node + Mongo base images are multi-arch so builds natively on ARM64. 401k/finance app, good complement to vuln-bank. Needs a MongoDB service alongside the app (docker-compose).",
+    "platform": "Self-host (multi-service)",
     "difficulty": "medium",
     "estimatedHours": 2,
     "objective": "Deliberately vulnerable Node.js/Express + MongoDB retirement-savings app mapped to the OWASP Top 10, with an in-app /tutorial walking through each flaw (NoSQLi, SSJS injection, insecure direct object refs, weak crypto).",
@@ -127,8 +127,8 @@ export const CYBER_EXTRA_LABS: Lab[] = [
     "week": 9,
     "moduleId": "m10",
     "title": "OWASP crAPI (completely ridiculous API)",
-    "description": "Realistic microservices car-service app for API security practice: BOLA, mass assignment, broken auth/JWT, SSRF, unauthenticated internal endpoints -- the reference lab for the OWASP API Security Top 10. VERIFIED: crapi/crapi-web exists, latest tag carries BOTH linux/amd64 and linux/arm64 -> arm64 upgraded from unknown to yes (the whole crapi/* set is published multi-arch; a dedicated chatbot-arm64 tag also exists). Multi-container (web/identity/community/workshop + Postgres/Mongo/MailHog), accessed on host port 8888. Needs Docker Compose >=1.27; raise crapi-identity mem limit 256M->512M if it OOMs. Apache-2.0. Heaviest lab -- not a single pull+run, needs the compose stack.",
-    "platform": "Self-host: build from GitHub repo",
+    "description": "Realistic microservices car-service app for API security practice: BOLA, mass assignment, broken auth/JWT, SSRF, unauthenticated internal endpoints -- the reference lab for the OWASP API Security Top 10. VERIFIED: crapi/crapi-web exists, latest tag carries BOTH linux/amd64 and linux/arm64 -> arm64 upgraded from unknown to yes (the whole crapi/* set is published multi-arch; a dedicated chatbot-arm64 tag also exists). Multi-container (web/identity/community/workshop + Postgres/Mongo/MailHog), accessed on host port 8888. Needs Docker Compose >=1.27; raise crapi-identity mem limit 256M->512M if it OOMs. Apache-2.0. Heaviest lab -- not a single pull+run, needs the compose stack. A multi-service microservice stack (docker-compose, port 8888 + mailhog).",
+    "platform": "Self-host (multi-service)",
     "difficulty": "hard",
     "estimatedHours": 2,
     "objective": "Realistic microservices car-service app for API security practice: BOLA, mass assignment, broken auth/JWT, SSRF, unauthenticated internal endpoints -- the reference lab for the OWASP API Security Top 10.",
@@ -173,8 +173,8 @@ export const CYBER_EXTRA_LABS: Lab[] = [
     "week": 9,
     "moduleId": "m9",
     "title": "BrokenCrystals",
-    "description": "Full-stack vulnerable app (NestJS/Node + React + PostgreSQL) with a large catalogue of real-world bugs: SQLi, SSRF, XXE, JWT key confusion, path traversal, CSS/HTML injection, OAuth flaws -- closer to a production-looking app than DVWA. VERIFIED: brightsec/brokencrystals:latest exists but is amd64-ONLY (every tag incl latest/stable/unstable is linux/amd64) -> arm64 is no, a direct pull+run would need --platform linux/amd64 emulation on the DGX Spark. Recommend buildFromRepo=true: Node/Postgres base images are multi-arch so docker-compose builds natively on ARM64. Internal port 3000. (Prefer brightsec over the stale neuralegion/brokencrystals image.) ARM64: not supported — run elsewhere.",
-    "platform": "Self-host: build from GitHub repo",
+    "description": "Full-stack vulnerable app (NestJS/Node + React + PostgreSQL) with a large catalogue of real-world bugs: SQLi, SSRF, XXE, JWT key confusion, path traversal, CSS/HTML injection, OAuth flaws -- closer to a production-looking app than DVWA. VERIFIED: brightsec/brokencrystals:latest exists but is amd64-ONLY (every tag incl latest/stable/unstable is linux/amd64) -> arm64 is no, a direct pull+run would need --platform linux/amd64 emulation on the DGX Spark. Recommend buildFromRepo=true: Node/Postgres base images are multi-arch so docker-compose builds natively on ARM64. Internal port 3000. (Prefer brightsec over the stale neuralegion/brokencrystals image.) Needs Postgres, Keycloak and more (docker-compose); the published images are amd64-only.",
+    "platform": "Self-host (multi-service)",
     "difficulty": "hard",
     "estimatedHours": 2,
     "objective": "Full-stack vulnerable app (NestJS/Node + React + PostgreSQL) with a large catalogue of real-world bugs: SQLi, SSRF, XXE, JWT key confusion, path traversal, CSS/HTML injection, OAuth flaws -- closer to a production-looking app than DVWA.",
@@ -203,8 +203,8 @@ export const CYBER_EXTRA_LABS: Lab[] = [
     "week": 9,
     "moduleId": "m9",
     "title": "bWAPP (buggy Web Application)",
-    "description": "PHP/MySQL app with 100+ catalogued web vulnerabilities (SQLi, XSS, RCE, LDAP/XML injection, HTTP smuggling) -- broad coverage for drilling many bug classes, selectable by difficulty. VERIFIED: raesene/bwapp:latest exists but is amd64-ONLY (single linux/amd64 image) and the repo/image are ARCHIVED, >4 yrs old -> arm64 no; on the ARM64 runner it only runs under --platform linux/amd64 (qemu) emulation. Internal port 80; must hit /install.php once before use, creds bee/bug. Legacy/unmaintained -- keep only for breadth; consider dropping if native-arm64 is a hard requirement. ARM64: not supported — run elsewhere.",
-    "platform": "Self-host: build from GitHub repo",
+    "description": "PHP/MySQL app with 100+ catalogued web vulnerabilities (SQLi, XSS, RCE, LDAP/XML injection, HTTP smuggling) -- broad coverage for drilling many bug classes, selectable by difficulty. VERIFIED: raesene/bwapp:latest exists but is amd64-ONLY (single linux/amd64 image) and the repo/image are ARCHIVED, >4 yrs old -> arm64 no; on the ARM64 runner it only runs under --platform linux/amd64 (qemu) emulation. Internal port 80; must hit /install.php once before use, creds bee/bug. Legacy/unmaintained -- keep only for breadth; consider dropping if native-arm64 is a hard requirement. The image is amd64-only, so on the ARM DGX it runs under CPU emulation (needs the one-time qemu setup in DEPLOY_DGX.md) and is slower.",
+    "platform": "In-house Docker (one-click)",
     "difficulty": "easy",
     "estimatedHours": 2,
     "objective": "PHP/MySQL app with 100+ catalogued web vulnerabilities (SQLi, XSS, RCE, LDAP/XML injection, HTTP smuggling) -- broad coverage for drilling many bug classes, selectable by difficulty.",
@@ -220,48 +220,51 @@ export const CYBER_EXTRA_LABS: Lab[] = [
         "url": "https://github.com/raesene/bWAPP-Docker",
         "type": "tool"
       }
+    ],
+    "dockerImage": "raesene/bwapp",
+    "containerPort": 80,
+    "imagePlatform": "linux/amd64"
+  },
+  {
+    "id": "xl-20",
+    "number": 120,
+    "week": 1,
+    "moduleId": "m4",
+    "title": "OWASP WrongSecrets",
+    "description": "A rock-solid, ARM64-native, single-container secrets/appsec range — ideal one-click lab for the DGX.",
+    "platform": "In-house Docker (one-click)",
+    "difficulty": "medium",
+    "estimatedHours": 2,
+    "objective": "Work through 30+ challenges on how secrets leak — hardcoded secrets, env vars, Docker layers, memory, config and base64/encryption mistakes.",
+    "dockerImage": "jeroenwillemsen/wrongsecrets:latest-no-vault",
+    "containerPort": 8080,
+    "resources": [
+      {
+        "title": "OWASP WrongSecrets — GitHub repo",
+        "url": "https://github.com/OWASP/wrongsecrets",
+        "type": "tool"
+      }
     ]
   },
-{
-  "id": "xl-20",
-  "number": 120,
-  "week": 1,
-  "moduleId": "m4",
-  "title": "OWASP WrongSecrets",
-  "description": "A rock-solid, ARM64-native, single-container secrets/appsec range — ideal one-click lab for the DGX.",
-  "platform": "In-house Docker (one-click)",
-  "difficulty": "medium",
-  "estimatedHours": 2,
-  "objective": "Work through 30+ challenges on how secrets leak — hardcoded secrets, env vars, Docker layers, memory, config and base64/encryption mistakes.",
-  "dockerImage": "jeroenwillemsen/wrongsecrets:latest-no-vault",
-  "containerPort": 8080,
-  "resources": [
-    {
-      "title": "OWASP WrongSecrets — GitHub repo",
-      "url": "https://github.com/OWASP/wrongsecrets",
-      "type": "tool"
-    }
-  ]
-},
-{
-  "id": "xl-21",
-  "number": 121,
-  "week": 1,
-  "moduleId": "m10",
-  "title": "Damn Vulnerable GraphQL Application (DVGA)",
-  "description": "A focused GraphQL security range (single container). The published image is amd64-only, so on the ARM DGX it runs under emulation (slower but works).",
-  "platform": "In-house Docker (one-click)",
-  "difficulty": "medium",
-  "estimatedHours": 2,
-  "objective": "Exploit GraphQL-specific attacks — introspection abuse, injection, batching/DoS and broken auth.",
-  "dockerImage": "dolevf/dvga:2.2.0",
-  "containerPort": 5013,
-  "resources": [
-    {
-      "title": "DVGA — GitHub repo",
-      "url": "https://github.com/dolevf/Damn-Vulnerable-GraphQL-Application",
-      "type": "tool"
-    }
-  ]
-}
+  {
+    "id": "xl-21",
+    "number": 121,
+    "week": 1,
+    "moduleId": "m10",
+    "title": "Damn Vulnerable GraphQL Application (DVGA)",
+    "description": "A focused GraphQL security range (single container). The published image is amd64-only, so on the ARM DGX it runs under emulation (slower but works). Built from source on first start (the published image is amd64-only, the Dockerfile builds natively on ARM).",
+    "platform": "In-house Docker (one-click)",
+    "difficulty": "medium",
+    "estimatedHours": 2,
+    "objective": "Exploit GraphQL-specific attacks — introspection abuse, injection, batching/DoS and broken auth.",
+    "containerPort": 5013,
+    "resources": [
+      {
+        "title": "DVGA — GitHub repo",
+        "url": "https://github.com/dolevf/Damn-Vulnerable-GraphQL-Application",
+        "type": "tool"
+      }
+    ],
+    "buildContext": "https://github.com/dolevf/Damn-Vulnerable-GraphQL-Application.git#master"
+  }
 ]

@@ -241,6 +241,10 @@ export interface Lab {
   dockerImage?: string
   /** Port the target app listens on INSIDE the container, mapped to a free host port at run time. */
   containerPort?: number
+  /** For labs with no published image: a Git URL Docker can `docker build` directly (repo root has the Dockerfile), e.g. "https://github.com/org/repo.git#main". Built once on the host, then run like any other lab. */
+  buildContext?: string
+  /** Force the container platform, e.g. "linux/amd64" for an image with no ARM build (runs under emulation on the ARM DGX — needs the one-time qemu/binfmt setup). */
+  imagePlatform?: string
   /** Slideshow walkthrough — one diagram-backed slide per real step. Falls back to `instructions` when absent. */
   slides?: LabSlide[]
   /** Progressive hints, gentlest first — revealed one at a time on request, never all at once. */
