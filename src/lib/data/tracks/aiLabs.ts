@@ -388,5 +388,210 @@ export const AI_LABS: Lab[] = [
       "url": "https://gandalf.lakera.ai (primary); also Gandalf: Agent Breaker for agent exploitation.",
       "note": "No-setup online alternative."
     }
+  },
+{
+  "id": "ai-L16",
+  "number": 16,
+  "week": 1,
+  "moduleId": "ai-m13",
+  "title": "BHIS AI-CTF (Black Hills InfoSec)",
+  "description": "A fully-local vulnerable-LLM CTF on Ollama (Open WebUI + Pipelines + Jupyter). Covers prompt injection, guardrail evasion, agent/tool abuse, RAG and multimodal. Runs on the DGX's GPU via local models (llama3.1:8b / llama3.2-vision). Multi-container (docker-compose); base images are arm64-native — verify the custom build. Do not expose publicly.",
+  "platform": "Self-host: build from GitHub repo",
+  "difficulty": "medium",
+  "estimatedHours": 3,
+  "objective": "Solve 11+ staged LLM attacks — prompt injection, system-prompt leak, input/output filter bypass, defeating an ML prompt-guard, agent tool abuse, RAG document exposure and multimodal flag retrieval.",
+  "instructions": [
+    "Clone the repo: git clone https://github.com/blackhillsinfosec/AI-CTF",
+    "Run `docker compose up -d` (brings up Open WebUI + Ollama + Pipelines + Jupyter + the ctf-setup). First run pulls the local models.",
+    "The app listens on container port 4242. Open it in your browser once it is up.",
+    "Meet the objective, then mark the lab complete."
+  ],
+  "resources": [
+    {
+      "title": "BHIS AI-CTF — GitHub repo",
+      "url": "https://github.com/blackhillsinfosec/AI-CTF",
+      "type": "tool"
+    }
+  ]
+},
+{
+  "id": "ai-L17",
+  "number": 17,
+  "week": 1,
+  "moduleId": "ai-m6",
+  "title": "DVAIA — Damn Vulnerable AI Application",
+  "description": "The broadest single AI range: injection, RAG, agent, multimodal and classic web bugs (SSRF) in one app. docker-compose (app + Ollama + Qdrant); an --openai-only / --gemini-only flag drops the local model. Ollama/Qdrant are arm64-native. Do not expose publicly.",
+  "platform": "Self-host: build from GitHub repo",
+  "difficulty": "medium",
+  "estimatedHours": 3,
+  "objective": "Exploit a DVWA-style LLM range: direct + indirect prompt injection (doc/image/audio/web), RAG vector poisoning, ReAct agent/tool misuse, prompt-template injection and SSRF via web-fetch — mapped to the OWASP LLM Top 10.",
+  "instructions": [
+    "Clone the repo: git clone https://github.com/airtasystems/DVAIA-Damn-Vulnerable-AI-Application",
+    "Run `docker compose up -d` (app + Ollama + Qdrant), or use `--openai-only` with an API key to skip the local model.",
+    "The app listens on container port 5000. Open it in your browser once it is up.",
+    "Meet the objective, then mark the lab complete."
+  ],
+  "resources": [
+    {
+      "title": "DVAIA — GitHub repo",
+      "url": "https://github.com/airtasystems/DVAIA-Damn-Vulnerable-AI-Application",
+      "type": "tool"
+    }
+  ]
+},
+{
+  "id": "ai-L18",
+  "number": 18,
+  "week": 1,
+  "moduleId": "ai-m6",
+  "title": "Damn Vulnerable LLM Agent (Reversec)",
+  "description": "A focused, high-quality agent/tool-injection lab from Reversec (ex-WithSecure) Labs, listed in the OWASP VWAD. Single container you BUILD locally (Streamlit, port 8501) — builds natively on arm64; works with a local Ollama or an OpenAI key.",
+  "platform": "Self-host: build from GitHub repo",
+  "difficulty": "medium",
+  "estimatedHours": 2,
+  "objective": "Use prompt injection against a ReAct (Thought/Action/Observation) LangChain agent to trick its tool calls into leaking other users' data.",
+  "instructions": [
+    "Clone the repo: git clone https://github.com/ReversecLabs/damn-vulnerable-llm-agent",
+    "Build + run: `docker build -t dvla .` then `docker run --env-file env.list -p 8501:8501 dvla`",
+    "Open http://localhost:8501 once it is up.",
+    "Meet the objective, then mark the lab complete."
+  ],
+  "resources": [
+    {
+      "title": "Damn Vulnerable LLM Agent — GitHub repo",
+      "url": "https://github.com/ReversecLabs/damn-vulnerable-llm-agent",
+      "type": "tool"
+    }
+  ]
+},
+{
+  "id": "ai-L19",
+  "number": 19,
+  "week": 1,
+  "moduleId": "ai-m6",
+  "title": "vulnerable-llms (embedding & RAG attacks)",
+  "description": "Strongest coverage of embedding / vector-store attacks specifically. Runs FULLY OFFLINE (no API key) — pulls small local models (llama3.2:1b / qwen3:0.6b, needs ≥8GB RAM), so per-user isolation is clean and the GPU accelerates it. docker-compose (frontend + backend + Ollama).",
+  "platform": "Self-host: build from GitHub repo",
+  "difficulty": "medium",
+  "estimatedHours": 3,
+  "objective": "Exploit indirect prompt injection via web-scraping, RAG poisoning, vector/embedding attacks (vector poisoning, embedding inversion), info disclosure and excessive agency — OWASP LLM Top 10 2025.",
+  "instructions": [
+    "Clone the repo: git clone https://github.com/AImaginationLab/vulnerable-llms",
+    "Run `docker compose up -d` (frontend + backend + Ollama). First run pulls the small local models.",
+    "The app listens on container port 3000. Open it in your browser once it is up.",
+    "Meet the objective, then mark the lab complete."
+  ],
+  "resources": [
+    {
+      "title": "vulnerable-llms — GitHub repo",
+      "url": "https://github.com/AImaginationLab/vulnerable-llms",
+      "type": "tool"
+    }
+  ]
+},
+{
+  "id": "ai-L20",
+  "number": 20,
+  "week": 1,
+  "moduleId": "ai-m4",
+  "title": "Spy Logic — prompt-injection game (ScottLogic)",
+  "description": "A polished, well-known injection game from ScottLogic. Single app image (prodlite.Dockerfile) runnable with an .env. Needs an OpenAI-style API key (no local model path).",
+  "platform": "Self-host: build from GitHub repo",
+  "difficulty": "easy",
+  "estimatedHours": 2,
+  "objective": "Extract a planted secret from a customer-service chatbot by defeating layered defences — a browser-based prompt-injection game.",
+  "instructions": [
+    "Clone the repo: git clone https://github.com/ScottLogic/prompt-injection",
+    "Build the prodlite image and run it with your OpenAI API key in an .env file (see README).",
+    "The app listens on container port 5000. Open it in your browser once it is up.",
+    "Meet the objective, then mark the lab complete."
+  ],
+  "resources": [
+    {
+      "title": "Spy Logic / prompt-injection — GitHub repo",
+      "url": "https://github.com/ScottLogic/prompt-injection",
+      "type": "tool"
+    }
+  ],
+  "onlineAlternative": {
+    "label": "Lakera Gandalf — same injection skills, no setup",
+    "url": "https://gandalf.lakera.ai/",
+    "note": "No-setup online alternative."
   }
+},
+{
+  "id": "ai-L21",
+  "number": 21,
+  "week": 1,
+  "moduleId": "ai-m4",
+  "title": "ai-prompt-ctf / PwnGPT (agentic levels)",
+  "description": "Combines classic Gandalf-style levels with modern agentic/RAG injection (LlamaIndex + ChromaDB). Offline-capable via Ollama (default qwen3:0.6b). docker-compose (`make run`).",
+  "platform": "Self-host: build from GitHub repo",
+  "difficulty": "medium",
+  "estimatedHours": 2,
+  "objective": "Clear Gandalf-style tiered prompt-injection levels plus agentic scenarios — indirect injection against tool-calling agents across RAG, function-calling and ReAct.",
+  "instructions": [
+    "Clone the repo: git clone https://github.com/c-goosen/ai-prompt-ctf",
+    "Run `make run` (= docker compose --profile default up --build): brings up Ollama + the ADK API + frontend.",
+    "Open the app in your browser once it is up (see the README for the port).",
+    "Meet the objective, then mark the lab complete."
+  ],
+  "resources": [
+    {
+      "title": "ai-prompt-ctf — GitHub repo",
+      "url": "https://github.com/c-goosen/ai-prompt-ctf",
+      "type": "tool"
+    }
+  ]
+},
+{
+  "id": "ai-L22",
+  "number": 22,
+  "week": 1,
+  "moduleId": "ai-m6",
+  "title": "ai-redteam-lab (agent + RAG + MCP)",
+  "description": "A compact agent + RAG + MCP trio with an explicit safety posture (localhost-only, fake data). Pure Python → builds on arm64. Multiple targets (Docker or plain Python).",
+  "platform": "Self-host: build from GitHub repo",
+  "difficulty": "medium",
+  "estimatedHours": 2,
+  "objective": "Attack three vulnerable targets — an LLM agent, a RAG app (indirect injection via a poisoned document) and an MCP server. Localhost-only, synthetic secrets.",
+  "instructions": [
+    "Clone the repo: git clone https://github.com/Hunter-0x07/ai-redteam-lab",
+    "Start the targets with docker compose (or run the Python apps directly per the README).",
+    "The app listens on container port 8000. Open it in your browser once it is up.",
+    "Meet the objective, then mark the lab complete."
+  ],
+  "resources": [
+    {
+      "title": "ai-redteam-lab — GitHub repo",
+      "url": "https://github.com/Hunter-0x07/ai-redteam-lab",
+      "type": "tool"
+    }
+  ]
+},
+{
+  "id": "ai-L23",
+  "number": 23,
+  "week": 1,
+  "moduleId": "ai-m6",
+  "title": "mcploitable — the 'Metasploitable' of MCP",
+  "description": "A dedicated MCP / agentic attack surface — complements DVMCP/MCPGoat without duplicating them. Multi-container (one per MCP server). Pure code → builds on arm64.",
+  "platform": "Self-host: build from GitHub repo",
+  "difficulty": "hard",
+  "estimatedHours": 2,
+  "objective": "Attack Model Context Protocol servers (tool poisoning, rug-pulls) mapped to the OWASP Top 10 for Agentic Applications.",
+  "instructions": [
+    "Clone the repo: git clone https://github.com/agileAlligator/mcploitable",
+    "Start the MCP server containers with docker compose per the README.",
+    "Open the app in your browser once it is up (see the README for the port).",
+    "Meet the objective, then mark the lab complete."
+  ],
+  "resources": [
+    {
+      "title": "mcploitable — GitHub repo",
+      "url": "https://github.com/agileAlligator/mcploitable",
+      "type": "tool"
+    }
+  ]
+}
 ]

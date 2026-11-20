@@ -221,5 +221,47 @@ export const CYBER_EXTRA_LABS: Lab[] = [
         "type": "tool"
       }
     ]
-  }
+  },
+{
+  "id": "xl-20",
+  "number": 120,
+  "week": 1,
+  "moduleId": "m4",
+  "title": "OWASP WrongSecrets",
+  "description": "A rock-solid, ARM64-native, single-container secrets/appsec range — ideal one-click lab for the DGX.",
+  "platform": "In-house Docker (one-click)",
+  "difficulty": "medium",
+  "estimatedHours": 2,
+  "objective": "Work through 30+ challenges on how secrets leak — hardcoded secrets, env vars, Docker layers, memory, config and base64/encryption mistakes.",
+  "dockerImage": "jeroenwillemsen/wrongsecrets:latest-no-vault",
+  "containerPort": 8080,
+  "resources": [
+    {
+      "title": "OWASP WrongSecrets — GitHub repo",
+      "url": "https://github.com/OWASP/wrongsecrets",
+      "type": "tool"
+    }
+  ]
+},
+{
+  "id": "xl-21",
+  "number": 121,
+  "week": 1,
+  "moduleId": "m10",
+  "title": "Damn Vulnerable GraphQL Application (DVGA)",
+  "description": "A focused GraphQL security range (single container). The published image is amd64-only, so on the ARM DGX it runs under emulation (slower but works).",
+  "platform": "In-house Docker (one-click)",
+  "difficulty": "medium",
+  "estimatedHours": 2,
+  "objective": "Exploit GraphQL-specific attacks — introspection abuse, injection, batching/DoS and broken auth.",
+  "dockerImage": "dolevf/dvga:2.2.0",
+  "containerPort": 5013,
+  "resources": [
+    {
+      "title": "DVGA — GitHub repo",
+      "url": "https://github.com/dolevf/Damn-Vulnerable-GraphQL-Application",
+      "type": "tool"
+    }
+  ]
+}
 ]
