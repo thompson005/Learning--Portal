@@ -12,7 +12,6 @@ import {
   Loader2,
   Play,
   ShieldCheck,
-  ShieldQuestion,
   Square,
   Star,
   Target,
@@ -58,72 +57,31 @@ const DIFFICULTY_COLOR = {
 // locally to enable it.
 const DOCKER_ENABLED = process.env.NEXT_PUBLIC_LABS_DOCKER === "1"
 
-interface VerifyResult {
-  verified: boolean
-  confidence: "high" | "medium" | "low"
-  reason: string
-  extractedText: string
-  method: "ai" | "heuristic"
-}
-
-function EvidenceVerify({ lab }: { lab: Lab }) {
-  const [file, setFile] = useState<File | null>(null)
-  const [checking, setChecking] = useState(false)
-  const [result, setResult] = useState<VerifyResult | null>(null)
+/** Simple, honest completion: the learner marks the lab done when they've met
+ *  the success criteria. An optional screenshot can be attached for their own
+ *  record — there is NO automated verification. */
+function LabCompletion({
+  lab,
+  status,
+  onComplete,
+}: {
+  lab: Lab
+  status: Status
+  onComplete: () => void
+}) {
+  const [shot, setShot] = useState<string | null>(null)
+  const [shotName, setShotName] = useState<string>("")
   const fileInputRef = useRef<HTMLInputElement>(null)
-
-  async function handleVerify() {
-    if (!file) return
-    setChecking(true)
-    setResult(null)
-    try {
-      const formData = new FormData()
-      formData.append("file", file)
-      formData.append("labTitle", lab.title)
-      formData.append("labPlatform", lab.platform)
-      if (lab.completionIndicator)
-        formData.append("completionIndicator", lab.completionIndicator)
-      const res = await fetch("/api/labs/verify-screenshot", {
-        method: "POST",
-        body: formData,
-      })
-      if (!res.ok) throw new Error()
-      const data: VerifyResult = await res.json()
-      setResult(data)
-
-      const prefix = data.method === "ai" ? "AI-VERIFIED" : "HEURISTIC-CHECK"
-      const xpBefore = getXp()
-      updateLabStatus(lab.id, {
-        flagOrEvidence: `[${prefix}: ${data.verified ? "PASS" : "NOT CONFIRMED"}] ${data.reason}`,
-        ...(data.verified ? { status: "completed" } : {}),
-      })
-      const gained = getXp() - xpBefore
-      if (data.verified) {
-        toast.success(
-          `Screenshot confirmed as completion evidence — marked Completed${gained > 0 ? ` (+${gained} XP)` : ""}`,
-        )
-      } else {
-        toast.warning(
-          "Could not confirm completion evidence in this screenshot",
-        )
-      }
-    } catch {
-      toast.error("Verification failed — check the file and try again")
-    } finally {
-      setChecking(false)
-    }
-  }
+  const done = status === "completed"
 
   return (
-    <div className="space-y-2 rounded-lg border border-brand-orange/25 bg-brand-orange/[0.04] p-3">
-      <p className="flex items-center gap-1.5 font-mono text-xs font-semibold uppercase tracking-widest text-brand-orange">
-        <ShieldCheck className="h-3.5 w-3.5" /> Completion Screenshot
-        Verification
+    <div className="space-y-2.5 rounded-lg border border-brand-green/25 bg-brand-green/[0.04] p-3">
+      <p className="flex items-center gap-1.5 font-mono text-xs font-semibold uppercase tracking-widest text-brand-green">
+        <CheckCircle2 className="h-3.5 w-3.5" /> Finish the lab
       </p>
       <p className="text-xs text-muted-foreground">
-        Upload a screenshot proving you completed this lab (a solved-lab banner,
-        a captured flag, or exploit output). Text is extracted via OCR, then
-        checked with AI for genuine completion evidence.
+        When you&apos;ve met the success criteria above, mark it complete. You
+        can attach a screenshot for your own record — no verification needed.
       </p>
       <div className="flex flex-wrap items-center gap-2">
         <input
@@ -132,8 +90,10 @@ function EvidenceVerify({ lab }: { lab: Lab }) {
           accept="image/*"
           className="hidden"
           onChange={(e) => {
-            setFile(e.target.files?.[0] ?? null)
-            setResult(null)
+            const f = e.target.files?.[0]
+            if (!f) return
+            setShot(URL.createObjectURL(f))
+            setShotName(f.name)
           }}
         />
         <Button
@@ -143,39 +103,26 @@ function EvidenceVerify({ lab }: { lab: Lab }) {
           onClick={() => fileInputRef.current?.click()}
         >
           <Upload className="h-3.5 w-3.5" />{" "}
-          {file ? file.name.slice(0, 22) : "Choose screenshot"}
+          {shotName ? shotName.slice(0, 22) : "Attach screenshot (optional)"}
         </Button>
         <Button
           type="button"
           size="sm"
-          onClick={handleVerify}
-          disabled={!file || checking}
-          className="bg-brand-orange text-white hover:bg-brand-orange/90"
+          onClick={onComplete}
+          disabled={done}
+          className="bg-brand-green text-white hover:bg-brand-green/90"
         >
-          {checking ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          ) : (
-            <ShieldQuestion className="h-3.5 w-3.5" />
-          )}
-          {checking ? "Checking..." : "Verify"}
+          <CheckCircle2 className="h-3.5 w-3.5" />{" "}
+          {done ? "Completed" : "Mark complete"}
         </Button>
       </div>
-      {result && (
-        <div
-          className={cn(
-            "rounded-md border px-3 py-2 text-xs",
-            result.verified
-              ? "border-brand-green/30 bg-brand-green/10 text-brand-green"
-              : "border-brand-red/30 bg-brand-red/10 text-brand-red",
-          )}
-        >
-          <p className="font-semibold">
-            {result.verified ? "Verified" : "Not confirmed"} ·{" "}
-            {result.confidence} confidence ·{" "}
-            {result.method === "ai" ? "DeepSeek check" : "heuristic check"}
-          </p>
-          <p className="mt-0.5">{result.reason}</p>
-        </div>
+      {shot && (
+        // Local preview only — not uploaded or stored.
+        <img
+          src={shot}
+          alt="Your lab screenshot"
+          className="max-h-44 w-auto rounded-md border border-border"
+        />
       )}
     </div>
   )
@@ -616,8 +563,8 @@ export function LabCard({ lab, moduleName }: { lab: Lab; moduleName: string }) {
                   {lab.dockerImage}
                 </code>
                 ). Follow the walkthrough and success criteria above; run the
-                target on your own machine, then upload a completion screenshot
-                below to mark it done.
+                target on your own machine, then mark it complete below when
+                you&apos;re done.
               </p>
             </div>
           )}
@@ -649,7 +596,11 @@ export function LabCard({ lab, moduleName }: { lab: Lab; moduleName: string }) {
             </div>
           )}
 
-          <EvidenceVerify lab={lab} />
+          <LabCompletion
+            lab={lab}
+            status={status}
+            onComplete={() => handleStatusChange("completed")}
+          />
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-1">
