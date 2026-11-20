@@ -39,10 +39,8 @@ services:
       DEFAULT_ADMIN_USERNAME: ${DEFAULT_ADMIN_USERNAME:-admin}
       DEFAULT_ADMIN_PASSWORD: ${DEFAULT_ADMIN_PASSWORD:-change-me}
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
-      # AI tutor — local LLM via the ollama service below. On-box, no external
-      # API, no per-token cost. Pull the model once (see README/DEPLOY doc).
-      OLLAMA_URL: ${OLLAMA_URL:-http://ollama:11434}
-      OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2:3b}
+      # AI features (tutor chat, Explain-simpler, Teki) use DeepSeek flash ONLY,
+      # via DEEPSEEK_API_KEY above. No other model or provider is used.
       # This self-host serves over plain HTTP, so cookies must NOT be marked
       # Secure (browsers drop Secure cookies on HTTP and login fails). Set to 0
       # only once you put HTTPS/TLS in front.
@@ -67,25 +65,6 @@ services:
       # publish their own host ports directly, so the app only needs 3000.
       - /var/run/docker.sock:/var/run/docker.sock
 
-  # Local LLM backend for the AI tutor. Runs entirely on-box — nothing leaves
-  # the network, no per-token cost. First run, pull a model:
-  #   docker compose exec ollama ollama pull llama3.2:3b
-  # The GPU block below uses the DGX's GPU (needs nvidia-container-toolkit). If
-  # the host has no NVIDIA runtime, delete the whole `deploy:` block — Ollama
-  # then runs on CPU (slower, still works).
-  ollama:
-    image: ollama/ollama:latest
-    restart: unless-stopped
-    volumes:
-      - ollama:/root/.ollama
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
 
 volumes:
   pgdata:
-  ollama:

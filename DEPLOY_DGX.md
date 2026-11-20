@@ -28,7 +28,7 @@ git clone <your-repo-url> technieum && cd technieum
 # 2. Configure secrets
 cp .env.docker.example .env
 #    edit .env — set POSTGRES_PASSWORD, SESSION_SECRET, DEFAULT_ADMIN_PASSWORD,
-#    and (optionally) DEEPSEEK_API_KEY. Tune LABS_MAX_CONCURRENT / LABS_MEM / LABS_CPUS.
+#    and DEEPSEEK_API_KEY (powers all AI features; DeepSeek flash only). Tune LABS_MAX_CONCURRENT / LABS_MEM / LABS_CPUS.
 
 # 3. Build + start (first build takes a few minutes)
 docker compose up -d --build
@@ -39,10 +39,6 @@ docker compose exec app npx prisma db push
 # 5. Seed the admin account (reads DEFAULT_ADMIN_* from the environment)
 docker compose exec app npx prisma db seed
 
-# 6. Pull the AI-tutor model (one-time; uses the DGX GPU). Small + fast:
-docker compose exec ollama ollama pull llama3.2:3b
-#    For stronger answers on the DGX, pull a larger model and set OLLAMA_MODEL:
-#    docker compose exec ollama ollama pull llama3.1:8b   # then OLLAMA_MODEL=llama3.1:8b in .env
 ```
 
 Then open `http://<host>:3000`. Admin lives at `http://<host>:3000/admin`

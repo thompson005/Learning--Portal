@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server"
 
-import { tutorChatStream, type ChatMessage } from "@/lib/server/ollama"
+import { llmChatStream, type ChatMessage } from "@/lib/server/llm"
 
 export const runtime = "nodejs"
 export const maxDuration = 60
@@ -24,9 +24,9 @@ const BASE_SYSTEM =
   "Explain clearly and accurately for a motivated learner. Prefer short paragraphs and concrete examples. Never invent CVE IDs, tool flags or command syntax you are unsure of. " +
   "Keep answers focused on what was asked. You may use light markdown (code blocks, inline `code`, bold, lists) when it aids clarity."
 
-/** The graceful fallback streamed when the local model is unreachable. */
+/** The graceful fallback streamed when the model is unreachable or not configured. */
 const FALLBACK =
-  "The AI tutor isn't reachable right now. It runs on a local model (Ollama) — an admin can start it with `ollama serve` and pull a model (e.g. `ollama pull llama3.1`). Meanwhile, check the walkthrough slides and quick-check questions for this topic."
+  "The AI tutor isn't available right now — it may be offline or not configured (an admin needs to set DEEPSEEK_API_KEY). Meanwhile, check the walkthrough slides and quick-check questions for this topic."
 
 function buildMessages(body: TutorBody): ChatMessage[] {
   const mode: Mode = body.mode ?? "ask"
@@ -103,7 +103,7 @@ export async function POST(req: NextRequest) {
     async start(controller) {
       let any = false
       try {
-        for await (const delta of tutorChatStream(messages, {
+        for await (const delta of llmChatStream(messages, {
           temperature,
           maxTokens,
         })) {
@@ -113,7 +113,7 @@ export async function POST(req: NextRequest) {
           }
         }
       } catch {
-        // Ollama unreachable / errored — fall through to the fallback below.
+        // Model unreachable / unconfigured / errored — fall through to the fallback below.
       }
       // Nothing produced (unreachable, empty, or errored before first token):
       // stream the graceful fallback instead of returning a 500.
