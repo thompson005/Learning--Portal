@@ -31,8 +31,10 @@ import {
   recordTopicQuizAttempt,
   updateTopicStatus,
   setLastTopic,
+  getStreak,
 } from "@/lib/store/progress"
 import { getXp } from "@/lib/store/gamification"
+import { TOPIC_SANDBOXES } from "@/components/sandboxes/registry"
 import { RESOURCE_ADDITIONS } from "@/lib/data/resourceAdditions"
 import type { QuizAttempt, Status, Topic } from "@/types"
 
@@ -118,14 +120,25 @@ export function TopicRow({
     )
   }, [expanded, topic])
 
+  // Fires the Duolingo-style lesson-complete celebration overlay.
+  function fireLessonComplete(xp: number) {
+    window.dispatchEvent(
+      new CustomEvent("technieum:lesson-complete", {
+        detail: { title: topic.title, xp, streak: getStreak().current },
+      }),
+    )
+  }
+
   function handleStatusChange(next: Status) {
     const xpBefore = getXp()
+    const wasCompleted = status === "completed"
     setStatus(next)
     updateTopicStatus(topic.id, { status: next })
     const tp = getProgress().topics[topic.id]
     setDates({ started: tp?.dateStarted, completed: tp?.dateCompleted })
     const gained = getXp() - xpBefore
     if (gained > 0) toast.success(`+${gained} XP earned!`)
+    if (next === "completed" && !wasCompleted) fireLessonComplete(gained)
   }
 
   function handleExpand() {
@@ -162,6 +175,10 @@ export function TopicRow({
       setStatus("completed")
       const tp = getProgress().topics[topic.id]
       setDates({ started: tp?.dateStarted, completed: tp?.dateCompleted })
+      const gained = getXp() - xpBefore
+      if (gained > 0) toast.success(`+${gained} XP earned!`)
+      fireLessonComplete(gained + 5)
+      return
     }
     const gained = getXp() - xpBefore
     if (gained > 0) toast.success(`+${gained} XP earned!`)
@@ -332,6 +349,21 @@ export function TopicRow({
               <ExerciseBlock exercises={topic.exercises} ownerId={topic.id} />
             </Reveal>
           )}
+
+          {TOPIC_SANDBOXES[topic.id] &&
+            (() => {
+              const S = TOPIC_SANDBOXES[topic.id]
+              return (
+                <Reveal delay={140}>
+                  <div>
+                    <p className="mb-2 font-mono text-xs font-semibold uppercase tracking-widest text-brand-orange">
+                      Interactive · {S.label}
+                    </p>
+                    <S.Component />
+                  </div>
+                </Reveal>
+              )
+            })()}
 
           {videoResources.length > 0 && (
             <Reveal delay={150}>

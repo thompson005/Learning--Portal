@@ -26,6 +26,7 @@ import { CountUp } from "@/components/gamification/CountUp"
 import { Trophy } from "lucide-react"
 import { MeshGradient } from "@/components/ui3d/MeshGradient"
 import { Reveal } from "@/components/ui3d/Reveal"
+import { Hero3D } from "@/components/ui3d/Hero3D"
 import {
   getOverallProgress,
   getRecentActivity,
@@ -173,7 +174,8 @@ export default function DashboardPage() {
             )}
           </div>
 
-          <div className="flex shrink-0 items-center justify-center lg:pr-2">
+          <div className="flex shrink-0 items-center justify-center gap-6 lg:pr-2">
+            <Hero3D className="hidden sm:block" />
             <ProgressRing
               value={overall.percentComplete}
               size={168}

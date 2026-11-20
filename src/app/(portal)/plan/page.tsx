@@ -1,10 +1,11 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { LayoutGrid, List } from "lucide-react"
+import { LayoutGrid, List, Milestone } from "lucide-react"
 
 import { RoadmapBoard } from "@/components/plan/RoadmapBoard"
 import { RoadmapTrack } from "@/components/plan/RoadmapTrack"
+import { LessonPath } from "@/components/learn/LessonPath"
 import { ProgressRing } from "@/components/dashboard/ProgressRing"
 import { MeshGradient } from "@/components/ui3d/MeshGradient"
 import { getOverallProgress, getModuleCompletionPercent } from "@/lib/store/progress"
@@ -14,7 +15,7 @@ import { cn } from "@/lib/utils"
 
 export default function PlanPage() {
   const trackId = useActiveTrackId()
-  const [view, setView] = useState<"map" | "list">("map")
+  const [view, setView] = useState<"path" | "map" | "list">("path")
   const [percent, setPercent] = useState(0)
   const [modulesDone, setModulesDone] = useState(0)
 
@@ -71,9 +72,20 @@ export default function PlanPage() {
       {/* View toggle */}
       <div className="flex items-center justify-between">
         <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">
-          {view === "map" ? "Map view" : "Detailed list"}
+          {view === "path" ? "Lesson path" : view === "map" ? "Map view" : "Detailed list"}
         </p>
         <div className="glass inline-flex rounded-xl p-1">
+          <button
+            onClick={() => setView("path")}
+            className={cn(
+              "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+              view === "path"
+                ? "bg-brand-orange/10 text-brand-orange"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            <Milestone className="h-3.5 w-3.5" /> Path
+          </button>
           <button
             onClick={() => setView("map")}
             className={cn(
@@ -99,7 +111,13 @@ export default function PlanPage() {
         </div>
       </div>
 
-      {view === "map" ? <RoadmapBoard /> : <RoadmapTrack showHeader={false} />}
+      {view === "path" ? (
+        <LessonPath />
+      ) : view === "map" ? (
+        <RoadmapBoard />
+      ) : (
+        <RoadmapTrack showHeader={false} />
+      )}
     </div>
   )
 }

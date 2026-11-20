@@ -8,6 +8,7 @@ import { LevelUpWatcher } from "@/components/gamification/LevelUpWatcher"
 import { PresenceTracker } from "@/components/layout/PresenceTracker"
 import { TutorPanel } from "@/components/tutor/TutorPanel"
 import { Companion } from "@/components/tutor/Companion"
+import { LessonComplete } from "@/components/learn/LessonComplete"
 import { FocusModeProvider, useFocusMode } from "@/components/layout/FocusMode"
 import { cn } from "@/lib/utils"
 
@@ -39,6 +40,7 @@ function Shell({ children }: { children: React.ReactNode }) {
       <PresenceTracker />
       <TutorPanel />
       <Companion />
+      <LessonComplete />
     </div>
   )
 }
