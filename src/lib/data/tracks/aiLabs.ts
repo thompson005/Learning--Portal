@@ -123,6 +123,7 @@ export const AI_LABS: Lab[] = [
       "Clone the repo: git clone https://github.com/SabyasachiDhal/MCPGoat",
       "docker compose up --build -> http://127.0.0.1:7332 (or docker build -t mcpgoat . && docker run --rm -p 127.0.0.1:7332:7332 mcpgoat). Set -e MCPGOAT_LEVEL=difficult to raise difficulty.",
       "The app listens on container port 7332. Open it in your browser once it is up.",
+      "The portal runs a local AI model for you (Ollama) - the agent harness uses it with MCPGOAT_AGENT_BACKEND=ollama.",
       "Attack the target per the lab objective, then record your findings."
     ],
     "resources": [
@@ -176,6 +177,7 @@ export const AI_LABS: Lab[] = [
       "Clone the repo: git clone https://github.com/CyberSunil/LLMVault",
       "docker compose up --build -> http://127.0.0.1:5000 (or docker build -t llmvault . && docker run -p 5000:5000 llmvault).",
       "The app listens on container port 5000. Open it in your browser once it is up.",
+      "Live Mode uses the portal's local model automatically (OLLAMA_HOST is pre-set) - no install or API key.",
       "Attack the target per the lab objective, then record your findings."
     ],
     "resources": [
@@ -305,6 +307,11 @@ export const AI_LABS: Lab[] = [
     "difficulty": "easy",
     "estimatedHours": 2,
     "objective": "Lab = scaffold a red-team project and scan a target LLM/app for prompt injection, jailbreaks, PII leakage, data poisoning with OWASP/NIST presets; review findings in a self-hosted web UI.",
+    "instructions": [
+      "Open the promptfoo UI on the port shown once the lab is up (container port 3000).",
+      "A local model is pre-wired for you: use the Ollama provider (OLLAMA_BASE_URL is set) as the target and grader - remote generation is disabled, no API key needed.",
+      "Run a red-team scan against the target, then review the findings in the web UI."
+    ],
     "dockerImage": "ghcr.io/promptfoo/promptfoo:latest",
     "containerPort": 3000,
     "localModel": true,

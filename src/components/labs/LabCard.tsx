@@ -171,6 +171,12 @@ function LabEnvironment({ lab }: { lab: Lab }) {
       if (!data.ok)
         throw new Error(data.error || "Failed to start lab environment.")
       toast.success(`${lab.title} environment is starting on port ${data.port}`)
+      if (data.model === "loading" || data.model === "unreachable")
+        toast.warning(
+          data.model === "loading"
+            ? "The local AI model is still downloading — AI features in this lab will work in a few minutes."
+            : "The local AI model server isn't reachable — this lab runs in its offline mode.",
+        )
       await refreshStatus()
       window.dispatchEvent(new Event("technieum:lab-docker-changed"))
     } catch (err) {

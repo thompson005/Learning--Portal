@@ -39,6 +39,7 @@ function localModelArgs(lab: { localModel?: boolean }): string[] {
     OPENAI_BASE_URL: "http://ollama:11434/v1",
     OPENAI_API_BASE: "http://ollama:11434/v1",
     OPENAI_API_KEY: "ollama",
+    MCPGOAT_AGENT_BACKEND: "ollama",
     PROMPTFOO_DISABLE_REMOTE_GENERATION: "true",
   }
   return [
@@ -221,6 +222,22 @@ function explainExit(logs: string, lab: Lab): string {
   return `Container exited immediately after starting. Last logs:\n${logs}`
 }
 
+/** Is the shared Ollama up and holding the lab model? "disabled" = not configured. */
+export async function localModelStatus(): Promise<"ready" | "loading" | "unreachable" | "disabled"> {
+  if (!LABS_NETWORK) return "disabled"
+  try {
+    const res = await fetch("http://ollama:11434/api/tags", { signal: AbortSignal.timeout(3000) })
+    if (!res.ok) return "unreachable"
+    const data = (await res.json()) as { models?: { name: string }[] }
+    const have = (data.models ?? []).some(
+      (m) => m.name === LABS_MODEL || m.name === `${LABS_MODEL}:latest`,
+    )
+    return have ? "ready" : "loading"
+  } catch {
+    return "unreachable"
+  }
+}
+
 export async function startLab(userId: string, labId: string) {
   const lab = findLab(labId)
   if (!lab) throw new Error("Unknown lab id.")
@@ -301,7 +318,8 @@ export async function startLab(userId: string, labId: string) {
     }
 
     await db.labRun.update({ where: { id: run.id }, data: { containerId } })
-    return { port, containerName, containerId, alreadyRunning: false }
+    const model = lab.localModel ? await localModelStatus() : undefined
+    return { port, containerName, containerId, alreadyRunning: false, model }
   } catch (err) {
     const rawMessage = err instanceof Error ? err.message : "docker run failed"
     const message = friendlyDockerError(rawMessage)
