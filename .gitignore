@@ -53,3 +53,6 @@ next-env.d.ts
 scripts/ex-workflow.js
 scripts/topics-dump.json
 scripts/ex-results.json
+
+scripts/glossary-workflow.js
+scripts/glossary-results.json
