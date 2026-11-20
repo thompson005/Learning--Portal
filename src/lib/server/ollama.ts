@@ -57,4 +57,72 @@ export async function ollamaChat(
   }
 }
 
+/** Streams a chat completion from Ollama token-by-token. Yields content deltas
+ *  as they arrive. Throws on network/timeout/non-200 so the route can fall back.
+ *  Ollama's streaming endpoint returns newline-delimited JSON objects, each
+ *  `{ message: { content }, done }`; lines can be split across network chunks,
+ *  so a buffer carries partial lines forward. */
+export async function* ollamaChatStream(
+  messages: ChatMessage[],
+  opts: { temperature?: number; maxTokens?: number } = {},
+): AsyncGenerator<string> {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS)
+  try {
+    const res = await fetch(`${OLLAMA_URL}/api/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: OLLAMA_MODEL,
+        messages,
+        stream: true,
+        options: {
+          temperature: opts.temperature ?? 0.3,
+          num_predict: opts.maxTokens ?? 512,
+        },
+      }),
+      signal: controller.signal,
+    })
+    if (!res.ok || !res.body) {
+      throw new Error(`Ollama error ${res.status}`)
+    }
+
+    const reader = res.body.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ""
+
+    const emit = function* (line: string): Generator<string> {
+      const trimmed = line.trim()
+      if (!trimmed) return
+      try {
+        const obj = JSON.parse(trimmed) as {
+          message?: { content?: string }
+          done?: boolean
+        }
+        const delta = obj?.message?.content
+        if (delta) yield delta
+      } catch {
+        // Partial / non-JSON line — ignore. A split line is completed by the
+        // next chunk via the buffer; a genuinely malformed line is skipped.
+      }
+    }
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+      let nl: number
+      while ((nl = buffer.indexOf("\n")) !== -1) {
+        const line = buffer.slice(0, nl)
+        buffer = buffer.slice(nl + 1)
+        yield* emit(line)
+      }
+    }
+    // Flush any trailing buffered line with no terminating newline.
+    yield* emit(buffer)
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
 export const tutorModel = OLLAMA_MODEL

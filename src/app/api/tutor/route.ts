@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest } from "next/server"
 
-import { ollamaChat, type ChatMessage } from "@/lib/server/ollama"
+import { ollamaChatStream, type ChatMessage } from "@/lib/server/ollama"
 
 export const runtime = "nodejs"
 export const maxDuration = 60
@@ -22,7 +22,11 @@ const cap = (s: unknown, n: number) =>
 const BASE_SYSTEM =
   "You are the Technieum tutor, a concise expert instructor inside a hands-on cybersecurity, AI-security and cloud-security training portal. " +
   "Explain clearly and accurately for a motivated learner. Prefer short paragraphs and concrete examples. Never invent CVE IDs, tool flags or command syntax you are unsure of. " +
-  "Keep answers focused on what was asked. Use plain text (no markdown headings)."
+  "Keep answers focused on what was asked. You may use light markdown (code blocks, inline `code`, bold, lists) when it aids clarity."
+
+/** The graceful fallback streamed when the local model is unreachable. */
+const FALLBACK =
+  "The AI tutor isn't reachable right now. It runs on a local model (Ollama) — an admin can start it with `ollama serve` and pull a model (e.g. `ollama pull llama3.1`). Meanwhile, check the walkthrough slides and quick-check questions for this topic."
 
 function buildMessages(body: TutorBody): ChatMessage[] {
   const mode: Mode = body.mode ?? "ask"
@@ -84,25 +88,46 @@ function buildMessages(body: TutorBody): ChatMessage[] {
 export async function POST(req: NextRequest) {
   const body = (await req.json().catch(() => null)) as TutorBody | null
   if (!body || !body.question?.trim()) {
-    return NextResponse.json(
-      { error: "A question is required." },
-      { status: 400 },
-    )
+    return new Response("A question is required.", {
+      status: 400,
+      headers: { "Content-Type": "text/plain; charset=utf-8" },
+    })
   }
 
   const messages = buildMessages(body)
+  const temperature = body.mode === "grade" ? 0.2 : 0.4
+  const maxTokens = body.mode === "hint" ? 160 : 600
 
-  try {
-    const reply = await ollamaChat(messages, {
-      temperature: body.mode === "grade" ? 0.2 : 0.4,
-      maxTokens: body.mode === "hint" ? 160 : 600,
-    })
-    return NextResponse.json({ reply, unavailable: false })
-  } catch {
-    return NextResponse.json({
-      reply:
-        "The AI tutor isn't reachable right now. It runs on a local model (Ollama) — an admin can start it with `ollama serve` and pull a model (e.g. `ollama pull llama3.1`). Meanwhile, check the walkthrough slides and quick-check questions for this topic.",
-      unavailable: true,
-    })
-  }
+  const encoder = new TextEncoder()
+  const stream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      let any = false
+      try {
+        for await (const delta of ollamaChatStream(messages, {
+          temperature,
+          maxTokens,
+        })) {
+          if (delta) {
+            any = true
+            controller.enqueue(encoder.encode(delta))
+          }
+        }
+      } catch {
+        // Ollama unreachable / errored — fall through to the fallback below.
+      }
+      // Nothing produced (unreachable, empty, or errored before first token):
+      // stream the graceful fallback instead of returning a 500.
+      if (!any) controller.enqueue(encoder.encode(FALLBACK))
+      controller.close()
+    },
+  })
+
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/plain; charset=utf-8",
+      "Cache-Control": "no-store, no-transform",
+      // Disable proxy buffering so deltas reach the browser as they arrive.
+      "X-Accel-Buffering": "no",
+    },
+  })
 }
