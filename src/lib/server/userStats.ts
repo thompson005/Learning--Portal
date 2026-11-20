@@ -1,5 +1,5 @@
-import { CURRICULUM } from "@/lib/data/curriculum"
-import { LABS } from "@/lib/data/labs"
+import type { Module } from "@/types"
+import { TRACKS } from "@/lib/data/tracks/registry"
 import {
   RANKS,
   getRank,
@@ -11,6 +11,13 @@ import {
 } from "@/lib/store/gamification"
 
 const PASS_THRESHOLD = 0.7
+
+// Admin stats span ALL tracks (Offensive + AI + Cloud), not just the cyber one.
+const ALL_MODULES: { mod: Module; track: string }[] = TRACKS.flatMap((t) =>
+  t.curriculum.map((mod) => ({ mod, track: t.shortName })),
+)
+const ALL_TOPICS = ALL_MODULES.flatMap((m) => m.mod.topics)
+const ALL_LABS = TRACKS.flatMap((t) => t.labs)
 
 type Attempt = { score: number; total: number; lastAttempt?: string }
 
@@ -36,6 +43,7 @@ export interface ModuleStat {
   id: string
   shortName: string
   name: string
+  track: string
   month: number
   completed: number
   total: number
@@ -73,11 +81,11 @@ export function computeUserStats(progressJson: string): UserStats {
   const moduleQuizzes = p.moduleQuizzes ?? {}
   const checkpoints = p.checkpoints ?? {}
 
-  const allTopics = CURRICULUM.flatMap((m) => m.topics)
+  const allTopics = ALL_TOPICS
   const topicsCompleted = allTopics.filter(
     (t) => topics[t.id]?.status === "completed",
   ).length
-  const labsCompleted = LABS.filter(
+  const labsCompleted = ALL_LABS.filter(
     (l) => labs[l.id]?.status === "completed",
   ).length
 
@@ -96,7 +104,7 @@ export function computeUserStats(progressJson: string): UserStats {
     moduleQuizzesPassed * XP_PER_MODULE_QUIZ_PASS +
     checkpointsCorrect * XP_PER_CHECKPOINT
 
-  const modules: ModuleStat[] = CURRICULUM.map((m) => {
+  const modules: ModuleStat[] = ALL_MODULES.map(({ mod: m, track }) => {
     const total = m.topics.length
     const completed = m.topics.filter(
       (t) => topics[t.id]?.status === "completed",
@@ -105,6 +113,7 @@ export function computeUserStats(progressJson: string): UserStats {
       id: m.id,
       shortName: m.shortName,
       name: m.name,
+      track,
       month: m.month,
       completed,
       total,
@@ -112,7 +121,7 @@ export function computeUserStats(progressJson: string): UserStats {
     }
   })
 
-  const totalItems = allTopics.length + LABS.length
+  const totalItems = allTopics.length + ALL_LABS.length
   const overallPercent =
     totalItems === 0
       ? 0
@@ -122,7 +131,7 @@ export function computeUserStats(progressJson: string): UserStats {
     topicsCompleted,
     topicsTotal: allTopics.length,
     labsCompleted,
-    labsTotal: LABS.length,
+    labsTotal: ALL_LABS.length,
     topicQuizzesPassed,
     moduleQuizzesPassed,
     checkpointsCorrect,
@@ -167,10 +176,10 @@ function localDayString(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
 }
 
-const topicTitleById = new Map(
-  CURRICULUM.flatMap((m) => m.topics).map((t) => [t.id, t.title]),
+const topicTitleById = new Map(ALL_TOPICS.map((t) => [t.id, t.title]))
+const labTitleById = new Map(
+  ALL_LABS.map((l) => [l.id, `${l.id}: ${l.title}`]),
 )
-const labTitleById = new Map(LABS.map((l) => [l.id, `${l.id}: ${l.title}`]))
 
 export function computeActivitySummary(
   days: ActivityDayInput[],

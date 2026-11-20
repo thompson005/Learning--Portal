@@ -18,6 +18,7 @@ interface ModuleStat {
   id: string
   shortName: string
   name: string
+  track: string
   month: number
   completed: number
   total: number
@@ -443,6 +444,9 @@ export function LearnersPanel() {
                               key={m.id}
                               className="rounded-lg border border-border bg-card p-2.5"
                             >
+                              <div className="mb-0.5 font-mono text-[9px] uppercase tracking-widest text-muted-foreground/70">
+                                {m.track}
+                              </div>
                               <div className="flex items-center justify-between gap-2">
                                 <span className="truncate text-xs font-medium">
                                   {m.shortName}
