@@ -193,6 +193,30 @@ export function getModuleCompletionPercent(moduleId: string): number {
   return Math.round((completed / mod.topics.length) * 100)
 }
 
+export interface ModuleLock {
+  locked: boolean
+  /** The module that must be finished to unlock this one. */
+  requiredId?: string
+  requiredName?: string
+}
+
+/** A module is unlocked when it's the first in the active track, the previous
+ *  module is 100% complete, or this module has already been started (so a
+ *  learner is never re-locked out of work in progress). */
+export function moduleLockInfo(moduleId: string): ModuleLock {
+  const mods = activeCurriculum()
+  const idx = mods.findIndex((m) => m.id === moduleId)
+  if (idx <= 0) return { locked: false }
+  if (getModuleCompletionPercent(moduleId) > 0) return { locked: false }
+  const prev = mods[idx - 1]
+  if (getModuleCompletionPercent(prev.id) === 100) return { locked: false }
+  return { locked: true, requiredId: prev.id, requiredName: prev.shortName }
+}
+
+export function isModuleUnlocked(moduleId: string): boolean {
+  return !moduleLockInfo(moduleId).locked
+}
+
 export function getMonthCompletionPercent(month: 1 | 2 | 3): number {
   const topics = activeCurriculum().filter((m) => m.month === month).flatMap(
     (m) => m.topics,

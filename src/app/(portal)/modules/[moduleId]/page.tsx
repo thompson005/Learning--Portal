@@ -32,7 +32,10 @@ import {
   getModuleQuizAttempt,
   recordModuleQuizAttempt,
   getProgress,
+  moduleLockInfo,
+  type ModuleLock,
 } from "@/lib/store/progress"
+import { LockedGate } from "@/components/learn/LockedGate"
 import { downloadCertificate } from "@/lib/cert"
 import { RESOURCE_ADDITIONS } from "@/lib/data/resourceAdditions"
 import { cn, dedupeResources } from "@/lib/utils"
@@ -70,6 +73,7 @@ function ModuleDetailContent({
   const { focus, toggle: toggleFocus } = useFocusMode()
   const topicsListRef = useRef<HTMLDivElement>(null)
   const [percent, setPercent] = useState(0)
+  const [lock, setLock] = useState<ModuleLock>({ locked: false })
   const [quizOpen, setQuizOpen] = useState(false)
   const [quizAttempt, setQuizAttempt] = useState<QuizAttempt | undefined>(
     undefined,
@@ -109,6 +113,7 @@ function ModuleDetailContent({
     function refresh() {
       setPercent(getModuleCompletionPercent(mod!.id))
       setQuizAttempt(getModuleQuizAttempt(mod!.id))
+      setLock(moduleLockInfo(mod!.id))
     }
     refresh()
     window.addEventListener("technieum:progress-changed", refresh)
@@ -210,6 +215,13 @@ function ModuleDetailContent({
           </div>
         </section>
 
+        {lock.locked ? (
+          <LockedGate
+            moduleName={mod.name}
+            requiredId={lock.requiredId}
+            requiredName={lock.requiredName}
+          />
+        ) : (
         <Tabs defaultValue={focusTopic ? "topics" : "overview"}>
           <TabsList>
             <TabsTrigger value="overview">Overview</TabsTrigger>
@@ -368,6 +380,7 @@ function ModuleDetailContent({
             </GlassCard>
           </TabsContent>
         </Tabs>
+        )}
       </div>
 
       {moduleQuiz && (

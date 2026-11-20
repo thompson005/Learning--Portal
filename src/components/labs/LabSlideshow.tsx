@@ -34,16 +34,23 @@ function CheckpointCheck({
   ownerId,
   slideIndex,
   check,
+  onAnswered,
 }: {
   ownerId: string
   slideIndex: number
   check: NonNullable<LabSlide["check"]>
+  onAnswered?: () => void
 }) {
   const key = `${ownerId}::${slideIndex}`
   const [selected, setSelected] = useState<number | null>(null)
 
   useEffect(() => {
-    setSelected(getProgress().checkpoints[key] ? check.correctIndex : null)
+    if (getProgress().checkpoints[key]) {
+      setSelected(check.correctIndex)
+      onAnswered?.()
+    } else {
+      setSelected(null)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key])
 
@@ -54,6 +61,7 @@ function CheckpointCheck({
     if (earned) {
       toast.success("Correct! +3 XP", { icon: <Zap className="h-4 w-4" /> })
     }
+    onAnswered?.()
   }
 
   const answered = selected !== null
@@ -153,6 +161,7 @@ function SlideContent({
   slideIndex,
   interactive = true,
   staged = true,
+  onAnswered,
 }: {
   slide: LabSlide
   isFinal: boolean
@@ -161,6 +170,7 @@ function SlideContent({
   slideIndex: number
   interactive?: boolean
   staged?: boolean
+  onAnswered?: () => void
 }) {
   // Each element lands a beat after the one above it, so the eye is led down
   // the slide instead of the whole block arriving at once.
@@ -218,6 +228,7 @@ function SlideContent({
             ownerId={ownerId}
             slideIndex={slideIndex}
             check={slide.check}
+            onAnswered={onAnswered}
           />
         </div>
       )}
@@ -275,14 +286,23 @@ export function LabSlideshow({
     }
   }
 
+  const [answered, setAnswered] = useState<Set<number>>(new Set())
+  function markAnswered(i: number) {
+    setAnswered((prev) => (prev.has(i) ? prev : new Set(prev).add(i)))
+  }
+
   const slide = slides[index]
   const total = slides.length
   const isFinal = index === total - 1
   const offset = CIRCUMFERENCE - ((index + 1) / total) * CIRCUMFERENCE
+  // Active recall: a slide with a quick-check must be answered before advancing.
+  const mustAnswer = !!slide.check && !answered.has(index)
 
   function go(next: number) {
     const clamped = Math.max(0, Math.min(total - 1, next))
     if (clamped === index || isTransitioning) return
+    // Block forward moves until the current check is answered.
+    if (clamped > index && slides[index].check && !answered.has(index)) return
     const dir = clamped > index ? "forward" : "back"
     setOutgoing({ slide, direction: dir })
     setDirection(dir)
@@ -485,6 +505,7 @@ export function LabSlideshow({
               animate={animateCurrent}
               ownerId={ownerId}
               slideIndex={index}
+              onAnswered={() => markAnswered(index)}
             />
           </div>
         </div>
@@ -508,9 +529,22 @@ export function LabSlideshow({
               <RotateCcw className="h-3.5 w-3.5" /> Restart
             </Button>
           ) : (
-            <Button variant="outline" size="sm" onClick={() => go(index + 1)}>
-              Next <ChevronRight className="h-4 w-4" />
-            </Button>
+            <div className="flex items-center gap-2">
+              {mustAnswer && (
+                <span className="hidden font-mono text-[10px] uppercase tracking-widest text-brand-orange sm:inline">
+                  Answer to continue
+                </span>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => go(index + 1)}
+                disabled={mustAnswer}
+                title={mustAnswer ? "Answer the quick check to continue" : undefined}
+              >
+                Next <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
           )}
         </div>
       </div>
