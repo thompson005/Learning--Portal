@@ -24,6 +24,41 @@ services:
       timeout: 5s
       retries: 10
 
+  # Small local LLM for the AI-Security labs (labs flagged `localModel`). Runs in Docker
+  # on the same host; reachable only from the lab network below, NOT published on the
+  # host. CPU by default; add docker-compose.gpu.yml for the DGX GPU:
+  #   docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d --build
+  ollama:
+    image: ollama/ollama:latest
+    restart: unless-stopped
+    environment:
+      OLLAMA_KEEP_ALIVE: ${OLLAMA_KEEP_ALIVE:-10m}
+      OLLAMA_MAX_LOADED_MODELS: ${OLLAMA_MAX_LOADED_MODELS:-2}
+      OLLAMA_NUM_PARALLEL: ${OLLAMA_NUM_PARALLEL:-4}
+    volumes:
+      - ollamadata:/root/.ollama
+    networks:
+      labnet:
+        aliases: [ollama]
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  # One-shot: pulls the small models into the ollamadata volume, then exits.
+  ollama-init:
+    image: ollama/ollama:latest
+    depends_on:
+      ollama:
+        condition: service_healthy
+    restart: "no"
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+      LAB_MODELS: ${LAB_MODELS:-qwen2.5:3b-instruct}
+    entrypoint: ["/bin/sh", "-c", "for m in $$LAB_MODELS; do ollama pull $$m; done"]
+    networks: [labnet]
+
   app:
     build:
       context: .
@@ -57,6 +92,9 @@ services:
       # Bind lab target ports to this host IP only (set to the DGX VPN IP so
       # vulnerable targets are reachable only over the VPN).
       LABS_BIND_IP: ${BIND_IP:-}
+      # Labs flagged `localModel` join this network to reach the shared Ollama.
+      LABS_NETWORK: technieum-labnet
+      LABS_MODEL: ${LABS_MODEL:-qwen2.5:3b-instruct}
     ports:
       # BIND_IP restricts the portal to one interface (the VPN IP). Unset = all.
       # WEB_PORT is the host port — set to 80 so users type a bare hostname with
@@ -68,5 +106,11 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
 
 
+networks:
+  # Holds ONLY ollama + the lab containers that need a model — never the db or app.
+  labnet:
+    name: technieum-labnet
+
 volumes:
   pgdata:
+  ollamadata:

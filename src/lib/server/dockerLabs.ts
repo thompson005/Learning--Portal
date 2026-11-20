@@ -23,6 +23,30 @@ const PIDS_LIMIT = process.env.LABS_PIDS || "256"
 // (deliberately vulnerable) are reachable ONLY over the VPN, never on the
 // public/LAN interface. Empty = bind all interfaces (0.0.0.0) — avoid in prod.
 const LAB_BIND_IP = process.env.LABS_BIND_IP || ""
+// Shared Ollama (docker-compose service "ollama") lives on this network; labs flagged
+// `localModel` join it so they can reach http://ollama:11434. Unset = labs stay on the
+// default bridge and run in their offline/scripted mode.
+const LABS_NETWORK = process.env.LABS_NETWORK || ""
+const LABS_MODEL = process.env.LABS_MODEL || "qwen2.5:3b-instruct"
+
+function localModelArgs(lab: { localModel?: boolean }): string[] {
+  if (!lab.localModel || !LABS_NETWORK) return []
+  const env: Record<string, string> = {
+    OLLAMA_HOST: "http://ollama:11434",
+    OLLAMA_BASE_URL: "http://ollama:11434",
+    OLLAMA_MODEL: LABS_MODEL,
+    OLLAMA_DEFAULT_MODEL: LABS_MODEL,
+    OPENAI_BASE_URL: "http://ollama:11434/v1",
+    OPENAI_API_BASE: "http://ollama:11434/v1",
+    OPENAI_API_KEY: "ollama",
+    PROMPTFOO_DISABLE_REMOTE_GENERATION: "true",
+  }
+  return [
+    "--network",
+    LABS_NETWORK,
+    ...Object.entries(env).flatMap(([k, v]) => ["-e", `${k}=${v}`]),
+  ]
+}
 
 /** Docker CLI's raw daemon-unreachable errors are cryptic — surface something actionable. */
 function friendlyDockerError(rawMessage: string): string {
@@ -245,6 +269,7 @@ export async function startLab(userId: string, labId: string) {
         "--name",
         containerName,
         ...(lab.imagePlatform ? ["--platform", lab.imagePlatform] : []),
+        ...localModelArgs(lab),
         "--memory",
         MEM_LIMIT,
         "--cpus",

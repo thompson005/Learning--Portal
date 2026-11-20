@@ -64,6 +64,26 @@ docker compose exec app npx prisma db push   # only if the schema changed
 - Each lab container runs with `--memory`, `--cpus`, `--pids-limit`, and
   `--security-opt no-new-privileges`.
 
+## Small local model for AI labs (runs in Docker)
+
+AI labs that can use a model (LLMVault Live Mode, MCPGoat agent harness, promptfoo)
+get one from an **`ollama` container in this same compose stack** — nothing runs
+outside Docker and no cloud key is needed.
+
+- `ollama` serves on an isolated network (`technieum-labnet`) that holds only Ollama
+  and the lab containers flagged `localModel`. It is not published on the host, and
+  the db/app are not on that network.
+- `ollama-init` pulls `LAB_MODELS` (default `qwen2.5:3b-instruct`) once into the
+  `ollamadata` volume, then exits. Watch it: `docker compose logs -f ollama-init`.
+- A flagged lab starts with `OLLAMA_HOST=http://ollama:11434`,
+  `OPENAI_BASE_URL=http://ollama:11434/v1` and `OLLAMA_MODEL/OLLAMA_DEFAULT_MODEL=$LABS_MODEL`.
+- GPU (DGX): `docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d --build`.
+- Add models: put them in `LAB_MODELS` (space-separated) and run `docker compose up -d`.
+  Keep them small (<= 3B on CPU, a bit larger on GPU); each lab user shares the one server.
+- Caveat: Ollama has no auth, so a lab container can call its API (including `/api/pull`).
+  It is reachable only from lab containers, which are already on the VPN-only host.
+- The tutor/Teki chat still uses `LLM_BASE_URL` (the vLLM server), separate from this.
+
 ## Lab images: pulled, built from source, or emulated
 
 A lab runs in one click when it has a **prebuilt image** or a **Git repo the

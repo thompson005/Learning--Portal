@@ -247,6 +247,8 @@ export interface Lab {
   range?: CloudRange
   /** Force the container platform, e.g. "linux/amd64" for an image with no ARM build (runs under emulation on the ARM DGX — needs the one-time qemu/binfmt setup). */
   imagePlatform?: string
+  /** The lab can use a small local LLM. The runner attaches it to the shared Ollama network and injects OLLAMA_HOST / OPENAI_BASE_URL (see LABS_NETWORK in docker-compose.yml). */
+  localModel?: boolean
   /** Slideshow walkthrough — one diagram-backed slide per real step. Falls back to `instructions` when absent. */
   slides?: LabSlide[]
   /** Progressive hints, gentlest first — revealed one at a time on request, never all at once. */

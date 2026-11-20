@@ -133,7 +133,8 @@ export const AI_LABS: Lab[] = [
       }
     ],
     "buildContext": "https://github.com/SabyasachiDhal/MCPGoat.git#main",
-    "containerPort": 7332
+    "containerPort": 7332,
+    "localModel": true
   },
   {
     "id": "ai-L06",
@@ -185,7 +186,8 @@ export const AI_LABS: Lab[] = [
       }
     ],
     "buildContext": "https://github.com/CyberSunil/LLMVault.git#main",
-    "containerPort": 5000
+    "containerPort": 5000,
+    "localModel": true
   },
   {
     "id": "ai-L08",
@@ -305,6 +307,7 @@ export const AI_LABS: Lab[] = [
     "objective": "Lab = scaffold a red-team project and scan a target LLM/app for prompt injection, jailbreaks, PII leakage, data poisoning with OWASP/NIST presets; review findings in a self-hosted web UI.",
     "dockerImage": "ghcr.io/promptfoo/promptfoo:latest",
     "containerPort": 3000,
+    "localModel": true,
     "resources": [
       {
         "title": "promptfoo (red-team / eval) — GitHub repo",
