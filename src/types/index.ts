@@ -23,7 +23,42 @@ export interface Topic {
   terminalCommands?: string[]
   /** Slideshow walkthrough — one diagram-backed slide per concept beat. Falls back to description/keyPoints when absent. */
   slides?: LabSlide[]
+  /** Hands-on interactive exercises — drag-to-order, match, or fill-in-the-blank. Rendered after the walkthrough; each awards XP once. */
+  exercises?: Exercise[]
 }
+
+// ---------------------------------------------------------------------------
+// Interactive exercises — a small fixed vocabulary of auto-graded, hands-on
+// drills shown under a topic. Each is answered in-place and awards XP once.
+// ---------------------------------------------------------------------------
+
+/** Drag the items into the correct sequence. `items` are given in the CORRECT order; the renderer shuffles them for display. */
+export interface OrderExercise {
+  type: "order"
+  prompt: string
+  items: string[]
+  explanation?: string
+}
+
+/** Match each left item to its correct right item. Pairs are given aligned; the renderer shuffles the right column. */
+export interface MatchExercise {
+  type: "match"
+  prompt: string
+  pairs: { left: string; right: string }[]
+  explanation?: string
+}
+
+/** Fill each blank by placing the right token. `template` marks blanks with `___`; `blanks` lists the correct token for each blank in order; `distractors` are wrong tokens pooled in to make it non-trivial. */
+export interface BlankExercise {
+  type: "fill-blank"
+  prompt: string
+  template: string
+  blanks: string[]
+  distractors?: string[]
+  explanation?: string
+}
+
+export type Exercise = OrderExercise | MatchExercise | BlankExercise
 
 export interface Module {
   id: string

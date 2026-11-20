@@ -46,6 +46,43 @@ export const CURRICULUM: Module[] = [
           "Cores and clock speed (GHz) determine how many instructions run per second",
           "A buffer overflow exploit works by overwriting a return address, hijacking the CPU's instruction pointer register",
         ],
+        exercises: [
+          {
+            type: "order",
+            prompt:
+              "Put the CPU's instruction cycle into the right order, from the start of one cycle to the next.",
+            items: [
+              "Fetch the next instruction from memory",
+              "Decode what operation the instruction specifies",
+              "Execute the operation",
+              "Advance the instruction pointer to the next instruction",
+            ],
+            explanation:
+              "The fetch–decode–execute cycle repeats one cycle at a time; after executing, the instruction pointer advances so the next fetch pulls the following instruction.",
+          },
+          {
+            type: "match",
+            prompt: "Match each cache level to what makes it distinct.",
+            pairs: [
+              { left: "L1 cache", right: "Fastest & smallest, ~64KB per core" },
+              { left: "L2 cache", right: "256KB–several MB, backs up L1" },
+              { left: "L3 cache", right: "Shared across all cores, largest" },
+              { left: "RAM", right: "Off-chip, far slower than any cache" },
+            ],
+            explanation:
+              "Caches trade size for speed: L1 is tiny but ~100x RAM speed, L2 is larger and slower, L3 is shared and larger still — all far faster than RAM.",
+          },
+          {
+            type: "fill-blank",
+            prompt: "Complete the description of how a buffer overflow hijacks execution.",
+            template:
+              "A buffer overflow overwrites the ___ held on the stack, which hijacks the CPU's ___ register and redirects what it executes next.",
+            blanks: ["return address", "instruction pointer"],
+            distractors: ["heap pointer", "data bus"],
+            explanation:
+              "Overwriting the saved return address lets the attacker control the instruction pointer (EIP/RIP), so the CPU fetches and runs attacker-chosen code.",
+          },
+        ],
         slides: [
           {
             title: "The CPU: Your Computer's Brain",

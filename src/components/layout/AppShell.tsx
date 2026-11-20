@@ -6,6 +6,7 @@ import { MobileNav } from "@/components/layout/MobileNav"
 import { CommandPalette } from "@/components/search/CommandPalette"
 import { LevelUpWatcher } from "@/components/gamification/LevelUpWatcher"
 import { PresenceTracker } from "@/components/layout/PresenceTracker"
+import { TutorPanel } from "@/components/tutor/TutorPanel"
 import { FocusModeProvider, useFocusMode } from "@/components/layout/FocusMode"
 import { cn } from "@/lib/utils"
 
@@ -35,6 +36,7 @@ function Shell({ children }: { children: React.ReactNode }) {
       <CommandPalette />
       <LevelUpWatcher />
       <PresenceTracker />
+      <TutorPanel />
     </div>
   )
 }

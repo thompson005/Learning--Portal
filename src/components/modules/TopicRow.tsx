@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button"
 import { StatusBadge } from "@/components/shared/StatusBadge"
 import { CodeBlock } from "@/components/shared/CodeBlock"
 import { LabSlideshow } from "@/components/labs/LabSlideshow"
+import { ExerciseBlock } from "@/components/exercises/ExerciseBlock"
 import { VideoEmbed, isEmbeddableVideo } from "@/components/shared/VideoEmbed"
 import {
   Select,
@@ -95,6 +96,24 @@ export function TopicRow({
     }, 150)
     return () => clearTimeout(t)
   }, [defaultExpanded, topic.id])
+
+  // Tell the AI tutor what the learner is reading, so "Ask AI" is context-aware.
+  useEffect(() => {
+    if (!expanded) return
+    const parts = [
+      topic.description,
+      topic.keyPoints?.join(" "),
+      topic.slides?.map((s) => `${s.title}. ${s.body}`).join(" "),
+    ].filter(Boolean)
+    window.dispatchEvent(
+      new CustomEvent("technieum:tutor-context", {
+        detail: {
+          title: topic.title,
+          context: parts.join("\n").slice(0, 4000),
+        },
+      }),
+    )
+  }, [expanded, topic])
 
   function handleStatusChange(next: Status) {
     const xpBefore = getXp()
@@ -245,6 +264,10 @@ export function TopicRow({
                 </div>
               )}
             </>
+          )}
+
+          {topic.exercises && topic.exercises.length > 0 && (
+            <ExerciseBlock exercises={topic.exercises} ownerId={topic.id} />
           )}
 
           {videoResources.length > 0 && (

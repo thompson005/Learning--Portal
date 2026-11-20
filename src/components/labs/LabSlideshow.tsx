@@ -7,6 +7,7 @@ import {
   ChevronLeft,
   ChevronRight,
   HelpCircle,
+  Play,
   RotateCcw,
   Sparkles,
   X,
@@ -109,6 +110,38 @@ function CheckpointCheck({
   )
 }
 
+/** Wraps a diagram with a Replay control. Replaying bumps a key so the diagram
+ *  remounts and its staged reveal animation runs again, on demand. */
+function DiagramWithReplay({
+  diagram,
+  animate,
+}: {
+  diagram: NonNullable<LabSlide["diagram"]>
+  animate: boolean
+}) {
+  const [playKey, setPlayKey] = useState(0)
+  // After a manual replay the diagram should always animate, even if the slide
+  // itself wasn't animating on this view.
+  const forceAnimate = playKey > 0
+  return (
+    <div className="group/diagram relative">
+      <LabDiagramView
+        key={playKey}
+        diagram={diagram}
+        animate={animate || forceAnimate}
+      />
+      <button
+        type="button"
+        onClick={() => setPlayKey((k) => k + 1)}
+        aria-label="Replay animation"
+        className="absolute right-2 top-2 flex items-center gap-1 rounded-md border border-border bg-card/90 px-2 py-1 font-mono text-[10px] font-semibold text-muted-foreground opacity-0 shadow-chip backdrop-blur transition-opacity hover:text-brand-orange focus-visible:opacity-100 group-hover/diagram:opacity-100 motion-reduce:opacity-100"
+      >
+        <Play className="h-3 w-3" /> Replay
+      </button>
+    </div>
+  )
+}
+
 function SlideContent({
   slide,
   isFinal,
@@ -168,7 +201,7 @@ function SlideContent({
       </p>
       {slide.diagram && (
         <div className={cn("mt-3", diagram.className)} style={diagram.style}>
-          <LabDiagramView diagram={slide.diagram} animate={animate} />
+          <DiagramWithReplay diagram={slide.diagram} animate={animate} />
         </div>
       )}
       {slide.check && interactive && (
