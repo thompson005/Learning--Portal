@@ -9,8 +9,6 @@ import {
   HelpCircle,
   Target,
   ListChecks,
-  Maximize2,
-  Minimize2,
   Download,
 } from "lucide-react"
 
@@ -22,7 +20,6 @@ import { GlassCard } from "@/components/ui3d/GlassCard"
 import { MeshGradient } from "@/components/ui3d/MeshGradient"
 import { TopicRow } from "@/components/modules/TopicRow"
 import { VideoEmbed, isEmbeddableVideo } from "@/components/shared/VideoEmbed"
-import { useFocusMode } from "@/components/layout/FocusMode"
 import { LabCard } from "@/components/labs/LabCard"
 import { trackForModuleId, setActiveTrackId, getActiveTrack } from "@/lib/data/tracks/registry"
 import { QuizModal } from "@/components/quiz/QuizModal"
@@ -70,7 +67,6 @@ function ModuleDetailContent({
   }, [mod, owningTrack.id])
   const searchParams = useSearchParams()
   const focusTopic = searchParams.get("topic")
-  const { focus, toggle: toggleFocus } = useFocusMode()
   const topicsListRef = useRef<HTMLDivElement>(null)
   const [percent, setPercent] = useState(0)
   const [lock, setLock] = useState<ModuleLock>({ locked: false })
@@ -169,18 +165,6 @@ function ModuleDetailContent({
               >
                 {(owningTrack.phases.find((p) => p.month === mod.month)?.name ?? "")}
               </Badge>
-              <button
-                onClick={toggleFocus}
-                className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground shadow-chip transition-colors hover:text-foreground"
-                title={focus ? "Exit focus mode" : "Focus mode — hide the sidebar for reading"}
-              >
-                {focus ? (
-                  <Minimize2 className="h-3.5 w-3.5" />
-                ) : (
-                  <Maximize2 className="h-3.5 w-3.5" />
-                )}
-                {focus ? "Exit focus" : "Focus mode"}
-              </button>
             </div>
             <h1 className="font-display text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
               {mod.name}

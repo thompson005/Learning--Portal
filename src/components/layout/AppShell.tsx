@@ -9,26 +9,18 @@ import { PresenceTracker } from "@/components/layout/PresenceTracker"
 import { TutorPanel } from "@/components/tutor/TutorPanel"
 import { Companion } from "@/components/tutor/Companion"
 import { LessonComplete } from "@/components/learn/LessonComplete"
-import { FocusModeProvider, useFocusMode } from "@/components/layout/FocusMode"
-import { cn } from "@/lib/utils"
 
-function Shell({ children }: { children: React.ReactNode }) {
-  const { focus } = useFocusMode()
+export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="app-canvas flex h-dvh w-full overflow-hidden">
-      <div className={cn("hidden md:flex", focus && "md:hidden")}>
+      <div className="hidden md:flex">
         <Sidebar />
       </div>
 
       <div className="flex min-w-0 flex-1 flex-col">
         <Header />
         <main className="flex-1 overflow-y-auto bg-dot-grid pb-16 md:pb-0">
-          <div
-            className={cn(
-              "mx-auto w-full animate-fade-in p-4 md:p-8",
-              focus ? "max-w-3xl" : "max-w-7xl",
-            )}
-          >
+          <div className="mx-auto w-full max-w-7xl animate-fade-in p-4 md:p-8">
             {children}
           </div>
         </main>
@@ -45,10 +37,3 @@ function Shell({ children }: { children: React.ReactNode }) {
   )
 }
 
-export function AppShell({ children }: { children: React.ReactNode }) {
-  return (
-    <FocusModeProvider>
-      <Shell>{children}</Shell>
-    </FocusModeProvider>
-  )
-}
