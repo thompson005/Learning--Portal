@@ -48,3 +48,8 @@ next-env.d.ts
 
 # keep the example (real .env stays ignored)
 !.env.example
+
+# generated exercise-authoring artifacts
+scripts/ex-workflow.js
+scripts/topics-dump.json
+scripts/ex-results.json

@@ -21,6 +21,39 @@ export const AI_CURRICULUM: Module[] = [
     "topics": [
       {
         "id": "ai-m1-1",
+        "exercises": [
+          {
+            "type": "order",
+            "prompt": "Order these ML pipeline stages from earliest to latest, as the attack-surface map uses them.",
+            "items": [
+              "Data sourcing",
+              "Labeling",
+              "Training/fine-tuning",
+              "Deployment",
+              "Inference"
+            ],
+            "explanation": "The lifecycle runs data sourcing -> labeling -> training/fine-tuning -> evaluation -> packaging -> deployment -> inference -> monitoring; every stage is a place an attacker or defender can act."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each AI asset or attack to the CIA property it threatens.",
+            "pairs": [
+              {
+                "left": "Stolen model weights",
+                "right": "Confidentiality"
+              },
+              {
+                "left": "Tampered inference output",
+                "right": "Integrity"
+              },
+              {
+                "left": "Token/cost exhaustion",
+                "right": "Availability"
+              }
+            ],
+            "explanation": "Weights are a confidentiality asset, prediction/action correctness is integrity, and endpoint exhaustion via tokens or cost attacks availability."
+          }
+        ],
         "moduleId": "ai-m1",
         "number": 1,
         "title": "The Machine Learning Lifecycle as an Attack Surface",
@@ -246,6 +279,44 @@ export const AI_CURRICULUM: Module[] = [
       },
       {
         "id": "ai-m1-2",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each training-intuition term to its meaning.",
+            "pairs": [
+              {
+                "left": "Forward pass",
+                "right": "Compute a prediction from inputs"
+              },
+              {
+                "left": "Backward pass",
+                "right": "Propagate gradients to update weights"
+              },
+              {
+                "left": "Overfitting",
+                "right": "Memorizing the training data"
+              },
+              {
+                "left": "Gradient",
+                "right": "Direction that changes the loss most"
+              }
+            ],
+            "explanation": "Attackers follow the gradient to craft adversarial inputs, and overfitting/memorization is the root cause of membership inference and data extraction."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Fill the blank describing the strongest attacker access level.",
+            "template": "In a ___ attack the adversary has full access to the model's weights and gradients.",
+            "blanks": [
+              "white-box"
+            ],
+            "explanation": "White-box access exposes weights and gradients, enabling the most powerful gradient-based adversarial and extraction attacks.",
+            "distractors": [
+              "black-box",
+              "grey-box"
+            ]
+          }
+        ],
         "moduleId": "ai-m1",
         "number": 2,
         "title": "Neural Networks and Training Intuition",
@@ -405,6 +476,33 @@ export const AI_CURRICULUM: Module[] = [
       },
       {
         "id": "ai-m1-3",
+        "exercises": [
+          {
+            "type": "order",
+            "prompt": "Order the steps a decoder-only LLM takes to turn text into a prediction.",
+            "items": [
+              "Raw text input",
+              "Tokenization (BPE)",
+              "Embedding vectors",
+              "Attention layers",
+              "Next-token prediction"
+            ],
+            "explanation": "Text is split into tokens, mapped to embeddings, processed by attention, then used to predict the next token; token boundaries are what obfuscation attacks exploit."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the sentence about why prompt injection works.",
+            "template": "The context window has no hard ___ separation, so injected text can act as ___ to the model.",
+            "blanks": [
+              "code/data",
+              "instructions"
+            ],
+            "explanation": "System, developer, user, and tool text are concatenated into one stream with no code/data boundary, so untrusted content can become instructions.",
+            "distractors": [
+              "token/embedding"
+            ]
+          }
+        ],
         "moduleId": "ai-m1",
         "number": 3,
         "title": "Transformer and LLM Architecture",
@@ -550,6 +648,45 @@ export const AI_CURRICULUM: Module[] = [
       },
       {
         "id": "ai-m1-4",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each model or tool to its deployment category.",
+            "pairs": [
+              {
+                "left": "Claude, GPT, Gemini",
+                "right": "Closed API models"
+              },
+              {
+                "left": "Llama, Mistral, Qwen",
+                "right": "Open-weight models"
+              },
+              {
+                "left": "Ollama, vLLM, llama.cpp",
+                "right": "Self-hosted inference"
+              },
+              {
+                "left": "LoRA / QLoRA",
+                "right": "Adapter fine-tuning"
+              }
+            ],
+            "explanation": "The dominant pattern is foundation + fine-tune + API; knowing whether a model is closed-API, open-weight, or self-hosted sets the threat model."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Fill the blanks about how open releases change the threat model.",
+            "template": "Releasing open ___ changes the threat model to full ___-box access.",
+            "blanks": [
+              "weights",
+              "white"
+            ],
+            "explanation": "Open weights hand attackers the parameters and gradients, giving them full white-box capability against the model.",
+            "distractors": [
+              "black",
+              "grey"
+            ]
+          }
+        ],
         "moduleId": "ai-m1",
         "number": 4,
         "title": "Generative Models and Foundation Models",
@@ -675,6 +812,44 @@ export const AI_CURRICULUM: Module[] = [
       },
       {
         "id": "ai-m1-5",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each modern LLM application pattern to its core risk or role.",
+            "pairs": [
+              {
+                "left": "RAG",
+                "right": "Untrusted retrieved text enters the prompt"
+              },
+              {
+                "left": "Agents",
+                "right": "Model output becomes control flow"
+              },
+              {
+                "left": "Tool calling / MCP",
+                "right": "New integration attack surface"
+              },
+              {
+                "left": "LangChain, LlamaIndex",
+                "right": "Orchestration frameworks"
+              }
+            ],
+            "explanation": "RAG injects external text, agents turn output into actions, and MCP/tool calling adds integration surface - all glued together by orchestration frameworks."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the core theme shared across RAG, agents, and tools.",
+            "template": "The core theme: data from the world can become ___ to the model.",
+            "blanks": [
+              "instructions"
+            ],
+            "explanation": "In every modern app shape, external data flowing into the prompt can be interpreted as instructions, which is the root of injection risk.",
+            "distractors": [
+              "embeddings",
+              "training data"
+            ]
+          }
+        ],
         "moduleId": "ai-m1",
         "number": 5,
         "title": "RAG, Agents and Tool Use — the Modern App Shape",
@@ -820,6 +995,40 @@ export const AI_CURRICULUM: Module[] = [
       },
       {
         "id": "ai-m1-6",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each security property to what it means for an AI system.",
+            "pairs": [
+              {
+                "left": "Confidentiality",
+                "right": "Protect weights, prompts, training data"
+              },
+              {
+                "left": "Integrity",
+                "right": "Trustworthy predictions and actions"
+              },
+              {
+                "left": "Availability",
+                "right": "Resist cost/token exhaustion"
+              }
+            ],
+            "explanation": "For AI, CIA maps to protecting secret assets, keeping outputs and actions correct, and keeping the endpoint usable against token/cost exhaustion."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Fill the blanks distinguishing safety from security.",
+            "template": "Generating harmful content is a ___ concern, whereas system compromise is a ___ concern.",
+            "blanks": [
+              "safety",
+              "security"
+            ],
+            "explanation": "Safety covers harmful-content policy violations; security covers compromise of the system itself - two distinct success criteria.",
+            "distractors": [
+              "privacy"
+            ]
+          }
+        ],
         "moduleId": "ai-m1",
         "number": 6,
         "title": "Security Properties and Threat Actors for AI",
@@ -1009,6 +1218,45 @@ export const AI_CURRICULUM: Module[] = [
     "topics": [
       {
         "id": "ai-m2-1",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each AI-security framework to what it primarily describes.",
+            "pairs": [
+              {
+                "left": "OWASP LLM Top 10",
+                "right": "Risks in LLM-powered applications"
+              },
+              {
+                "left": "OWASP ML Top 10",
+                "right": "Risks in classical ML models"
+              },
+              {
+                "left": "MITRE ATLAS",
+                "right": "Adversary tactics and techniques against AI"
+              },
+              {
+                "left": "NIST AI RMF",
+                "right": "Risk-management and governance framework"
+              }
+            ],
+            "explanation": "Each framework is a different dialect for the same attack surface: OWASP enumerates app/model risks, ATLAS maps adversary behaviour, and NIST AI RMF governs risk management."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Classify these attacks by when they occur against the model lifecycle.",
+            "template": "Prompt injection and jailbreaks are ___-time attacks, while data poisoning and backdoors are ___-time attacks.",
+            "blanks": [
+              "inference",
+              "train"
+            ],
+            "explanation": "The core taxonomy axis separates inference-time attacks on a deployed model from train-time attacks that corrupt the model before deployment.",
+            "distractors": [
+              "compile",
+              "deploy"
+            ]
+          }
+        ],
         "moduleId": "ai-m2",
         "number": 7,
         "title": "A Taxonomy of AI Attacks",
@@ -1228,6 +1476,42 @@ export const AI_CURRICULUM: Module[] = [
       },
       {
         "id": "ai-m2-2",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each AI feature to the classic web/app bug class it most commonly exposes.",
+            "pairs": [
+              {
+                "left": "LLM URL-fetch / browsing tool",
+                "right": "SSRF"
+              },
+              {
+                "left": "Code-interpreter sandbox escape",
+                "right": "RCE"
+              },
+              {
+                "left": "LLM proxying backend calls per user",
+                "right": "IDOR / authz gap"
+              },
+              {
+                "left": "Model output rendered as HTML",
+                "right": "XSS / markdown injection"
+              }
+            ],
+            "explanation": "Most real AI incidents are still classic bugs reached through an AI feature: a browsing tool becomes SSRF, a sandbox becomes RCE, and unsanitized output becomes XSS (OWASP LLM05)."
+          },
+          {
+            "type": "order",
+            "prompt": "Order the steps of an SSRF attack through an LLM document-loader / URL-fetch tool.",
+            "items": [
+              "User supplies a URL to the LLM's fetch tool",
+              "The tool server makes a request to that URL",
+              "Attacker points it at the cloud metadata endpoint 169.254.169.254",
+              "Cloud credentials are returned to the attacker"
+            ],
+            "explanation": "When the LLM's fetch tool blindly requests any user-supplied URL, it can be aimed at internal metadata services, turning a convenience feature into server-side request forgery."
+          }
+        ],
         "moduleId": "ai-m2",
         "number": 8,
         "title": "Classic Web and App Bugs Inside AI Apps",
@@ -1350,6 +1634,44 @@ export const AI_CURRICULUM: Module[] = [
       },
       {
         "id": "ai-m2-3",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each prompt-boundary concept to its description.",
+            "pairs": [
+              {
+                "left": "Direct injection",
+                "right": "Hostile user types the malicious instruction"
+              },
+              {
+                "left": "Indirect injection",
+                "right": "Hostile content the model reads elsewhere"
+              },
+              {
+                "left": "Role confusion",
+                "right": "Blurring the system/user/tool boundary"
+              },
+              {
+                "left": "Token-level obfuscation",
+                "right": "Encoding used to smuggle instructions"
+              }
+            ],
+            "explanation": "The prompt boundary is weak because roles are not enforced isolation: attackers inject directly, indirectly via read content, or hide instructions through role confusion and encoding."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the statement about why the prompt boundary cannot be fully enforced.",
+            "template": "System, developer, user and tool roles are ___, not enforced isolation, so input validation alone cannot fully stop prompt injection.",
+            "blanks": [
+              "advisory"
+            ],
+            "explanation": "The model treats role labels as advisory hints in one context window, so there is no trustworthy separation between instructions and data that validation can guarantee.",
+            "distractors": [
+              "cryptographic",
+              "mandatory"
+            ]
+          }
+        ],
         "moduleId": "ai-m2",
         "number": 9,
         "title": "The Prompt Boundary",
@@ -1481,6 +1803,42 @@ export const AI_CURRICULUM: Module[] = [
       },
       {
         "id": "ai-m2-4",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each model-artifact concept to its security property.",
+            "pairs": [
+              {
+                "left": "Pickle format (.pt / .bin / .ckpt)",
+                "right": "Arbitrary code execution on load"
+              },
+              {
+                "left": "safetensors",
+                "right": "Safe-by-design serialization"
+              },
+              {
+                "left": "Keras lambda layer",
+                "right": "Embeds arbitrary code in the model"
+              },
+              {
+                "left": "Model card",
+                "right": "Provenance and integrity signal"
+              }
+            ],
+            "explanation": "A model file is code and data: pickle and lambda-layer formats can execute code on load, safetensors avoids that by design, and model cards provide provenance."
+          },
+          {
+            "type": "order",
+            "prompt": "Order the steps of safely vetting untrusted downloaded weights before use.",
+            "items": [
+              "Download the weights into an isolated directory",
+              "Check the model card, license and provenance",
+              "Scan the file with picklescan or ModelScan",
+              "Load the model only if the scan is clean"
+            ],
+            "explanation": "Downloaded weights are untrusted executables: establish provenance and scan for malicious pickle opcodes with tools like picklescan or ModelScan before ever loading them."
+          }
+        ],
         "moduleId": "ai-m2",
         "number": 10,
         "title": "Model Artifact and Weight Surface",
@@ -1594,6 +1952,42 @@ export const AI_CURRICULUM: Module[] = [
       },
       {
         "id": "ai-m2-5",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each data/retrieval attack to the channel it targets.",
+            "pairs": [
+              {
+                "left": "Split-view / frontrunning poisoning",
+                "right": "Web-scale training data"
+              },
+              {
+                "left": "Label flipping",
+                "right": "Fine-tune dataset"
+              },
+              {
+                "left": "Vector-store poisoning",
+                "right": "RAG embedding store (LLM08)"
+              },
+              {
+                "left": "Malicious email or web page",
+                "right": "Indirect-injection carrier"
+              }
+            ],
+            "explanation": "Every data source is an attackable input channel, from web-scale corpora and fine-tune sets to live RAG stores and the untrusted documents they ingest."
+          },
+          {
+            "type": "order",
+            "prompt": "Order the stages of a RAG indirect-injection attack via a poisoned document.",
+            "items": [
+              "Attacker plants malicious text in a public document",
+              "The document is ingested into the vector store",
+              "A user query retrieves the poisoned chunk",
+              "The injected instructions run in the model's context"
+            ],
+            "explanation": "RAG/vector-store poisoning (OWASP LLM08) turns retrieved content into an indirect-injection carrier: the attacker never talks to the model, the retrieval pipeline delivers the payload."
+          }
+        ],
         "moduleId": "ai-m2",
         "number": 11,
         "title": "Data and Retrieval Surface",
@@ -1698,6 +2092,44 @@ export const AI_CURRICULUM: Module[] = [
       },
       {
         "id": "ai-m2-6",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each agentic/infrastructure risk to its description.",
+            "pairs": [
+              {
+                "left": "Excessive agency (LLM06)",
+                "right": "Over-broad tool permissions"
+              },
+              {
+                "left": "Confused deputy",
+                "right": "Privilege escalation via tool chaining"
+              },
+              {
+                "left": "MCP tool poisoning / rug-pull",
+                "right": "Malicious or mutated tool descriptions"
+              },
+              {
+                "left": "Denial-of-wallet (LLM10)",
+                "right": "Token and cost exhaustion"
+              }
+            ],
+            "explanation": "Autonomous agents add action risk on top of classic infra: excessive agency and confused-deputy chaining grant too much power, while untrusted MCP servers and unbounded consumption attack trust and cost."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Fill in the serving-stack CVEs referenced for the infrastructure surface.",
+            "template": "The 'ShadowRay' remote code execution in the Ray dashboard is tracked as ___, while the NVIDIA Container Toolkit escape is ___.",
+            "blanks": [
+              "CVE-2023-48022",
+              "CVE-2024-0132"
+            ],
+            "explanation": "The model-serving stack carries classic CVEs: ShadowRay (CVE-2023-48022) exposes Ray dashboards to RCE, and CVE-2024-0132 is the NVIDIA Container Toolkit container-escape flaw.",
+            "distractors": [
+              "CVE-2024-3094"
+            ]
+          }
+        ],
         "moduleId": "ai-m2",
         "number": 12,
         "title": "Agentic and Infrastructure Surface",
@@ -1865,6 +2297,44 @@ export const AI_CURRICULUM: Module[] = [
     "topics": [
       {
         "id": "ai-m3-1",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each Docker run flag to the isolation or resource control it provides.",
+            "pairs": [
+              {
+                "left": "--memory",
+                "right": "Cap the container's RAM"
+              },
+              {
+                "left": "--cpus",
+                "right": "Limit the CPU cores available"
+              },
+              {
+                "left": "--pids-limit",
+                "right": "Cap the number of processes"
+              },
+              {
+                "left": "--security-opt=no-new-privileges",
+                "right": "Block privilege escalation inside the container"
+              }
+            ],
+            "explanation": "Resource and privilege flags keep a compromised lab container from exhausting the host or escalating out of its sandbox."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the hardened run command for a vulnerable LLM target.",
+            "template": "docker run --memory 4g --cpus 2 --pids-limit 100 --security-opt=___ vuln-llm",
+            "blanks": [
+              "no-new-privileges"
+            ],
+            "explanation": "no-new-privileges stops processes from gaining extra privileges via setuid binaries, a key egress/escape control for an isolated lab.",
+            "distractors": [
+              "privileged",
+              "seccomp=unconfined"
+            ]
+          }
+        ],
         "moduleId": "ai-m3",
         "number": 13,
         "title": "Containerized Lab Architecture",
@@ -2082,6 +2552,34 @@ export const AI_CURRICULUM: Module[] = [
       },
       {
         "id": "ai-m3-2",
+        "exercises": [
+          {
+            "type": "fill-blank",
+            "prompt": "Fill in the tool names for local model serving.",
+            "template": "Use ___ for a one-command local chat model, and ___ for a high-throughput OpenAI-compatible endpoint.",
+            "blanks": [
+              "Ollama",
+              "vLLM"
+            ],
+            "explanation": "Ollama gives quick local chat; vLLM (like HF TGI) exposes an OpenAI-compatible API so existing tools can point at local weights.",
+            "distractors": [
+              "garak",
+              "picklescan"
+            ]
+          },
+          {
+            "type": "order",
+            "prompt": "Order the steps for pulling and loading model weights safely.",
+            "items": [
+              "Choose a safetensors weight file over a pickle format",
+              "Download the weights",
+              "Verify the published hash/checksum",
+              "Scan the artifact for malicious payloads",
+              "Load the model into your serving endpoint"
+            ],
+            "explanation": "Preferring safetensors, verifying hashes, and scanning before loading prevents a poisoned artifact from executing code when the model is served."
+          }
+        ],
         "moduleId": "ai-m3",
         "number": 14,
         "title": "Local Model Hosting",
@@ -2225,6 +2723,49 @@ export const AI_CURRICULUM: Module[] = [
       },
       {
         "id": "ai-m3-3",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each deliberately vulnerable target to what you practice on it.",
+            "pairs": [
+              {
+                "left": "Gandalf / Lakera-style challenge",
+                "right": "Prompt-injection drills"
+              },
+              {
+                "left": "Damn Vulnerable LLM App (DVLA)",
+                "right": "Intentionally vulnerable LLM application"
+              },
+              {
+                "left": "Vulnerable RAG / agent demo",
+                "right": "Indirect injection and tool abuse"
+              },
+              {
+                "left": "WebGoat",
+                "right": "Classic web bugs behind an AI feature"
+              },
+              {
+                "left": "Reset/seed script",
+                "right": "Return a broken target to a clean state"
+              }
+            ],
+            "explanation": "Purpose-built labs give legal, resettable targets so every attack class has a safe place to practice."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the description of a good lab target.",
+            "template": "Install a legal, ___ target, and keep a ___ script so a broken instance is one command from clean.",
+            "blanks": [
+              "resettable",
+              "reset"
+            ],
+            "explanation": "A resettable target plus a reset/seed script keeps experiments reproducible and lets you recover instantly after a destructive test.",
+            "distractors": [
+              "production",
+              "exfiltrate"
+            ]
+          }
+        ],
         "moduleId": "ai-m3",
         "number": 15,
         "title": "Deliberately Vulnerable AI Targets",
@@ -2400,6 +2941,49 @@ export const AI_CURRICULUM: Module[] = [
       },
       {
         "id": "ai-m3-4",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each offensive tool to its primary role.",
+            "pairs": [
+              {
+                "left": "garak",
+                "right": "LLM vulnerability scanner with probe/detector plugins"
+              },
+              {
+                "left": "PyRIT",
+                "right": "Automated multi-turn attack orchestration"
+              },
+              {
+                "left": "promptfoo",
+                "right": "Red-team and eval harness with jailbreak plugins"
+              },
+              {
+                "left": "TextAttack",
+                "right": "NLP adversarial robustness testing"
+              },
+              {
+                "left": "Burp Suite / mitmproxy",
+                "right": "Intercept and tamper with LLM API traffic"
+              }
+            ],
+            "explanation": "Each tool automates a different part of LLM attack discovery, from scanning and orchestration to traffic interception."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Fill in the vendor-backed scanner names.",
+            "template": "___ is NVIDIA's LLM vulnerability scanner, while ___ is Microsoft's automated risk-identification and multi-turn attack tool.",
+            "blanks": [
+              "garak",
+              "PyRIT"
+            ],
+            "explanation": "garak (NVIDIA) probes models for known weaknesses; PyRIT (Microsoft) orchestrates automated multi-turn attacks.",
+            "distractors": [
+              "promptfoo",
+              "Giskard"
+            ]
+          }
+        ],
         "moduleId": "ai-m3",
         "number": 16,
         "title": "Offensive Tooling",
@@ -2551,6 +3135,48 @@ export const AI_CURRICULUM: Module[] = [
       },
       {
         "id": "ai-m3-5",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each defensive or analysis tool to its function.",
+            "pairs": [
+              {
+                "left": "LLM Guard (Protect AI)",
+                "right": "Scan prompts and responses for threats"
+              },
+              {
+                "left": "NeMo Guardrails (NVIDIA)",
+                "right": "Programmable conversation rails"
+              },
+              {
+                "left": "ModelScan",
+                "right": "Scan model artifacts for unsafe code"
+              },
+              {
+                "left": "Lakera Guard",
+                "right": "Detect prompt injection"
+              },
+              {
+                "left": "Results notebook / JSON convention",
+                "right": "Record every experiment"
+              }
+            ],
+            "explanation": "These are the guardrail, artifact-scanning, and observability tools you will both bypass offensively and deploy defensively."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the artifact-scanning statement.",
+            "template": "Use ___ to detect malicious code hidden inside a pickle-based model file.",
+            "blanks": [
+              "picklescan"
+            ],
+            "explanation": "picklescan (like ModelScan) inspects serialized model artifacts for code that would execute on load.",
+            "distractors": [
+              "Ollama",
+              "promptfoo"
+            ]
+          }
+        ],
         "moduleId": "ai-m3",
         "number": 17,
         "title": "Defensive and Analysis Tooling",
@@ -2743,6 +3369,49 @@ export const AI_CURRICULUM: Module[] = [
       },
       {
         "id": "ai-m3-6",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each rule of engagement to its reason.",
+            "pairs": [
+              {
+                "left": "Test only what you own or are authorized to test",
+                "right": "Stay within the law"
+              },
+              {
+                "left": "Respect provider terms and published bug-bounty scope",
+                "right": "Avoid terms-of-service violations"
+              },
+              {
+                "left": "Keep generated harmful content in the lab",
+                "right": "Prevent real-world harm or data exfiltration"
+              },
+              {
+                "left": "Rate-limit and cost-cap even in the lab",
+                "right": "Avoid denial-of-wallet on yourself"
+              },
+              {
+                "left": "Document reproduction steps",
+                "right": "Enable responsible disclosure"
+              }
+            ],
+            "explanation": "Safe-harbor discipline mirrors real bug-bounty practice: authorized scope, contained content, cost control, and clear reproduction."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the safe-testing rule.",
+            "template": "Even in your own lab, set a ___ cap to avoid denial-of-wallet, and only test systems you ___ or are explicitly authorized to test.",
+            "blanks": [
+              "cost",
+              "own"
+            ],
+            "explanation": "A cost cap prevents runaway spend on yourself, and testing only owned or authorized systems keeps the work legal.",
+            "distractors": [
+              "speed",
+              "rented"
+            ]
+          }
+        ],
         "moduleId": "ai-m3",
         "number": 18,
         "title": "Safe and Authorized Testing Discipline",
@@ -2906,6 +3575,45 @@ export const AI_CURRICULUM: Module[] = [
     "topics": [
       {
         "id": "ai-m4-1",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each direct-injection concept to what it describes.",
+            "pairs": [
+              {
+                "left": "'Ignore previous instructions'",
+                "right": "Instruction override"
+              },
+              {
+                "left": "Fake </system> block",
+                "right": "Role spoofing"
+              },
+              {
+                "left": "System-prompt extraction",
+                "right": "Leaks developer instructions (LLM07)"
+              },
+              {
+                "left": "Success rate across temperatures",
+                "right": "Reliability measurement"
+              }
+            ],
+            "explanation": "Direct injection works by overriding or spoofing roles from the user turn; extracting the leaked system prompt (LLM07) then accelerates every follow-on attack, and reliability is measured as success rate across settings."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the OWASP mapping for prompt injection and system-prompt leakage.",
+            "template": "The canonical OWASP reference for prompt injection is ___, while leaked system prompts fall under ___.",
+            "blanks": [
+              "LLM01",
+              "LLM07"
+            ],
+            "explanation": "Prompt injection is OWASP LLM01; System Prompt Leakage is LLM07. A leaked prompt exposes the model's guardrails and accelerates other attacks.",
+            "distractors": [
+              "LLM06",
+              "LLM02"
+            ]
+          }
+        ],
         "moduleId": "ai-m4",
         "number": 19,
         "title": "Direct Prompt Injection Fundamentals",
@@ -3050,6 +3758,42 @@ export const AI_CURRICULUM: Module[] = [
       },
       {
         "id": "ai-m4-2",
+        "exercises": [
+          {
+            "type": "order",
+            "prompt": "Order the steps of a zero-click indirect-injection chain.",
+            "items": [
+              "Attacker plants hidden instructions in a web page",
+              "Victim asks the model to summarize that page",
+              "Model retrieves and reads the page content",
+              "Hidden instructions execute in the victim's trusted session"
+            ],
+            "explanation": "In a zero-click chain the victim simply summarizing attacker-controlled content pulls the payload into their trusted context, where it runs with the victim's authority rather than the attacker's."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each indirect-injection concept to its meaning.",
+            "pairs": [
+              {
+                "left": "HTML comment",
+                "right": "Invisible-text carrier"
+              },
+              {
+                "left": "RAG document retrieval",
+                "right": "Delivery channel into trusted context"
+              },
+              {
+                "left": "Zero-click chain",
+                "right": "Triggered just by summarizing content"
+              },
+              {
+                "left": "Attacker is not the authenticated user",
+                "right": "Reason indirect injection is critical"
+              }
+            ],
+            "explanation": "The payload hides in content the model reads (HTML comments, white-on-white, RAG docs); because the attacker is not the authenticated victim, successful indirect injection is often rated high or critical."
+          }
+        ],
         "moduleId": "ai-m4",
         "number": 20,
         "title": "Indirect / Second-Order Injection",
@@ -3229,6 +3973,45 @@ export const AI_CURRICULUM: Module[] = [
       },
       {
         "id": "ai-m4-3",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each evasion technique to what it accomplishes.",
+            "pairs": [
+              {
+                "left": "Base64 encoding",
+                "right": "Hide payload from keyword filters"
+              },
+              {
+                "left": "Leetspeak / homoglyphs",
+                "right": "Character substitution to dodge blocklists"
+              },
+              {
+                "left": "Low-resource language",
+                "right": "Framing filters do not cover"
+              },
+              {
+                "left": "Token-splitting",
+                "right": "Spread payload across turns"
+              }
+            ],
+            "explanation": "Naive filters match literal keywords, so encoding, substitution, unfamiliar-language framing, and splitting the payload across turns all slip past them."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Name two encodings used to bypass naive keyword blocklists.",
+            "template": "Encoding a blocked payload with ___ or ___ can slip it past naive keyword blocklists.",
+            "blanks": [
+              "Base64",
+              "ROT13"
+            ],
+            "explanation": "Base64 and ROT13 are reversible encodings that defeat literal keyword matching; TLS and SHA-256 are transport encryption and a one-way hash, not obfuscation of readable instructions.",
+            "distractors": [
+              "TLS",
+              "SHA-256"
+            ]
+          }
+        ],
         "moduleId": "ai-m4",
         "number": 21,
         "title": "Obfuscation and Filter Evasion",
@@ -3397,6 +4180,42 @@ export const AI_CURRICULUM: Module[] = [
       },
       {
         "id": "ai-m4-4",
+        "exercises": [
+          {
+            "type": "order",
+            "prompt": "Order the steps of markdown/image-link exfiltration.",
+            "items": [
+              "Injection makes the model read a secret",
+              "Model encodes the secret into a URL query string",
+              "Model emits a markdown image pointing to the attacker URL",
+              "Client renders the image, beaconing the secret to the attacker"
+            ],
+            "explanation": "Rendering a markdown image auto-fetches its URL, so encoding stolen data into an attacker-controlled image link turns an injection into silent data loss."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each exfiltration concept to its role.",
+            "pairs": [
+              {
+                "left": "Image-link exfiltration",
+                "right": "Encode stolen data into attacker URL"
+              },
+              {
+                "left": "Content-Security-Policy",
+                "right": "Breaks the image beacon"
+              },
+              {
+                "left": "Tool-based exfiltration",
+                "right": "Leak via browsing or webhook tools"
+              },
+              {
+                "left": "Synthetic test data",
+                "right": "Demonstrate impact without real user data"
+              }
+            ],
+            "explanation": "Allowlists and CSP that restrict outbound image hosts break the beacon; when proving impact, use planted synthetic secrets rather than exfiltrating real user data."
+          }
+        ],
         "moduleId": "ai-m4",
         "number": 22,
         "title": "Exfiltration Primitives",
@@ -3550,6 +4369,45 @@ export const AI_CURRICULUM: Module[] = [
       },
       {
         "id": "ai-m4-5",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each injection-to-action concept to its description.",
+            "pairs": [
+              {
+                "left": "Confused deputy",
+                "right": "Abuse the app's authority for the attacker"
+              },
+              {
+                "left": "SSRF reached via a tool",
+                "right": "Chaining with a classic bug"
+              },
+              {
+                "left": "Poisoning the vector store",
+                "right": "Persistence across sessions"
+              },
+              {
+                "left": "Excessive Agency",
+                "right": "OWASP LLM06"
+              }
+            ],
+            "explanation": "Injection plus tool access lets the model act as a confused deputy with the app's privileges, reach classic bugs like SSRF/IDOR, and persist by poisoning memory; this high-impact outcome maps to OWASP LLM06."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the OWASP mapping for unintended agent actions.",
+            "template": "Driving unintended function calls through an agent maps to OWASP ___ ___.",
+            "blanks": [
+              "LLM06",
+              "Excessive Agency"
+            ],
+            "explanation": "When injection drives tool/function calls the user never intended, the resulting damage is categorized as OWASP LLM06 Excessive Agency, distinct from the injection vector itself (LLM01).",
+            "distractors": [
+              "LLM01",
+              "Prompt Injection"
+            ]
+          }
+        ],
         "moduleId": "ai-m4",
         "number": 23,
         "title": "Injection-to-Action Chains",
@@ -3716,6 +4574,42 @@ export const AI_CURRICULUM: Module[] = [
       },
       {
         "id": "ai-m4-6",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each tool to its role in automated injection discovery.",
+            "pairs": [
+              {
+                "left": "garak",
+                "right": "LLM vulnerability probes"
+              },
+              {
+                "left": "promptfoo",
+                "right": "Red-team plugins for injection"
+              },
+              {
+                "left": "PyRIT",
+                "right": "Multi-turn orchestrated attacks"
+              },
+              {
+                "left": "Burp / mitmproxy",
+                "right": "Tamper with prompts and tool results"
+              }
+            ],
+            "explanation": "garak and promptfoo give broad probe/red-team coverage, PyRIT orchestrates multi-turn attempts, and an intercepting proxy lets you tamper with structured prompts and tool responses in transit."
+          },
+          {
+            "type": "order",
+            "prompt": "Order the stages of running injection discovery at scale.",
+            "items": [
+              "Build a payload corpus",
+              "Run scanner probes against the target",
+              "Track success and failure per payload",
+              "Triage hits to kill false positives before reporting"
+            ],
+            "explanation": "Scaling discovery means curating a corpus, firing it with scanners, recording per-target results, and triaging to remove false positives so only real findings are reported."
+          }
+        ],
         "moduleId": "ai-m4",
         "number": 24,
         "title": "Automating Injection Discovery",
@@ -3880,6 +4774,42 @@ export const AI_CURRICULUM: Module[] = [
       },
       {
         "id": "ai-m4-7",
+        "exercises": [
+          {
+            "type": "order",
+            "prompt": "Order the steps of building a credible prompt-injection report.",
+            "items": [
+              "Capture the exact payload, model/version and settings",
+              "Record the observed malicious response",
+              "Frame impact: direct vs indirect, victim, data/action reached",
+              "Assign severity and suggest targeted mitigations"
+            ],
+            "explanation": "A strong report starts with reproducible details, shows the observed behavior, frames real impact, then ties severity and mitigations to the specific break."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each reporting concept to its place in the writeup.",
+            "pairs": [
+              {
+                "left": "Unauthenticated indirect injection with exfiltration",
+                "right": "High/critical severity"
+              },
+              {
+                "left": "Exact payload plus model version",
+                "right": "Reproduction section"
+              },
+              {
+                "left": "'The model said a bad word'",
+                "right": "Non-finding to avoid"
+              },
+              {
+                "left": "Mitigation tied to the break",
+                "right": "Actionable remediation"
+              }
+            ],
+            "explanation": "Severity rises when an unauthenticated attacker reaches data via indirect injection; reproduction needs exact payload and version, mitigations must target the break, and bare offensive-output claims are non-findings."
+          }
+        ],
         "moduleId": "ai-m4",
         "number": 25,
         "title": "Reporting Prompt-Injection Findings",
@@ -4071,6 +5001,46 @@ export const AI_CURRICULUM: Module[] = [
     "topics": [
       {
         "id": "ai-m5-1",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each term to its correct description.",
+            "pairs": [
+              {
+                "left": "Jailbreak",
+                "right": "Crafted prompt that bypasses the model's safety training"
+              },
+              {
+                "left": "Prompt injection",
+                "right": "Untrusted input that hijacks the model's instructions"
+              },
+              {
+                "left": "Misuse",
+                "right": "Using an already-available capability to cause harm"
+              },
+              {
+                "left": "RLHF",
+                "right": "Training step that teaches refusal behavior"
+              }
+            ],
+            "explanation": "Jailbreak, injection, and misuse are distinct problems with distinct fixes; RLHF is where the learned refusal boundary comes from."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the statement about how refusals are learned.",
+            "template": "Safety training via ___ makes refusals a learned but ___ boundary that generalizes imperfectly to ___ framing.",
+            "blanks": [
+              "RLHF",
+              "brittle",
+              "out-of-distribution"
+            ],
+            "explanation": "RLHF/RLAIF produce refusals as a brittle learned boundary, which is exactly why unusual, out-of-distribution framings can slip past it.",
+            "distractors": [
+              "permanent",
+              "in-distribution"
+            ]
+          }
+        ],
         "moduleId": "ai-m5",
         "number": 26,
         "title": "Alignment, Refusals and What a Jailbreak Is",
@@ -4206,6 +5176,46 @@ export const AI_CURRICULUM: Module[] = [
       },
       {
         "id": "ai-m5-2",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each manual jailbreak family to how it works.",
+            "pairs": [
+              {
+                "left": "Persona/roleplay (DAN)",
+                "right": "Assign an unrestricted character to answer through"
+              },
+              {
+                "left": "Obfuscation/encoding",
+                "right": "Hide the payload to dodge safety classifiers"
+              },
+              {
+                "left": "Developer-mode spoofing",
+                "right": "Fake a privileged system/template instruction"
+              },
+              {
+                "left": "Payload splitting",
+                "right": "Spread a request across context to exhaust safety attention"
+              }
+            ],
+            "explanation": "These families are best understood structurally; the surface prompts change but the underlying mechanism of each family stays the same."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the statement about encoding-based bypasses.",
+            "template": "Encoding a harmful request (e.g. in ___) can dodge a safety ___, but these tricks ___ over model versions.",
+            "blanks": [
+              "base64",
+              "classifier",
+              "degrade"
+            ],
+            "explanation": "Obfuscation like base64 can evade a safety classifier, but vendors patch each trick so manual jailbreaks degrade and need constant refresh.",
+            "distractors": [
+              "plaintext",
+              "improve"
+            ]
+          }
+        ],
         "moduleId": "ai-m5",
         "number": 27,
         "title": "Manual Jailbreak Families",
@@ -4321,6 +5331,42 @@ export const AI_CURRICULUM: Module[] = [
       },
       {
         "id": "ai-m5-3",
+        "exercises": [
+          {
+            "type": "order",
+            "prompt": "Put the steps of a Crescendo multi-turn escalation in the correct order.",
+            "items": [
+              "Open with a benign, allowed request",
+              "Reference the model's own prior answer",
+              "Nudge slightly toward the restricted topic",
+              "Repeat the small escalations until restricted content is produced"
+            ],
+            "explanation": "Crescendo (Microsoft research) succeeds by gradual benign-to-restricted escalation, each turn building on the model's previous reply rather than asking directly."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each multi-turn attack or metric to its description.",
+            "pairs": [
+              {
+                "left": "Crescendo",
+                "right": "Gradual benign-to-restricted escalation (Microsoft)"
+              },
+              {
+                "left": "Many-shot jailbreaking",
+                "right": "Flood context with faux examples (Anthropic)"
+              },
+              {
+                "left": "Skeleton Key",
+                "right": "Multi-step policy-reframing bypass"
+              },
+              {
+                "left": "Turn-count-to-success",
+                "right": "Hardness metric for conversational attacks"
+              }
+            ],
+            "explanation": "Multi-turn attacks build across a conversation; turn-count-to-success measures how many turns a model resists before it breaks."
+          }
+        ],
         "moduleId": "ai-m5",
         "number": 28,
         "title": "Multi-Turn and Social Escalation",
@@ -4436,6 +5482,46 @@ export const AI_CURRICULUM: Module[] = [
       },
       {
         "id": "ai-m5-4",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each automated jailbreak method to its description.",
+            "pairs": [
+              {
+                "left": "GCG",
+                "right": "Gradient-based universal adversarial suffix (white-box)"
+              },
+              {
+                "left": "PAIR",
+                "right": "LLM-as-attacker iterative prompt refinement (black-box)"
+              },
+              {
+                "left": "TAP",
+                "right": "Tree-of-attacks black-box search with pruning"
+              },
+              {
+                "left": "AutoDAN",
+                "right": "Genetic/search-based adversarial prompt generation"
+              }
+            ],
+            "explanation": "GCG needs white-box gradients, while PAIR, TAP, and AutoDAN drive the search with another LLM or evolutionary search in a black-box setting."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the statement about Greedy Coordinate Gradient attacks.",
+            "template": "GCG uses ___ coordinate gradients needing ___ access, and its learned suffixes can ___ to other models.",
+            "blanks": [
+              "greedy",
+              "white-box",
+              "transfer"
+            ],
+            "explanation": "GCG optimizes an adversarial suffix with greedy coordinate gradients requiring white-box open weights, yet the suffixes often transfer to models the attacker never touched.",
+            "distractors": [
+              "random",
+              "black-box"
+            ]
+          }
+        ],
         "moduleId": "ai-m5",
         "number": 29,
         "title": "Optimization-Based and Automated Jailbreaks",
@@ -4554,6 +5640,46 @@ export const AI_CURRICULUM: Module[] = [
       },
       {
         "id": "ai-m5-5",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each tool or metric to its role in benchmarking jailbreaks.",
+            "pairs": [
+              {
+                "left": "garak",
+                "right": "Open-source LLM scanner with jailbreak probes"
+              },
+              {
+                "left": "PyRIT",
+                "right": "Automated red-teaming toolkit"
+              },
+              {
+                "left": "JailbreakBench",
+                "right": "Standardized harness for comparing attacks"
+              },
+              {
+                "left": "ASR",
+                "right": "Attack success rate across models and defenses"
+              }
+            ],
+            "explanation": "Frameworks like garak, PyRIT, and JailbreakBench make jailbreak testing reproducible, with ASR as the headline comparison metric."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the statement about automated scoring.",
+            "template": "An ___ judge can auto-score jailbreak success, but needs human ___ to avoid false-positive ___.",
+            "blanks": [
+              "LLM",
+              "spot-checks",
+              "inflation"
+            ],
+            "explanation": "An LLM judge scales scoring across many runs, but human spot-checks guard against judge gaming and inflated success rates.",
+            "distractors": [
+              "regex",
+              "deflation"
+            ]
+          }
+        ],
         "moduleId": "ai-m5",
         "number": 30,
         "title": "Automating and Benchmarking Jailbreaks",
@@ -4685,6 +5811,45 @@ export const AI_CURRICULUM: Module[] = [
       },
       {
         "id": "ai-m5-6",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each scenario to how it should be classified.",
+            "pairs": [
+              {
+                "left": "Jailbreak unlocks a dangerous tool or data path",
+                "right": "Security issue"
+              },
+              {
+                "left": "Pure content-policy bypass, no system impact",
+                "right": "Usually safety, not a bounty"
+              },
+              {
+                "left": "Jailbreak chained with injection/agency",
+                "right": "Real escalation"
+              },
+              {
+                "left": "Reproducible bypass written up cleanly",
+                "right": "Enables a defensive fix"
+              }
+            ],
+            "explanation": "Severity hinges on system impact: a bypass matters for security when it reaches tools, data, or agency, not when it only produces disallowed text."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the statement about calibrating impact.",
+            "template": "A pure ___ bypass with no system impact is usually ___, not a bounty; it matters for ___ when it unlocks a dangerous tool.",
+            "blanks": [
+              "content-policy",
+              "safety",
+              "security"
+            ],
+            "explanation": "Calibrate before reporting: pure content-policy bypasses are a safety concern, while access to a dangerous tool or data path turns it into a security issue.",
+            "distractors": [
+              "injection"
+            ]
+          }
+        ],
         "moduleId": "ai-m5",
         "number": 31,
         "title": "From Jailbreak to Security Impact",
@@ -4872,6 +6037,46 @@ export const AI_CURRICULUM: Module[] = [
     "topics": [
       {
         "id": "ai-m6-1",
+        "exercises": [
+          {
+            "type": "order",
+            "prompt": "Order the steps of one ReAct (reason-act-observe) agent iteration, where model output becomes control flow.",
+            "items": [
+              "Model reasons about the goal",
+              "Model emits a tool call (action)",
+              "Tool executes and returns an observation",
+              "Model reads the observation and plans the next step"
+            ],
+            "explanation": "In ReAct/plan-execute loops the model's text becomes the control flow, so each reason-act-observe step directly drives real actions."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each excessive-agency concept to its meaning.",
+            "pairs": [
+              {
+                "left": "Excessive agency",
+                "right": "OWASP LLM06"
+              },
+              {
+                "left": "Autonomy radius",
+                "right": "Impact of the worst single action"
+              },
+              {
+                "left": "Human-in-the-loop",
+                "right": "Confirmation before high-impact actions"
+              },
+              {
+                "left": "Standing credentials",
+                "right": "Long-lived privileges a tool always holds"
+              },
+              {
+                "left": "Least-privilege tools",
+                "right": "Each tool gets only the scope it needs"
+              }
+            ],
+            "explanation": "Unconstrained autonomy (LLM06) is bounded by least-privilege tools and human-in-the-loop, which shrink the autonomy radius of any single action."
+          }
+        ],
         "moduleId": "ai-m6",
         "number": 32,
         "title": "Agent Architectures and Excessive Agency",
@@ -5065,6 +6270,43 @@ export const AI_CURRICULUM: Module[] = [
       },
       {
         "id": "ai-m6-2",
+        "exercises": [
+          {
+            "type": "order",
+            "prompt": "Order the stages of a RAG pipeline from ingestion through generation.",
+            "items": [
+              "Split documents into chunks",
+              "Convert chunks to embedding vectors",
+              "Store vectors in a vector database",
+              "Embed the user query and retrieve nearest chunks",
+              "Inject retrieved text into the prompt and generate"
+            ],
+            "explanation": "Retrieval ends by injecting external text straight into the prompt, which is why retrieved content is a direct, often-trusted injection channel (LLM08)."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each RAG component or weakness to its description.",
+            "pairs": [
+              {
+                "left": "FAISS",
+                "right": "Local vector similarity library"
+              },
+              {
+                "left": "pgvector",
+                "right": "Vector search inside PostgreSQL"
+              },
+              {
+                "left": "Embedding inversion",
+                "right": "Reconstructing source text from stored vectors"
+              },
+              {
+                "left": "Metadata filtering",
+                "right": "Restricting retrieval by tenant or attribute"
+              }
+            ],
+            "explanation": "Vector stores like FAISS and pgvector hold embeddings that can be inverted back to text, and weak metadata filtering enables cross-tenant leakage."
+          }
+        ],
         "moduleId": "ai-m6",
         "number": 33,
         "title": "RAG Pipeline Internals and Weaknesses",
@@ -5199,6 +6441,45 @@ export const AI_CURRICULUM: Module[] = [
       },
       {
         "id": "ai-m6-3",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each RAG attack or defense to its description.",
+            "pairs": [
+              {
+                "left": "Vector-store poisoning",
+                "right": "Insert documents that dominate retrieval"
+              },
+              {
+                "left": "Prompt-leeching",
+                "right": "Extract other tenants' documents via queries"
+              },
+              {
+                "left": "Metadata/filter bypass",
+                "right": "Unauthorized retrieval past access rules"
+              },
+              {
+                "left": "Corpus signing",
+                "right": "Detect tampered or untrusted documents"
+              }
+            ],
+            "explanation": "Poisoning and leeching abuse what the retriever returns or leaks; signing trusted corpus content lets you detect tampering before it reaches the model."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the sentence about abusing RAG retrieval.",
+            "template": "Query-time manipulation forces retrieval of ___ content, while poisoning inserts documents that ___ the top results.",
+            "blanks": [
+              "attacker",
+              "dominate"
+            ],
+            "explanation": "Attackers either steer the query toward their own content or seed documents that outrank legitimate ones, so the retriever surfaces attacker text.",
+            "distractors": [
+              "trusted",
+              "encrypt"
+            ]
+          }
+        ],
         "moduleId": "ai-m6",
         "number": 34,
         "title": "Poisoning and Abusing RAG",
@@ -5332,6 +6613,33 @@ export const AI_CURRICULUM: Module[] = [
       },
       {
         "id": "ai-m6-4",
+        "exercises": [
+          {
+            "type": "order",
+            "prompt": "Order the steps of chaining tool calls to reach a dangerous primitive.",
+            "items": [
+              "Attacker injects crafted arguments into a tool call",
+              "Tool runs with app privilege on the attacker input (confused deputy)",
+              "One tool's output feeds into the next tool's call",
+              "The chain reaches an SSRF, RCE, or file-read primitive"
+            ],
+            "explanation": "The function-calling boundary turns structured model output into real system calls, so injected arguments can chain tools into SSRF/RCE/file-read."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the rule for safe tool-argument handling.",
+            "template": "Tool arguments must be validated and ___ on the ___ , not constrained by the prompt.",
+            "blanks": [
+              "allowlisted",
+              "server"
+            ],
+            "explanation": "Prompt-level constraints are bypassable; argument validation and allowlisting must happen server-side where the model cannot override them.",
+            "distractors": [
+              "client",
+              "model"
+            ]
+          }
+        ],
         "moduleId": "ai-m6",
         "number": 35,
         "title": "Tool and Function-Calling Attacks",
@@ -5472,6 +6780,42 @@ export const AI_CURRICULUM: Module[] = [
       },
       {
         "id": "ai-m6-5",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each MCP security concept to its description.",
+            "pairs": [
+              {
+                "left": "Tool poisoning",
+                "right": "Malicious instructions in a tool description"
+              },
+              {
+                "left": "Rug-pull",
+                "right": "Tool definition changes after approval"
+              },
+              {
+                "left": "Cross-server shadowing",
+                "right": "One server overrides another's tool"
+              },
+              {
+                "left": "Pinning",
+                "right": "Lock tool definitions to a reviewed version"
+              }
+            ],
+            "explanation": "MCP adds a supply-chain surface: untrusted servers can poison, shadow, or rug-pull tool definitions, which pinning and review mitigate."
+          },
+          {
+            "type": "order",
+            "prompt": "Order the stages of an MCP rug-pull attack.",
+            "items": [
+              "Attacker publishes a benign-looking MCP server",
+              "User reviews and approves its tool definitions",
+              "Attacker silently changes the tool definition",
+              "The altered tool runs under the user's prior approval"
+            ],
+            "explanation": "A rug-pull exploits that approval happens once: definitions changed after review execute with trust the user granted to the original tools."
+          }
+        ],
         "moduleId": "ai-m6",
         "number": 36,
         "title": "MCP and Third-Party Integration Security",
@@ -5609,6 +6953,45 @@ export const AI_CURRICULUM: Module[] = [
       },
       {
         "id": "ai-m6-6",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each downstream sink for model output to the injection it enables.",
+            "pairs": [
+              {
+                "left": "Rendered as HTML",
+                "right": "XSS / markdown injection"
+              },
+              {
+                "left": "Used in a SQL query",
+                "right": "SQL injection"
+              },
+              {
+                "left": "Used in a shell command",
+                "right": "Command injection"
+              },
+              {
+                "left": "Supplies a URL or path",
+                "right": "SSRF / path traversal"
+              }
+            ],
+            "explanation": "Insecure output handling (LLM05) means each downstream sink turns trusted model output into a classic injection matching that context."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the core rule for insecure output handling.",
+            "template": "Treat model output as ___ user input everywhere downstream, and apply context-appropriate ___ before use.",
+            "blanks": [
+              "untrusted",
+              "encoding"
+            ],
+            "explanation": "Model output is attacker-influenceable, so treating it as untrusted and encoding per sink prevents XSS, SQLi, and command injection.",
+            "distractors": [
+              "trusted",
+              "caching"
+            ]
+          }
+        ],
         "moduleId": "ai-m6",
         "number": 37,
         "title": "Insecure Output Handling",
@@ -5734,6 +7117,46 @@ export const AI_CURRICULUM: Module[] = [
       },
       {
         "id": "ai-m6-7",
+        "exercises": [
+          {
+            "type": "order",
+            "prompt": "Order how the dual-LLM (privileged vs quarantined) pattern handles untrusted content.",
+            "items": [
+              "Privileged LLM plans the task and holds tool access",
+              "Quarantined LLM processes the untrusted content",
+              "Quarantined output is returned as data, not instructions",
+              "Privileged LLM acts only on validated data"
+            ],
+            "explanation": "Separating a privileged orchestrator from a quarantined processor keeps untrusted content from ever becoming instructions with tool access."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each secure-by-design control to its purpose.",
+            "pairs": [
+              {
+                "left": "Spend/rate limits",
+                "right": "Cap denial-of-wallet (LLM10)"
+              },
+              {
+                "left": "Human-in-the-loop",
+                "right": "Approval for high-impact actions"
+              },
+              {
+                "left": "Dual control",
+                "right": "Two approvers for irreversible actions"
+              },
+              {
+                "left": "Short-lived scoped credentials",
+                "right": "Least-privilege per action"
+              },
+              {
+                "left": "Sandboxing",
+                "right": "Isolate code execution and browsing"
+              }
+            ],
+            "explanation": "The defensive blueprint layers least-privilege credentials, human approval, isolation, and spend limits to contain most agent and RAG attacks."
+          }
+        ],
         "moduleId": "ai-m6",
         "number": 38,
         "title": "Secure-by-Design Patterns",
@@ -5916,6 +7339,45 @@ export const AI_CURRICULUM: Module[] = [
     "topics": [
       {
         "id": "ai-m7-1",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each LLM01/LLM02 concept to its description.",
+            "pairs": [
+              {
+                "left": "Direct prompt injection",
+                "right": "Attacker types malicious instructions straight into the prompt"
+              },
+              {
+                "left": "Indirect prompt injection",
+                "right": "Malicious instructions hidden in external content the model ingests"
+              },
+              {
+                "left": "Sensitive information disclosure",
+                "right": "Model leaks PII, secrets, or training data"
+              },
+              {
+                "left": "Output filtering",
+                "right": "Scans responses to block leaked secrets or PII"
+              }
+            ],
+            "explanation": "LLM01 is about hijacking instructions (directly or via retrieved content), while LLM02 is about leaking data; output filtering is a disclosure control."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the sentence about the two most-chained OWASP LLM items.",
+            "template": "The two items most often chained in real incidents are prompt ___ (LLM01) and sensitive information ___ (LLM02).",
+            "blanks": [
+              "injection",
+              "disclosure"
+            ],
+            "explanation": "A successful prompt injection frequently becomes the delivery mechanism for coaxing the model into disclosing its system prompt, PII, or secrets.",
+            "distractors": [
+              "poisoning",
+              "consumption"
+            ]
+          }
+        ],
         "moduleId": "ai-m7",
         "number": 39,
         "title": "LLM01 Prompt Injection and LLM02 Sensitive Information Disclosure",
@@ -6114,6 +7576,45 @@ export const AI_CURRICULUM: Module[] = [
       },
       {
         "id": "ai-m7-2",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each supply-chain / poisoning concept to its meaning.",
+            "pairs": [
+              {
+                "left": "LLM03 Supply Chain",
+                "right": "Risk from third-party models, datasets, and plugins"
+              },
+              {
+                "left": "LLM04 Data and Model Poisoning",
+                "right": "Tampering with training or fine-tune data to implant backdoors"
+              },
+              {
+                "left": "MLBOM",
+                "right": "Inventory of model components for provenance tracking"
+              },
+              {
+                "left": "Artifact signing",
+                "right": "Verifies a model or dataset has not been tampered with"
+              }
+            ],
+            "explanation": "LLM03 covers integrity of components you did not write; LLM04 covers train-time tampering. Provenance tools like MLBOM and signing establish trust."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Fill in the controls that offset open-weight convenience.",
+            "template": "Open-weight convenience imports upstream ___ , so verify provenance with signing and ___ scanning before use.",
+            "blanks": [
+              "risk",
+              "artifact"
+            ],
+            "explanation": "Pulling an open-weight model inherits whatever an upstream author embedded; signing and artifact scanning are the main defenses since backdoors are hard to detect at inference.",
+            "distractors": [
+              "latency",
+              "token"
+            ]
+          }
+        ],
         "moduleId": "ai-m7",
         "number": 40,
         "title": "LLM03 Supply Chain and LLM04 Data and Model Poisoning",
@@ -6280,6 +7781,45 @@ export const AI_CURRICULUM: Module[] = [
       },
       {
         "id": "ai-m7-3",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each way unsanitized model output is used to the injection class it enables.",
+            "pairs": [
+              {
+                "left": "Output rendered in a browser",
+                "right": "Cross-site scripting (XSS)"
+              },
+              {
+                "left": "Output placed into a SQL statement",
+                "right": "SQL injection"
+              },
+              {
+                "left": "Output used to fetch a URL server-side",
+                "right": "Server-side request forgery (SSRF)"
+              },
+              {
+                "left": "Output passed to a system shell",
+                "right": "Remote code execution (RCE)"
+              }
+            ],
+            "explanation": "LLM05 is improper output handling: trusting model output as if it were safe lets it reach a sink (browser, DB, HTTP client, shell) and trigger the matching injection."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the core mitigations for Excessive Agency (LLM06).",
+            "template": "LLM06 is mitigated by granting tools ___ privilege and keeping a human ___ the loop for high-impact actions.",
+            "blanks": [
+              "least",
+              "in"
+            ],
+            "explanation": "Limiting a model's tools, permissions, and autonomy (least privilege) plus human-in-the-loop approval shrinks the blast radius of any agent action.",
+            "distractors": [
+              "maximum",
+              "outside"
+            ]
+          }
+        ],
         "moduleId": "ai-m7",
         "number": 41,
         "title": "LLM05 Improper Output Handling and LLM06 Excessive Agency",
@@ -6433,6 +7973,45 @@ export const AI_CURRICULUM: Module[] = [
       },
       {
         "id": "ai-m7-4",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each LLM07/LLM08 term to its description.",
+            "pairs": [
+              {
+                "left": "LLM07 System Prompt Leakage",
+                "right": "Real risk is secrets in the prompt, not the prompt text itself"
+              },
+              {
+                "left": "Embedding inversion",
+                "right": "Reconstructing source text from stored vectors"
+              },
+              {
+                "left": "Cross-tenant leakage",
+                "right": "RAG retrieves another tenant's documents"
+              },
+              {
+                "left": "Index segmentation",
+                "right": "Separate vector store per tenant to isolate data"
+              }
+            ],
+            "explanation": "LLM07 matters because prompts often hide credentials or authz logic; LLM08 covers RAG/embedding weaknesses, countered by per-tenant index segmentation."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the guidance for addressing system prompt leakage.",
+            "template": "To address LLM07, never put secrets or ___ logic in the system prompt; enforce access control at ___ time instead.",
+            "blanks": [
+              "authorization",
+              "retrieval"
+            ],
+            "explanation": "A leaked prompt should not be a breach; keep authorization decisions and secrets in the backend and enforce access control at retrieval and generation time.",
+            "distractors": [
+              "formatting",
+              "compile"
+            ]
+          }
+        ],
         "moduleId": "ai-m7",
         "number": 42,
         "title": "LLM07 System Prompt Leakage and LLM08 Vector/Embedding Weaknesses",
@@ -6581,6 +8160,45 @@ export const AI_CURRICULUM: Module[] = [
       },
       {
         "id": "ai-m7-5",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each LLM09/LLM10 concept to its description.",
+            "pairs": [
+              {
+                "left": "LLM09 Misinformation",
+                "right": "Hallucinated or wrong output causing downstream harm"
+              },
+              {
+                "left": "Overreliance",
+                "right": "Users trusting model output without verification"
+              },
+              {
+                "left": "LLM10 Denial of wallet",
+                "right": "Driving up cost through excessive token usage"
+              },
+              {
+                "left": "Model extraction",
+                "right": "Stealing model behavior via high-volume querying"
+              }
+            ],
+            "explanation": "LLM09 is a reliability risk amplified by overreliance; LLM10 is an availability/cost risk including denial-of-wallet and extraction by volume."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Fill in the controls for misinformation and unbounded consumption.",
+            "template": "Misinformation is reduced with grounding and ___ , while unbounded consumption is capped with rate and ___ limits.",
+            "blanks": [
+              "citations",
+              "spend"
+            ],
+            "explanation": "Grounding plus citations and human review curb hallucination harm; rate limits, quotas, and spend limits with anomaly detection curb token exhaustion and denial-of-wallet.",
+            "distractors": [
+              "caching",
+              "retry"
+            ]
+          }
+        ],
         "moduleId": "ai-m7",
         "number": 43,
         "title": "LLM09 Misinformation and LLM10 Unbounded Consumption",
@@ -6717,6 +8335,43 @@ export const AI_CURRICULUM: Module[] = [
       },
       {
         "id": "ai-m7-6",
+        "exercises": [
+          {
+            "type": "order",
+            "prompt": "Order the steps of a repeatable OWASP-aligned LLM assessment.",
+            "items": [
+              "Build a checklist mapping each OWASP LLM item to concrete tests",
+              "Run garak and promptfoo probes mapped to OWASP categories",
+              "Prioritize findings by exploitability and impact, not list order",
+              "Produce an OWASP-mapped findings table",
+              "Cross-reference MITRE ATLAS techniques for depth"
+            ],
+            "explanation": "You operationalize the Top 10 into a checklist, exercise it with tooling, triage by real risk, report against OWASP categories, then enrich with ATLAS techniques."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each assessment tool or framework to its purpose.",
+            "pairs": [
+              {
+                "left": "garak",
+                "right": "LLM vulnerability scanner probing for failures"
+              },
+              {
+                "left": "promptfoo",
+                "right": "Prompt testing and eval harness for coverage"
+              },
+              {
+                "left": "OWASP LLM Top 10",
+                "right": "Category framework for mapping findings"
+              },
+              {
+                "left": "MITRE ATLAS",
+                "right": "Adversarial ML technique knowledge base"
+              }
+            ],
+            "explanation": "garak and promptfoo provide automated coverage mapped to OWASP categories, while ATLAS supplies adversarial technique depth beyond the Top 10 list."
+          }
+        ],
         "moduleId": "ai-m7",
         "number": 44,
         "title": "Running an OWASP-Aligned LLM Assessment",
@@ -6902,6 +8557,45 @@ export const AI_CURRICULUM: Module[] = [
     "topics": [
       {
         "id": "ai-m8-1",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each poisoning concept to its description.",
+            "pairs": [
+              {
+                "left": "Availability poisoning",
+                "right": "Degrades overall model accuracy"
+              },
+              {
+                "left": "Integrity poisoning",
+                "right": "Targeted or backdoor misbehavior"
+              },
+              {
+                "left": "Label flipping",
+                "right": "Swapping labels on training samples"
+              },
+              {
+                "left": "Clean-label attack",
+                "right": "Poison samples keep correct-looking labels"
+              }
+            ],
+            "explanation": "Availability attacks aim to break the model broadly, while integrity attacks hide targeted behavior; label flipping and clean-label are two ways to inject the poison."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the sentence about the common real-world entry point.",
+            "template": "Fine-tuning on ___ data is the common real entry point, and this risk maps to OWASP ___.",
+            "blanks": [
+              "untrusted",
+              "LLM04"
+            ],
+            "explanation": "Most practical poisoning happens when a model is fine-tuned on data of unverified origin; OWASP tracks this as LLM04 (and ML02/ML10).",
+            "distractors": [
+              "encrypted",
+              "LLM01"
+            ]
+          }
+        ],
         "moduleId": "ai-m8",
         "number": 45,
         "title": "Poisoning Fundamentals",
@@ -7077,6 +8771,42 @@ export const AI_CURRICULUM: Module[] = [
       },
       {
         "id": "ai-m8-2",
+        "exercises": [
+          {
+            "type": "order",
+            "prompt": "Order the lifecycle of a backdoor (trojaned) model attack.",
+            "items": [
+              "Design a rare secret trigger pattern",
+              "Inject poisoned samples into training data",
+              "Model stays clean on benign inputs",
+              "Attacker supplies the trigger to flip behavior"
+            ],
+            "explanation": "The backdoor is planted during training but only activates when the secret trigger appears, so normal testing never reveals it."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each backdoor concept to its meaning.",
+            "pairs": [
+              {
+                "left": "Trigger",
+                "right": "Rare token, phrase, or input pattern"
+              },
+              {
+                "left": "Benign input",
+                "right": "Normal, correct model output"
+              },
+              {
+                "left": "BadNets",
+                "right": "Classic image-backdoor example"
+              },
+              {
+                "left": "Evaluation accuracy",
+                "right": "High score that hides the backdoor"
+              }
+            ],
+            "explanation": "Because the model behaves correctly on benign inputs, standard accuracy metrics stay high and conceal the planted trigger."
+          }
+        ],
         "moduleId": "ai-m8",
         "number": 46,
         "title": "Backdoors and Trojaned Models",
@@ -7209,6 +8939,45 @@ export const AI_CURRICULUM: Module[] = [
       },
       {
         "id": "ai-m8-3",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each web-scale poisoning technique to how it works.",
+            "pairs": [
+              {
+                "left": "Split-view poisoning",
+                "right": "Content differs between snapshot and crawl"
+              },
+              {
+                "left": "Frontrunning poisoning",
+                "right": "Edit a page just before it is crawled"
+              },
+              {
+                "left": "Expired-domain poisoning",
+                "right": "Buy lapsed domains referenced in the corpus"
+              },
+              {
+                "left": "RLHF poisoning",
+                "right": "Tamper with preference/reward data"
+              }
+            ],
+            "explanation": "Carlini et al. showed these attacks are cheap and practical against real web-scale datasets, not just theoretical."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Fill in the paper title and the editable-source example.",
+            "template": "Carlini et al.'s '___ Web-Scale Training Datasets' describes poisoning via expired domains and ___ wiki snapshots.",
+            "blanks": [
+              "Poisoning",
+              "editable"
+            ],
+            "explanation": "Publicly editable sources like wiki snapshots can be altered right before a dataset crawl, making them a low-cost poisoning vector.",
+            "distractors": [
+              "Securing",
+              "immutable"
+            ]
+          }
+        ],
         "moduleId": "ai-m8",
         "number": 47,
         "title": "Web-Scale and Fine-Tune Poisoning Realism",
@@ -7379,6 +9148,34 @@ export const AI_CURRICULUM: Module[] = [
       },
       {
         "id": "ai-m8-4",
+        "exercises": [
+          {
+            "type": "order",
+            "prompt": "Order the hands-on steps to poison a small text classifier.",
+            "items": [
+              "Train a baseline classifier and measure clean accuracy",
+              "Inject a clean-label backdoor with a chosen trigger",
+              "Confirm benign accuracy is unchanged",
+              "Show the trigger flips the model's output",
+              "Attempt detection via activation clustering"
+            ],
+            "explanation": "Establishing a clean baseline first lets you prove that benign accuracy is unaffected while the trigger reliably changes behavior."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the two detection defenses tried on the poisoned model.",
+            "template": "Detection is attempted with ___ clustering and ___ signatures.",
+            "blanks": [
+              "activation",
+              "spectral"
+            ],
+            "explanation": "Activation clustering and spectral signatures look for the distinct internal patterns that poisoned samples leave behind.",
+            "distractors": [
+              "gradient",
+              "temporal"
+            ]
+          }
+        ],
         "moduleId": "ai-m8",
         "number": 48,
         "title": "Hands-On Poisoning a Small Model",
@@ -7539,6 +9336,45 @@ export const AI_CURRICULUM: Module[] = [
       },
       {
         "id": "ai-m8-5",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each provenance/integrity control to its purpose.",
+            "pairs": [
+              {
+                "left": "Hashing and signing",
+                "right": "Detect tampering via immutable snapshots"
+              },
+              {
+                "left": "Dedup and outlier filtering",
+                "right": "Remove anomalous training samples"
+              },
+              {
+                "left": "MLBOM",
+                "right": "Bill of materials for datasets"
+              },
+              {
+                "left": "Trigger probes",
+                "right": "Continuous eval on held-out inputs"
+              }
+            ],
+            "explanation": "Together these controls make poisoning expensive to pull off and more likely to be detected across the data lifecycle."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the integrity program sentence.",
+            "template": "Sign and ___ dataset snapshots, then continuously evaluate against held-out ___ probes.",
+            "blanks": [
+              "hash",
+              "trigger"
+            ],
+            "explanation": "Hashing plus signing proves a dataset is unchanged, and held-out trigger probes catch backdoors that slip through curation.",
+            "distractors": [
+              "compress",
+              "benign"
+            ]
+          }
+        ],
         "moduleId": "ai-m8",
         "number": 49,
         "title": "Data Provenance and Integrity Controls",
@@ -7669,6 +9505,43 @@ export const AI_CURRICULUM: Module[] = [
       },
       {
         "id": "ai-m8-6",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each backdoor-detection method to what it does.",
+            "pairs": [
+              {
+                "left": "Neural Cleanse",
+                "right": "Reconstruct a candidate trigger"
+              },
+              {
+                "left": "Activation clustering",
+                "right": "Separate poisoned activations"
+              },
+              {
+                "left": "Fine-pruning",
+                "right": "Disrupt backdoor neurons"
+              },
+              {
+                "left": "Red-team probing",
+                "right": "Behaviorally search for odd triggers"
+              }
+            ],
+            "explanation": "When you only receive weights, these methods attempt to find or neutralize a backdoor without access to the training data."
+          },
+          {
+            "type": "order",
+            "prompt": "Order the workflow for vetting a delivered model you only have weights for.",
+            "items": [
+              "Reconstruct candidate triggers (Neural Cleanse-style)",
+              "Cluster activations and check spectral signatures",
+              "Fine-prune or distill to disrupt backdoors",
+              "Red-team probe for anomalous triggers",
+              "Accept residual risk and prefer trusted providers"
+            ],
+            "explanation": "No single technique is complete, so you combine reconstruction, statistical defenses, and probing, then accept the remaining risk."
+          }
+        ],
         "moduleId": "ai-m8",
         "number": 50,
         "title": "Detecting Backdoors in Delivered Models",
@@ -7886,6 +9759,42 @@ export const AI_CURRICULUM: Module[] = [
     "topics": [
       {
         "id": "ai-m9-1",
+        "exercises": [
+          {
+            "type": "order",
+            "prompt": "Order the steps of a query-based model extraction attack (OWASP ML05).",
+            "items": [
+              "Query the target model's API with crafted inputs",
+              "Record the input-output pairs as labels",
+              "Train a surrogate model on the collected pairs",
+              "Evaluate surrogate fidelity against the target"
+            ],
+            "explanation": "Extraction trains a surrogate on labeled query responses, then checks how closely it approximates the victim model."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each model-stealing concept or defense to its description.",
+            "pairs": [
+              {
+                "left": "Surrogate model",
+                "right": "Attacker-trained functional copy"
+              },
+              {
+                "left": "Decision boundary stealing",
+                "right": "Approximating where classes split"
+              },
+              {
+                "left": "Rate limiting",
+                "right": "Caps queries to slow extraction"
+              },
+              {
+                "left": "Watermarking",
+                "right": "Embeds marks to prove a model was stolen"
+              }
+            ],
+            "explanation": "Extraction targets boundaries, hyperparameters, or prompts; rate limiting and watermarking are standard countermeasures."
+          }
+        ],
         "moduleId": "ai-m9",
         "number": 51,
         "title": "Model Extraction / Stealing",
@@ -8042,6 +9951,45 @@ export const AI_CURRICULUM: Module[] = [
       },
       {
         "id": "ai-m9-2",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each membership inference term to its meaning (OWASP ML04).",
+            "pairs": [
+              {
+                "left": "Membership inference",
+                "right": "Was a record in the training set?"
+              },
+              {
+                "left": "Shadow model",
+                "right": "Mimics the target to train the attack"
+              },
+              {
+                "left": "Overfitting",
+                "right": "Root cause via memorization"
+              },
+              {
+                "left": "Differential privacy",
+                "right": "Mitigation bounding per-record influence"
+              }
+            ],
+            "explanation": "Membership inference exploits memorization; shadow models build the attack and differential privacy limits it."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the statement about measuring and mitigating membership inference.",
+            "template": "Attack strength is best measured as TPR at ___ FPR, and ___ is a key training-time mitigation.",
+            "blanks": [
+              "low",
+              "differential privacy"
+            ],
+            "explanation": "Attack advantage is judged by true-positive rate at low false-positive rate; differential privacy and regularization reduce it.",
+            "distractors": [
+              "high",
+              "watermarking"
+            ]
+          }
+        ],
         "moduleId": "ai-m9",
         "number": 52,
         "title": "Membership Inference",
@@ -8172,6 +10120,45 @@ export const AI_CURRICULUM: Module[] = [
       },
       {
         "id": "ai-m9-3",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each inversion/inference concept to its description (OWASP ML03).",
+            "pairs": [
+              {
+                "left": "Model inversion",
+                "right": "Reconstructs class prototype inputs"
+              },
+              {
+                "left": "Embedding inversion",
+                "right": "Recovers source text in RAG systems"
+              },
+              {
+                "left": "Attribute inference",
+                "right": "Guesses sensitive input features"
+              },
+              {
+                "left": "Output coarsening",
+                "right": "Defense returning less precise detail"
+              }
+            ],
+            "explanation": "Inversion rebuilds representative inputs or attributes; coarsening outputs and access control blunt these attacks."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the statement about inversion feasibility and defense.",
+            "template": "Inversion is generally more feasible in the ___-box setting, and ___ limits it by reducing output detail.",
+            "blanks": [
+              "white",
+              "output coarsening"
+            ],
+            "explanation": "White-box access (gradients, confidences) makes reconstruction easier; coarsening outputs removes the signal attackers exploit.",
+            "distractors": [
+              "black",
+              "rate limiting"
+            ]
+          }
+        ],
         "moduleId": "ai-m9",
         "number": 53,
         "title": "Model Inversion and Attribute Inference",
@@ -8294,6 +10281,42 @@ export const AI_CURRICULUM: Module[] = [
       },
       {
         "id": "ai-m9-4",
+        "exercises": [
+          {
+            "type": "order",
+            "prompt": "Order the steps of a prefix/continuation attack to recover verbatim training text.",
+            "items": [
+              "Supply a known prefix from suspected training data",
+              "Let the model continue the sequence",
+              "Compare the continuation to the original text",
+              "Confirm verbatim memorization"
+            ],
+            "explanation": "Feeding a prefix and comparing the model's continuation against the source confirms memorized, verbatim sequences."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each training-data extraction concept to its role.",
+            "pairs": [
+              {
+                "left": "Divergence/repetition prompt",
+                "right": "Elicits memorized data (Carlini et al.)"
+              },
+              {
+                "left": "Deduplication",
+                "right": "Upstream mitigation reducing memorization"
+              },
+              {
+                "left": "DP-SGD",
+                "right": "Bounds per-example training influence"
+              },
+              {
+                "left": "Canary detection",
+                "right": "Inference-time leak detection"
+              }
+            ],
+            "explanation": "Divergence prompts extract memorized PII/keys; dedup and DP-SGD mitigate upstream while canaries catch leaks at inference."
+          }
+        ],
         "moduleId": "ai-m9",
         "number": 54,
         "title": "Training-Data Extraction from LLMs",
@@ -8419,6 +10442,45 @@ export const AI_CURRICULUM: Module[] = [
       },
       {
         "id": "ai-m9-5",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each privacy-preserving ML defense to its description.",
+            "pairs": [
+              {
+                "left": "Differential privacy",
+                "right": "Trades utility for privacy guarantees"
+              },
+              {
+                "left": "PATE",
+                "right": "Teacher ensemble transfers private knowledge"
+              },
+              {
+                "left": "Federated learning",
+                "right": "Trains without centralizing raw data"
+              },
+              {
+                "left": "Canary tokens",
+                "right": "Detect data leaks"
+              }
+            ],
+            "explanation": "DP, PATE, and federated learning constrain what a model exposes; canaries provide leak detection."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the statement about training-time and access-time privacy defenses.",
+            "template": "___ adds calibrated noise during training (DP-SGD), while per-identity ___ limit high-volume extraction.",
+            "blanks": [
+              "Differential privacy",
+              "quotas"
+            ],
+            "explanation": "Differential privacy bounds per-record influence; per-identity quotas and rate limits throttle extraction querying.",
+            "distractors": [
+              "Federated learning",
+              "embeddings"
+            ]
+          }
+        ],
         "moduleId": "ai-m9",
         "number": 55,
         "title": "Privacy-Preserving ML Defenses",
@@ -8537,6 +10599,42 @@ export const AI_CURRICULUM: Module[] = [
       },
       {
         "id": "ai-m9-6",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each prompt-theft concept to its description.",
+            "pairs": [
+              {
+                "left": "System-prompt extraction",
+                "right": "IP theft beyond LLM07 disclosure"
+              },
+              {
+                "left": "Few-shot leakage",
+                "right": "Proprietary examples exposed via probing"
+              },
+              {
+                "left": "Template reconstruction",
+                "right": "Inferred from output behavior"
+              },
+              {
+                "left": "Server-side logic",
+                "right": "Keeps secrets out of the prompt"
+              }
+            ],
+            "explanation": "For many products the system prompt is the IP; keeping logic server-side and detecting probing limits its theft."
+          },
+          {
+            "type": "order",
+            "prompt": "Order the steps of reconstructing a prompt template from model behavior.",
+            "items": [
+              "Probe the model with varied inputs",
+              "Observe consistent formatting in outputs",
+              "Infer the underlying instruction structure",
+              "Reconstruct the prompt template"
+            ],
+            "explanation": "Repeated probing reveals stable output patterns that let an attacker infer and rebuild the hidden prompt template."
+          }
+        ],
         "moduleId": "ai-m9",
         "number": 56,
         "title": "Prompt and System-Instruction Theft",
@@ -8673,6 +10771,45 @@ export const AI_CURRICULUM: Module[] = [
     "topics": [
       {
         "id": "ai-m10-1",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each model-artifact concept to what it means for supply-chain security.",
+            "pairs": [
+              {
+                "left": "safetensors",
+                "right": "Safe-by-design, data-only serialization"
+              },
+              {
+                "left": ".pt / .ckpt pickle",
+                "right": "Deserialization can lead to RCE"
+              },
+              {
+                "left": "picklescan / ModelScan",
+                "right": "Detect malicious opcodes in model files"
+              },
+              {
+                "left": "Keras Lambda layer",
+                "right": "Runs arbitrary code on model load"
+              }
+            ],
+            "explanation": "A model file is executable code: pickle-based formats and Lambda/SavedModel code paths can run attacker code on load, while safetensors stores only tensor data and scanners flag the unsafe ones."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the comparison of model serialization formats.",
+            "template": "The ___ format stores tensors as data only, while ___ files can run code during deserialization.",
+            "blanks": [
+              "safetensors",
+              "pickle"
+            ],
+            "explanation": "safetensors is safe-by-design because it carries no code, whereas pickle (used by .pt/.bin/.ckpt) executes via reduce during load, making it an RCE vector (OWASP LLM03 / ML06).",
+            "distractors": [
+              "ONNX",
+              "protobuf"
+            ]
+          }
+        ],
         "moduleId": "ai-m10",
         "number": 57,
         "title": "Malicious Model Artifacts",
@@ -8833,6 +10970,45 @@ export const AI_CURRICULUM: Module[] = [
       },
       {
         "id": "ai-m10-2",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each model-hub threat or control to its description.",
+            "pairs": [
+              {
+                "left": "Typosquatting",
+                "right": "Malicious model named like a popular one"
+              },
+              {
+                "left": "Namespace confusion",
+                "right": "Impersonating a trusted org's repo"
+              },
+              {
+                "left": "Dataset tampering",
+                "right": "Poisoned instruction or training data"
+              },
+              {
+                "left": "Commit-hash pinning",
+                "right": "Fetch one exact, immutable revision"
+              }
+            ],
+            "explanation": "Public hubs behave like package registries: attackers typosquat, impersonate namespaces, and poison datasets, so consumers pin exact revisions and verify provenance."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the safe model-consumption practice.",
+            "template": "Pin the model by its ___ and verify its ___ to resist tampering.",
+            "blanks": [
+              "commit hash",
+              "signature"
+            ],
+            "explanation": "A commit hash is immutable (a tag can be moved), and verifying a signature or provenance confirms the weights came from the trusted publisher.",
+            "distractors": [
+              "star count",
+              "tag"
+            ]
+          }
+        ],
         "moduleId": "ai-m10",
         "number": 58,
         "title": "Model Hubs and Dataset Repositories",
@@ -9012,6 +11188,45 @@ export const AI_CURRICULUM: Module[] = [
       },
       {
         "id": "ai-m10-3",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each dependency-risk term to its meaning.",
+            "pairs": [
+              {
+                "left": "Transitive dependency",
+                "right": "Indirect package pulled by another dep"
+              },
+              {
+                "left": "SBOM",
+                "right": "Inventory of all software components"
+              },
+              {
+                "left": "Pinned environment",
+                "right": "Reproducible, exact-version install"
+              },
+              {
+                "left": "Dependency scanning",
+                "right": "Continuous detection of known CVEs"
+              }
+            ],
+            "explanation": "The ML stack (transformers/torch/langchain) pulls deep transitive trees with their own CVEs, so teams inventory them with an SBOM, pin versions, and scan continuously."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the dependency-hygiene control.",
+            "template": "Generate an ___ to inventory components and run continuous ___ scanning for known CVEs.",
+            "blanks": [
+              "SBOM",
+              "dependency"
+            ],
+            "explanation": "An SBOM lists every component so continuous dependency scanning can flag newly disclosed CVEs in loaders, serializers, and transitive packages.",
+            "distractors": [
+              "ACL",
+              "port"
+            ]
+          }
+        ],
         "moduleId": "ai-m10",
         "number": 59,
         "title": "Dependency and Framework Risk",
@@ -9154,6 +11369,43 @@ export const AI_CURRICULUM: Module[] = [
       },
       {
         "id": "ai-m10-4",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each MLOps infrastructure issue to the system it affects.",
+            "pairs": [
+              {
+                "left": "CVE-2023-48022 (ShadowRay)",
+                "right": "Ray dashboard RCE exposing clusters"
+              },
+              {
+                "left": "CVE-2024-0132",
+                "right": "NVIDIA Container Toolkit container escape"
+              },
+              {
+                "left": "Exposed MLflow / Kubeflow",
+                "right": "Unauthenticated experiment-tracking endpoint"
+              },
+              {
+                "left": "Poisoned CI step",
+                "right": "Tampers with the built model artifact"
+              }
+            ],
+            "explanation": "Model CI/CD and inference infra are high-value targets: ShadowRay hits exposed Ray dashboards, CVE-2024-0132 escapes containers, and exposed trackers plus poisoned CI steps let attackers reach clusters and artifacts."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the ShadowRay fact.",
+            "template": "___ is the 'ShadowRay' vulnerability allowing RCE through an exposed Ray dashboard.",
+            "blanks": [
+              "CVE-2023-48022"
+            ],
+            "explanation": "CVE-2023-48022, nicknamed ShadowRay, lets attackers run code via an internet-exposed Ray dashboard and take over compute clusters.",
+            "distractors": [
+              "CVE-2024-0132"
+            ]
+          }
+        ],
         "moduleId": "ai-m10",
         "number": 60,
         "title": "MLOps Pipeline and Serving-Stack Attacks",
@@ -9343,6 +11595,45 @@ export const AI_CURRICULUM: Module[] = [
       },
       {
         "id": "ai-m10-5",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each integrity and provenance control to its purpose.",
+            "pairs": [
+              {
+                "left": "Sigstore-style signing",
+                "right": "Cryptographically sign model artifacts"
+              },
+              {
+                "left": "MLBOM / AIBOM",
+                "right": "Bill of materials for models and data"
+              },
+              {
+                "left": "Provenance attestation",
+                "right": "Record of the training pipeline's origin"
+              },
+              {
+                "left": "Immutable versioned artifact",
+                "right": "Prevents silent overwrite of weights"
+              }
+            ],
+            "explanation": "End-to-end verifiability combines signing, a model/data bill of materials, provenance attestations through training, and immutable registry versions under access control."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the artifact-integrity workflow.",
+            "template": "Sign artifacts with ___ and verify each model's ___ before loading it.",
+            "blanks": [
+              "Sigstore",
+              "hash"
+            ],
+            "explanation": "Sigstore-style signing plus hash verification makes weights tamper-evident, so a modified or substituted artifact fails the check before it is loaded.",
+            "distractors": [
+              "TLS",
+              "GPU"
+            ]
+          }
+        ],
         "moduleId": "ai-m10",
         "number": 61,
         "title": "Integrity, Signing and Provenance",
@@ -9518,6 +11809,43 @@ export const AI_CURRICULUM: Module[] = [
       },
       {
         "id": "ai-m10-6",
+        "exercises": [
+          {
+            "type": "order",
+            "prompt": "Order the stages of a hardened model-ingest-to-serving pipeline.",
+            "items": [
+              "Scan every model/dataset on ingest and gate on the result",
+              "Load artifacts in a sandboxed, least-privilege service",
+              "Enforce network egress control for training and serving",
+              "Issue short-lived credentials from a secret manager",
+              "Monitor exposure and patch serving-stack CVEs"
+            ],
+            "explanation": "Hardening flows from blocking bad artifacts at entry, to isolating how they load, to constraining network and secrets, to ongoing patching and exposure monitoring."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each hardening control to the risk it reduces.",
+            "pairs": [
+              {
+                "left": "Scan-on-ingest gating",
+                "right": "Blocks malicious artifacts at entry"
+              },
+              {
+                "left": "Network egress control",
+                "right": "Limits data exfiltration and callbacks"
+              },
+              {
+                "left": "Short-lived credentials",
+                "right": "Shrinks the blast radius of a leak"
+              },
+              {
+                "left": "Exposure monitoring",
+                "right": "Catches newly vulnerable serving endpoints"
+              }
+            ],
+            "explanation": "Each control turns a supply-chain risk into a concrete defense: gating stops bad inputs, egress control stops exfiltration, ephemeral secrets limit leaks, and monitoring catches exposed CVEs."
+          }
+        ],
         "moduleId": "ai-m10",
         "number": 62,
         "title": "Hardening the Pipeline",
@@ -9726,6 +12054,49 @@ export const AI_CURRICULUM: Module[] = [
     "topics": [
       {
         "id": "ai-m11-1",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each OWASP ML Top 10 ID to the attack it names.",
+            "pairs": [
+              {
+                "left": "ML01",
+                "right": "Input Manipulation (evasion)"
+              },
+              {
+                "left": "ML02",
+                "right": "Data Poisoning"
+              },
+              {
+                "left": "ML03",
+                "right": "Model Inversion"
+              },
+              {
+                "left": "ML04",
+                "right": "Membership Inference"
+              },
+              {
+                "left": "ML05",
+                "right": "Model Theft"
+              }
+            ],
+            "explanation": "The OWASP ML list numbers the classical-ML risks ML01-ML10; ML01-ML05 cover evasion, poisoning, inversion, membership inference and model theft."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the distinction between the two poisoning entries on the OWASP ML list.",
+            "template": "ML02 is ___ Poisoning, while ML10 is ___ Poisoning.",
+            "blanks": [
+              "Data",
+              "Model"
+            ],
+            "explanation": "ML02 poisons the training data, whereas ML10 tampers with the model (weights/parameters) directly.",
+            "distractors": [
+              "Input",
+              "Transfer"
+            ]
+          }
+        ],
         "moduleId": "ai-m11",
         "number": 63,
         "title": "OWASP ML Top 10 Overview",
@@ -9934,6 +12305,46 @@ export const AI_CURRICULUM: Module[] = [
       },
       {
         "id": "ai-m11-2",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each adversarial-ML library to its focus.",
+            "pairs": [
+              {
+                "left": "ART",
+                "right": "IBM multi-framework robustness toolbox"
+              },
+              {
+                "left": "Foolbox",
+                "right": "Benchmarking model robustness to attacks"
+              },
+              {
+                "left": "CleverHans",
+                "right": "Early TensorFlow adversarial-example library"
+              },
+              {
+                "left": "TextAttack",
+                "right": "Adversarial attacks on NLP models"
+              }
+            ],
+            "explanation": "ART, Foolbox, CleverHans and TextAttack are standard tooling for crafting and benchmarking evasion attacks, with TextAttack specialised for text."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Fill in the comparison of two gradient-based evasion attacks.",
+            "template": "FGSM is a ___-step attack, while PGD is its ___ multi-step variant, both bounded by an epsilon ___.",
+            "blanks": [
+              "single",
+              "iterative",
+              "budget"
+            ],
+            "explanation": "FGSM takes one gradient step; PGD iterates many small steps, both constrained to stay within the epsilon perturbation budget.",
+            "distractors": [
+              "double",
+              "query"
+            ]
+          }
+        ],
         "moduleId": "ai-m11",
         "number": 64,
         "title": "Adversarial Examples / Evasion",
@@ -10078,6 +12489,43 @@ export const AI_CURRICULUM: Module[] = [
       },
       {
         "id": "ai-m11-3",
+        "exercises": [
+          {
+            "type": "order",
+            "prompt": "Order these MITRE ATLAS tactics as an adversary progresses against an ML system.",
+            "items": [
+              "Reconnaissance",
+              "Resource Development",
+              "Initial Access",
+              "ML Attack Staging",
+              "Impact"
+            ],
+            "explanation": "ATLAS mirrors ATT&CK: the adversary first studies the target, builds resources, gains access, stages the ML-specific attack, then causes impact."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each term to its meaning in the ATLAS context.",
+            "pairs": [
+              {
+                "left": "MITRE ATLAS",
+                "right": "ATT&CK-style matrix for AI/ML systems"
+              },
+              {
+                "left": "Model Extraction",
+                "right": "Stealing a model by querying it"
+              },
+              {
+                "left": "Evasion",
+                "right": "Perturbing input to flip a prediction"
+              },
+              {
+                "left": "NIST AI RMF",
+                "right": "AI risk-management framework"
+              }
+            ],
+            "explanation": "ATLAS catalogues AI-specific techniques such as extraction and evasion and maps observed TTPs for intel sharing, complementing ATT&CK and the NIST AI RMF."
+          }
+        ],
         "moduleId": "ai-m11",
         "number": 65,
         "title": "MITRE ATLAS Framework",
@@ -10184,6 +12632,42 @@ export const AI_CURRICULUM: Module[] = [
       },
       {
         "id": "ai-m11-4",
+        "exercises": [
+          {
+            "type": "order",
+            "prompt": "Order the steps of an ATLAS-driven adversarial emulation campaign.",
+            "items": [
+              "Build an emulation plan from the threat profile",
+              "Run attacks with Counterfit/ART mapped to ATLAS techniques",
+              "Score coverage and detection gaps",
+              "Report results in ATLAS terms"
+            ],
+            "explanation": "Emulation operationalises ATLAS: plan from the threat profile, execute mapped attacks, measure detection coverage, then report in shared ATLAS language."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each emulation component to its role.",
+            "pairs": [
+              {
+                "left": "Counterfit",
+                "right": "Microsoft automated ML attack emulation"
+              },
+              {
+                "left": "ART pipeline",
+                "right": "Attacks mapped to ATLAS techniques"
+              },
+              {
+                "left": "Coverage scoring",
+                "right": "Surfacing detection gaps"
+              },
+              {
+                "left": "Threat profile",
+                "right": "Basis for the emulation plan"
+              }
+            ],
+            "explanation": "Counterfit and ART pipelines drive the attacks, the threat profile shapes the plan, and coverage scoring exposes where detection is missing."
+          }
+        ],
         "moduleId": "ai-m11",
         "number": 66,
         "title": "Adversarial Emulation and Tooling",
@@ -10304,6 +12788,45 @@ export const AI_CURRICULUM: Module[] = [
       },
       {
         "id": "ai-m11-5",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each transfer-learning / skewing concept to its description.",
+            "pairs": [
+              {
+                "left": "ML07",
+                "right": "Transfer-Learning Attack"
+              },
+              {
+                "left": "ML08",
+                "right": "Model Skewing"
+              },
+              {
+                "left": "Poisoned base model",
+                "right": "Backdoor inherited by fine-tuned model"
+              },
+              {
+                "left": "Feedback-loop poisoning",
+                "right": "Manipulated production data biases retraining"
+              }
+            ],
+            "explanation": "ML07 inherits trojans/bias from a poisoned pre-trained base, while ML08 gradually skews a model through manipulated production feedback used for retraining."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the statement about inherited backdoors.",
+            "template": "A trojan in a poisoned ___ base model is inherited through transfer learning, and fine-tuning does ___ remove it.",
+            "blanks": [
+              "pre-trained",
+              "not"
+            ],
+            "explanation": "Fine-tuning adjusts a pre-trained base but does not reliably erase upstream trojans or learned biases, so base models must be vetted.",
+            "distractors": [
+              "student",
+              "always"
+            ]
+          }
+        ],
         "moduleId": "ai-m11",
         "number": 67,
         "title": "Transfer-Learning and Model-Skewing Attacks",
@@ -10411,6 +12934,46 @@ export const AI_CURRICULUM: Module[] = [
       },
       {
         "id": "ai-m11-6",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each framework/standard to what it covers.",
+            "pairs": [
+              {
+                "left": "OWASP LLM Top 10",
+                "right": "LLM application risks"
+              },
+              {
+                "left": "OWASP ML Top 10",
+                "right": "Classical ML model risks"
+              },
+              {
+                "left": "MITRE ATLAS",
+                "right": "Adversary TTPs against AI"
+              },
+              {
+                "left": "NIST AI RMF",
+                "right": "AI risk governance"
+              },
+              {
+                "left": "ISO/IEC 42001",
+                "right": "AI management system standard"
+              }
+            ],
+            "explanation": "A complete AI assessment cross-walks LLM, ML, ATLAS and governance frameworks so each system is judged against the right lens."
+          },
+          {
+            "type": "order",
+            "prompt": "Order the steps of framework-driven threat modeling and reporting.",
+            "items": [
+              "Select the right framework for the system",
+              "Assess and map findings to it",
+              "Cross-walk findings across frameworks",
+              "Communicate risk to technical and executive audiences"
+            ],
+            "explanation": "You pick the framework suited to the system, map findings to it, cross-walk for completeness, then translate risk for both technical and executive readers."
+          }
+        ],
         "moduleId": "ai-m11",
         "number": 68,
         "title": "Framework-Driven Threat Modeling and Reporting",
@@ -10586,6 +13149,45 @@ export const AI_CURRICULUM: Module[] = [
     "topics": [
       {
         "id": "ai-m12-1",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each guardrail framework to what it is for.",
+            "pairs": [
+              {
+                "left": "NeMo Guardrails",
+                "right": "Programmable dialogue rails"
+              },
+              {
+                "left": "Guardrails AI",
+                "right": "Output schema validation"
+              },
+              {
+                "left": "Rebuff",
+                "right": "Prompt-injection detection"
+              },
+              {
+                "left": "Lakera Guard",
+                "right": "Managed SaaS guardrail"
+              }
+            ],
+            "explanation": "Open frameworks (NeMo, Guardrails AI, Rebuff) and managed services (Lakera) each cover a different slice; none alone is a full solution."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the core truth about what guardrails are.",
+            "template": "Guardrails are a defense ___ , not a complete solution, because no input filter fully solves prompt ___ .",
+            "blanks": [
+              "layer",
+              "injection"
+            ],
+            "explanation": "Guardrails reduce risk as one layer of defense-in-depth, but injection remains fundamentally unsolved by filtering alone.",
+            "distractors": [
+              "gateway",
+              "hallucination"
+            ]
+          }
+        ],
         "moduleId": "ai-m12",
         "number": 69,
         "title": "The Guardrail Landscape",
@@ -10746,6 +13348,43 @@ export const AI_CURRICULUM: Module[] = [
       },
       {
         "id": "ai-m12-2",
+        "exercises": [
+          {
+            "type": "order",
+            "prompt": "Order an input-side defense pipeline from first to last.",
+            "items": [
+              "Normalize input encoding and length",
+              "Match against known injection signatures",
+              "Run the prompt-injection classifier",
+              "Wrap untrusted content with delimiters (spotlighting)",
+              "Pass sanitized input to the model"
+            ],
+            "explanation": "Normalizing first strips obfuscation so signature matching and the classifier see the real payload before it is spotlighted and forwarded."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each input-side technique to what it does.",
+            "pairs": [
+              {
+                "left": "Canary token",
+                "right": "Detects leaked system prompt"
+              },
+              {
+                "left": "Spotlighting",
+                "right": "Marks untrusted text boundaries"
+              },
+              {
+                "left": "Encoding normalization",
+                "right": "Removes obfuscation"
+              },
+              {
+                "left": "Injection classifier",
+                "right": "Flags hostile prompts"
+              }
+            ],
+            "explanation": "These complementary input defenses detect leaks, delimit untrusted data, undo obfuscation, and score prompts for hostility."
+          }
+        ],
         "moduleId": "ai-m12",
         "number": 70,
         "title": "Input-Side Defenses",
@@ -10880,6 +13519,47 @@ export const AI_CURRICULUM: Module[] = [
       },
       {
         "id": "ai-m12-3",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each output-side threat to its defense.",
+            "pairs": [
+              {
+                "left": "PII in the response",
+                "right": "Output scanner and redaction"
+              },
+              {
+                "left": "Markdown image beacon",
+                "right": "Strip/sanitize rendering"
+              },
+              {
+                "left": "Ungrounded claim",
+                "right": "Citation/grounding check"
+              },
+              {
+                "left": "High-impact response",
+                "right": "Human review gate"
+              }
+            ],
+            "explanation": "Output defenses scan for leaks, sanitize rendering to kill exfiltration channels, verify grounding, and gate high-impact replies."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the rule for safe output handling.",
+            "template": "Treat model output as ___ data; strip active ___ and block outbound image ___ to stop silent exfiltration.",
+            "blanks": [
+              "untrusted",
+              "HTML",
+              "beacons"
+            ],
+            "explanation": "Rendered markdown/HTML can smuggle data out via image beacons and links, so output must be sanitized before it reaches a browser.",
+            "distractors": [
+              "trusted",
+              "CSS",
+              "cookies"
+            ]
+          }
+        ],
         "moduleId": "ai-m12",
         "number": 71,
         "title": "Output-Side Defenses",
@@ -11017,6 +13697,43 @@ export const AI_CURRICULUM: Module[] = [
       },
       {
         "id": "ai-m12-4",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each architectural defense to its purpose.",
+            "pairs": [
+              {
+                "left": "Dual-LLM pattern",
+                "right": "Isolate untrusted content"
+              },
+              {
+                "left": "Least-privilege tools",
+                "right": "Limit blast radius"
+              },
+              {
+                "left": "Human-in-the-loop",
+                "right": "Gate irreversible actions"
+              },
+              {
+                "left": "Egress control",
+                "right": "Prevent data exfiltration"
+              }
+            ],
+            "explanation": "Structure beats filtering: isolation, minimal privilege, human gates, and egress limits keep injection from reaching real power."
+          },
+          {
+            "type": "order",
+            "prompt": "Order the dual-LLM flow for handling untrusted web content.",
+            "items": [
+              "Quarantined LLM reads the untrusted content",
+              "Extract only structured, symbolic data",
+              "Privileged LLM operates on symbols, never raw text",
+              "Require per-action authorization before any tool call",
+              "Require human approval for irreversible actions"
+            ],
+            "explanation": "The privileged model never sees raw hostile text; it acts only on sanitized symbols, with authorization and human control at the dangerous edges."
+          }
+        ],
         "moduleId": "ai-m12",
         "number": 72,
         "title": "Architectural Defenses",
@@ -11176,6 +13893,43 @@ export const AI_CURRICULUM: Module[] = [
       },
       {
         "id": "ai-m12-5",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each guardrail-bypass technique to the weakness it targets.",
+            "pairs": [
+              {
+                "left": "Base64 / encoding",
+                "right": "Classifier pattern matching"
+              },
+              {
+                "left": "Context-splitting",
+                "right": "Single-turn filter"
+              },
+              {
+                "left": "Adversarial suffix",
+                "right": "The guardrail model itself"
+              },
+              {
+                "left": "Bypass-rate metric",
+                "right": "Measuring defense effectiveness"
+              }
+            ],
+            "explanation": "Red-teaming maps each evasion to the layer it defeats, then quantifies how often defenses hold."
+          },
+          {
+            "type": "order",
+            "prompt": "Order the steps of red-teaming your own guardrails.",
+            "items": [
+              "Define bypass success criteria",
+              "Craft obfuscated and multi-turn payloads",
+              "Measure bypass rate across attempts",
+              "Quantify the defense-in-depth gain",
+              "Document residual risk honestly"
+            ],
+            "explanation": "A disciplined assessment sets criteria, attacks, measures bypass rate and layered gain, then reports what risk remains."
+          }
+        ],
         "moduleId": "ai-m12",
         "number": 73,
         "title": "Attacking the Guardrails",
@@ -11306,6 +14060,43 @@ export const AI_CURRICULUM: Module[] = [
       },
       {
         "id": "ai-m12-6",
+        "exercises": [
+          {
+            "type": "order",
+            "prompt": "Order the runtime detection-and-response pipeline.",
+            "items": [
+              "Log prompts, tool calls, tokens, and outputs",
+              "Feed telemetry into an LLM-aware SIEM",
+              "Detect anomalies (extraction, denial-of-wallet)",
+              "Alert on jailbreak and tool-abuse signatures",
+              "Execute the AI incident-response playbook"
+            ],
+            "explanation": "Since you cannot block everything, logging feeds observability that detects, alerts, and triggers a response playbook."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each runtime signal to what it indicates.",
+            "pairs": [
+              {
+                "left": "Sudden token-usage spike",
+                "right": "Denial-of-wallet"
+              },
+              {
+                "left": "Repeated system-prompt queries",
+                "right": "Extraction attempt"
+              },
+              {
+                "left": "Known jailbreak signature",
+                "right": "Attempted bypass"
+              },
+              {
+                "left": "Unexpected tool call",
+                "right": "Tool abuse"
+              }
+            ],
+            "explanation": "Prompt telemetry turns raw logs into signals that distinguish cost attacks, extraction, jailbreaks, and tool misuse."
+          }
+        ],
         "moduleId": "ai-m12",
         "number": 74,
         "title": "Runtime Monitoring and Detection",
@@ -11453,6 +14244,47 @@ export const AI_CURRICULUM: Module[] = [
     "topics": [
       {
         "id": "ai-m13-1",
+        "exercises": [
+          {
+            "type": "order",
+            "prompt": "Put the steps for standing up a legal, focused LLM red-team engagement in the correct order.",
+            "items": [
+              "Obtain written authorization and confirm safe-harbor scope",
+              "Define objectives: injection, jailbreak, data leakage, tool abuse",
+              "Agree success criteria and severity model up front",
+              "Set cost/rate caps to avoid denial-of-wallet",
+              "Begin testing with one-target-per-session discipline"
+            ],
+            "explanation": "Authorization and scope come first; objectives, success/severity, and cost caps are all agreed before a single prompt is sent, so testing stays legal and bounded."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each rules-of-engagement concept to its meaning.",
+            "pairs": [
+              {
+                "left": "Safe-harbor scope",
+                "right": "Assets you may test without legal liability"
+              },
+              {
+                "left": "Denial-of-wallet",
+                "right": "Runaway API cost from uncapped testing"
+              },
+              {
+                "left": "Severity model",
+                "right": "Agreed scale for rating finding impact"
+              },
+              {
+                "left": "Evidence hygiene",
+                "right": "Clean, reproducible capture of each finding"
+              },
+              {
+                "left": "One-target-per-session",
+                "right": "Avoids cross-contamination between engagements"
+              }
+            ],
+            "explanation": "These terms mirror pentest and bounty discipline: they keep testing authorized, cost-bounded, consistently rated, and cleanly evidenced."
+          }
+        ],
         "moduleId": "ai-m13",
         "number": 75,
         "title": "Engagement Scoping and Rules of Engagement",
@@ -11695,6 +14527,44 @@ export const AI_CURRICULUM: Module[] = [
       },
       {
         "id": "ai-m13-2",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each automated red-team framework (or standard) to its role.",
+            "pairs": [
+              {
+                "left": "garak",
+                "right": "Probes/detectors for baseline vulnerability coverage"
+              },
+              {
+                "left": "promptfoo",
+                "right": "Red-team plugins for injection/jailbreak/PII suites"
+              },
+              {
+                "left": "PyRIT",
+                "right": "Orchestration for automated multi-turn campaigns"
+              },
+              {
+                "left": "OWASP LLM / ATLAS",
+                "right": "Frameworks to map automated coverage against"
+              }
+            ],
+            "explanation": "garak and promptfoo give broad baseline coverage, PyRIT drives multi-turn campaigns, and OWASP LLM / MITRE ATLAS give the taxonomy to map coverage to."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the garak invocation that runs the encoding probe against an OpenAI model.",
+            "template": "python -m garak --model_type openai --model_name gpt-4 --___ encoding",
+            "blanks": [
+              "probes"
+            ],
+            "explanation": "garak selects which attack families to run with the --probes flag; detectors are the scoring side and 'plugins' is promptfoo terminology.",
+            "distractors": [
+              "detectors",
+              "plugins"
+            ]
+          }
+        ],
         "moduleId": "ai-m13",
         "number": 76,
         "title": "Automated Red-Team Tooling",
@@ -11945,6 +14815,43 @@ export const AI_CURRICULUM: Module[] = [
       },
       {
         "id": "ai-m13-3",
+        "exercises": [
+          {
+            "type": "order",
+            "prompt": "Order the stages of an automated LLM-as-attacker (PAIR/TAP-style) loop against a target.",
+            "items": [
+              "Seed the attacker LLM with the adversarial goal",
+              "Attacker generates a prompt and sends it to the target",
+              "Score the target response against the goal",
+              "Attacker refines and escalates (crescendo) from the response",
+              "Loop until success or the turn budget is exhausted"
+            ],
+            "explanation": "PAIR/TAP automate the escalation: an attacker model iteratively crafts, scores, and crescendos its prompts, stopping on success or when the turn budget runs out."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each multi-turn orchestration concept to its description.",
+            "pairs": [
+              {
+                "left": "PAIR / TAP",
+                "right": "LLM-as-attacker iterative loops"
+              },
+              {
+                "left": "Crescendo",
+                "right": "Gradual escalation across multiple turns"
+              },
+              {
+                "left": "Memory/context abuse",
+                "right": "Exploiting state carried across turns"
+              },
+              {
+                "left": "Turn-to-success",
+                "right": "How many turns a jailbreak needed"
+              }
+            ],
+            "explanation": "Real attacks unfold over a conversation: attacker loops crescendo toward the goal, abuse carried context, and are measured by turn-to-success."
+          }
+        ],
         "moduleId": "ai-m13",
         "number": 77,
         "title": "Multi-Turn Attack Orchestration",
@@ -12186,6 +15093,48 @@ export const AI_CURRICULUM: Module[] = [
       },
       {
         "id": "ai-m13-4",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each evaluation/scoring concept to its meaning.",
+            "pairs": [
+              {
+                "left": "ASR",
+                "right": "Attack success rate across attempts"
+              },
+              {
+                "left": "LLM-judge",
+                "right": "Model scoring responses against a rubric"
+              },
+              {
+                "left": "Human verification",
+                "right": "Manually confirming every reported success"
+              },
+              {
+                "left": "Judge gaming",
+                "right": "Attacker tricks the scoring model"
+              },
+              {
+                "left": "Prompt leakage into scoring",
+                "right": "Attack text contaminates the judge"
+              }
+            ],
+            "explanation": "Reliable scoring pairs calibrated LLM-judges with human verification while guarding against gaming and leakage that would inflate ASR."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Fill in the metric that quantifies how often attacks worked.",
+            "template": "___ measures the fraction of attempts that achieved the attack goal.",
+            "blanks": [
+              "ASR"
+            ],
+            "explanation": "ASR (attack success rate) is the HarmBench/JailbreakBench-style headline metric; CVSS rates vuln severity and FPR is false-positive rate.",
+            "distractors": [
+              "CVSS",
+              "FPR"
+            ]
+          }
+        ],
         "moduleId": "ai-m13",
         "number": 78,
         "title": "Evaluation and Scoring",
@@ -12386,6 +15335,43 @@ export const AI_CURRICULUM: Module[] = [
       },
       {
         "id": "ai-m13-5",
+        "exercises": [
+          {
+            "type": "order",
+            "prompt": "Order the steps to shift AI red-teaming left into CI/CD.",
+            "items": [
+              "Build a regression suite of known attacks",
+              "Integrate promptfoo/garak into the CI pipeline",
+              "Gate releases on guardrail efficacy thresholds",
+              "Track drift as models and prompts change",
+              "Alert on new bypasses in production telemetry"
+            ],
+            "explanation": "Shifting left means codifying known attacks, wiring the scanners into CI, gating on efficacy, then watching for drift and live bypasses after release."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each continuous red-teaming mechanism to its purpose.",
+            "pairs": [
+              {
+                "left": "Regression suite",
+                "right": "Known attacks rerun on every build"
+              },
+              {
+                "left": "Efficacy threshold",
+                "right": "Minimum guardrail pass rate to release"
+              },
+              {
+                "left": "Drift tracking",
+                "right": "Watching for degradation as prompts/models change"
+              },
+              {
+                "left": "Telemetry alerting",
+                "right": "Flags new bypasses seen in production"
+              }
+            ],
+            "explanation": "Each mechanism catches regressions at a different stage: in CI, at the release gate, over time as drift, and live from production telemetry."
+          }
+        ],
         "moduleId": "ai-m13",
         "number": 79,
         "title": "Continuous and CI/CD Red-Teaming",
@@ -12625,6 +15611,43 @@ export const AI_CURRICULUM: Module[] = [
       },
       {
         "id": "ai-m13-6",
+        "exercises": [
+          {
+            "type": "order",
+            "prompt": "Order the steps to produce a report that gets an LLM finding fixed.",
+            "items": [
+              "Capture a reproducible PoC: payload, model/version, settings, response",
+              "Map the finding to OWASP LLM/ML and ATLAS",
+              "Assign calibrated severity and write the impact narrative",
+              "Give prioritized remediation guidance",
+              "Disclose responsibly to the AI bug-bounty program"
+            ],
+            "explanation": "A fixable report starts from a reproducible PoC, maps to frameworks, rates impact, prioritizes the fix, then goes through responsible disclosure."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each reporting element to what it contains.",
+            "pairs": [
+              {
+                "left": "Reproducible PoC",
+                "right": "Exact payload, model/version, settings, response"
+              },
+              {
+                "left": "Framework mapping",
+                "right": "OWASP LLM/ML and ATLAS references"
+              },
+              {
+                "left": "Impact narrative",
+                "right": "Clear story of real-world consequence"
+              },
+              {
+                "left": "Theoretical-only non-finding",
+                "right": "No demonstrated impact, not worth reporting"
+              }
+            ],
+            "explanation": "Strong reports are concrete and framework-mapped with a real impact story; theoretical-only or pure-policy items are non-findings to avoid."
+          }
+        ],
         "moduleId": "ai-m13",
         "number": 80,
         "title": "Reporting and Disclosure",
@@ -12865,6 +15888,43 @@ export const AI_CURRICULUM: Module[] = [
     "topics": [
       {
         "id": "ai-m14-1",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each layer of the secure LLM reference architecture to the job it does.",
+            "pairs": [
+              {
+                "left": "Gateway/proxy layer",
+                "right": "Guardrails, auth and logging"
+              },
+              {
+                "left": "Least-privilege tool service",
+                "right": "Scoped, short-lived credentials"
+              },
+              {
+                "left": "Dual-LLM pattern",
+                "right": "Isolate untrusted content in its own trust zone"
+              },
+              {
+                "left": "Sandboxed executor",
+                "right": "Run code with controlled egress"
+              }
+            ],
+            "explanation": "Each layer owns one defensive responsibility; separating them keeps a compromise in one zone from reaching the model, tools, data or the internet."
+          },
+          {
+            "type": "order",
+            "prompt": "Order a request as it flows through the secure reference architecture.",
+            "items": [
+              "User request hits the gateway for auth and guardrails",
+              "Gateway logs and forwards to the model in an isolated zone",
+              "Model calls a least-privilege tool service with scoped credentials",
+              "Tool runs untrusted work in a sandbox with controlled egress",
+              "Result returns through the gateway for output filtering and logging"
+            ],
+            "explanation": "Isolation plus a single choke-point gateway means every request is authenticated, filtered and logged on the way in and out, with tools and code execution kept off the public internet."
+          }
+        ],
         "moduleId": "ai-m14",
         "number": 81,
         "title": "Secure LLM Reference Architecture",
@@ -13103,6 +16163,45 @@ export const AI_CURRICULUM: Module[] = [
       },
       {
         "id": "ai-m14-2",
+        "exercises": [
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the access-control rule for LLM apps.",
+            "template": "Enforce authorization at ___ time, not inside the ___.",
+            "blanks": [
+              "tool/retrieval",
+              "model"
+            ],
+            "explanation": "The model can be manipulated, so authorization must be decided by the tool or retrieval layer at call time, not trusted to the prompt or the model itself.",
+            "distractors": [
+              "gateway",
+              "system prompt"
+            ]
+          },
+          {
+            "type": "match",
+            "prompt": "Match each secrets and identity control to what it provides.",
+            "pairs": [
+              {
+                "left": "OWASP LLM07",
+                "right": "System prompt leakage risk"
+              },
+              {
+                "left": "Secret manager",
+                "right": "Keep keys out of prompts"
+              },
+              {
+                "left": "Multi-tenant RAG isolation",
+                "right": "Prevent cross-tenant leakage"
+              },
+              {
+                "left": "Key rotation",
+                "right": "Refresh scoped endpoint keys"
+              }
+            ],
+            "explanation": "Secrets and authz belong in dedicated infrastructure (managers, scoped keys, per-tenant isolation), never baked into a system prompt that can leak."
+          }
+        ],
         "moduleId": "ai-m14",
         "number": 82,
         "title": "Secrets, Identity and Access Control",
@@ -13263,6 +16362,45 @@ export const AI_CURRICULUM: Module[] = [
       },
       {
         "id": "ai-m14-3",
+        "exercises": [
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the budget-protection control.",
+            "template": "A ___-deny LLM spend gate plus a ___ switch stops runaway billing.",
+            "blanks": [
+              "default",
+              "kill"
+            ],
+            "explanation": "A default-deny spend gate blocks spend unless explicitly permitted, and a kill switch lets you halt everything instantly during a denial-of-wallet event.",
+            "distractors": [
+              "allow",
+              "circuit"
+            ]
+          },
+          {
+            "type": "match",
+            "prompt": "Match each abuse/cost control to what it defends against.",
+            "pairs": [
+              {
+                "left": "Per-identity rate limits and quotas",
+                "right": "Cap request volume per user"
+              },
+              {
+                "left": "Anomaly detection",
+                "right": "Spot high-volume extraction patterns"
+              },
+              {
+                "left": "Request/response size limits",
+                "right": "Bound per-call resource use"
+              },
+              {
+                "left": "Billing alert and circuit breaker",
+                "right": "Halt runaway spend"
+              }
+            ],
+            "explanation": "Layered limits, detection and breakers defend availability and budget against denial-of-wallet and model-extraction abuse (OWASP LLM10)."
+          }
+        ],
         "moduleId": "ai-m14",
         "number": 83,
         "title": "Cost, Rate and Abuse Controls",
@@ -13448,6 +16586,43 @@ export const AI_CURRICULUM: Module[] = [
       },
       {
         "id": "ai-m14-4",
+        "exercises": [
+          {
+            "type": "order",
+            "prompt": "Order the AI incident-response steps after telemetry flags a problem.",
+            "items": [
+              "Capture prompt, response and tool-call telemetry with PII-aware logging",
+              "Detection rule fires on an injection or jailbreak signature",
+              "Run the AI-specific incident playbook",
+              "Roll back the poisoned corpus and rotate credentials",
+              "Do post-incident evaluation and add regression tests"
+            ],
+            "explanation": "You can only respond to what you log; detection drives the playbook, containment rolls back poisoned data and rotates secrets, and regression tests stop recurrence."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each observability/IR element to its role.",
+            "pairs": [
+              {
+                "left": "PII-aware logging",
+                "right": "Telemetry without leaking user data"
+              },
+              {
+                "left": "Detection rules",
+                "right": "Flag injection and jailbreak signatures"
+              },
+              {
+                "left": "Incident playbook",
+                "right": "Steps for poisoned data or abused agent"
+              },
+              {
+                "left": "Regression tests",
+                "right": "Prevent the incident recurring"
+              }
+            ],
+            "explanation": "Visibility, detection, a rehearsed playbook and post-incident tests together let you catch, contain and learn from AI-specific incidents."
+          }
+        ],
         "moduleId": "ai-m14",
         "number": 84,
         "title": "Observability and Incident Response for AI",
@@ -13617,6 +16792,46 @@ export const AI_CURRICULUM: Module[] = [
       },
       {
         "id": "ai-m14-5",
+        "exercises": [
+          {
+            "type": "order",
+            "prompt": "Order the four core functions of the NIST AI RMF.",
+            "items": [
+              "Govern",
+              "Map",
+              "Measure",
+              "Manage"
+            ],
+            "explanation": "NIST AI RMF structures AI risk work as Govern, Map, Measure and Manage, with Govern as the cross-cutting backbone."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each governance artefact or framework to what it is.",
+            "pairs": [
+              {
+                "left": "NIST AI RMF",
+                "right": "Risk backbone: Govern/Map/Measure/Manage"
+              },
+              {
+                "left": "ISO/IEC 42001",
+                "right": "AI management system requirements"
+              },
+              {
+                "left": "EU AI Act",
+                "right": "Risk-tiered legal obligations"
+              },
+              {
+                "left": "AIBOM/MLBOM",
+                "right": "AI/ML bill of materials"
+              },
+              {
+                "left": "Model card",
+                "right": "Per-model documentation as evidence"
+              }
+            ],
+            "explanation": "Mapping technical controls to these frameworks gives auditors and regulators the evidence they expect for AI risk management."
+          }
+        ],
         "moduleId": "ai-m14",
         "number": 85,
         "title": "Governance, Standards and Compliance",
@@ -13842,6 +17057,34 @@ export const AI_CURRICULUM: Module[] = [
       },
       {
         "id": "ai-m14-6",
+        "exercises": [
+          {
+            "type": "order",
+            "prompt": "Order the capstone secure-AI assessment workflow.",
+            "items": [
+              "Threat-model the stack with the course taxonomy",
+              "Run offensive coverage and record verified findings",
+              "Apply layered defenses",
+              "Re-test to show risk reduction",
+              "Deliver an executive-ready posture summary with residual risk"
+            ],
+            "explanation": "A full assessment threat-models, proves findings offensively, hardens, re-tests to demonstrate reduction, then reports posture and residual risk."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete how capstone findings are framed for the report.",
+            "template": "Map technical controls to ___ and ___ so the report speaks the auditors' language.",
+            "blanks": [
+              "NIST AI RMF",
+              "OWASP"
+            ],
+            "explanation": "Tying verified findings and controls to NIST AI RMF and OWASP makes the remediation plan credible and prioritizable for stakeholders.",
+            "distractors": [
+              "ISO 27001",
+              "PCI DSS"
+            ]
+          }
+        ],
         "moduleId": "ai-m14",
         "number": 86,
         "title": "Capstone Secure-AI Assessment",

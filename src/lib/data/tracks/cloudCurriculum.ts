@@ -21,6 +21,45 @@ export const CLOUD_CURRICULUM: Module[] = [
     "topics": [
       {
         "id": "cloud-m1-1",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each cloud service model to what it abstracts away from the customer.",
+            "pairs": [
+              {
+                "left": "IaaS",
+                "right": "Provider runs hardware; you manage the OS and up"
+              },
+              {
+                "left": "PaaS",
+                "right": "Provider runs OS and runtime; you deploy code"
+              },
+              {
+                "left": "SaaS",
+                "right": "Fully managed application; you just use it"
+              },
+              {
+                "left": "FaaS / serverless",
+                "right": "Run functions on demand; no servers to manage"
+              }
+            ],
+            "explanation": "Moving from IaaS to FaaS hands progressively more of the stack to the provider, leaving the customer responsible for less infrastructure."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the five essential cloud characteristics from NIST SP 800-145.",
+            "template": "On-demand self-service, broad network access, resource ___, rapid ___, and measured service.",
+            "blanks": [
+              "pooling",
+              "elasticity"
+            ],
+            "explanation": "NIST SP 800-145 defines these five characteristics; resource pooling (multi-tenancy) and rapid elasticity are two of them.",
+            "distractors": [
+              "isolation",
+              "metering"
+            ]
+          }
+        ],
         "moduleId": "cloud-m1",
         "number": 1,
         "title": "What the Cloud Really Is",
@@ -181,6 +220,33 @@ export const CLOUD_CURRICULUM: Module[] = [
       },
       {
         "id": "cloud-m1-2",
+        "exercises": [
+          {
+            "type": "order",
+            "prompt": "Order these service models from MOST customer security responsibility to LEAST.",
+            "items": [
+              "IaaS (most customer responsibility)",
+              "PaaS",
+              "SaaS",
+              "Serverless (least customer responsibility)"
+            ],
+            "explanation": "Responsibility shifts left to the provider as you move IaaS -> PaaS -> SaaS -> serverless, so the customer owns the most in IaaS and the least in serverless."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete AWS's shared responsibility line.",
+            "template": "The provider is responsible for security ___ the cloud, and the customer is responsible for security ___ the cloud.",
+            "blanks": [
+              "OF",
+              "IN"
+            ],
+            "explanation": "AWS frames it as security OF the cloud (physical, hypervisor, host) versus security IN the cloud (IAM, data, config) owned by the customer.",
+            "distractors": [
+              "ON",
+              "AROUND"
+            ]
+          }
+        ],
         "moduleId": "cloud-m1",
         "number": 2,
         "title": "The Shared Responsibility Model",
@@ -297,6 +363,49 @@ export const CLOUD_CURRICULUM: Module[] = [
       },
       {
         "id": "cloud-m1-3",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each AWS primitive to its Azure equivalent.",
+            "pairs": [
+              {
+                "left": "EC2",
+                "right": "Azure VM"
+              },
+              {
+                "left": "S3",
+                "right": "Azure Blob Storage"
+              },
+              {
+                "left": "Lambda",
+                "right": "Azure Functions"
+              },
+              {
+                "left": "IAM",
+                "right": "Entra ID (Azure AD)"
+              },
+              {
+                "left": "VPC",
+                "right": "VNet"
+              }
+            ],
+            "explanation": "These primitives line up across providers even when names differ, letting cloud knowledge transfer between AWS and Azure."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Fill in the firewall-rule equivalents across providers.",
+            "template": "AWS calls it a Security Group, Azure calls it an ___, and GCP calls it a ___ rule.",
+            "blanks": [
+              "NSG",
+              "Firewall"
+            ],
+            "explanation": "Stateful host/subnet filtering is a Security Group in AWS, a Network Security Group (NSG) in Azure, and a Firewall rule in GCP.",
+            "distractors": [
+              "ACL",
+              "Shield"
+            ]
+          }
+        ],
         "moduleId": "cloud-m1",
         "number": 3,
         "title": "Cross-Provider Service Mapping",
@@ -472,6 +581,45 @@ export const CLOUD_CURRICULUM: Module[] = [
       },
       {
         "id": "cloud-m1-4",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each AWS isolation/governance construct to its definition.",
+            "pairs": [
+              {
+                "left": "AWS account",
+                "right": "Hard security boundary"
+              },
+              {
+                "left": "Availability Zone",
+                "right": "Isolated datacenter within a region"
+              },
+              {
+                "left": "SCP",
+                "right": "Org-level guardrail limiting permissions"
+              },
+              {
+                "left": "Control Tower",
+                "right": "Governed landing-zone setup"
+              }
+            ],
+            "explanation": "Accounts are the hard boundary; Organizations, OUs and SCPs add guardrails, and Control Tower provisions a governed landing zone to reduce blast radius."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Classify these services by scope.",
+            "template": "IAM and Route 53 are ___ services, while EC2 instances and S3 buckets are ___ services.",
+            "blanks": [
+              "global",
+              "regional"
+            ],
+            "explanation": "IAM and Route 53 operate globally, whereas EC2 instances and S3 buckets live in a specific region, which also drives data-residency decisions.",
+            "distractors": [
+              "zonal",
+              "edge"
+            ]
+          }
+        ],
         "moduleId": "cloud-m1",
         "number": 4,
         "title": "Accounts, Regions, Blast Radius",
@@ -641,6 +789,33 @@ export const CLOUD_CURRICULUM: Module[] = [
       },
       {
         "id": "cloud-m1-5",
+        "exercises": [
+          {
+            "type": "order",
+            "prompt": "Order the stages of the Capital One 2019 breach.",
+            "items": [
+              "Exploit SSRF in the web application",
+              "Reach the instance metadata service",
+              "Retrieve the over-permissioned IAM role credentials",
+              "Exfiltrate data from S3"
+            ],
+            "explanation": "The 2019 Capital One breach chained SSRF to the instance metadata endpoint, stole an over-permissioned role's credentials, and exfiltrated S3 data."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete these facts about the cloud threat landscape.",
+            "template": "The top initial access vector is ___ leakage via git and CI logs, and most cloud breaches stem from ___ rather than CVE exploitation.",
+            "blanks": [
+              "credential",
+              "misconfiguration"
+            ],
+            "explanation": "Leaked credentials (git, CI logs, public AMIs/snapshots) are the top initial access vector, and misconfiguration, not CVEs, causes most cloud breaches.",
+            "distractors": [
+              "memory",
+              "malware"
+            ]
+          }
+        ],
         "moduleId": "cloud-m1",
         "number": 5,
         "title": "Cloud Threat Landscape",
@@ -782,6 +957,33 @@ export const CLOUD_CURRICULUM: Module[] = [
       },
       {
         "id": "cloud-m1-6",
+        "exercises": [
+          {
+            "type": "order",
+            "prompt": "Order the steps to stand up a safe AWS lab sandbox.",
+            "items": [
+              "Create an isolated AWS sandbox account",
+              "Enable a budget and billing alarm",
+              "Install AWS CLI v2 and configure SSO",
+              "Verify identity with aws sts get-caller-identity",
+              "Tear down resources with aws-nuke after the lab"
+            ],
+            "explanation": "A free-tier-first sandbox with billing guardrails, a verified CLI identity, and disciplined tear-down keeps labs safe and cheap."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the command that confirms which identity your CLI is using.",
+            "template": "aws sts ___",
+            "blanks": [
+              "get-caller-identity"
+            ],
+            "explanation": "aws sts get-caller-identity returns the account, user/role ARN and user ID of the credentials in use, confirming your profile is configured correctly.",
+            "distractors": [
+              "get-session-token",
+              "whoami"
+            ]
+          }
+        ],
         "moduleId": "cloud-m1",
         "number": 6,
         "title": "Lab Environment & Cost/Safety Guardrails",
@@ -920,6 +1122,42 @@ export const CLOUD_CURRICULUM: Module[] = [
       },
       {
         "id": "cloud-m1-7",
+        "exercises": [
+          {
+            "type": "order",
+            "prompt": "Order the attack path an attacker traces from the internet to the data.",
+            "items": [
+              "Internet-facing entry point (ALB / API Gateway)",
+              "Compromise the compute instance",
+              "Harvest its credentials or role",
+              "Reach the backing data store (S3 / database)"
+            ],
+            "explanation": "Reading an architecture as an attacker maps the path internet -> compute -> credentials -> data, following trust edges to the crown-jewel data store."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each attacker-reachable edge to the defender control that cuts it.",
+            "pairs": [
+              {
+                "left": "Public S3 bucket",
+                "right": "Block Public Access and scoped bucket policy"
+              },
+              {
+                "left": "Over-permissioned role",
+                "right": "Least-privilege IAM policy"
+              },
+              {
+                "left": "Reachable metadata service",
+                "right": "Enforce IMDSv2"
+              },
+              {
+                "left": "Exposed secret",
+                "right": "Secrets Manager with scoped access"
+              }
+            ],
+            "explanation": "Each attacker trust edge translates into a defender control; for example enforcing IMDSv2 breaks the SSRF-to-metadata path seen in Capital One."
+          }
+        ],
         "moduleId": "cloud-m1",
         "number": 7,
         "title": "Reading Cloud Like an Attacker vs Defender",
@@ -1138,6 +1376,50 @@ export const CLOUD_CURRICULUM: Module[] = [
     "topics": [
       {
         "id": "cloud-m2-1",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each IAM principal or identity concept to its defining trait.",
+            "pairs": [
+              {
+                "left": "IAM user",
+                "right": "Long-lived access keys"
+              },
+              {
+                "left": "IAM role",
+                "right": "Assumed, temporary STS credentials"
+              },
+              {
+                "left": "Instance profile",
+                "right": "Attaches a role to an EC2 instance"
+              },
+              {
+                "left": "IAM Identity Center (SSO)",
+                "right": "Federated single sign-on across accounts"
+              },
+              {
+                "left": "Root account",
+                "right": "Lock it, enable MFA, never use operationally"
+              }
+            ],
+            "explanation": "Roles issue short-lived credentials and are the correct identity for workloads and cross-account access, while long-lived user access keys are the credential most often leaked."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the rule for workload identity in AWS.",
+            "template": "Workloads should use ___ instead of long-lived ___ because they issue temporary ___ credentials.",
+            "blanks": [
+              "roles",
+              "access keys",
+              "STS"
+            ],
+            "explanation": "A role is assumed to mint temporary STS credentials that auto-expire, avoiding the long-lived access keys that are the number-one leaked credential.",
+            "distractors": [
+              "groups",
+              "passwords"
+            ]
+          }
+        ],
         "moduleId": "cloud-m2",
         "number": 8,
         "title": "Principals: Users, Groups, Roles",
@@ -1301,6 +1583,49 @@ export const CLOUD_CURRICULUM: Module[] = [
       },
       {
         "id": "cloud-m2-2",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each IAM policy statement field to what it controls.",
+            "pairs": [
+              {
+                "left": "Effect",
+                "right": "Allow or Deny"
+              },
+              {
+                "left": "Action",
+                "right": "API operations such as s3:GetObject"
+              },
+              {
+                "left": "Resource",
+                "right": "ARNs the statement applies to"
+              },
+              {
+                "left": "Condition",
+                "right": "Keys such as aws:MultiFactorAuthPresent"
+              },
+              {
+                "left": "Principal",
+                "right": "Who the statement applies to (resource-based policies)"
+              }
+            ],
+            "explanation": "Effect, Action, Resource, Condition and Principal are the core fields of a JSON policy document; Principal appears in resource-based policies to name who is granted access."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Fill in the wildcards that make a policy dangerously broad.",
+            "template": "Using Action '___' with Resource '___' grants every action on every resource, the root of most privilege escalations.",
+            "blanks": [
+              "*",
+              "*"
+            ],
+            "explanation": "Action '*' plus Resource '*' is effectively admin access; scoping both to specific actions and ARNs is what prevents escalation.",
+            "distractors": [
+              "s3:*",
+              "iam:*"
+            ]
+          }
+        ],
         "moduleId": "cloud-m2",
         "number": 9,
         "title": "Anatomy of an IAM Policy",
@@ -1489,6 +1814,49 @@ export const CLOUD_CURRICULUM: Module[] = [
       },
       {
         "id": "cloud-m2-3",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each IAM policy type to how it is attached or what it does.",
+            "pairs": [
+              {
+                "left": "Identity-based policy",
+                "right": "Attached to a principal (user or role)"
+              },
+              {
+                "left": "Resource-based policy",
+                "right": "Attached to the resource, e.g. an S3 bucket"
+              },
+              {
+                "left": "Permission boundary",
+                "right": "Caps the maximum a principal can do"
+              },
+              {
+                "left": "Service Control Policy (SCP)",
+                "right": "Org-wide guardrail that can only restrict"
+              },
+              {
+                "left": "Session policy",
+                "right": "Passed at AssumeRole to narrow a session"
+              }
+            ],
+            "explanation": "Five policy types are evaluated together; resource-based policies can grant cross-account access without AssumeRole, while boundaries, SCPs and session policies only cap or narrow permissions."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Identify the org-wide guardrail policy type.",
+            "template": "An ___ is an organization-wide guardrail that can only restrict, never grant, permissions.",
+            "blanks": [
+              "SCP"
+            ],
+            "explanation": "Service Control Policies set the maximum permissions available in accounts under an Organization but can never by themselves grant access.",
+            "distractors": [
+              "identity-based policy",
+              "session policy",
+              "instance profile"
+            ]
+          }
+        ],
         "moduleId": "cloud-m2",
         "number": 10,
         "title": "Policy Types & Their Interaction",
@@ -1672,6 +2040,34 @@ export const CLOUD_CURRICULUM: Module[] = [
       },
       {
         "id": "cloud-m2-4",
+        "exercises": [
+          {
+            "type": "order",
+            "prompt": "Order the checks IAM applies when evaluating a request.",
+            "items": [
+              "Check for an explicit Deny in any policy (wins immediately)",
+              "Verify the action is permitted by Organizations SCPs",
+              "Evaluate the resource-based policy",
+              "Apply the permission boundary cap",
+              "Require an Allow in the identity-based (and session) policy"
+            ],
+            "explanation": "An explicit deny short-circuits everything; otherwise the request must survive SCPs, resource policy and boundary caps and find a matching allow, or it is denied by default."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "State the two bedrock rules of IAM evaluation.",
+            "template": "An ___ deny always overrides any allow, and with no matching allow the default result is ___.",
+            "blanks": [
+              "explicit",
+              "deny"
+            ],
+            "explanation": "Explicit deny wins everywhere and immediately, and IAM is default-deny, so the absence of a matching allow results in denial.",
+            "distractors": [
+              "implicit",
+              "allow"
+            ]
+          }
+        ],
         "moduleId": "cloud-m2",
         "number": 11,
         "title": "IAM Policy Evaluation Logic",
@@ -1825,6 +2221,46 @@ export const CLOUD_CURRICULUM: Module[] = [
       },
       {
         "id": "cloud-m2-5",
+        "exercises": [
+          {
+            "type": "order",
+            "prompt": "Order the steps of a basic sts:AssumeRole flow.",
+            "items": [
+              "Principal calls sts:AssumeRole on the target role ARN",
+              "STS checks the role's trust policy allows the caller",
+              "STS returns AccessKeyId, SecretAccessKey and SessionToken",
+              "Client uses the temporary credentials until they expire"
+            ],
+            "explanation": "AssumeRole is gated by the role's trust policy, then returns short-lived credentials (including a SessionToken) that expire, which is the core of temporary cloud identity."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each STS term to its purpose.",
+            "pairs": [
+              {
+                "left": "sts:AssumeRole",
+                "right": "Assume a role from an existing AWS identity"
+              },
+              {
+                "left": "AssumeRoleWithSAML",
+                "right": "Assume a role via SAML federation"
+              },
+              {
+                "left": "AssumeRoleWithWebIdentity",
+                "right": "Assume a role via OIDC / web identity"
+              },
+              {
+                "left": "Trust policy",
+                "right": "Defines who may assume the role"
+              },
+              {
+                "left": "ExternalId",
+                "right": "Prevents the confused-deputy problem"
+              }
+            ],
+            "explanation": "The trust policy decides who may assume a role (versus the permission policy's what), and ExternalId guards third-party cross-account trust against confused-deputy abuse."
+          }
+        ],
         "moduleId": "cloud-m2",
         "number": 12,
         "title": "STS & the AssumeRole Flow",
@@ -1986,6 +2422,47 @@ export const CLOUD_CURRICULUM: Module[] = [
       },
       {
         "id": "cloud-m2-6",
+        "exercises": [
+          {
+            "type": "order",
+            "prompt": "Order the workflow for right-sizing an over-broad policy.",
+            "items": [
+              "Enable CloudTrail to record the principal's API activity",
+              "Use IAM Access Analyzer to generate a policy from that activity",
+              "Review service last-accessed data to drop unused permissions",
+              "Scope remaining permissions with specific ARNs and conditions",
+              "Replace the over-broad policy with the least-privilege version"
+            ],
+            "explanation": "Least privilege is driven by evidence: Access Analyzer builds a policy from real CloudTrail usage and last-accessed data exposes permissions to remove before you scope and replace."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each least-privilege tool or policy form to its role.",
+            "pairs": [
+              {
+                "left": "IAM Access Analyzer",
+                "right": "Generate a policy from CloudTrail activity"
+              },
+              {
+                "left": "Service last-accessed data",
+                "right": "Find and remove unused permissions"
+              },
+              {
+                "left": "Resource ARNs and conditions",
+                "right": "Scope access instead of using '*'"
+              },
+              {
+                "left": "Inline policy",
+                "right": "Embedded in one principal, not reusable"
+              },
+              {
+                "left": "Customer-managed policy",
+                "right": "Reusable and maintainable across principals"
+              }
+            ],
+            "explanation": "Customer-managed policies are generally more maintainable than inline ones, and Access Analyzer plus last-accessed data let you replace '*' with scoped ARNs and conditions."
+          }
+        ],
         "moduleId": "cloud-m2",
         "number": 13,
         "title": "Least Privilege in Practice",
@@ -2112,6 +2589,46 @@ export const CLOUD_CURRICULUM: Module[] = [
       },
       {
         "id": "cloud-m2-7",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each Azure or GCP identity concept to its description.",
+            "pairs": [
+              {
+                "left": "Entra ID service principal",
+                "right": "Azure identity for an app or workload"
+              },
+              {
+                "left": "Azure managed identity",
+                "right": "Azure identity with no secret to manage"
+              },
+              {
+                "left": "GCP service account",
+                "right": "GCP non-human identity"
+              },
+              {
+                "left": "GCP IAM binding",
+                "right": "Grants a role to a member on a resource"
+              },
+              {
+                "left": "Azure RBAC role assignment",
+                "right": "Scoped at management group, subscription or resource"
+              }
+            ],
+            "explanation": "Entra ID and Google Cloud IAM differ in structure but share the principal/role/binding model, so the AWS mental model of identity plus role plus scope transfers across providers."
+          },
+          {
+            "type": "order",
+            "prompt": "Order the GCP resource hierarchy from top to bottom (IAM policy inherits downward).",
+            "items": [
+              "Organization",
+              "Folder",
+              "Project",
+              "Resource"
+            ],
+            "explanation": "GCP IAM is inherited down the hierarchy organization to folder to project to resource, so a binding set higher up applies to everything beneath it."
+          }
+        ],
         "moduleId": "cloud-m2",
         "number": 14,
         "title": "Identity in Azure & GCP (Primer)",
@@ -2281,6 +2798,42 @@ export const CLOUD_CURRICULUM: Module[] = [
     "topics": [
       {
         "id": "cloud-m3-1",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each passive footprinting source to what it reveals about an organisation's cloud presence.",
+            "pairs": [
+              {
+                "left": "crt.sh",
+                "right": "Certificate Transparency logs exposing subdomains"
+              },
+              {
+                "left": "DNS CNAME record",
+                "right": "Points to an S3 / CloudFront / Azure backend"
+              },
+              {
+                "left": "ASN / IP range lookup",
+                "right": "Attributes cloud-hosted assets to the org"
+              },
+              {
+                "left": "GitHub search",
+                "right": "Exposed .env files and leaked credentials"
+              }
+            ],
+            "explanation": "Each public source leaks a different slice of the estate, so combining Certificate Transparency, DNS, ASN attribution and code leaks builds a credential-free picture of the target's cloud footprint."
+          },
+          {
+            "type": "order",
+            "prompt": "Order the steps of external cloud footprinting from the public internet, with no credentials.",
+            "items": [
+              "Enumerate subdomains from Certificate Transparency logs (crt.sh)",
+              "Resolve DNS and inspect CNAMEs for cloud backends",
+              "Permute and probe candidate bucket names (S3/GCS/Blob)",
+              "Attribute resolved IPs to cloud ASNs and reverse DNS"
+            ],
+            "explanation": "Footprinting flows from name discovery to resolution to storage probing to infrastructure attribution, each stage feeding targets into the next."
+          }
+        ],
         "moduleId": "cloud-m3",
         "number": 15,
         "title": "External Footprinting",
@@ -2401,6 +2954,45 @@ export const CLOUD_CURRICULUM: Module[] = [
       },
       {
         "id": "cloud-m3-2",
+        "exercises": [
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the fact about AWS access-key prefixes.",
+            "template": "An access key beginning with ___ is a long-lived IAM user key, while one beginning with ___ is a temporary STS key.",
+            "blanks": [
+              "AKIA",
+              "ASIA"
+            ],
+            "explanation": "The AKIA prefix marks a persistent IAM user credential, whereas ASIA marks short-lived session credentials issued by STS, so the prefix tells you immediately what kind of key you found.",
+            "distractors": [
+              "ASGA",
+              "AIDA"
+            ]
+          },
+          {
+            "type": "match",
+            "prompt": "Match each credential leak source to how an attacker treats it.",
+            "pairs": [
+              {
+                "left": "Hardcoded keys in git history",
+                "right": "trufflehog / gitleaks scanning"
+              },
+              {
+                "left": "Public S3 objects, AMIs, EBS snapshots",
+                "right": "Leaked keys in storage artifacts"
+              },
+              {
+                "left": "Developer dotfiles and Slack",
+                "right": "Keys in collaboration tools"
+              },
+              {
+                "left": "SSRF to the metadata endpoint",
+                "right": "Runtime credential source"
+              }
+            ],
+            "explanation": "Initial access usually starts from one leaked key, and the leak channels differ, so knowing where each type of credential hides guides where to hunt first."
+          }
+        ],
         "moduleId": "cloud-m3",
         "number": 16,
         "title": "Credential Discovery & Initial Access",
@@ -2566,6 +3158,33 @@ export const CLOUD_CURRICULUM: Module[] = [
       },
       {
         "id": "cloud-m3-3",
+        "exercises": [
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the first command you run once you hold an AWS credential.",
+            "template": "aws sts ___",
+            "blanks": [
+              "get-caller-identity"
+            ],
+            "explanation": "aws sts get-caller-identity confirms which account and principal a credential maps to, the essential 'whoami' before any further enumeration.",
+            "distractors": [
+              "whoami",
+              "describe-identity"
+            ]
+          },
+          {
+            "type": "order",
+            "prompt": "Order the steps of enumerating what a single AWS credential can see and do.",
+            "items": [
+              "Run aws sts get-caller-identity to confirm the principal",
+              "Enumerate attached policies and allowed actions",
+              "List resources across services (S3, EC2, Lambda, RDS)",
+              "Identify roles the principal can assume",
+              "Build a privilege-escalation lead list"
+            ],
+            "explanation": "Authenticated enumeration moves from identity to permissions to resources to assumable roles, each step narrowing toward a privilege-escalation path."
+          }
+        ],
         "moduleId": "cloud-m3",
         "number": 17,
         "title": "Authenticated AWS Enumeration",
@@ -2701,6 +3320,48 @@ export const CLOUD_CURRICULUM: Module[] = [
       },
       {
         "id": "cloud-m3-4",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each cloud recon tool to its primary purpose.",
+            "pairs": [
+              {
+                "left": "Pacu",
+                "right": "AWS exploitation framework"
+              },
+              {
+                "left": "ScoutSuite / Prowler",
+                "right": "Multi-service posture enumeration"
+              },
+              {
+                "left": "Cartography",
+                "right": "Graph of the cloud estate"
+              },
+              {
+                "left": "enumerate-iam",
+                "right": "Permission brute-forcing"
+              },
+              {
+                "left": "PMapper",
+                "right": "Principal-to-admin reachability analysis"
+              }
+            ],
+            "explanation": "Each tool fills a distinct niche, so picking the right one depends on whether you need exploitation, posture review, graphing, permission brute-forcing or reachability analysis."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the sentence about brute-forcing a credential's permissions.",
+            "template": "Run ___ to brute-force which API actions a stolen credential is allowed to call.",
+            "blanks": [
+              "enumerate-iam"
+            ],
+            "explanation": "enumerate-iam (and weirdAAL) probe allowed actions directly, which is how you learn a credential's effective permissions when you cannot read its attached policies.",
+            "distractors": [
+              "ScoutSuite",
+              "Cartography"
+            ]
+          }
+        ],
         "moduleId": "cloud-m3",
         "number": 18,
         "title": "Cloud Recon Tooling",
@@ -2839,6 +3500,39 @@ export const CLOUD_CURRICULUM: Module[] = [
       },
       {
         "id": "cloud-m3-5",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each privilege-escalation edge to the IAM action that enables it.",
+            "pairs": [
+              {
+                "left": "can-pass-role",
+                "right": "iam:PassRole"
+              },
+              {
+                "left": "can-assume-role",
+                "right": "sts:AssumeRole"
+              },
+              {
+                "left": "overwrite Lambda code",
+                "right": "lambda:UpdateFunctionCode"
+              }
+            ],
+            "explanation": "Trust-graph edges map directly to concrete IAM actions, so reading a graph means recognising which permission creates each exploitable edge."
+          },
+          {
+            "type": "order",
+            "prompt": "Order the steps of turning raw enumeration into an identity and trust graph attack path.",
+            "items": [
+              "Model principals and resources as nodes",
+              "Add edges: can-assume, can-read-secret, can-pass-role",
+              "Compute reachability to admin with PMapper",
+              "Find the shortest path from your foothold to admin",
+              "Export the graph as evidence for the defender"
+            ],
+            "explanation": "The graph payoff comes from building nodes and edges, computing reachability, extracting the shortest escalation path, then handing it to defenders to cut the edge."
+          }
+        ],
         "moduleId": "cloud-m3",
         "number": 19,
         "title": "Building the Identity & Trust Graph",
@@ -2996,6 +3690,44 @@ export const CLOUD_CURRICULUM: Module[] = [
       },
       {
         "id": "cloud-m3-6",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each Azure or GCP recon tool to its purpose.",
+            "pairs": [
+              {
+                "left": "roadrecon",
+                "right": "Entra ID (Azure AD) enumeration"
+              },
+              {
+                "left": "AzureHound",
+                "right": "BloodHound-style Azure graph collection"
+              },
+              {
+                "left": "GCPBucketBrute",
+                "right": "GCP bucket brute-forcing"
+              },
+              {
+                "left": "gcloud",
+                "right": "Native GCP CLI enumeration"
+              }
+            ],
+            "explanation": "The same graph-thinking carries across clouds, but each provider has its own tooling, so matching tool to provider and purpose lets recon skills transfer between Azure and GCP."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the fact about GCP service-account impersonation.",
+            "template": "In GCP, service-account impersonation depends on the ___ permission.",
+            "blanks": [
+              "actAs"
+            ],
+            "explanation": "The actAs permission lets one principal impersonate a service account, the GCP equivalent of an AssumeRole edge and a key privilege-escalation path.",
+            "distractors": [
+              "AssumeRole",
+              "PassRole"
+            ]
+          }
+        ],
         "moduleId": "cloud-m3",
         "number": 20,
         "title": "Azure & GCP Enumeration (Primer)",
@@ -3196,6 +3928,44 @@ export const CLOUD_CURRICULUM: Module[] = [
     "topics": [
       {
         "id": "cloud-m4-1",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each IAM permission to the privilege-escalation primitive it enables.",
+            "pairs": [
+              {
+                "left": "iam:CreateAccessKey",
+                "right": "Mint access keys for another user"
+              },
+              {
+                "left": "iam:CreatePolicyVersion",
+                "right": "Set a new default policy version granting more"
+              },
+              {
+                "left": "iam:AttachUserPolicy",
+                "right": "Attach AdministratorAccess to yourself"
+              },
+              {
+                "left": "iam:UpdateAssumeRolePolicy",
+                "right": "Make a privileged role assumable by you"
+              }
+            ],
+            "explanation": "Each over-permission from the Rhino Security Labs catalogue lets a principal grant itself more access through a specific IAM API."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the AWS CLI command that attaches admin rights to a user you control.",
+            "template": "aws iam ___ --user-name victim --policy-arn arn:aws:iam::aws:policy/AdministratorAccess",
+            "blanks": [
+              "attach-user-policy"
+            ],
+            "explanation": "iam:AttachUserPolicy binds a managed policy like AdministratorAccess; put-user-policy instead writes an inline policy document.",
+            "distractors": [
+              "put-user-policy",
+              "add-user-policy"
+            ]
+          }
+        ],
         "moduleId": "cloud-m4",
         "number": 21,
         "title": "The Privilege-Escalation Catalogue",
@@ -3474,6 +4244,38 @@ export const CLOUD_CURRICULUM: Module[] = [
       },
       {
         "id": "cloud-m4-2",
+        "exercises": [
+          {
+            "type": "order",
+            "prompt": "Order the steps of a Lambda-based PassRole escalation.",
+            "items": [
+              "Confirm you hold iam:PassRole and lambda:CreateFunction",
+              "Create a Lambda function with the privileged role as its execution role",
+              "Invoke the function",
+              "Use the admin credentials the function now holds"
+            ],
+            "explanation": "iam:PassRole is inert alone; pairing it with a compute service that assumes the role (Lambda here) inherits that role's permissions."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each service sink to how it is abused to use a passed role.",
+            "pairs": [
+              {
+                "left": "Lambda",
+                "right": "Invoke a function running as the passed role"
+              },
+              {
+                "left": "EC2",
+                "right": "Read instance-profile credentials from metadata"
+              },
+              {
+                "left": "Glue",
+                "right": "Run a dev endpoint/job as the passed role"
+              }
+            ],
+            "explanation": "Any service that will assume a role you pass becomes a PassRole sink; scope iam:PassRole with iam:PassedToService and resource ARNs to mitigate."
+          }
+        ],
         "moduleId": "cloud-m4",
         "number": 22,
         "title": "PassRole & Service-Assumed Roles",
@@ -3730,6 +4532,44 @@ export const CLOUD_CURRICULUM: Module[] = [
       },
       {
         "id": "cloud-m4-3",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each trust-policy misconfiguration to the risk it creates.",
+            "pairs": [
+              {
+                "left": "Principal \"*\"",
+                "right": "Any principal anywhere can assume the role"
+              },
+              {
+                "left": "arn:aws:iam::ACCOUNT:root trust",
+                "right": "Any identity in that account can assume it"
+              },
+              {
+                "left": "Missing ExternalId",
+                "right": "Cross-account confused-deputy abuse"
+              },
+              {
+                "left": "Wildcard OIDC sub claim",
+                "right": "Any GitHub repo/branch can assume the role"
+              }
+            ],
+            "explanation": "A role is only as safe as its trust policy; broad Principals and missing conditions let untrusted parties assume it."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Fill the condition that prevents cross-account confused-deputy abuse of a vendor role.",
+            "template": "Require a unique ___ in the trust policy so only the intended third party can assume the role",
+            "blanks": [
+              "ExternalId"
+            ],
+            "explanation": "ExternalId is the agreed secret a third party must present on sts:AssumeRole, closing the confused-deputy gap.",
+            "distractors": [
+              "ExternalKey",
+              "SourceAccount"
+            ]
+          }
+        ],
         "moduleId": "cloud-m4",
         "number": 23,
         "title": "Trust Policy Abuse & Confused Deputy",
@@ -3995,6 +4835,44 @@ export const CLOUD_CURRICULUM: Module[] = [
       },
       {
         "id": "cloud-m4-4",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each resource to the resource-policy escalation it enables.",
+            "pairs": [
+              {
+                "left": "KMS key policy",
+                "right": "Grants kms:Decrypt to too-broad principals"
+              },
+              {
+                "left": "Lambda resource policy",
+                "right": "Allows arbitrary invoke / add-permission"
+              },
+              {
+                "left": "Secrets Manager policy",
+                "right": "Cross-account read of stored secrets"
+              },
+              {
+                "left": "ECR repository policy",
+                "right": "Exposes images and embedded secrets"
+              }
+            ],
+            "explanation": "Resource policies grant access that identity policies alone would deny, so over-broad principals on a resource become a doorway."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the fact about how resource policies bypass the usual identity flow.",
+            "template": "A permissive resource policy can grant cross-account access without any sts:___ call",
+            "blanks": [
+              "AssumeRole"
+            ],
+            "explanation": "Because the grant lives on the resource, a foreign principal reaches it directly, never needing to assume a role in the target account.",
+            "distractors": [
+              "GetSessionToken",
+              "GetCallerIdentity"
+            ]
+          }
+        ],
         "moduleId": "cloud-m4",
         "number": 24,
         "title": "Resource-Policy Escalation",
@@ -4244,6 +5122,40 @@ export const CLOUD_CURRICULUM: Module[] = [
       },
       {
         "id": "cloud-m4-5",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each identity-persistence technique to the CloudTrail event that detects it.",
+            "pairs": [
+              {
+                "left": "Second access key on a user",
+                "right": "CreateAccessKey"
+              },
+              {
+                "left": "Backdoor role with wide trust",
+                "right": "UpdateAssumeRolePolicy"
+              },
+              {
+                "left": "Attach admin policy to a user",
+                "right": "AttachUserPolicy"
+              }
+            ],
+            "explanation": "Each stealthy persistence action leaves a specific CloudTrail footprint defenders can alert on."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Fill in the CloudTrail event that reveals a backdoor role's widened trust.",
+            "template": "A backdoor role made assumable for later re-entry is recorded by the ___ CloudTrail event",
+            "blanks": [
+              "UpdateAssumeRolePolicy"
+            ],
+            "explanation": "UpdateAssumeRolePolicy changes who may assume the role; PutRolePolicy/AttachRolePolicy change what the role can do, not its trust.",
+            "distractors": [
+              "PutRolePolicy",
+              "AttachRolePolicy"
+            ]
+          }
+        ],
         "moduleId": "cloud-m4",
         "number": 25,
         "title": "Persistence via Identity",
@@ -4504,6 +5416,38 @@ export const CLOUD_CURRICULUM: Module[] = [
       },
       {
         "id": "cloud-m4-6",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each automated tool to its purpose in escalation discovery.",
+            "pairs": [
+              {
+                "left": "Pacu iam__privesc_scan",
+                "right": "Flag exploitable escalation permissions"
+              },
+              {
+                "left": "PMapper",
+                "right": "Compute principal-to-admin reachability"
+              },
+              {
+                "left": "Cloudsplaining",
+                "right": "Flag risky policies from Authorization Details"
+              }
+            ],
+            "explanation": "These tools scale the hunt by surfacing escalation paths automatically, which you then validate by hand."
+          },
+          {
+            "type": "order",
+            "prompt": "Order the automated escalation-discovery workflow.",
+            "items": [
+              "Run Pacu iam__privesc_scan to flag exploitable permissions",
+              "Use PMapper to compute principal-to-admin reachability",
+              "Manually validate findings to rule out false positives",
+              "Report the exact edge and the one-line policy fix"
+            ],
+            "explanation": "Tooling finds candidate paths, but manual validation before reporting avoids false positives and produces an actionable fix."
+          }
+        ],
         "moduleId": "cloud-m4",
         "number": 26,
         "title": "Automated Escalation Discovery",
@@ -4784,6 +5728,44 @@ export const CLOUD_CURRICULUM: Module[] = [
       },
       {
         "id": "cloud-m4-7",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each escalation weakness to the guardrail that neutralises it.",
+            "pairs": [
+              {
+                "left": "iam:* escalation actions",
+                "right": "SCP denying them to non-admin principals"
+              },
+              {
+                "left": "Over-permissioned CI role",
+                "right": "Permission boundary on the role"
+              },
+              {
+                "left": "Unintended cross-account trust",
+                "right": "Access Analyzer external-access finding"
+              },
+              {
+                "left": "Cross-account confused deputy",
+                "right": "aws:PrincipalOrgID condition"
+              }
+            ],
+            "explanation": "Every escalation in the module maps to a specific defence; together they form a guardrail set that blocks the earlier exploits."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the condition key that limits sensitive IAM actions to trusted networks.",
+            "template": "Restrict sensitive actions to known networks with the aws:___ condition key",
+            "blanks": [
+              "SourceIp"
+            ],
+            "explanation": "aws:SourceIp gates an action on the caller's IP range; aws:PrincipalOrgID instead restricts by organization, not network.",
+            "distractors": [
+              "VpcSourceIp",
+              "PrincipalOrgID"
+            ]
+          }
+        ],
         "moduleId": "cloud-m4",
         "number": 27,
         "title": "Defending Identity",
@@ -5069,6 +6051,44 @@ export const CLOUD_CURRICULUM: Module[] = [
     "topics": [
       {
         "id": "cloud-m5-1",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each S3 access mechanism to what it is.",
+            "pairs": [
+              {
+                "left": "Bucket & object ACLs",
+                "right": "Legacy per-object/bucket grants"
+              },
+              {
+                "left": "Bucket policy",
+                "right": "Resource policy attached to the bucket"
+              },
+              {
+                "left": "IAM policy",
+                "right": "Permissions attached to a principal"
+              },
+              {
+                "left": "Block Public Access",
+                "right": "Account/bucket-level safety net"
+              }
+            ],
+            "explanation": "S3 has four overlapping access controls; Block Public Access is the backstop that overrides ACLs and policies that would make data public."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the rule that makes a bucket policy 'public'.",
+            "template": "A bucket policy grants public access when its Principal is set to ___ .",
+            "blanks": [
+              "*"
+            ],
+            "explanation": "Principal '*' means anyone; combined with ACL grantees AllUsers/AuthenticatedUsers, these are what 'public' actually means on S3.",
+            "distractors": [
+              "AWS",
+              "self"
+            ]
+          }
+        ],
         "moduleId": "cloud-m5",
         "number": 28,
         "title": "The S3 Access-Control Stack",
@@ -5261,6 +6281,38 @@ export const CLOUD_CURRICULUM: Module[] = [
       },
       {
         "id": "cloud-m5-2",
+        "exercises": [
+          {
+            "type": "order",
+            "prompt": "Order the steps to discover and confirm an exposed bucket you are authorised to test.",
+            "items": [
+              "Permute bucket names from wordlists",
+              "Run s3scanner / cloud_enum against candidates",
+              "Classify each hit as listable, readable, or writable",
+              "Read object metadata and ACLs to confirm exposure"
+            ],
+            "explanation": "Discovery moves from guessing names to probing hits, then classifying the access level and confirming it against real object metadata and ACLs."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each enumeration tool to the storage it targets.",
+            "pairs": [
+              {
+                "left": "s3scanner",
+                "right": "AWS S3 buckets"
+              },
+              {
+                "left": "cloud_enum",
+                "right": "Multi-cloud (S3/GCS/Azure)"
+              },
+              {
+                "left": "GCPBucketBrute",
+                "right": "Google Cloud Storage"
+              }
+            ],
+            "explanation": "Writable public buckets are the highest-risk finding because they enable data poisoning and malware hosting, not just data reads."
+          }
+        ],
         "moduleId": "cloud-m5",
         "number": 29,
         "title": "Finding Exposed Storage",
@@ -5430,6 +6482,44 @@ export const CLOUD_CURRICULUM: Module[] = [
       },
       {
         "id": "cloud-m5-3",
+        "exercises": [
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the fact about where a pre-signed URL carries its signature.",
+            "template": "A pre-signed URL embeds the signature and expiry in the ___ string of the URL.",
+            "blanks": [
+              "query"
+            ],
+            "explanation": "Because the signature sits in the query string, the whole URL leaks through logs, referrers, and caches if shared.",
+            "distractors": [
+              "path",
+              "fragment"
+            ]
+          },
+          {
+            "type": "match",
+            "prompt": "Match each pre-signed URL concept to its consequence or control.",
+            "pairs": [
+              {
+                "left": "Over-long expiry",
+                "right": "Larger abuse window"
+              },
+              {
+                "left": "Powerful signer",
+                "right": "Powerful URL"
+              },
+              {
+                "left": "Upload pre-signed URL",
+                "right": "Arbitrary object writes"
+              },
+              {
+                "left": "Short expiry + scoped signer",
+                "right": "Mitigation"
+              }
+            ],
+            "explanation": "A pre-signed URL inherits the signer's permissions, so scoping the signer and shortening expiry are the primary ways to bound its blast radius."
+          }
+        ],
         "moduleId": "cloud-m5",
         "number": 30,
         "title": "Pre-signed URLs & Temporary Access",
@@ -5544,6 +6634,38 @@ export const CLOUD_CURRICULUM: Module[] = [
       },
       {
         "id": "cloud-m5-4",
+        "exercises": [
+          {
+            "type": "order",
+            "prompt": "Order the steps to read data from an over-shared EBS snapshot in your own account.",
+            "items": [
+              "Locate the publicly or over-shared snapshot",
+              "Create a volume from the snapshot in your account",
+              "Attach the volume to an EC2 instance you control",
+              "Mount the volume and read its data"
+            ],
+            "explanation": "A snapshot shared too widely can be copied into an attacker's account, turned into a volume, and mounted, exposing all its data."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each snapshot/backup mitigation to what it prevents.",
+            "pairs": [
+              {
+                "left": "Snapshot-sharing audits",
+                "right": "Catch over-shared copies"
+              },
+              {
+                "left": "Default-private sharing",
+                "right": "No accidental public exposure"
+              },
+              {
+                "left": "Encrypt with your own KMS key",
+                "right": "Other accounts cannot decrypt"
+              }
+            ],
+            "explanation": "Secondary copies leak as often as the primary store; auditing sharing, defaulting to private, and using your own KMS key close the common routes."
+          }
+        ],
         "moduleId": "cloud-m5",
         "number": 31,
         "title": "Snapshots, Backups & Secondary Copies",
@@ -5664,6 +6786,44 @@ export const CLOUD_CURRICULUM: Module[] = [
       },
       {
         "id": "cloud-m5-5",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each S3 encryption option to its defining characteristic.",
+            "pairs": [
+              {
+                "left": "SSE-S3",
+                "right": "AWS-managed keys"
+              },
+              {
+                "left": "SSE-KMS",
+                "right": "Decrypt governed by KMS key policy"
+              },
+              {
+                "left": "SSE-C",
+                "right": "Customer supplies the key"
+              },
+              {
+                "left": "Bucket keys",
+                "right": "Cut KMS request cost"
+              }
+            ],
+            "explanation": "With SSE-KMS the control is who can decrypt via the key policy and grants, not the act of encryption itself."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the requirement for cross-account decryption.",
+            "template": "Cross-account decrypt requires an allow in both the IAM policy and the KMS ___ policy.",
+            "blanks": [
+              "key"
+            ],
+            "explanation": "Both the principal's IAM policy and the KMS key policy must allow the action, so a customer-managed key policy can block cross-account access even when IAM permits it.",
+            "distractors": [
+              "bucket",
+              "session"
+            ]
+          }
+        ],
         "moduleId": "cloud-m5",
         "number": 32,
         "title": "Encryption at Rest & KMS",
@@ -5804,6 +6964,44 @@ export const CLOUD_CURRICULUM: Module[] = [
       },
       {
         "id": "cloud-m5-6",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each control to the exfiltration path it addresses.",
+            "pairs": [
+              {
+                "left": "Block Public Access",
+                "right": "Public read exposure"
+              },
+              {
+                "left": "VPC endpoint + bucket policy",
+                "right": "Access from outside the VPC/org"
+              },
+              {
+                "left": "CloudTrail data events",
+                "right": "Object-level read/write visibility"
+              },
+              {
+                "left": "Macie",
+                "right": "Sensitive-data discovery"
+              }
+            ],
+            "explanation": "Each egress path (public read, broad access, blind spots, unknown sensitive data) has a matching control; layering them locks the bucket down."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the pairing of AWS data-protection services.",
+            "template": "___ provides S3 threat detection, while Macie discovers sensitive data in buckets.",
+            "blanks": [
+              "GuardDuty"
+            ],
+            "explanation": "GuardDuty S3 protection flags suspicious access patterns, and Macie classifies sensitive content, complementing CloudTrail's object-level logging.",
+            "distractors": [
+              "CloudTrail",
+              "Inspector"
+            ]
+          }
+        ],
         "moduleId": "cloud-m5",
         "number": 33,
         "title": "Data-Exfiltration Paths & Prevention",
@@ -6002,6 +7200,48 @@ export const CLOUD_CURRICULUM: Module[] = [
     "topics": [
       {
         "id": "cloud-m6-1",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each place a cloud secret can live to how it is accessed or exposed.",
+            "pairs": [
+              {
+                "left": "AWS Secrets Manager",
+                "right": "Built-in rotation + resource policy"
+              },
+              {
+                "left": "SSM Parameter Store",
+                "right": "SecureString type, KMS-encrypted"
+              },
+              {
+                "left": "Lambda env vars",
+                "right": "Exposed via describe-function-configuration"
+              },
+              {
+                "left": "Terraform state",
+                "right": "Secrets written in plaintext"
+              },
+              {
+                "left": "EC2 user data",
+                "right": "Readable from instance metadata"
+              }
+            ],
+            "explanation": "Secrets hide across managed stores, runtime config, IaC state, and bootstrap data; each has a different access-control surface you must both find and protect."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the parameter type that keeps an SSM value KMS-encrypted at rest.",
+            "template": "In SSM Parameter Store, store secrets as the ___ type so the value is KMS-encrypted.",
+            "blanks": [
+              "SecureString"
+            ],
+            "explanation": "Only SecureString parameters are encrypted with KMS; plain String and StringList store values in cleartext.",
+            "distractors": [
+              "String",
+              "StringList"
+            ]
+          }
+        ],
         "moduleId": "cloud-m6",
         "number": 34,
         "title": "Where Cloud Secrets Live",
@@ -6197,6 +7437,47 @@ export const CLOUD_CURRICULUM: Module[] = [
       },
       {
         "id": "cloud-m6-2",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each attacker technique or source to what it finds or does.",
+            "pairs": [
+              {
+                "left": "trufflehog",
+                "right": "Git history secret scanning"
+              },
+              {
+                "left": "describe-function-configuration",
+                "right": "Read Lambda env vars"
+              },
+              {
+                "left": "Container image layer scan",
+                "right": "Find baked-in secrets in layers"
+              },
+              {
+                "left": "CloudTrail/CloudWatch logs",
+                "right": "Secrets leaked in plaintext logs"
+              },
+              {
+                "left": "SSRF-to-metadata",
+                "right": "Steal instance role credentials"
+              }
+            ],
+            "explanation": "Credentials leak across code, images, runtime config and logs, so an attacker sweeps all of them rather than only the final artifact."
+          },
+          {
+            "type": "order",
+            "prompt": "Order the steps of an SSRF-to-metadata credential theft chain.",
+            "items": [
+              "Find an SSRF-vulnerable endpoint",
+              "Point it at the instance metadata service",
+              "Retrieve the attached IAM role name",
+              "Fetch temporary credentials for that role",
+              "Use the stolen credentials against the AWS API"
+            ],
+            "explanation": "SSRF turns a server into a proxy to 169.254.169.254, where the role name leads to short-lived credentials that then authenticate real AWS calls."
+          }
+        ],
         "moduleId": "cloud-m6",
         "number": 35,
         "title": "Secret-Leakage Vectors",
@@ -6317,6 +7598,48 @@ export const CLOUD_CURRICULUM: Module[] = [
       },
       {
         "id": "cloud-m6-3",
+        "exercises": [
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the second permission required to read an encrypted Secrets Manager secret.",
+            "template": "Reading the secret needs both secretsmanager:GetSecretValue and ___ on the backing key.",
+            "blanks": [
+              "kms:Decrypt"
+            ],
+            "explanation": "The value is KMS-encrypted, so GetSecretValue alone fails without kms:Decrypt on the customer master key.",
+            "distractors": [
+              "kms:Encrypt",
+              "kms:GenerateDataKey"
+            ]
+          },
+          {
+            "type": "match",
+            "prompt": "Match each managed-store concept to its role.",
+            "pairs": [
+              {
+                "left": "AWSCURRENT",
+                "right": "Active secret version"
+              },
+              {
+                "left": "AWSPENDING",
+                "right": "New version during rotation"
+              },
+              {
+                "left": "Resource policy",
+                "right": "Controls cross-account access"
+              },
+              {
+                "left": "CloudTrail",
+                "right": "Audits secret reads"
+              },
+              {
+                "left": "SecureString hierarchy",
+                "right": "Path-based access in Parameter Store"
+              }
+            ],
+            "explanation": "Staging labels drive rotation, resource policies gate cross-account reach, and CloudTrail records every GetSecretValue for auditing."
+          }
+        ],
         "moduleId": "cloud-m6",
         "number": 36,
         "title": "Managed Secret Stores",
@@ -6440,6 +7763,48 @@ export const CLOUD_CURRICULUM: Module[] = [
       },
       {
         "id": "cloud-m6-4",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each keyless workload-identity mechanism to how it delivers credentials.",
+            "pairs": [
+              {
+                "left": "EC2 instance profile",
+                "right": "Credentials via instance metadata"
+              },
+              {
+                "left": "ECS task role",
+                "right": "Per-task IAM credentials"
+              },
+              {
+                "left": "IRSA",
+                "right": "EKS pods authenticate via OIDC"
+              },
+              {
+                "left": "GitHub Actions OIDC",
+                "right": "CI assumes AWS role, no stored key"
+              },
+              {
+                "left": "Azure Managed Identity",
+                "right": "Azure keyless workload identity"
+              }
+            ],
+            "explanation": "Each mechanism hands out short-lived role credentials at runtime, removing any long-lived key that could leak."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the federation protocol IRSA uses for EKS pods.",
+            "template": "IRSA lets EKS pods assume IAM roles by exchanging a projected service-account token through ___ federation.",
+            "blanks": [
+              "OIDC"
+            ],
+            "explanation": "The EKS cluster runs an OIDC provider that AWS trusts, so pods swap their service-account token for role credentials with no stored key.",
+            "distractors": [
+              "SAML",
+              "LDAP"
+            ]
+          }
+        ],
         "moduleId": "cloud-m6",
         "number": 37,
         "title": "Keyless Workload Identity",
@@ -6586,6 +7951,32 @@ export const CLOUD_CURRICULUM: Module[] = [
       },
       {
         "id": "cloud-m6-5",
+        "exercises": [
+          {
+            "type": "order",
+            "prompt": "Order the steps of envelope encryption when protecting data with KMS.",
+            "items": [
+              "Call KMS GenerateDataKey for a data key",
+              "Encrypt the plaintext with the plaintext data key",
+              "Discard the plaintext data key from memory",
+              "Store the KMS-encrypted data key with the ciphertext"
+            ],
+            "explanation": "KMS wraps a locally-used data key under the CMK; the plaintext key is thrown away and only its encrypted form is kept beside the data."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete what else, besides IAM, must allow a cross-account KMS decrypt.",
+            "template": "Cross-account decryption requires both the IAM policy and the ___ to allow the principal.",
+            "blanks": [
+              "key policy"
+            ],
+            "explanation": "KMS is a dual-gate: the CMK's own key policy must grant access in addition to the caller's IAM permissions.",
+            "distractors": [
+              "bucket policy",
+              "SCP"
+            ]
+          }
+        ],
         "moduleId": "cloud-m6",
         "number": 38,
         "title": "KMS & Envelope Encryption",
@@ -6749,6 +8140,43 @@ export const CLOUD_CURRICULUM: Module[] = [
       },
       {
         "id": "cloud-m6-6",
+        "exercises": [
+          {
+            "type": "order",
+            "prompt": "Order the revocation playbook steps for a key known to be leaked.",
+            "items": [
+              "Identify the leaked key and its blast radius",
+              "Generate a replacement secret",
+              "Deploy the new secret to dependent services",
+              "Disable and delete the old credential",
+              "Review CloudTrail for prior misuse"
+            ],
+            "explanation": "Rolling in the new secret before killing the old one avoids an outage, then auditing CloudTrail reveals whether the leaked key was already abused."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each secret-hygiene control to its purpose.",
+            "pairs": [
+              {
+                "left": "Automatic rotation",
+                "right": "Secrets Manager + Lambda rotation function"
+              },
+              {
+                "left": "Unique secret per service",
+                "right": "Limits blast radius"
+              },
+              {
+                "left": "Mass GetSecretValue alert",
+                "right": "Detects exfiltration"
+              },
+              {
+                "left": "GitHub push protection",
+                "right": "Blocks secrets before commit"
+              }
+            ],
+            "explanation": "Rotation and per-service secrets shrink exposure, CloudTrail anomaly alerts catch exfil, and push protection prevents leaks at the source."
+          }
+        ],
         "moduleId": "cloud-m6",
         "number": 39,
         "title": "Rotation & Detection",
@@ -6901,6 +8329,49 @@ export const CLOUD_CURRICULUM: Module[] = [
     "topics": [
       {
         "id": "cloud-m7-1",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each VPC network component to its defining behavior.",
+            "pairs": [
+              {
+                "left": "Security group",
+                "right": "Stateful, allow-only"
+              },
+              {
+                "left": "NACL",
+                "right": "Stateless, allow and deny"
+              },
+              {
+                "left": "Internet gateway",
+                "right": "Internet access for a public subnet"
+              },
+              {
+                "left": "NAT gateway",
+                "right": "Outbound-only internet for private subnets"
+              },
+              {
+                "left": "VPC endpoint",
+                "right": "Private reach to AWS APIs"
+              }
+            ],
+            "explanation": "Security groups are stateful and only allow; NACLs are stateless with explicit allow+deny. Gateways and endpoints control how subnets reach the internet and AWS services."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the description of subnet routing.",
+            "template": "A ___ subnet routes to an Internet gateway, while a ___ subnet reaches the internet only through a ___ gateway.",
+            "blanks": [
+              "public",
+              "private",
+              "NAT"
+            ],
+            "explanation": "A public subnet has a direct route to the Internet gateway; a private subnet gets outbound-only access via a NAT gateway.",
+            "distractors": [
+              "Transit"
+            ]
+          }
+        ],
         "moduleId": "cloud-m7",
         "number": 40,
         "title": "The VPC Model",
@@ -7133,6 +8604,44 @@ export const CLOUD_CURRICULUM: Module[] = [
       },
       {
         "id": "cloud-m7-2",
+        "exercises": [
+          {
+            "type": "fill-blank",
+            "prompt": "Fill in the metadata address used to list IAM role credentials.",
+            "template": "curl http://___/latest/meta-data/iam/security-credentials/",
+            "blanks": [
+              "169.254.169.254"
+            ],
+            "explanation": "169.254.169.254 is the link-local Instance Metadata Service address; this path returns the instance's live IAM role credentials.",
+            "distractors": [
+              "127.0.0.1",
+              "169.254.0.1"
+            ]
+          },
+          {
+            "type": "match",
+            "prompt": "Match each metadata concept to its description.",
+            "pairs": [
+              {
+                "left": "IMDSv1",
+                "right": "Simple unauthenticated GET"
+              },
+              {
+                "left": "IMDSv2",
+                "right": "Session token via PUT, hop-limit"
+              },
+              {
+                "left": "Azure metadata",
+                "right": "Requires Metadata:true header"
+              },
+              {
+                "left": "security-credentials/ path",
+                "right": "Returns live role keys"
+              }
+            ],
+            "explanation": "IMDSv1 is a plain GET; IMDSv2 requires a PUT-obtained session token and a hop limit. Azure's endpoint needs a Metadata header, and the security-credentials path yields the role's live keys."
+          }
+        ],
         "moduleId": "cloud-m7",
         "number": 41,
         "title": "The Instance Metadata Service",
@@ -7335,6 +8844,34 @@ export const CLOUD_CURRICULUM: Module[] = [
       },
       {
         "id": "cloud-m7-3",
+        "exercises": [
+          {
+            "type": "order",
+            "prompt": "Order the steps of the SSRF-to-metadata exploitation chain.",
+            "items": [
+              "Find an SSRF in the web app (URL fetcher or webhook)",
+              "Point the SSRF at 169.254.169.254 and read the IAM role name",
+              "Fetch the role's credentials from the security-credentials path",
+              "Configure the stolen keys in the AWS CLI",
+              "Enumerate and exfiltrate account resources"
+            ],
+            "explanation": "A web SSRF is pivoted at the metadata service to read the role name, then its credentials, which are loaded into the AWS CLI to act inside the account — the Capital One 2019 pattern."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Explain why IMDSv2 defeats a naive SSRF.",
+            "template": "IMDSv2 requires a session token obtained with a ___ request and sets a ___ of 1, so a proxied SSRF cannot reach it.",
+            "blanks": [
+              "PUT",
+              "hop-limit"
+            ],
+            "explanation": "A naive SSRF can only issue GETs; IMDSv2's required PUT token plus a hop-limit of 1 prevents the forwarded request from retrieving credentials.",
+            "distractors": [
+              "GET",
+              "TTL"
+            ]
+          }
+        ],
         "moduleId": "cloud-m7",
         "number": 42,
         "title": "SSRF-to-Metadata Exploitation",
@@ -7469,6 +9006,45 @@ export const CLOUD_CURRICULUM: Module[] = [
       },
       {
         "id": "cloud-m7-4",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each port left open to 0.0.0.0/0 with the service it exposes.",
+            "pairs": [
+              {
+                "left": "Port 22",
+                "right": "SSH"
+              },
+              {
+                "left": "Port 3389",
+                "right": "RDP"
+              },
+              {
+                "left": "Port 3306",
+                "right": "MySQL"
+              },
+              {
+                "left": "Port 5432",
+                "right": "PostgreSQL"
+              }
+            ],
+            "explanation": "Security groups open to the whole internet on these ports expose remote-admin (SSH/RDP) and database (MySQL/PostgreSQL) services directly."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the exposure-audit statement.",
+            "template": "A security group allowing ___ on port 22 exposes SSH to the whole internet; audit it with aws ec2 ___-security-groups.",
+            "blanks": [
+              "0.0.0.0/0",
+              "describe"
+            ],
+            "explanation": "0.0.0.0/0 means any source IP, and aws ec2 describe-security-groups lists the rules so you can parse out over-broad ingress.",
+            "distractors": [
+              "10.0.0.0/8",
+              "list"
+            ]
+          }
+        ],
         "moduleId": "cloud-m7",
         "number": 43,
         "title": "Exposure & Attack-Surface Analysis",
@@ -7594,6 +9170,49 @@ export const CLOUD_CURRICULUM: Module[] = [
       },
       {
         "id": "cloud-m7-5",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each lateral-movement term to its meaning.",
+            "pairs": [
+              {
+                "left": "East-west movement",
+                "right": "Traffic between internal hosts"
+              },
+              {
+                "left": "VPC peering",
+                "right": "Enables cross-VPC reachability"
+              },
+              {
+                "left": "DNS rebinding",
+                "right": "Redirects a name to an internal IP"
+              },
+              {
+                "left": "Bastion host",
+                "right": "Pivot point into private subnets"
+              },
+              {
+                "left": "PrivateLink",
+                "right": "Abused internal service trust"
+              }
+            ],
+            "explanation": "Flat, over-connected networks let east-west traffic, peering, DNS rebinding, bastions and PrivateLink trust carry a single foothold across internal systems."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the flat-network risk statement.",
+            "template": "A single foothold can reach everything when ___ traffic between subnets is not ___.",
+            "blanks": [
+              "east-west",
+              "segmented"
+            ],
+            "explanation": "Without segmentation, east-west traffic flows freely between subnets, so one compromised host can pivot to internal databases, caches and admin panels.",
+            "distractors": [
+              "north-south",
+              "encrypted"
+            ]
+          }
+        ],
         "moduleId": "cloud-m7",
         "number": 44,
         "title": "Network-Based Lateral Movement",
@@ -7748,6 +9367,47 @@ export const CLOUD_CURRICULUM: Module[] = [
       },
       {
         "id": "cloud-m7-6",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each hardening control to the effect it has on the attack chain.",
+            "pairs": [
+              {
+                "left": "Enforce IMDSv2 + hop-limit 1",
+                "right": "Blocks naive SSRF credential theft"
+              },
+              {
+                "left": "Micro-segmentation",
+                "right": "Least-privilege security groups"
+              },
+              {
+                "left": "Egress filtering",
+                "right": "Stops a compromised host exfiltrating"
+              },
+              {
+                "left": "VPC endpoints",
+                "right": "Keeps AWS API traffic off the internet"
+              },
+              {
+                "left": "GuardDuty",
+                "right": "Detects InstanceCredentialExfiltration"
+              }
+            ],
+            "explanation": "Each control closes part of the SSRF-to-metadata chain: IMDSv2 and hop-limit at the metadata service, segmentation and egress filtering on the network, endpoints for private API traffic, and GuardDuty for detection."
+          },
+          {
+            "type": "order",
+            "prompt": "Order the steps of hardening the chain and verifying the fix.",
+            "items": [
+              "Enforce IMDSv2 and set hop-limit to 1 account-wide",
+              "Segment the network with least-privilege security groups",
+              "Restrict egress so a host cannot exfiltrate freely",
+              "Re-run the original SSRF exploit",
+              "Confirm the credential theft now fails"
+            ],
+            "explanation": "You close the metadata and network paths first, then re-run the exploit to confirm the previously working credential theft now fails."
+          }
+        ],
         "moduleId": "cloud-m7",
         "number": 45,
         "title": "Hardening the Network & Metadata",
@@ -7913,6 +9573,44 @@ export const CLOUD_CURRICULUM: Module[] = [
     "topics": [
       {
         "id": "cloud-m8-1",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each part of the serverless attack surface to what it represents.",
+            "pairs": [
+              {
+                "left": "Execution role",
+                "right": "What the function can do if compromised"
+              },
+              {
+                "left": "Event sources",
+                "right": "Untrusted input reaching the function"
+              },
+              {
+                "left": "/tmp directory",
+                "right": "Ephemeral storage reused in warm containers"
+              },
+              {
+                "left": "Dependencies",
+                "right": "Supply-chain vector pulled at build time"
+              }
+            ],
+            "explanation": "With no server to patch, the surface shifts to the function's code, its event input, its execution role, and its third-party dependencies."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the fact about container reuse.",
+            "template": "Because Lambda reuses ___ containers, state left in /tmp can leak between invocations.",
+            "blanks": [
+              "warm"
+            ],
+            "explanation": "There is no long-lived host, but warm-container reuse means /tmp and in-memory state can persist and leak across invocations.",
+            "distractors": [
+              "cold",
+              "nested"
+            ]
+          }
+        ],
         "moduleId": "cloud-m8",
         "number": 46,
         "title": "The Serverless Attack Surface",
@@ -8040,6 +9738,42 @@ export const CLOUD_CURRICULUM: Module[] = [
       },
       {
         "id": "cloud-m8-2",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each event-injection class to the dangerous sink it abuses.",
+            "pairs": [
+              {
+                "left": "Command injection",
+                "right": "Event data passed to os.system"
+              },
+              {
+                "left": "Code injection",
+                "right": "Event payload passed to eval"
+              },
+              {
+                "left": "NoSQL injection",
+                "right": "Query built from an untrusted event field"
+              },
+              {
+                "left": "Deserialization",
+                "right": "Loading an attacker-controlled object"
+              }
+            ],
+            "explanation": "Event injection is the serverless analogue of SQL injection: untrusted event fields flowing into dangerous sinks let attackers run code or commands."
+          },
+          {
+            "type": "order",
+            "prompt": "Order the steps of a command-injection attack through an S3-triggered function.",
+            "items": [
+              "Attacker uploads an object with a malicious key",
+              "The S3 event delivers the key to the function",
+              "The function passes the untrusted key into os.system",
+              "Injected command runs with the function's role"
+            ],
+            "explanation": "Untrusted event data (here an S3 object key) reaching a shell sink lets the attacker execute commands inside the function's context."
+          }
+        ],
         "moduleId": "cloud-m8",
         "number": 47,
         "title": "Event Injection",
@@ -8201,6 +9935,32 @@ export const CLOUD_CURRICULUM: Module[] = [
       },
       {
         "id": "cloud-m8-3",
+        "exercises": [
+          {
+            "type": "order",
+            "prompt": "Order the stages of turning a code bug into account compromise via the execution role.",
+            "items": [
+              "Attacker gains code execution inside the function",
+              "Reads the role's credentials from environment variables",
+              "Uses the over-broad role to call S3/DynamoDB/IAM",
+              "Overwrites the function with lambda:UpdateFunctionCode to persist"
+            ],
+            "explanation": "A compromised function inherits its role; an over-permissive role lets a code bug escalate to broad account access and persistence."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Name the API used for code-modification persistence.",
+            "template": "An attacker persists by overwriting the function with the lambda:___ API.",
+            "blanks": [
+              "UpdateFunctionCode"
+            ],
+            "explanation": "lambda:UpdateFunctionCode lets an attacker replace the function's code, giving durable control until the change is detected.",
+            "distractors": [
+              "InvokeFunction",
+              "GetFunction"
+            ]
+          }
+        ],
         "moduleId": "cloud-m8",
         "number": 48,
         "title": "Execution-Role Abuse",
@@ -8391,6 +10151,44 @@ export const CLOUD_CURRICULUM: Module[] = [
       },
       {
         "id": "cloud-m8-4",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each API Gateway control to its purpose.",
+            "pairs": [
+              {
+                "left": "Lambda authorizer",
+                "right": "Custom code authorizes each request"
+              },
+              {
+                "left": "Cognito authorizer",
+                "right": "Validates user-pool JWT tokens"
+              },
+              {
+                "left": "Throttling",
+                "right": "Limits request rate to curb cost abuse"
+              },
+              {
+                "left": "Resource policy",
+                "right": "Controls who may invoke the API at the gateway"
+              }
+            ],
+            "explanation": "API Gateway is the front door: authorizers decide identity per request, resource policies gate invocation, and throttling bounds abuse."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the token-replay risk.",
+            "template": "Caching of ___ decisions can let a revoked token be replayed until the cache expires.",
+            "blanks": [
+              "authorizer"
+            ],
+            "explanation": "API Gateway caches authorizer results for performance, so a token revoked server-side may still be accepted until the cached decision times out.",
+            "distractors": [
+              "CORS",
+              "DNS"
+            ]
+          }
+        ],
         "moduleId": "cloud-m8",
         "number": 49,
         "title": "API Gateway & Authorizers",
@@ -8525,6 +10323,44 @@ export const CLOUD_CURRICULUM: Module[] = [
       },
       {
         "id": "cloud-m8-5",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each supply-chain tool or practice to what it provides.",
+            "pairs": [
+              {
+                "left": "npm audit",
+                "right": "Flags known-vulnerable npm packages"
+              },
+              {
+                "left": "Trivy",
+                "right": "Scans bundles and layers for vulnerabilities"
+              },
+              {
+                "left": "Lockfile",
+                "right": "Pins exact dependency versions"
+              },
+              {
+                "left": "SBOM",
+                "right": "Inventory of components in an artifact"
+              }
+            ],
+            "explanation": "Functions ship their whole dependency tree, so CI scanning, pinned lockfiles, and an SBOM are how you control what runs with the function's role."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Name the attack that abuses private-package names.",
+            "template": "Publishing a public package that shadows a private one is a ___ confusion attack.",
+            "blanks": [
+              "dependency"
+            ],
+            "explanation": "Dependency confusion tricks a build into pulling a malicious public package in place of the intended private one, running it with the function's privileges.",
+            "distractors": [
+              "namespace",
+              "registry"
+            ]
+          }
+        ],
         "moduleId": "cloud-m8",
         "number": 50,
         "title": "Dependency & Supply-Chain Risk",
@@ -8654,6 +10490,44 @@ export const CLOUD_CURRICULUM: Module[] = [
       },
       {
         "id": "cloud-m8-6",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each hardening control to the risk it reduces.",
+            "pairs": [
+              {
+                "left": "Per-function least-privilege role",
+                "right": "Limits blast radius of a compromise"
+              },
+              {
+                "left": "API Gateway schema validation",
+                "right": "Rejects malformed event input early"
+              },
+              {
+                "left": "Concurrency limit",
+                "right": "Bounds cost and DoS abuse"
+              },
+              {
+                "left": "Lambda code signing",
+                "right": "Blocks unauthorized code changes"
+              }
+            ],
+            "explanation": "Hardening right-sizes each role, validates input at the boundary, caps concurrency, and signs code so only trusted artifacts deploy."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the detection guidance.",
+            "template": "Enable ___ and CloudWatch to alert on UpdateFunctionCode and anomalous invokes.",
+            "blanks": [
+              "CloudTrail"
+            ],
+            "explanation": "CloudTrail records management actions like UpdateFunctionCode; pairing it with CloudWatch alarms surfaces code tampering and abnormal invocation patterns.",
+            "distractors": [
+              "GuardDuty",
+              "Config"
+            ]
+          }
+        ],
         "moduleId": "cloud-m8",
         "number": 51,
         "title": "Hardening Serverless",
@@ -8803,6 +10677,44 @@ export const CLOUD_CURRICULUM: Module[] = [
     "topics": [
       {
         "id": "cloud-m9-1",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each Linux isolation primitive to what it actually isolates or controls for a container.",
+            "pairs": [
+              {
+                "left": "pid namespace",
+                "right": "Process IDs seen by the container"
+              },
+              {
+                "left": "net namespace",
+                "right": "Network interfaces and stack"
+              },
+              {
+                "left": "mnt namespace",
+                "right": "Filesystem mount points"
+              },
+              {
+                "left": "cgroups",
+                "right": "CPU and memory resource limits"
+              }
+            ],
+            "explanation": "Namespaces partition what a container can see while cgroups cap what it can consume; together they are the isolation, not a hypervisor."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Fill in the capability whose presence (or the --privileged flag) makes most container breakouts possible.",
+            "template": "Granting a container the ___ capability gives near-root host power and enables many breakout techniques.",
+            "blanks": [
+              "CAP_SYS_ADMIN"
+            ],
+            "explanation": "CAP_SYS_ADMIN unlocks mount, cgroup and other privileged operations, which is why --privileged or this single capability is treated as root-equivalent.",
+            "distractors": [
+              "CAP_NET_BIND_SERVICE",
+              "CAP_CHOWN"
+            ]
+          }
+        ],
         "moduleId": "cloud-m9",
         "number": 52,
         "title": "Container Fundamentals & Isolation",
@@ -8959,6 +10871,43 @@ export const CLOUD_CURRICULUM: Module[] = [
       },
       {
         "id": "cloud-m9-2",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each supply-chain tool or technique to its purpose.",
+            "pairs": [
+              {
+                "left": "Trivy",
+                "right": "Scan images for known vulnerabilities"
+              },
+              {
+                "left": "Cosign / Sigstore",
+                "right": "Sign and verify image provenance"
+              },
+              {
+                "left": "Distroless base image",
+                "right": "Shrink attack surface to app + runtime"
+              },
+              {
+                "left": "Private ECR with immutable tags",
+                "right": "Controlled registry that prevents tag overwrites"
+              }
+            ],
+            "explanation": "A secure image pipeline scans, signs and minimises the artifact, then stores it in a locked-down registry so a bad image never becomes a pre-compromised workload."
+          },
+          {
+            "type": "order",
+            "prompt": "Put the steps of a secure image supply-chain pipeline in the correct order.",
+            "items": [
+              "Build from a minimal base image (distroless/alpine)",
+              "Scan the image for vulnerabilities (Trivy/Grype)",
+              "Sign the image with Cosign",
+              "Push to a private registry with immutable tags",
+              "Admission policy verifies the signature before deploy"
+            ],
+            "explanation": "Signing happens after a clean scan, and verification at admission time ensures only the signed, scanned artifact is ever admitted to the cluster."
+          }
+        ],
         "moduleId": "cloud-m9",
         "number": 53,
         "title": "Image & Supply-Chain Security",
@@ -9122,6 +11071,42 @@ export const CLOUD_CURRICULUM: Module[] = [
       },
       {
         "id": "cloud-m9-3",
+        "exercises": [
+          {
+            "type": "order",
+            "prompt": "In a lab you own, order the steps of a breakout that abuses a mounted Docker socket.",
+            "items": [
+              "Discover /var/run/docker.sock mounted inside the container",
+              "Talk to the Docker API to create a new container",
+              "Mount the host root filesystem into that container",
+              "Read or write host files to gain host control"
+            ],
+            "explanation": "A mounted Docker socket is equivalent to root on the host, because the container can tell the daemon to launch a new container with the host filesystem mounted."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each breakout-enabling misconfiguration to the mitigation that removes it.",
+            "pairs": [
+              {
+                "left": "Privileged container",
+                "right": "Run non-privileged and drop capabilities"
+              },
+              {
+                "left": "Mounted /var/run/docker.sock",
+                "right": "Do not mount the Docker socket"
+              },
+              {
+                "left": "hostPID / host namespace sharing",
+                "right": "Disable host namespace sharing"
+              },
+              {
+                "left": "Writable host bind mount",
+                "right": "Use read-only or no host mounts"
+              }
+            ],
+            "explanation": "Breakout defence is removing the primitives that make it trivial: no privileged, no socket, no host namespaces, no writable host mounts, plus seccomp/AppArmor."
+          }
+        ],
         "moduleId": "cloud-m9",
         "number": 54,
         "title": "Container Breakout",
@@ -9350,6 +11335,44 @@ export const CLOUD_CURRICULUM: Module[] = [
       },
       {
         "id": "cloud-m9-4",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each Kubernetes control-plane component to its role.",
+            "pairs": [
+              {
+                "left": "API server",
+                "right": "Front door for all cluster requests"
+              },
+              {
+                "left": "etcd",
+                "right": "Stores all cluster state and secrets"
+              },
+              {
+                "left": "kubelet",
+                "right": "Node agent that runs the pods"
+              },
+              {
+                "left": "scheduler",
+                "right": "Assigns pods to nodes"
+              }
+            ],
+            "explanation": "etcd holds every secret and the API server mediates all access, which is why compromising either collapses the whole trust model of the cluster."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Fill in the TCP port the kubelet API listens on.",
+            "template": "An exposed kubelet API on TCP port ___ can let an attacker exec into pods and compromise the node.",
+            "blanks": [
+              "10250"
+            ],
+            "explanation": "Port 10250 is the kubelet's read-write API; 10255 is the deprecated read-only port and 6443 is the API server, so 10250 is the node-compromise vector.",
+            "distractors": [
+              "10255",
+              "6443"
+            ]
+          }
+        ],
         "moduleId": "cloud-m9",
         "number": 55,
         "title": "Kubernetes Architecture & Threat Model",
@@ -9554,6 +11577,44 @@ export const CLOUD_CURRICULUM: Module[] = [
       },
       {
         "id": "cloud-m9-5",
+        "exercises": [
+          {
+            "type": "fill-blank",
+            "prompt": "Fill in the kubectl subcommand that checks whether your identity is allowed to perform an action.",
+            "template": "Before escalating, test your rights: kubectl ___ can-i create pods",
+            "blanks": [
+              "auth"
+            ],
+            "explanation": "kubectl auth can-i queries the RBAC authorizer for your effective permissions, the fastest way to spot an over-broad binding to abuse.",
+            "distractors": [
+              "get",
+              "describe"
+            ]
+          },
+          {
+            "type": "match",
+            "prompt": "Match each dangerous RBAC verb to the escalation it enables.",
+            "pairs": [
+              {
+                "left": "create pods",
+                "right": "Run a pod with hostPath to read host files"
+              },
+              {
+                "left": "pods/exec",
+                "right": "Execute into another running pod"
+              },
+              {
+                "left": "get secrets",
+                "right": "Read cluster secrets directly"
+              },
+              {
+                "left": "impersonate",
+                "right": "Act as a higher-privileged user"
+              }
+            ],
+            "explanation": "These verbs are the Kubernetes equivalent of IAM privilege escalation: each grants a path from a limited account to pod, secret or identity takeover."
+          }
+        ],
         "moduleId": "cloud-m9",
         "number": 56,
         "title": "Kubernetes RBAC & Service Accounts",
@@ -9731,6 +11792,44 @@ export const CLOUD_CURRICULUM: Module[] = [
       },
       {
         "id": "cloud-m9-6",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each in-cluster guardrail to the protection it provides.",
+            "pairs": [
+              {
+                "left": "Pod Security Admission",
+                "right": "Enforce restricted/baseline pod standards"
+              },
+              {
+                "left": "NetworkPolicy",
+                "right": "Default-deny east-west pod traffic"
+              },
+              {
+                "left": "etcd encryption at rest",
+                "right": "Protect secrets stored in etcd"
+              },
+              {
+                "left": "OPA/Gatekeeper",
+                "right": "Policy-as-code admission control"
+              }
+            ],
+            "explanation": "Runtime safety is layered: PSA restricts pod privileges, NetworkPolicy segments traffic, encryption guards stored secrets, and admission policy enforces the rest as code."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Fill in the stricter of the two enforced Pod Security Admission profiles.",
+            "template": "Pod Security Admission ships baseline and ___ profiles, replacing the deprecated PodSecurityPolicy.",
+            "blanks": [
+              "restricted"
+            ],
+            "explanation": "The built-in PSA levels are privileged, baseline and restricted; the restricted profile is the hardened default that superseded PodSecurityPolicy.",
+            "distractors": [
+              "strict",
+              "hardened"
+            ]
+          }
+        ],
         "moduleId": "cloud-m9",
         "number": 57,
         "title": "Pod Security, Network Policy & Secrets",
@@ -9924,6 +12023,42 @@ export const CLOUD_CURRICULUM: Module[] = [
       },
       {
         "id": "cloud-m9-7",
+        "exercises": [
+          {
+            "type": "order",
+            "prompt": "Order the steps by which a compromised pod pivots to the cloud account on managed Kubernetes.",
+            "items": [
+              "Gain code execution inside a pod",
+              "Reach the node's IMDS endpoint from the pod",
+              "Steal the node instance-role credentials",
+              "Use those credentials against the cloud account"
+            ],
+            "explanation": "Without metadata blocking, a pod can hit the node IMDS and inherit the node's cloud role, turning a container foothold into account-wide access."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each managed Kubernetes platform (or control) to its scoped-identity fix.",
+            "pairs": [
+              {
+                "left": "EKS",
+                "right": "IRSA (IAM Roles for Service Accounts)"
+              },
+              {
+                "left": "GKE",
+                "right": "Workload Identity"
+              },
+              {
+                "left": "AKS",
+                "right": "Microsoft Entra Workload Identity"
+              },
+              {
+                "left": "IMDS hop-limit = 1",
+                "right": "Blocks pods from reaching node metadata"
+              }
+            ],
+            "explanation": "Per-pod cloud identities (IRSA / Workload Identity) plus a hop-limit of 1 cut the node-role pivot so a pod can no longer impersonate the whole node."
+          }
+        ],
         "moduleId": "cloud-m9",
         "number": 58,
         "title": "Cloud-Linked Cluster Compromise (EKS/AKS/GKE)",
@@ -10116,6 +12251,44 @@ export const CLOUD_CURRICULUM: Module[] = [
     "topics": [
       {
         "id": "cloud-m10-1",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each CloudTrail concept to what it covers.",
+            "pairs": [
+              {
+                "left": "Management events",
+                "right": "Control-plane API calls"
+              },
+              {
+                "left": "Data events",
+                "right": "S3 object & Lambda invoke activity"
+              },
+              {
+                "left": "Insights events",
+                "right": "Anomalous API call-rate patterns"
+              },
+              {
+                "left": "Log file validation",
+                "right": "Proves logs were not tampered with"
+              }
+            ],
+            "explanation": "CloudTrail splits visibility into management (control plane), data (object-level), and Insights (anomaly) events, while log file validation gives tamper evidence."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the SCP guardrail that stops an attacker from blinding CloudTrail.",
+            "template": "An SCP can Deny ___ and ___ so no principal can turn off or remove the trail.",
+            "blanks": [
+              "cloudtrail:StopLogging",
+              "cloudtrail:DeleteTrail"
+            ],
+            "explanation": "Denying StopLogging and DeleteTrail org-wide prevents anti-forensic disabling of the trail even by compromised admins.",
+            "distractors": [
+              "cloudtrail:GetTrailStatus"
+            ]
+          }
+        ],
         "moduleId": "cloud-m10",
         "number": 59,
         "title": "CloudTrail: The Source of Truth",
@@ -10290,6 +12463,44 @@ export const CLOUD_CURRICULUM: Module[] = [
       },
       {
         "id": "cloud-m10-2",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each AWS security service to its primary job.",
+            "pairs": [
+              {
+                "left": "GuardDuty",
+                "right": "Managed threat detection"
+              },
+              {
+                "left": "Amazon Detective",
+                "right": "Entity-behaviour investigation graphs"
+              },
+              {
+                "left": "Macie",
+                "right": "Sensitive-data discovery"
+              },
+              {
+                "left": "Security Hub",
+                "right": "Cross-service findings aggregation"
+              }
+            ],
+            "explanation": "GuardDuty detects, Detective investigates, Macie classifies sensitive data, and Security Hub aggregates findings into one view."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Name the GuardDuty finding that flags an SSRF-style credential theft.",
+            "template": "The finding ___ indicates role credentials being used from an IP outside AWS.",
+            "blanks": [
+              "InstanceCredentialExfiltration.OutsideAWS"
+            ],
+            "explanation": "InstanceCredentialExfiltration.OutsideAWS fires when EC2 role credentials are seen from outside AWS, the classic signal of a stolen instance-metadata credential.",
+            "distractors": [
+              "Recon:EC2/PortProbeUnprotectedPort",
+              "CryptoCurrency:EC2/BitcoinTool.B"
+            ]
+          }
+        ],
         "moduleId": "cloud-m10",
         "number": 60,
         "title": "GuardDuty & Detective Services",
@@ -10477,6 +12688,32 @@ export const CLOUD_CURRICULUM: Module[] = [
       },
       {
         "id": "cloud-m10-3",
+        "exercises": [
+          {
+            "type": "order",
+            "prompt": "Order the steps to detect data exfiltration using network logs.",
+            "items": [
+              "Enable VPC Flow Logs on the VPC",
+              "Baseline normal egress volume and destinations",
+              "Flag an anomalous high-volume transfer to a new IP",
+              "Correlate it with Route53 Resolver DNS query logs"
+            ],
+            "explanation": "You must capture traffic and know what normal looks like before an outbound spike stands out, then DNS logs confirm the C2 or tunneling destination."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the fact about what VPC Flow Logs record.",
+            "template": "VPC Flow Logs capture both ___ and ___ connections with byte counts for exfil detection.",
+            "blanks": [
+              "accepted",
+              "rejected"
+            ],
+            "explanation": "Flow Logs record accepted and rejected connections plus byte volumes, revealing exfiltration that CloudTrail's API-only view misses.",
+            "distractors": [
+              "encrypted"
+            ]
+          }
+        ],
         "moduleId": "cloud-m10",
         "number": 61,
         "title": "Network & Flow Visibility",
@@ -10595,6 +12832,41 @@ export const CLOUD_CURRICULUM: Module[] = [
       },
       {
         "id": "cloud-m10-4",
+        "exercises": [
+          {
+            "type": "order",
+            "prompt": "Order the stages of a CloudTrail-to-Athena query pipeline.",
+            "items": [
+              "CloudTrail delivers events to an S3 bucket",
+              "Define an Athena table over the S3 logs",
+              "Run SQL queries over the API history"
+            ],
+            "explanation": "CloudTrail lands JSON in S3, Athena is pointed at that bucket with a table definition, and then API history becomes queryable with SQL."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each pipeline component to its role.",
+            "pairs": [
+              {
+                "left": "Athena",
+                "right": "SQL queries over CloudTrail history"
+              },
+              {
+                "left": "EventBridge rule",
+                "right": "Trigger alerts on specific API events"
+              },
+              {
+                "left": "CloudWatch metric filter",
+                "right": "Alarm on log patterns"
+              },
+              {
+                "left": "OpenSearch / Splunk",
+                "right": "SIEM aggregation with retention cost"
+              }
+            ],
+            "explanation": "Athena is for ad-hoc history queries, EventBridge and metric filters drive near-real-time alerts, and a SIEM centralises logs at a storage-cost tradeoff."
+          }
+        ],
         "moduleId": "cloud-m10",
         "number": 62,
         "title": "Building a Log Pipeline",
@@ -10753,6 +13025,45 @@ export const CLOUD_CURRICULUM: Module[] = [
       },
       {
         "id": "cloud-m10-5",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each attacker TTP to the API signal you detect on.",
+            "pairs": [
+              {
+                "left": "IAM privilege escalation",
+                "right": "CreateAccessKey / AttachUserPolicy on sensitive principals"
+              },
+              {
+                "left": "Credential exfiltration",
+                "right": "Role creds used from an IP outside AWS"
+              },
+              {
+                "left": "Data exfiltration",
+                "right": "Mass GetSecretValue / S3 GetObject"
+              },
+              {
+                "left": "Enumeration burst",
+                "right": "Many AccessDenied from one principal"
+              }
+            ],
+            "explanation": "Each technique leaves a distinct CloudTrail fingerprint, which is what lets you author a detection for it after exploiting it."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete how detections are written and classified.",
+            "template": "Author detections as ___-style rules and map each to a MITRE ___ cloud technique.",
+            "blanks": [
+              "Sigma",
+              "ATT&CK"
+            ],
+            "explanation": "Sigma gives portable detection logic and mapping to MITRE ATT&CK cloud techniques makes coverage measurable.",
+            "distractors": [
+              "YARA",
+              "STIX"
+            ]
+          }
+        ],
         "moduleId": "cloud-m10",
         "number": 63,
         "title": "Writing Detections for Known TTPs",
@@ -10879,6 +13190,43 @@ export const CLOUD_CURRICULUM: Module[] = [
       },
       {
         "id": "cloud-m10-6",
+        "exercises": [
+          {
+            "type": "order",
+            "prompt": "Order the cloud incident-response workflow.",
+            "items": [
+              "Contain: revoke sessions and disable keys",
+              "Preserve evidence: snapshot volumes and CloudTrail",
+              "Scope with Athena / Detective",
+              "Eradicate: rotate secrets and remove persistence",
+              "Recover services"
+            ],
+            "explanation": "Contain first to stop the bleeding, preserve evidence before you change anything, scope the blast radius, then eradicate and recover."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each IR action to its workflow phase.",
+            "pairs": [
+              {
+                "left": "Isolate instance security group",
+                "right": "Containment"
+              },
+              {
+                "left": "Snapshot EBS volume",
+                "right": "Evidence preservation"
+              },
+              {
+                "left": "Query what the credential touched",
+                "right": "Scoping"
+              },
+              {
+                "left": "Rotate exposed secrets",
+                "right": "Eradication"
+              }
+            ],
+            "explanation": "Mapping actions to phases keeps responders from destroying evidence while still containing and eradicating under the assume-fully-compromised rule."
+          }
+        ],
         "moduleId": "cloud-m10",
         "number": 64,
         "title": "Cloud Incident Response",
@@ -11056,6 +13404,43 @@ export const CLOUD_CURRICULUM: Module[] = [
     "topics": [
       {
         "id": "cloud-m11-1",
+        "exercises": [
+          {
+            "type": "order",
+            "prompt": "Put the stages of a cloud intrusion into the order an attacker follows.",
+            "items": [
+              "Initial access (leaked key / SSRF / phished SSO)",
+              "Discovery and enumeration",
+              "Privilege escalation",
+              "Lateral movement",
+              "Collection and exfiltration"
+            ],
+            "explanation": "A cloud kill chain starts with a credential in hand, then enumerates, escalates, moves laterally, and ends by collecting and exfiltrating data."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each attacker action to the MITRE ATT&CK for IaaS tactic it falls under.",
+            "pairs": [
+              {
+                "left": "Using a leaked access key to log in",
+                "right": "Initial Access"
+              },
+              {
+                "left": "Listing IAM roles and policies",
+                "right": "Discovery"
+              },
+              {
+                "left": "Creating a backdoor IAM user",
+                "right": "Persistence"
+              },
+              {
+                "left": "Copying an S3 bucket to another account",
+                "right": "Exfiltration"
+              }
+            ],
+            "explanation": "Mapping each stage to an ATT&CK tactic lets defenders target dwell-time reduction at the specific point where an intrusion is detectable."
+          }
+        ],
         "moduleId": "cloud-m11",
         "number": 65,
         "title": "The Cloud Kill Chain",
@@ -11299,6 +13684,40 @@ export const CLOUD_CURRICULUM: Module[] = [
       },
       {
         "id": "cloud-m11-2",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each cross-account control to what it does.",
+            "pairs": [
+              {
+                "left": "aws:PrincipalOrgID",
+                "right": "Limits trust to principals in your Organization"
+              },
+              {
+                "left": "ExternalId",
+                "right": "Prevents the confused-deputy problem in vendor roles"
+              },
+              {
+                "left": "IAM Access Analyzer",
+                "right": "Surfaces resources shared outside the account"
+              }
+            ],
+            "explanation": "These three controls narrow or detect the cross-account trust that AssumeRole and resource policies otherwise over-grant."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the role trust-policy condition that restricts AssumeRole to your AWS Organization.",
+            "template": "\"Condition\": {\"StringEquals\": {\"aws:___\": \"o-1234567890\"}}",
+            "blanks": [
+              "PrincipalOrgID"
+            ],
+            "explanation": "aws:PrincipalOrgID matched against the org id ensures only principals inside your Organization can assume the role, blocking external-account abuse.",
+            "distractors": [
+              "SourceArn",
+              "ExternalId"
+            ]
+          }
+        ],
         "moduleId": "cloud-m11",
         "number": 66,
         "title": "Cross-Account Movement",
@@ -11517,6 +13936,42 @@ export const CLOUD_CURRICULUM: Module[] = [
       },
       {
         "id": "cloud-m11-3",
+        "exercises": [
+          {
+            "type": "order",
+            "prompt": "Order the steps of pivoting from a compromised EC2 instance to cloud data.",
+            "items": [
+              "Compromise an application on the EC2 instance",
+              "Query the instance metadata service (IMDS)",
+              "Retrieve the instance role's temporary credentials",
+              "Use the credentials to read S3 / DynamoDB data"
+            ],
+            "explanation": "Cross-service pivoting moves through permissions, not hosts: the metadata role on an instance becomes read access to the data services it is allowed to touch."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each AWS service to the pivoting technique it enables.",
+            "pairs": [
+              {
+                "left": "SSM Run Command",
+                "right": "Execute commands on instances without SSH"
+              },
+              {
+                "left": "Session Manager",
+                "right": "Interactive shell without opening an SSH port"
+              },
+              {
+                "left": "Lambda",
+                "right": "Compute that assumes a passed role"
+              },
+              {
+                "left": "IMDS",
+                "right": "Source of an EC2 instance's role credentials"
+              }
+            ],
+            "explanation": "Lateral movement in cloud uses passed roles and management services like SSM to reach new services and hosts without traditional network access."
+          }
+        ],
         "moduleId": "cloud-m11",
         "number": 67,
         "title": "Cross-Service Pivoting",
@@ -11707,6 +14162,44 @@ export const CLOUD_CURRICULUM: Module[] = [
       },
       {
         "id": "cloud-m11-4",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each persistence technique to its mechanism.",
+            "pairs": [
+              {
+                "left": "EventBridge rule plus Lambda",
+                "right": "Re-entry triggered automatically on an event"
+              },
+              {
+                "left": "IdP federation tampering",
+                "right": "Durable access through the SSO trust"
+              },
+              {
+                "left": "GuardDuty suppression rules",
+                "right": "Hides detections of attacker activity"
+              },
+              {
+                "left": "Terraform poisoning",
+                "right": "Redeploys a backdoor on the next apply"
+              }
+            ],
+            "explanation": "Org-level persistence outlives a single backdoor key by embedding re-entry into event triggers, federation, detection controls, and infrastructure-as-code."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Fill in the log source hunters review to find stealthy cloud persistence.",
+            "template": "Reviewing ___ logs for anomalous AssumeRole and CreateUser events helps hunt cloud persistence.",
+            "blanks": [
+              "CloudTrail"
+            ],
+            "explanation": "CloudTrail records API calls, so baselining it exposes the identity and configuration changes attackers use to persist.",
+            "distractors": [
+              "VPC Flow",
+              "GuardDuty"
+            ]
+          }
+        ],
         "moduleId": "cloud-m11",
         "number": 68,
         "title": "Persistence at Scale",
@@ -11925,6 +14418,41 @@ export const CLOUD_CURRICULUM: Module[] = [
       },
       {
         "id": "cloud-m11-5",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each exfiltration channel or control to what it does.",
+            "pairs": [
+              {
+                "left": "Pre-signed URL",
+                "right": "Time-limited link to a private S3 object"
+              },
+              {
+                "left": "Snapshot sharing",
+                "right": "Exposes a disk image to another account"
+              },
+              {
+                "left": "Cross-account copy",
+                "right": "Replicates data into an attacker's account"
+              },
+              {
+                "left": "Amazon Macie",
+                "right": "Detects sensitive S3 data to prevent exfil"
+              }
+            ],
+            "explanation": "Each exfil channel leaves its own detection signature, while DLP controls like Macie, egress filtering, and bucket policies aim to catch or block them."
+          },
+          {
+            "type": "order",
+            "prompt": "Order the phases of a data exfiltration operation.",
+            "items": [
+              "Locate sensitive data (S3, Secrets Manager, snapshots)",
+              "Stage and compress the data",
+              "Exfiltrate it through a channel"
+            ],
+            "explanation": "Attackers first find the crown-jewel data, stage and compress it to stay under detection thresholds, then move it out through a chosen channel."
+          }
+        ],
         "moduleId": "cloud-m11",
         "number": 69,
         "title": "Data Collection & Exfiltration",
@@ -12109,6 +14637,44 @@ export const CLOUD_CURRICULUM: Module[] = [
       },
       {
         "id": "cloud-m11-6",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each attack-path term or tool to its meaning.",
+            "pairs": [
+              {
+                "left": "PMapper",
+                "right": "Computes IAM privilege-escalation paths"
+              },
+              {
+                "left": "Cartography",
+                "right": "Graphs cloud assets and their relationships"
+              },
+              {
+                "left": "Choke point",
+                "right": "Edge whose removal collapses many paths"
+              },
+              {
+                "left": "iam:PassRole",
+                "right": "A permission that is a common choke point"
+              }
+            ],
+            "explanation": "Path-graphing tools compute every principal-to-crown-jewel route so analysts can find the few edges worth cutting."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Name the permission that is a frequent choke point in attack-path graphs.",
+            "template": "The permission ___ lets a principal hand an IAM role to a service, making it a frequent choke point.",
+            "blanks": [
+              "iam:PassRole"
+            ],
+            "explanation": "iam:PassRole plus broad AssumeRole create the edges that most attack paths traverse, so removing them collapses many routes at once.",
+            "distractors": [
+              "sts:GetCallerIdentity",
+              "iam:ListRoles"
+            ]
+          }
+        ],
         "moduleId": "cloud-m11",
         "number": 70,
         "title": "Attack-Path Graphing & Choke Points",
@@ -12335,6 +14901,43 @@ export const CLOUD_CURRICULUM: Module[] = [
       },
       {
         "id": "cloud-m11-7",
+        "exercises": [
+          {
+            "type": "order",
+            "prompt": "Order the phases of running an authorised cloud red-team engagement.",
+            "items": [
+              "Obtain written authorisation and define scope",
+              "Agree rules of engagement and OPSEC limits",
+              "Execute the assessment within scope",
+              "Report attack narrative, evidence, impact, remediation",
+              "Purple-team to validate detections with the blue team"
+            ],
+            "explanation": "Ethics and authorisation come first; the engagement runs within agreed rules, then reporting and purple-teaming turn findings into defensive value."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each engagement element to what it covers.",
+            "pairs": [
+              {
+                "left": "Written authorisation",
+                "right": "Legal basis naming accounts and assets in scope"
+              },
+              {
+                "left": "Rules of engagement",
+                "right": "Which techniques are permitted"
+              },
+              {
+                "left": "Business impact",
+                "right": "Translates findings for stakeholders"
+              },
+              {
+                "left": "Purple-teaming",
+                "right": "Validates blue-team detections"
+              }
+            ],
+            "explanation": "A professional engagement is wrapped in authorisation, ROE, impact-focused reporting, and collaborative detection validation."
+          }
+        ],
         "moduleId": "cloud-m11",
         "number": 71,
         "title": "Running a Cloud Red-Team Engagement",
@@ -12539,6 +15142,48 @@ export const CLOUD_CURRICULUM: Module[] = [
     "topics": [
       {
         "id": "cloud-m12-1",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each CSPM tool to what it provides.",
+            "pairs": [
+              {
+                "left": "Prowler",
+                "right": "Open-source AWS/multi-account CLI posture scanner"
+              },
+              {
+                "left": "ScoutSuite",
+                "right": "Open-source multi-cloud config auditor"
+              },
+              {
+                "left": "AWS Security Hub",
+                "right": "Native CSPM aggregating security standards"
+              },
+              {
+                "left": "AWS Config rules",
+                "right": "Continuous resource configuration evaluation"
+              },
+              {
+                "left": "Wiz / Prisma Cloud",
+                "right": "Commercial CNAPP platforms"
+              }
+            ],
+            "explanation": "Prowler and ScoutSuite are open-source scanners, Security Hub and Config are AWS-native CSPM, and Wiz/Prisma Cloud are commercial CNAPPs that add attack-path and workload context."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the command to run Prowler against an AWS account using a named profile.",
+            "template": "prowler ___ --profile technieum",
+            "blanks": [
+              "aws"
+            ],
+            "explanation": "In Prowler v3+ the cloud provider is the first argument: `prowler aws` runs the AWS checks, and `--profile` selects the credentials to scan with.",
+            "distractors": [
+              "scan",
+              "audit"
+            ]
+          }
+        ],
         "moduleId": "cloud-m12",
         "number": 72,
         "title": "Cloud Security Posture Management",
@@ -12801,6 +15446,45 @@ export const CLOUD_CURRICULUM: Module[] = [
       },
       {
         "id": "cloud-m12-2",
+        "exercises": [
+          {
+            "type": "fill-blank",
+            "prompt": "Fill in the two foundational CIS AWS controls.",
+            "template": "CIS requires MFA on the ___ account and CloudTrail enabled in all ___.",
+            "blanks": [
+              "root",
+              "regions"
+            ],
+            "explanation": "Root-account MFA and multi-region CloudTrail are core CIS AWS Foundations controls for identity and logging.",
+            "distractors": [
+              "IAM",
+              "zones"
+            ]
+          },
+          {
+            "type": "match",
+            "prompt": "Match each CIS AWS Foundations control to its benchmark section.",
+            "pairs": [
+              {
+                "left": "Enforce MFA on the root account",
+                "right": "IAM"
+              },
+              {
+                "left": "CloudTrail enabled in all regions",
+                "right": "Logging"
+              },
+              {
+                "left": "Alarm on unauthorized API calls",
+                "right": "Monitoring"
+              },
+              {
+                "left": "No 0.0.0.0/0 to port 22",
+                "right": "Networking"
+              }
+            ],
+            "explanation": "The CIS AWS Foundations Benchmark organises controls into IAM, Logging, Monitoring, and Networking sections."
+          }
+        ],
         "moduleId": "cloud-m12",
         "number": 73,
         "title": "CIS Benchmarks & Config Baselines",
@@ -13055,6 +15739,46 @@ export const CLOUD_CURRICULUM: Module[] = [
       },
       {
         "id": "cloud-m12-3",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each compliance framework to its primary focus.",
+            "pairs": [
+              {
+                "left": "PCI-DSS",
+                "right": "Payment card data protection"
+              },
+              {
+                "left": "HIPAA",
+                "right": "Protected health information"
+              },
+              {
+                "left": "SOC 2",
+                "right": "Service-org trust/security criteria"
+              },
+              {
+                "left": "ISO 27001",
+                "right": "ISMS certification standard"
+              },
+              {
+                "left": "NIST 800-53",
+                "right": "Federal security control catalog"
+              }
+            ],
+            "explanation": "Each framework targets a different domain, so mapping one technical control to many of them avoids duplicate evidence work."
+          },
+          {
+            "type": "order",
+            "prompt": "Order the steps to map one control across many compliance frameworks.",
+            "items": [
+              "Define a technical control (e.g. encryption at rest)",
+              "Map it to each framework's matching requirement",
+              "Collect evidence once via Audit Manager/Config",
+              "Reuse that evidence across audits (continuous compliance)"
+            ],
+            "explanation": "Mapping a single control to multiple frameworks and collecting evidence once turns point-in-time audits into continuous compliance."
+          }
+        ],
         "moduleId": "cloud-m12",
         "number": 74,
         "title": "Compliance Frameworks",
@@ -13231,6 +15955,45 @@ export const CLOUD_CURRICULUM: Module[] = [
       },
       {
         "id": "cloud-m12-4",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each preventative guardrail mechanism to its role.",
+            "pairs": [
+              {
+                "left": "SCP",
+                "right": "Org-wide deny guardrail (e.g. block public S3)"
+              },
+              {
+                "left": "Cloud Custodian",
+                "right": "Automated remediation policies"
+              },
+              {
+                "left": "Checkov",
+                "right": "Pre-deploy IaC misconfiguration scan"
+              },
+              {
+                "left": "Permission boundary",
+                "right": "Cap on an IAM principal's permissions"
+              }
+            ],
+            "explanation": "SCPs deny at the org level, Custodian remediates, Checkov shifts detection left into CI, and permission boundaries cap what a principal can be granted."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Fill in the preventative-vs-detective contrast.",
+            "template": "An ___ blocks disabling CloudTrail before the bad state can exist, unlike a Config rule that only ___ it afterward.",
+            "blanks": [
+              "SCP",
+              "detects"
+            ],
+            "explanation": "SCPs are preventative guardrails that block the action outright, while Config rules are detective and merely flag misconfiguration after it occurs.",
+            "distractors": [
+              "IAM role",
+              "encrypts"
+            ]
+          }
+        ],
         "moduleId": "cloud-m12",
         "number": 75,
         "title": "Preventative Guardrails",
@@ -13440,6 +16203,43 @@ export const CLOUD_CURRICULUM: Module[] = [
       },
       {
         "id": "cloud-m12-5",
+        "exercises": [
+          {
+            "type": "order",
+            "prompt": "Order how a secure landing zone stands up a new account.",
+            "items": [
+              "Provision the account from a Control Tower / landing-zone blueprint",
+              "Attach the baseline SCP guardrails",
+              "Auto-enable GuardDuty, Config, and CloudTrail",
+              "Route logs to the central logging account",
+              "Deploy workloads via golden-path IaC templates"
+            ],
+            "explanation": "Control Tower bakes in guardrails, detection, and centralised logging so the secure path is the default for every new account."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each landing-zone account to its purpose.",
+            "pairs": [
+              {
+                "left": "Logging account",
+                "right": "Centralised CloudTrail/log archive"
+              },
+              {
+                "left": "Security tooling account",
+                "right": "GuardDuty/Security Hub delegated admin"
+              },
+              {
+                "left": "Workload account",
+                "right": "Per-workload isolation boundary"
+              },
+              {
+                "left": "Management account",
+                "right": "Org root and SCP control"
+              }
+            ],
+            "explanation": "Account-per-workload with dedicated logging, security-tooling, and management accounts is the core landing-zone layout."
+          }
+        ],
         "moduleId": "cloud-m12",
         "number": 76,
         "title": "Secure Landing Zones",
@@ -13664,6 +16464,34 @@ export const CLOUD_CURRICULUM: Module[] = [
       },
       {
         "id": "cloud-m12-6",
+        "exercises": [
+          {
+            "type": "order",
+            "prompt": "Order the capstone workflow to secure the estate.",
+            "items": [
+              "Run a full CSPM scan and attack-path analysis",
+              "Prioritise findings by exploitability and blast radius",
+              "Remediate the top attack paths",
+              "Enforce preventative SCPs / policy-as-code",
+              "Enable detection and IR, then report before/after evidence"
+            ],
+            "explanation": "Assess, prioritise by real risk, remediate, prevent recurrence with guardrails, and catch residual risk with detection before producing executive-ready evidence."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the capstone prioritisation rule.",
+            "template": "Prioritise capstone findings by exploitability and ___ radius, not finding ___.",
+            "blanks": [
+              "blast",
+              "count"
+            ],
+            "explanation": "Ranking by blast radius and exploitability targets the risks that actually matter instead of chasing raw finding counts.",
+            "distractors": [
+              "network",
+              "severity"
+            ]
+          }
+        ],
         "moduleId": "cloud-m12",
         "number": 77,
         "title": "Capstone: Secure the Estate",
@@ -13941,6 +16769,45 @@ export const CLOUD_CURRICULUM: Module[] = [
     "topics": [
       {
         "id": "cloud-m13-1",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each Entra ID / Azure identity concept to what it is.",
+            "pairs": [
+              {
+                "left": "Managed identity",
+                "right": "Azure-managed credential for a resource, no secret to store"
+              },
+              {
+                "left": "Service principal",
+                "right": "Local identity an app uses to access resources"
+              },
+              {
+                "left": "App registration",
+                "right": "Tenant-wide definition of an application"
+              },
+              {
+                "left": "Conditional Access",
+                "right": "Policy enforcing MFA and device conditions at sign-in"
+              }
+            ],
+            "explanation": "Entra ID models identity through these distinct object types, and Conditional Access plus MFA are the primary guardrails over how those identities sign in."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the sentence describing the Entra/Azure-RBAC split.",
+            "template": "Azure ___ governs identity (users, groups, apps), while Azure ___ governs access to resources via role assignments.",
+            "blanks": [
+              "Entra ID",
+              "RBAC"
+            ],
+            "explanation": "The two-layer split -- Entra ID for identity, Azure RBAC for resource permissions scoped at MG/subscription/RG/resource -- is a frequent source of misconfiguration.",
+            "distractors": [
+              "IAM",
+              "Conditional Access"
+            ]
+          }
+        ],
         "moduleId": "cloud-m13",
         "number": 78,
         "title": "Azure Identity: Entra ID & RBAC",
@@ -14137,6 +17004,42 @@ export const CLOUD_CURRICULUM: Module[] = [
       },
       {
         "id": "cloud-m13-2",
+        "exercises": [
+          {
+            "type": "order",
+            "prompt": "Order the steps to steal a managed identity token via the Azure IMDS endpoint.",
+            "items": [
+              "Gain code execution on an Azure VM that has a managed identity",
+              "Query IMDS at 169.254.169.254 with the Metadata:true header",
+              "Receive an OAuth access token for the managed identity",
+              "Use the token against Azure Resource Manager APIs"
+            ],
+            "explanation": "The IMDS endpoint returns a bearer token for the attached managed identity; stealing it lets the attacker act with that identity's Azure RBAC permissions."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each Azure offensive tool or artifact to its purpose.",
+            "pairs": [
+              {
+                "left": "AzureHound",
+                "right": "Collects Entra data for BloodHound attack-path graphing"
+              },
+              {
+                "left": "ROADtools",
+                "right": "Entra tenant enumeration and recon toolkit"
+              },
+              {
+                "left": "Storage account key",
+                "right": "Full access to a storage account (the S3-key equivalent)"
+              },
+              {
+                "left": "SAS token",
+                "right": "Delegated, time-limited access to a storage resource"
+              }
+            ],
+            "explanation": "Attackers graph Entra with AzureHound/ROADtools and pivot through exposed storage account keys or SAS tokens, the Blob equivalent of leaked S3 access."
+          }
+        ],
         "moduleId": "cloud-m13",
         "number": 79,
         "title": "Azure Attack Paths",
@@ -14278,6 +17181,45 @@ export const CLOUD_CURRICULUM: Module[] = [
       },
       {
         "id": "cloud-m13-3",
+        "exercises": [
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the GCP IAM inheritance chain.",
+            "template": "GCP IAM bindings are inherited down the hierarchy: ___ -> folder -> ___ -> resource.",
+            "blanks": [
+              "organization",
+              "project"
+            ],
+            "explanation": "A binding set at a higher node (org or folder) is inherited by every project and resource beneath it, so broad high-level grants cascade widely.",
+            "distractors": [
+              "subscription",
+              "tenant"
+            ]
+          },
+          {
+            "type": "match",
+            "prompt": "Match each GCP IAM concept to its description.",
+            "pairs": [
+              {
+                "left": "Primitive role",
+                "right": "Broad legacy role: Owner, Editor, or Viewer"
+              },
+              {
+                "left": "Predefined role",
+                "right": "Granular, Google-curated permission set"
+              },
+              {
+                "left": "Service account key",
+                "right": "Long-lived, leakable credential for a service account"
+              },
+              {
+                "left": "iam.serviceAccounts.getAccessToken",
+                "right": "Permission that lets a principal impersonate a service account"
+              }
+            ],
+            "explanation": "GCP's service-account-centric model makes SA keys and impersonation permissions (actAs / getAccessToken) the drivers of most GCP attack paths."
+          }
+        ],
         "moduleId": "cloud-m13",
         "number": 80,
         "title": "GCP Identity & Service Accounts",
@@ -14446,6 +17388,42 @@ export const CLOUD_CURRICULUM: Module[] = [
       },
       {
         "id": "cloud-m13-4",
+        "exercises": [
+          {
+            "type": "order",
+            "prompt": "Order the steps to steal the attached service-account token from the GCE metadata endpoint.",
+            "items": [
+              "Execute code on a GCE instance that has an attached service account",
+              "Request the token from the metadata server with the Metadata-Flavor:Google header",
+              "Obtain the attached service account's OAuth access token",
+              "Call GCP APIs as that service account"
+            ],
+            "explanation": "The GCE metadata server hands out the attached SA's access token to any header-valid request from the instance, granting the SA's project permissions."
+          },
+          {
+            "type": "match",
+            "prompt": "Match each GCP offensive tool or artifact to what it does.",
+            "pairs": [
+              {
+                "left": "ScoutSuite",
+                "right": "Multi-cloud security auditing including GCP"
+              },
+              {
+                "left": "GCPBucketBrute",
+                "right": "Enumerate GCS bucket names and permissions"
+              },
+              {
+                "left": "allUsers binding",
+                "right": "Grants access to anyone on the internet"
+              },
+              {
+                "left": "setIamPolicy",
+                "right": "Permission to rewrite a resource's IAM policy"
+              }
+            ],
+            "explanation": "Open GCS buckets (allUsers/allAuthenticatedUsers) and setIamPolicy-based privilege escalation are core GCP attack paths, enumerated with tools like ScoutSuite and GCPBucketBrute."
+          }
+        ],
         "moduleId": "cloud-m13",
         "number": 81,
         "title": "GCP Attack Paths",
@@ -14579,6 +17557,45 @@ export const CLOUD_CURRICULUM: Module[] = [
       },
       {
         "id": "cloud-m13-5",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each cross-cloud federation concept to its risk or behavior.",
+            "pairs": [
+              {
+                "left": "Workload identity federation",
+                "right": "A workload assumes a role in another cloud via OIDC"
+              },
+              {
+                "left": "Entra/AWS SAML federation",
+                "right": "One cloud's identities sign in to the other"
+              },
+              {
+                "left": "IdP compromise",
+                "right": "Cascades across every federated cloud at once"
+              },
+              {
+                "left": "Third-party SaaS cross-cloud access",
+                "right": "Supply-chain risk widening the blast radius"
+              }
+            ],
+            "explanation": "Federation lets one cloud's identity act in another; that power means a single IdP or SaaS compromise can spread across all trusted clouds."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the guidance on securing federated trust.",
+            "template": "Harden federation by scoping tight ___ and subject claims, adding ___, and monitoring the trust relationship.",
+            "blanks": [
+              "audience",
+              "conditions"
+            ],
+            "explanation": "Narrow audience/subject claims plus explicit conditions keep a federated trust from being abused by a token it was never meant to accept.",
+            "distractors": [
+              "quota",
+              "ACL"
+            ]
+          }
+        ],
         "moduleId": "cloud-m13",
         "number": 82,
         "title": "Cross-Cloud & Federation Risk",
@@ -14726,6 +17743,41 @@ export const CLOUD_CURRICULUM: Module[] = [
       },
       {
         "id": "cloud-m13-6",
+        "exercises": [
+          {
+            "type": "match",
+            "prompt": "Match each cloud provider to its equivalent audit log service.",
+            "pairs": [
+              {
+                "left": "AWS",
+                "right": "CloudTrail"
+              },
+              {
+                "left": "Azure",
+                "right": "Activity Log"
+              },
+              {
+                "left": "GCP",
+                "right": "Cloud Audit Logs"
+              }
+            ],
+            "explanation": "A unified posture treats these as equivalent log sources, so detections and ATT&CK cloud techniques can be mapped consistently across providers."
+          },
+          {
+            "type": "fill-blank",
+            "prompt": "Complete the unified multi-cloud model.",
+            "template": "A unified model maps every cloud to the same primitives: ___, roles/bindings, resource policies, metadata, and ___.",
+            "blanks": [
+              "principals",
+              "logging"
+            ],
+            "explanation": "Reducing each cloud to principals, roles/bindings, resource policies, metadata, and logging lets one CSPM/CNAPP view and a single risk register span all three providers.",
+            "distractors": [
+              "subnets",
+              "billing"
+            ]
+          }
+        ],
         "moduleId": "cloud-m13",
         "number": 83,
         "title": "Unified Multi-Cloud Posture",
