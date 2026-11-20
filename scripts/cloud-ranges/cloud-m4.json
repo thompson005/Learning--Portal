@@ -1,0 +1,882 @@
+[
+  {
+    "labId": "cloud-L08",
+    "title": "Spot and Close IAM Escalation Paths",
+    "objective": "Review four IAM policies in your own simulated account, identify which permissions let a principal raise its own privileges, and rewrite each policy so the legitimate job still works but the escalation path is closed.",
+    "successCriteria": [
+      "You identified every escalation-capable permission (CreatePolicyVersion, AttachUserPolicy, UpdateAssumeRolePolicy, PassRole on *) and the principal holding it",
+      "You rewrote all four policies so each scoped job still works and the dangerous capability is denied",
+      "A re-check of the remediated policy set reports zero paths to admin"
+    ],
+    "hints": [
+      "Start with the risk report: which principals does it say can reach admin, and through which IAM action?",
+      "Every one of these actions is dangerous because the Resource is `*`. Ask: which exact ARNs does the job really need, and what condition pins the rest down?",
+      "Policy-version actions: scope to a team policy path and deny your own policy. AttachUserPolicy: new-hire users plus iam:PolicyARN. UpdateAssumeRolePolicy: iam:ResourceTag/tier = app. PassRole: named role ARNs plus iam:PassedToService."
+    ],
+    "estimatedHours": 2,
+    "resources": [
+      {
+        "title": "AWS docs: Security best practices in IAM (least privilege)",
+        "url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/best-practices.html",
+        "type": "link"
+      },
+      {
+        "title": "AWS docs: Granting a user permissions to pass a role to an AWS service",
+        "url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_use_passrole.html",
+        "type": "link"
+      },
+      {
+        "title": "Rhino Security Labs: AWS IAM Privilege Escalation - Methods and Mitigation",
+        "url": "https://rhinosecuritylabs.com/aws/aws-privilege-escalation-methods-mitigation/",
+        "type": "link"
+      },
+      {
+        "title": "PMapper (NCC Group) - IAM graph and privilege-escalation analysis",
+        "url": "https://github.com/nccgroup/PMapper",
+        "type": "link"
+      }
+    ],
+    "range": {
+      "scenario": "You are the cloud security engineer for account 111122223333. A quarterly access review flagged that several IAM policies written by different teams contain permissions that let a principal change IAM itself. Nothing has been abused: this is a pure audit of your own account. Use the audit role in the terminal to list the customer-managed policies, run the PMapper-style risk analysis, and read each flagged policy document. Work out which permissions are escalation-capable and why, rewrite the policies so each team keeps its legitimate access without the dangerous capability, then re-run the recheck helper to confirm the account is clean.",
+      "artifacts": [
+        {
+          "name": "DevToolingPolicy.json",
+          "language": "json",
+          "content": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"ReadPolicies\",\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"iam:ListPolicies\",\n        \"iam:GetPolicy\",\n        \"iam:GetPolicyVersion\",\n        \"iam:ListPolicyVersions\"\n      ],\n      \"Resource\": \"*\"\n    },\n    {\n      \"Sid\": \"ManagePolicyVersions\",\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"iam:CreatePolicyVersion\",\n        \"iam:SetDefaultPolicyVersion\"\n      ],\n      \"Resource\": \"*\"\n    },\n    {\n      \"Sid\": \"StackReadOnly\",\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"cloudformation:DescribeStacks\",\n        \"cloudformation:ListStacks\"\n      ],\n      \"Resource\": \"*\"\n    }\n  ]\n}",
+          "note": "Attached to user/dev-lead (app team lead). Needs to publish new versions of the team's own app-config policy."
+        },
+        {
+          "name": "OnboardingPolicy.json",
+          "language": "json",
+          "content": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"Onboard\",\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"iam:CreateUser\",\n        \"iam:AttachUserPolicy\",\n        \"iam:ListUsers\",\n        \"iam:GetUser\"\n      ],\n      \"Resource\": \"*\"\n    }\n  ]\n}",
+          "note": "Attached to role/OnboardingBotRole. The HR automation creates users and gives them the NewHireBaseline policy."
+        },
+        {
+          "name": "RoleOpsPolicy.json",
+          "language": "json",
+          "content": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"ReadRoles\",\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"iam:GetRole\",\n        \"iam:ListRoles\",\n        \"iam:ListAttachedRolePolicies\"\n      ],\n      \"Resource\": \"*\"\n    },\n    {\n      \"Sid\": \"EditTrust\",\n      \"Effect\": \"Allow\",\n      \"Action\": \"iam:UpdateAssumeRolePolicy\",\n      \"Resource\": \"*\"\n    }\n  ]\n}",
+          "note": "Attached to role/OpsEngineerRole. Ops maintains the trust policies of application roles (tagged tier=app)."
+        },
+        {
+          "name": "DeployerPolicy.json",
+          "language": "json",
+          "content": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"Deploy\",\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"lambda:CreateFunction\",\n        \"lambda:UpdateFunctionCode\",\n        \"ecs:RegisterTaskDefinition\",\n        \"ecs:RunTask\"\n      ],\n      \"Resource\": \"*\"\n    },\n    {\n      \"Sid\": \"PassAnyRole\",\n      \"Effect\": \"Allow\",\n      \"Action\": \"iam:PassRole\",\n      \"Resource\": \"*\"\n    }\n  ]\n}",
+          "note": "Attached to user/ci-deployer. CI deploys Lambda functions (role/app-lambda-exec-*) and ECS tasks (role/app-task-*)."
+        },
+        {
+          "name": "account-notes.txt",
+          "language": "text",
+          "content": "Account 111122223333 (prod)\nPrivileged roles (tag tier=admin): PlatformAdminRole, OrganizationAccountAccessRole, app-legacy-admin\nApplication roles (tag tier=app): app-orders-exec, app-billing-exec, app-lambda-exec-orders, app-task-orders\nBaseline policy for new users: arn:aws:iam::111122223333:policy/NewHireBaseline\nTeam-owned customer-managed policies live under the path /team-app/",
+          "note": "Context you need when deciding what each team legitimately requires."
+        }
+      ],
+      "terminal": {
+        "prompt": "auditor@cloudshell:~$",
+        "intro": "Assumed SecurityAuditRole in account 111122223333 (read-only IAM). Everything here is simulated.",
+        "help": "Commands you can try:\n  aws sts get-caller-identity\n  aws iam list-policies --scope Local --only-attached\n  pmapper graph create\n  pmapper analysis\n  aws iam get-policy-version --policy-arn <arn> --version-id v1\n  aws iam simulate-principal-policy --policy-source-arn <arn> --action-names <action> --resource-arns <arn>\n  ./recheck-iam.sh      (lab helper: re-runs the analysis against your remediated policy set)",
+        "rules": [
+          {
+            "match": "^aws sts get-caller-identity$",
+            "output": "{\n  \"UserId\": \"AROAEXAMPLEAUDIT0001:audit-session\",\n  \"Account\": \"111122223333\",\n  \"Arn\": \"arn:aws:sts::111122223333:assumed-role/SecurityAuditRole/audit-session\"\n}"
+          },
+          {
+            "match": "^aws iam list-policies --scope local( --only-attached)?$",
+            "sets": [
+              "listed_policies"
+            ],
+            "output": "{\n  \"Policies\": [\n    {\n      \"PolicyName\": \"DevToolingPolicy\",\n      \"Arn\": \"arn:aws:iam::111122223333:policy/DevToolingPolicy\",\n      \"AttachmentCount\": 1,\n      \"DefaultVersionId\": \"v1\"\n    },\n    {\n      \"PolicyName\": \"OnboardingPolicy\",\n      \"Arn\": \"arn:aws:iam::111122223333:policy/OnboardingPolicy\",\n      \"AttachmentCount\": 1,\n      \"DefaultVersionId\": \"v1\"\n    },\n    {\n      \"PolicyName\": \"RoleOpsPolicy\",\n      \"Arn\": \"arn:aws:iam::111122223333:policy/RoleOpsPolicy\",\n      \"AttachmentCount\": 1,\n      \"DefaultVersionId\": \"v1\"\n    },\n    {\n      \"PolicyName\": \"DeployerPolicy\",\n      \"Arn\": \"arn:aws:iam::111122223333:policy/DeployerPolicy\",\n      \"AttachmentCount\": 1,\n      \"DefaultVersionId\": \"v1\"\n    },\n    {\n      \"PolicyName\": \"ReportingReadPolicy\",\n      \"Arn\": \"arn:aws:iam::111122223333:policy/ReportingReadPolicy\",\n      \"AttachmentCount\": 1,\n      \"DefaultVersionId\": \"v1\"\n    }\n  ]\n}"
+          },
+          {
+            "match": "^pmapper( --profile \\S+)? graph create$",
+            "sets": [
+              "graph_created"
+            ],
+            "output": "Creating a graph for account 111122223333...\nSourcing data: 8 users/roles, 11 policies, 0 groups\nGraph created: 8 nodes, 11 edges. Stored under account 111122223333."
+          },
+          {
+            "match": "^pmapper( --profile \\S+)? analysis$",
+            "requires": [
+              "graph_created"
+            ],
+            "sets": [
+              "got_report"
+            ],
+            "output": "PMapper analysis - account 111122223333 (8 principals, 11 edges)\n\n[HIGH] user/dev-lead can reach admin\n       via: iam:CreatePolicyVersion + iam:SetDefaultPolicyVersion on policy/DevToolingPolicy (attached to itself)\n[HIGH] role/OnboardingBotRole can reach admin\n       via: iam:AttachUserPolicy on user/* (any managed policy, any user)\n[HIGH] role/OpsEngineerRole can reach admin\n       via: iam:UpdateAssumeRolePolicy on role/* (can change who may assume role/PlatformAdminRole)\n[HIGH] user/ci-deployer can reach admin\n       via: iam:PassRole on * + lambda:CreateFunction (role/PlatformAdminRole can be passed to Lambda)\n[INFO] role/ReportingRole: no path to admin (iam:PassRole limited to role/report-render-exec for lambda.amazonaws.com)\n\nSummary: 4 principals with a path to admin, 1 clean."
+          },
+          {
+            "match": "^pmapper( --profile \\S+)? analysis$",
+            "output": "No graph found for account 111122223333. Run `pmapper graph create` first."
+          },
+          {
+            "match": "^aws iam get-policy-version --policy-arn arn:aws:iam::111122223333:policy/devtoolingpolicy --version-id v1$",
+            "sets": [
+              "rev_p1"
+            ],
+            "output": "{\n  \"PolicyVersion\": {\n    \"Document\": {\n      \"Version\": \"2012-10-17\",\n      \"Statement\": [\n        {\n          \"Sid\": \"ReadPolicies\",\n          \"Effect\": \"Allow\",\n          \"Action\": [\n            \"iam:ListPolicies\",\n            \"iam:GetPolicy\",\n            \"iam:GetPolicyVersion\",\n            \"iam:ListPolicyVersions\"\n          ],\n          \"Resource\": \"*\"\n        },\n        {\n          \"Sid\": \"ManagePolicyVersions\",\n          \"Effect\": \"Allow\",\n          \"Action\": [\n            \"iam:CreatePolicyVersion\",\n            \"iam:SetDefaultPolicyVersion\"\n          ],\n          \"Resource\": \"*\"\n        },\n        {\n          \"Sid\": \"StackReadOnly\",\n          \"Effect\": \"Allow\",\n          \"Action\": [\n            \"cloudformation:DescribeStacks\",\n            \"cloudformation:ListStacks\"\n          ],\n          \"Resource\": \"*\"\n        }\n      ]\n    },\n    \"VersionId\": \"v1\",\n    \"IsDefaultVersion\": true,\n    \"CreateDate\": \"2026-03-04T10:12:41+00:00\"\n  }\n}"
+          },
+          {
+            "match": "^aws iam get-policy-version --policy-arn arn:aws:iam::111122223333:policy/onboardingpolicy --version-id v1$",
+            "sets": [
+              "rev_p2"
+            ],
+            "output": "{\n  \"PolicyVersion\": {\n    \"Document\": {\n      \"Version\": \"2012-10-17\",\n      \"Statement\": [\n        {\n          \"Sid\": \"Onboard\",\n          \"Effect\": \"Allow\",\n          \"Action\": [\n            \"iam:CreateUser\",\n            \"iam:AttachUserPolicy\",\n            \"iam:ListUsers\",\n            \"iam:GetUser\"\n          ],\n          \"Resource\": \"*\"\n        }\n      ]\n    },\n    \"VersionId\": \"v1\",\n    \"IsDefaultVersion\": true,\n    \"CreateDate\": \"2026-02-11T08:03:17+00:00\"\n  }\n}"
+          },
+          {
+            "match": "^aws iam get-policy-version --policy-arn arn:aws:iam::111122223333:policy/roleopspolicy --version-id v1$",
+            "sets": [
+              "rev_p3"
+            ],
+            "output": "{\n  \"PolicyVersion\": {\n    \"Document\": {\n      \"Version\": \"2012-10-17\",\n      \"Statement\": [\n        {\n          \"Sid\": \"ReadRoles\",\n          \"Effect\": \"Allow\",\n          \"Action\": [\n            \"iam:GetRole\",\n            \"iam:ListRoles\",\n            \"iam:ListAttachedRolePolicies\"\n          ],\n          \"Resource\": \"*\"\n        },\n        {\n          \"Sid\": \"EditTrust\",\n          \"Effect\": \"Allow\",\n          \"Action\": \"iam:UpdateAssumeRolePolicy\",\n          \"Resource\": \"*\"\n        }\n      ]\n    },\n    \"VersionId\": \"v1\",\n    \"IsDefaultVersion\": true,\n    \"CreateDate\": \"2026-01-22T14:40:05+00:00\"\n  }\n}"
+          },
+          {
+            "match": "^aws iam get-policy-version --policy-arn arn:aws:iam::111122223333:policy/deployerpolicy --version-id v1$",
+            "sets": [
+              "rev_p4"
+            ],
+            "output": "{\n  \"PolicyVersion\": {\n    \"Document\": {\n      \"Version\": \"2012-10-17\",\n      \"Statement\": [\n        {\n          \"Sid\": \"Deploy\",\n          \"Effect\": \"Allow\",\n          \"Action\": [\n            \"lambda:CreateFunction\",\n            \"lambda:UpdateFunctionCode\",\n            \"ecs:RegisterTaskDefinition\",\n            \"ecs:RunTask\"\n          ],\n          \"Resource\": \"*\"\n        },\n        {\n          \"Sid\": \"PassAnyRole\",\n          \"Effect\": \"Allow\",\n          \"Action\": \"iam:PassRole\",\n          \"Resource\": \"*\"\n        }\n      ]\n    },\n    \"VersionId\": \"v1\",\n    \"IsDefaultVersion\": true,\n    \"CreateDate\": \"2026-04-19T09:27:52+00:00\"\n  }\n}"
+          },
+          {
+            "match": "^aws iam get-policy-version --policy-arn arn:aws:iam::111122223333:policy/reportingreadpolicy --version-id v1$",
+            "output": "{\n  \"PolicyVersion\": {\n    \"Document\": {\n      \"Version\": \"2012-10-17\",\n      \"Statement\": [\n        {\n          \"Sid\": \"ReadReports\",\n          \"Effect\": \"Allow\",\n          \"Action\": [\n            \"s3:GetObject\",\n            \"s3:ListBucket\"\n          ],\n          \"Resource\": [\n            \"arn:aws:s3:::acme-reports\",\n            \"arn:aws:s3:::acme-reports/*\"\n          ]\n        },\n        {\n          \"Sid\": \"PassReportRole\",\n          \"Effect\": \"Allow\",\n          \"Action\": \"iam:PassRole\",\n          \"Resource\": \"arn:aws:iam::111122223333:role/report-render-exec\",\n          \"Condition\": {\n            \"StringEquals\": {\n              \"iam:PassedToService\": \"lambda.amazonaws.com\"\n            }\n          }\n        }\n      ]\n    },\n    \"VersionId\": \"v1\",\n    \"IsDefaultVersion\": true,\n    \"CreateDate\": \"2026-05-02T16:55:30+00:00\"\n  }\n}"
+          },
+          {
+            "match": "^aws iam get-policy-version\\b",
+            "output": "An error occurred (NoSuchEntity) when calling the GetPolicyVersion operation: Policy or version not found. Use an ARN from `aws iam list-policies` and --version-id v1."
+          },
+          {
+            "match": "^aws iam simulate-principal-policy .*--policy-source-arn \\S*:user/dev-lead .*--action-names iam:(createpolicyversion|setdefaultpolicyversion)\\b",
+            "output": "{\n  \"EvaluationResults\": [\n    {\n      \"EvalActionName\": \"iam:CreatePolicyVersion\",\n      \"EvalResourceName\": \"arn:aws:iam::111122223333:policy/DevToolingPolicy\",\n      \"EvalDecision\": \"allowed\",\n      \"MatchedStatements\": [\n        {\n          \"SourcePolicyId\": \"DevToolingPolicy\",\n          \"SourcePolicyType\": \"IAM Policy\"\n        }\n      ],\n      \"MissingContextValues\": []\n    }\n  ]\n}"
+          },
+          {
+            "match": "^aws iam simulate-principal-policy .*--policy-source-arn \\S*:role/onboardingbotrole .*--action-names iam:attachuserpolicy\\b",
+            "output": "{\n  \"EvaluationResults\": [\n    {\n      \"EvalActionName\": \"iam:AttachUserPolicy\",\n      \"EvalResourceName\": \"arn:aws:iam::111122223333:user/platform-admin\",\n      \"EvalDecision\": \"allowed\",\n      \"MatchedStatements\": [\n        {\n          \"SourcePolicyId\": \"OnboardingPolicy\",\n          \"SourcePolicyType\": \"IAM Policy\"\n        }\n      ],\n      \"MissingContextValues\": []\n    }\n  ]\n}"
+          },
+          {
+            "match": "^aws iam simulate-principal-policy .*--policy-source-arn \\S*:role/opsengineerrole .*--action-names iam:updateassumerolepolicy\\b",
+            "output": "{\n  \"EvaluationResults\": [\n    {\n      \"EvalActionName\": \"iam:UpdateAssumeRolePolicy\",\n      \"EvalResourceName\": \"arn:aws:iam::111122223333:role/PlatformAdminRole\",\n      \"EvalDecision\": \"allowed\",\n      \"MatchedStatements\": [\n        {\n          \"SourcePolicyId\": \"RoleOpsPolicy\",\n          \"SourcePolicyType\": \"IAM Policy\"\n        }\n      ],\n      \"MissingContextValues\": []\n    }\n  ]\n}"
+          },
+          {
+            "match": "^aws iam simulate-principal-policy .*--policy-source-arn \\S*:user/ci-deployer .*--action-names iam:passrole\\b",
+            "output": "{\n  \"EvaluationResults\": [\n    {\n      \"EvalActionName\": \"iam:PassRole\",\n      \"EvalResourceName\": \"arn:aws:iam::111122223333:role/PlatformAdminRole\",\n      \"EvalDecision\": \"allowed\",\n      \"MatchedStatements\": [\n        {\n          \"SourcePolicyId\": \"DeployerPolicy\",\n          \"SourcePolicyType\": \"IAM Policy\"\n        }\n      ],\n      \"MissingContextValues\": []\n    }\n  ]\n}"
+          },
+          {
+            "match": "^aws iam simulate-principal-policy\\b",
+            "output": "{\n  \"EvaluationResults\": [\n    {\n      \"EvalActionName\": \"(requested action)\",\n      \"EvalDecision\": \"implicitDeny\",\n      \"MatchedStatements\": [],\n      \"MissingContextValues\": []\n    }\n  ]\n}"
+          },
+          {
+            "match": "^\\./recheck-iam\\.sh$",
+            "requires": [
+              "got_report",
+              "rev_p1",
+              "rev_p2",
+              "rev_p3",
+              "rev_p4"
+            ],
+            "output": "recheck-iam.sh: re-running PMapper analysis on the remediated policy set (account 111122223333)\n  DevToolingPolicy   v2  CreatePolicyVersion scoped to /team-app/, own policy denied ... ok\n  OnboardingPolicy   v2  AttachUserPolicy pinned to new-hire-* + NewHireBaseline ...... ok\n  RoleOpsPolicy      v2  UpdateAssumeRolePolicy requires tier=app ................... ok\n  DeployerPolicy     v2  PassRole pinned to app roles + service condition ........... ok\n\nFindings: 0 paths to admin. All 5 customer-managed policies pass.\nFLAG{iam_escalation_paths_closed_7c2e}"
+          },
+          {
+            "match": "^\\./recheck-iam\\.sh$",
+            "output": "recheck-iam.sh: nothing to verify yet. Run `pmapper graph create` and `pmapper analysis`, review every flagged policy with `aws iam get-policy-version`, fix them in the tasks, then re-run."
+          },
+          {
+            "match": "^aws iam (put-user-policy|attach-user-policy|create-policy-version|update-assume-role-policy|delete-policy)\\b",
+            "output": "An error occurred (AccessDenied) when calling the IAM operation: User: arn:aws:sts::111122223333:assumed-role/SecurityAuditRole/audit-session is not authorized to perform that action. This audit role is read-only; remediation is done in the policy tasks."
+          }
+        ]
+      },
+      "solution": [
+        "aws sts get-caller-identity",
+        "aws iam list-policies --scope Local --only-attached",
+        "pmapper graph create",
+        "pmapper analysis",
+        "aws iam get-policy-version --policy-arn arn:aws:iam::111122223333:policy/DevToolingPolicy --version-id v1",
+        "aws iam get-policy-version --policy-arn arn:aws:iam::111122223333:policy/OnboardingPolicy --version-id v1",
+        "aws iam get-policy-version --policy-arn arn:aws:iam::111122223333:policy/RoleOpsPolicy --version-id v1",
+        "aws iam get-policy-version --policy-arn arn:aws:iam::111122223333:policy/DeployerPolicy --version-id v1",
+        "./recheck-iam.sh"
+      ],
+      "tasks": [
+        {
+          "id": "t1",
+          "kind": "choice",
+          "prompt": "After running the risk analysis and reading the four flagged policies, which of these permissions are escalation-capable (select all that apply)?",
+          "options": [
+            "iam:CreatePolicyVersion on * (DevToolingPolicy)",
+            "iam:GetPolicyVersion and iam:ListPolicyVersions on * (read-only)",
+            "iam:AttachUserPolicy on * (OnboardingPolicy)",
+            "s3:GetObject on a single reports bucket (ReportingReadPolicy)",
+            "iam:UpdateAssumeRolePolicy on * (RoleOpsPolicy)"
+          ],
+          "correct": [
+            0,
+            2,
+            4
+          ],
+          "explanation": "CreatePolicyVersion, AttachUserPolicy and UpdateAssumeRolePolicy all let a principal change who has which permissions, so with Resource * they can be turned into administrator access. Read-only IAM calls and a scoped S3 read let you see or use data, but they do not rewrite permissions."
+        },
+        {
+          "id": "t2",
+          "kind": "answer",
+          "prompt": "In the analysis report, which principal can reach admin by rewriting a policy that is attached to ITSELF? Give the user name.",
+          "accept": [
+            "dev-lead",
+            "user/dev-lead",
+            "arn:aws:iam::111122223333:user/dev-lead"
+          ],
+          "explanation": "user/dev-lead holds iam:CreatePolicyVersion and iam:SetDefaultPolicyVersion on *, including DevToolingPolicy, which is attached to dev-lead. Publishing a more permissive default version changes the user's own permissions without anyone granting anything new. A self-referencing edge like this is exactly what graph tools highlight."
+        },
+        {
+          "id": "t3",
+          "kind": "choice",
+          "prompt": "Why is iam:CreatePolicyVersion on * dangerous even though it grants no access to any data?",
+          "options": [
+            "A holder can publish a new default version of a managed policy already attached to them (or a more privileged principal), replacing its permissions with broader ones",
+            "It lets the holder read every secret in Secrets Manager",
+            "It disables CloudTrail logging for the account",
+            "It deletes the account's SCPs so guardrails stop applying"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "A managed policy can hold up to five versions and the default version is the one that is evaluated. Whoever can create a version (or flip the default with SetDefaultPolicyVersion, including back to an old permissive version) controls what every principal attached to that policy may do. Defend by scoping the Resource to policies the team really owns and denying the principal's own policy ARN."
+        },
+        {
+          "id": "t4",
+          "kind": "policy",
+          "mode": "identity",
+          "prompt": "Fix DevToolingPolicy. dev-lead must keep read access to policies and stacks, and keep publishing/activating versions of the team's own policies under the /team-app/ path, but must NOT be able to change DevToolingPolicy itself or any other policy outside that path.",
+          "starter": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"ReadPolicies\",\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"iam:ListPolicies\",\n        \"iam:GetPolicy\",\n        \"iam:GetPolicyVersion\",\n        \"iam:ListPolicyVersions\"\n      ],\n      \"Resource\": \"*\"\n    },\n    {\n      \"Sid\": \"ManagePolicyVersions\",\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"iam:CreatePolicyVersion\",\n        \"iam:SetDefaultPolicyVersion\"\n      ],\n      \"Resource\": \"*\"\n    },\n    {\n      \"Sid\": \"StackReadOnly\",\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"cloudformation:DescribeStacks\",\n        \"cloudformation:ListStacks\"\n      ],\n      \"Resource\": \"*\"\n    }\n  ]\n}",
+          "solution": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"iam:ListPolicies\",\n        \"iam:GetPolicy\",\n        \"iam:GetPolicyVersion\",\n        \"iam:ListPolicyVersions\"\n      ],\n      \"Resource\": \"*\"\n    },\n    {\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"iam:CreatePolicyVersion\",\n        \"iam:SetDefaultPolicyVersion\"\n      ],\n      \"Resource\": \"arn:aws:iam::111122223333:policy/team-app/*\"\n    },\n    {\n      \"Effect\": \"Deny\",\n      \"Action\": [\n        \"iam:CreatePolicyVersion\",\n        \"iam:SetDefaultPolicyVersion\"\n      ],\n      \"Resource\": \"arn:aws:iam::111122223333:policy/DevToolingPolicy\"\n    },\n    {\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"cloudformation:DescribeStacks\",\n        \"cloudformation:ListStacks\"\n      ],\n      \"Resource\": \"*\"\n    }\n  ]\n}",
+          "tests": [
+            {
+              "name": "Can publish a new version of a team-owned policy",
+              "action": "iam:CreatePolicyVersion",
+              "resource": "arn:aws:iam::111122223333:policy/team-app/app-config",
+              "expect": "allow"
+            },
+            {
+              "name": "Can activate a version of a team-owned policy",
+              "action": "iam:SetDefaultPolicyVersion",
+              "resource": "arn:aws:iam::111122223333:policy/team-app/app-config",
+              "expect": "allow"
+            },
+            {
+              "name": "Cannot rewrite its own DevToolingPolicy",
+              "action": "iam:CreatePolicyVersion",
+              "resource": "arn:aws:iam::111122223333:policy/DevToolingPolicy",
+              "expect": "deny"
+            },
+            {
+              "name": "Cannot flip the default version of its own policy",
+              "action": "iam:SetDefaultPolicyVersion",
+              "resource": "arn:aws:iam::111122223333:policy/DevToolingPolicy",
+              "expect": "deny"
+            },
+            {
+              "name": "Cannot touch a policy outside the team path",
+              "action": "iam:CreatePolicyVersion",
+              "resource": "arn:aws:iam::111122223333:policy/PlatformBreakGlass",
+              "expect": "deny"
+            },
+            {
+              "name": "Can still read any policy version",
+              "action": "iam:GetPolicyVersion",
+              "resource": "arn:aws:iam::111122223333:policy/PlatformBreakGlass",
+              "expect": "allow"
+            },
+            {
+              "name": "Can still describe CloudFormation stacks",
+              "action": "cloudformation:DescribeStacks",
+              "resource": "*",
+              "expect": "allow"
+            }
+          ],
+          "explanation": "Two controls break the path. The Allow is limited to the /team-app/ policy path, so the permission can no longer be pointed at policies outside the team's remit. An explicit Deny on DevToolingPolicy guarantees the principal can never rewrite the policy that defines its own access, even if someone later moves it under that path."
+        },
+        {
+          "id": "t5",
+          "kind": "choice",
+          "prompt": "Which statements correctly explain why the other flagged permissions are escalation-capable? (select all that apply)",
+          "options": [
+            "iam:AttachUserPolicy on * lets the holder attach a powerful managed policy such as AdministratorAccess to a user they control",
+            "iam:UpdateAssumeRolePolicy on * lets the holder change WHO may assume a role, so a privileged role can be made assumable by the holder's own identity",
+            "iam:PassRole on * lets the holder hand any role, including an admin one, to a service that will run their code",
+            "These actions are harmless because they never read or write customer data",
+            "iam:AttachUserPolicy only works on the caller's own user, so the blast radius is small"
+          ],
+          "correct": [
+            0,
+            1,
+            2
+          ],
+          "explanation": "All three are 'control-plane' permissions: they change identity relationships rather than touching data, which is exactly why they are easy to overlook. AttachUserPolicy works on any user in the account, not only the caller. The risk always depends on the target (which user, which role) and on what the policy or role being attached or passed can do."
+        },
+        {
+          "id": "t6",
+          "kind": "policy",
+          "mode": "identity",
+          "prompt": "Fix OnboardingPolicy. The HR bot must still list/get users, create users named new-hire-*, and attach ONLY the NewHireBaseline policy to those new-hire users. It must not be able to attach any other policy, nor attach anything to a non-new-hire user.",
+          "starter": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"Onboard\",\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"iam:CreateUser\",\n        \"iam:AttachUserPolicy\",\n        \"iam:ListUsers\",\n        \"iam:GetUser\"\n      ],\n      \"Resource\": \"*\"\n    }\n  ]\n}",
+          "solution": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"iam:ListUsers\",\n        \"iam:GetUser\"\n      ],\n      \"Resource\": \"*\"\n    },\n    {\n      \"Effect\": \"Allow\",\n      \"Action\": \"iam:CreateUser\",\n      \"Resource\": \"arn:aws:iam::111122223333:user/new-hire-*\"\n    },\n    {\n      \"Effect\": \"Allow\",\n      \"Action\": \"iam:AttachUserPolicy\",\n      \"Resource\": \"arn:aws:iam::111122223333:user/new-hire-*\",\n      \"Condition\": {\n        \"ArnEquals\": {\n          \"iam:PolicyARN\": \"arn:aws:iam::111122223333:policy/NewHireBaseline\"\n        }\n      }\n    }\n  ]\n}",
+          "tests": [
+            {
+              "name": "Can create a new-hire user",
+              "action": "iam:CreateUser",
+              "resource": "arn:aws:iam::111122223333:user/new-hire-asha",
+              "expect": "allow"
+            },
+            {
+              "name": "Can attach NewHireBaseline to a new-hire user",
+              "action": "iam:AttachUserPolicy",
+              "resource": "arn:aws:iam::111122223333:user/new-hire-asha",
+              "context": {
+                "iam:PolicyARN": "arn:aws:iam::111122223333:policy/NewHireBaseline"
+              },
+              "expect": "allow"
+            },
+            {
+              "name": "Cannot attach AdministratorAccess to a new-hire user",
+              "action": "iam:AttachUserPolicy",
+              "resource": "arn:aws:iam::111122223333:user/new-hire-asha",
+              "context": {
+                "iam:PolicyARN": "arn:aws:iam::aws:policy/AdministratorAccess"
+              },
+              "expect": "deny"
+            },
+            {
+              "name": "Cannot attach even the baseline policy to an existing admin user",
+              "action": "iam:AttachUserPolicy",
+              "resource": "arn:aws:iam::111122223333:user/platform-admin",
+              "context": {
+                "iam:PolicyARN": "arn:aws:iam::111122223333:policy/NewHireBaseline"
+              },
+              "expect": "deny"
+            },
+            {
+              "name": "Cannot create users outside the new-hire naming scheme",
+              "action": "iam:CreateUser",
+              "resource": "arn:aws:iam::111122223333:user/backdoor-admin",
+              "expect": "deny"
+            },
+            {
+              "name": "Can still list users",
+              "action": "iam:ListUsers",
+              "resource": "*",
+              "expect": "allow"
+            }
+          ],
+          "explanation": "Resource decides WHICH users the bot can modify, and the iam:PolicyARN condition decides WHICH policy it may attach. You need both: scoping only the user would still allow AdministratorAccess on a new hire, and scoping only the policy would allow baseline changes on privileged users. Pinning the condition key with ArnEquals is the standard guardrail for AttachUserPolicy."
+        },
+        {
+          "id": "t7",
+          "kind": "policy",
+          "mode": "identity",
+          "prompt": "Fix RoleOpsPolicy. Ops must keep read access to roles and must keep editing trust policies of ordinary application roles (tagged tier=app, names starting app-), but must NOT be able to edit the trust policy of any admin role or of a role tagged tier=admin, even if its name starts with app-.",
+          "starter": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"ReadRoles\",\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"iam:GetRole\",\n        \"iam:ListRoles\",\n        \"iam:ListAttachedRolePolicies\"\n      ],\n      \"Resource\": \"*\"\n    },\n    {\n      \"Sid\": \"EditTrust\",\n      \"Effect\": \"Allow\",\n      \"Action\": \"iam:UpdateAssumeRolePolicy\",\n      \"Resource\": \"*\"\n    }\n  ]\n}",
+          "solution": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"iam:GetRole\",\n        \"iam:ListRoles\",\n        \"iam:ListAttachedRolePolicies\"\n      ],\n      \"Resource\": \"*\"\n    },\n    {\n      \"Effect\": \"Allow\",\n      \"Action\": \"iam:UpdateAssumeRolePolicy\",\n      \"Resource\": \"arn:aws:iam::111122223333:role/app-*\",\n      \"Condition\": {\n        \"StringEquals\": {\n          \"iam:ResourceTag/tier\": \"app\"\n        }\n      }\n    }\n  ]\n}",
+          "tests": [
+            {
+              "name": "Can update the trust policy of an app-tier role",
+              "action": "iam:UpdateAssumeRolePolicy",
+              "resource": "arn:aws:iam::111122223333:role/app-orders-exec",
+              "context": {
+                "iam:ResourceTag/tier": "app"
+              },
+              "expect": "allow"
+            },
+            {
+              "name": "Cannot update the trust policy of PlatformAdminRole",
+              "action": "iam:UpdateAssumeRolePolicy",
+              "resource": "arn:aws:iam::111122223333:role/PlatformAdminRole",
+              "context": {
+                "iam:ResourceTag/tier": "admin"
+              },
+              "expect": "deny"
+            },
+            {
+              "name": "Cannot update an admin-tier role that happens to be named app-*",
+              "action": "iam:UpdateAssumeRolePolicy",
+              "resource": "arn:aws:iam::111122223333:role/app-legacy-admin",
+              "context": {
+                "iam:ResourceTag/tier": "admin"
+              },
+              "expect": "deny"
+            },
+            {
+              "name": "Cannot update OrganizationAccountAccessRole",
+              "action": "iam:UpdateAssumeRolePolicy",
+              "resource": "arn:aws:iam::111122223333:role/OrganizationAccountAccessRole",
+              "context": {
+                "iam:ResourceTag/tier": "admin"
+              },
+              "expect": "deny"
+            },
+            {
+              "name": "Can still read any role",
+              "action": "iam:GetRole",
+              "resource": "arn:aws:iam::111122223333:role/PlatformAdminRole",
+              "expect": "allow"
+            }
+          ],
+          "explanation": "Names are not a security boundary, which is why the tag condition matters: iam:ResourceTag/tier checks the tag on the target role, so a privileged role cannot hide behind an app- name. Pair the name pattern (narrow Resource) with the tag (what the role actually is). Where a team does not need the action at all, the cleaner fix is to move it to an admin-only role that is assumed with MFA."
+        },
+        {
+          "id": "t8",
+          "kind": "policy",
+          "mode": "identity",
+          "prompt": "Fix DeployerPolicy. CI must still create/update Lambda functions and register/run ECS tasks, and may pass app-lambda-exec-* roles to Lambda and app-task-* roles to ECS tasks. It must NOT be able to pass PlatformAdminRole to anything, nor pass an app role to a service it is not meant for (for example EC2).",
+          "starter": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"Deploy\",\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"lambda:CreateFunction\",\n        \"lambda:UpdateFunctionCode\",\n        \"ecs:RegisterTaskDefinition\",\n        \"ecs:RunTask\"\n      ],\n      \"Resource\": \"*\"\n    },\n    {\n      \"Sid\": \"PassAnyRole\",\n      \"Effect\": \"Allow\",\n      \"Action\": \"iam:PassRole\",\n      \"Resource\": \"*\"\n    }\n  ]\n}",
+          "solution": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"lambda:CreateFunction\",\n        \"lambda:UpdateFunctionCode\",\n        \"ecs:RegisterTaskDefinition\",\n        \"ecs:RunTask\"\n      ],\n      \"Resource\": \"*\"\n    },\n    {\n      \"Effect\": \"Allow\",\n      \"Action\": \"iam:PassRole\",\n      \"Resource\": [\n        \"arn:aws:iam::111122223333:role/app-lambda-exec-*\",\n        \"arn:aws:iam::111122223333:role/app-task-*\"\n      ],\n      \"Condition\": {\n        \"StringEquals\": {\n          \"iam:PassedToService\": [\n            \"lambda.amazonaws.com\",\n            \"ecs-tasks.amazonaws.com\"\n          ]\n        }\n      }\n    }\n  ]\n}",
+          "tests": [
+            {
+              "name": "Can pass the Lambda exec role to Lambda",
+              "action": "iam:PassRole",
+              "resource": "arn:aws:iam::111122223333:role/app-lambda-exec-orders",
+              "context": {
+                "iam:PassedToService": "lambda.amazonaws.com"
+              },
+              "expect": "allow"
+            },
+            {
+              "name": "Can pass the ECS task role to ECS tasks",
+              "action": "iam:PassRole",
+              "resource": "arn:aws:iam::111122223333:role/app-task-orders",
+              "context": {
+                "iam:PassedToService": "ecs-tasks.amazonaws.com"
+              },
+              "expect": "allow"
+            },
+            {
+              "name": "Cannot pass PlatformAdminRole to Lambda",
+              "action": "iam:PassRole",
+              "resource": "arn:aws:iam::111122223333:role/PlatformAdminRole",
+              "context": {
+                "iam:PassedToService": "lambda.amazonaws.com"
+              },
+              "expect": "deny"
+            },
+            {
+              "name": "Cannot pass the Lambda exec role to EC2",
+              "action": "iam:PassRole",
+              "resource": "arn:aws:iam::111122223333:role/app-lambda-exec-orders",
+              "context": {
+                "iam:PassedToService": "ec2.amazonaws.com"
+              },
+              "expect": "deny"
+            },
+            {
+              "name": "Can still create Lambda functions",
+              "action": "lambda:CreateFunction",
+              "resource": "arn:aws:lambda:us-east-1:111122223333:function:orders-api",
+              "expect": "allow"
+            }
+          ],
+          "explanation": "PassRole is only as dangerous as the role being passed and the service receiving it. Listing the role ARN patterns removes the admin role from reach, and iam:PassedToService makes sure even an allowed role can only be handed to the services it was built for. This is the defensive mirror of the classic PassRole + CreateFunction escalation."
+        },
+        {
+          "id": "t9",
+          "kind": "flag",
+          "prompt": "After remediating all four policies, run the recheck helper (`./recheck-iam.sh`) against the remediated policy set. It only runs once you have reviewed every flagged policy. Paste the flag from the clean report.",
+          "flag": "FLAG{iam_escalation_paths_closed_7c2e}",
+          "explanation": "Verification closes the loop: a fix is not done until the same analysis that found the path no longer finds it. Re-running graph analysis after each change, and ideally in CI on every policy change, stops regressions where someone widens a policy again."
+        },
+        {
+          "id": "t10",
+          "kind": "answer",
+          "prompt": "Name ONE organisation-wide guardrail type (besides the identity policies themselves) that can cap what IAM actions any team policy is able to grant, so a future over-broad policy cannot create a path to admin.",
+          "accept": [
+            "permission boundary",
+            "permissions boundary",
+            "scp",
+            "scps",
+            "service control policy",
+            "service control policies",
+            "permission boundaries",
+            "permissions boundaries"
+          ],
+          "explanation": "Permissions boundaries (per principal) and service control policies (per account or OU) never grant access; they set a ceiling that must also allow the action. Used together with scoped identity policies they mean a mistake in one team's policy cannot, on its own, hand out administrator access."
+        }
+      ],
+      "takeaways": [
+        "Several IAM actions are privilege-escalation primitives even though they touch no data: CreatePolicyVersion/SetDefaultPolicyVersion, AttachUserPolicy, UpdateAssumeRolePolicy and PassRole. Treat each as 'can change who has what'.",
+        "The fix is almost never 'remove the permission': it is to scope Resource to the exact ARNs the job needs and add a condition (iam:PolicyARN, iam:ResourceTag, iam:PassedToService) so the permission cannot be pointed at privileged targets.",
+        "Run a graph-based analysis (PMapper, IAM Access Analyzer) regularly and gate IAM-changing permissions with permissions boundaries or SCPs so one over-broad team policy cannot become a path to admin."
+      ]
+    }
+  },
+  {
+    "labId": "cloud-L09",
+    "title": "Audit Role Trust Policies",
+    "objective": "Audit the trust policies of the roles in your own simulated account, flag the ones that trust the wrong principals or lack the right conditions, and rewrite each trust policy so only the intended caller can assume it.",
+    "successCriteria": [
+      "You identified the three risky roles (wildcard principal, vendor account root without ExternalId, member-account root without org condition) and ignored the safe ones",
+      "You rewrote each trust policy so only the intended role can assume it, with sts:ExternalId or aws:PrincipalOrgID where required",
+      "A re-scan of the remediated trust policies reports no external-access findings"
+    ],
+    "hints": [
+      "The trust policy lives in AssumeRolePolicyDocument. Read it for three things: WHO is the Principal, is it a whole account (:root) or one role, and is there a Condition?",
+      "A `:root` principal trusts every identity in that account that has sts:AssumeRole permission. Name the exact role instead, then add a condition the caller must supply.",
+      "Vendor access: Principal = the vendor's collector role + StringEquals sts:ExternalId. Internal member account: the CI role + StringEquals aws:PrincipalOrgID. Backup role: the single backup-orchestrator role in your own account."
+    ],
+    "estimatedHours": 2,
+    "resources": [
+      {
+        "title": "AWS docs: How to use an external ID when granting access to your AWS resources to a third party",
+        "url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_create_for-user_externalid.html",
+        "type": "link"
+      },
+      {
+        "title": "AWS docs: Using IAM Access Analyzer to identify resources shared externally",
+        "url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/what-is-access-analyzer.html",
+        "type": "link"
+      },
+      {
+        "title": "AWS docs: AWS global condition context keys (aws:PrincipalOrgID)",
+        "url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_condition-keys.html",
+        "type": "link"
+      }
+    ],
+    "range": {
+      "scenario": "You are the cloud security engineer for account 111122223333. An IAM Access Analyzer scan has raised external-access findings on IAM roles, and you need to work out which are real problems. Use the read-only audit role in the terminal to list the roles, read each trust policy and check the analyzer findings. A few roles are intentionally cross-account (a third-party analytics vendor, a CI runner in your own dev account), one is a legacy backup role nobody remembers, and some are perfectly fine. Decide which trust policies are too permissive, rewrite them so only the intended caller can assume the role, then re-run the scan helper to confirm.",
+      "artifacts": [
+        {
+          "name": "integration-notes.txt",
+          "language": "text",
+          "content": "Third-party analytics (Northwind Analytics)\n  Vendor account:   444455556666\n  Vendor role:      arn:aws:iam::444455556666:role/northwind-collector\n  Our role:         PartnerAnalyticsRole\n  ExternalId:       nw-9d41-prod   (issued to us by the vendor, unique to our tenant)\n\nInternal CI (dev-tools member account 777788889999)\n  CI role:          arn:aws:iam::777788889999:role/ci-runner\n  Our role:         CrossAccountDeployRole\n  Our AWS Organization id: o-a1b2c3d4e5\n\nBackup\n  Nightly job runs as arn:aws:iam::111122223333:role/backup-orchestrator in THIS account\n  Our role:         LegacyBackupRole",
+          "note": "Who is supposed to be able to assume what. Everyone else must be denied."
+        },
+        {
+          "name": "LegacyBackupRole-trust.json",
+          "language": "json",
+          "content": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Effect\": \"Allow\",\n      \"Principal\": {\n        \"AWS\": \"*\"\n      },\n      \"Action\": \"sts:AssumeRole\"\n    }\n  ]\n}",
+          "note": "Current trust policy of LegacyBackupRole (also visible via `aws iam get-role`)."
+        },
+        {
+          "name": "PartnerAnalyticsRole-trust.json",
+          "language": "json",
+          "content": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Effect\": \"Allow\",\n      \"Principal\": {\n        \"AWS\": \"arn:aws:iam::444455556666:root\"\n      },\n      \"Action\": \"sts:AssumeRole\"\n    }\n  ]\n}",
+          "note": "Current trust policy of PartnerAnalyticsRole."
+        },
+        {
+          "name": "CrossAccountDeployRole-trust.json",
+          "language": "json",
+          "content": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Effect\": \"Allow\",\n      \"Principal\": {\n        \"AWS\": \"arn:aws:iam::777788889999:root\"\n      },\n      \"Action\": \"sts:AssumeRole\"\n    }\n  ]\n}",
+          "note": "Current trust policy of CrossAccountDeployRole."
+        }
+      ],
+      "terminal": {
+        "prompt": "auditor@cloudshell:~$",
+        "intro": "Assumed SecurityAuditRole in account 111122223333 (read-only IAM and Access Analyzer). Everything here is simulated.",
+        "help": "Commands you can try:\n  aws sts get-caller-identity\n  aws iam list-roles\n  aws iam get-role --role-name <name>\n  aws accessanalyzer list-findings --analyzer-arn arn:aws:access-analyzer:us-east-1:111122223333:analyzer/account-analyzer\n  ./rescan-trust.sh      (lab helper: re-scans the remediated trust policies with Access Analyzer)",
+        "rules": [
+          {
+            "match": "^aws sts get-caller-identity$",
+            "output": "{\n  \"UserId\": \"AROAEXAMPLEAUDIT0001:audit-session\",\n  \"Account\": \"111122223333\",\n  \"Arn\": \"arn:aws:sts::111122223333:assumed-role/SecurityAuditRole/audit-session\"\n}"
+          },
+          {
+            "match": "^aws iam list-roles$",
+            "sets": [
+              "listed_roles"
+            ],
+            "output": "{\n  \"Roles\": [\n    {\n      \"RoleName\": \"LegacyBackupRole\",\n      \"Arn\": \"arn:aws:iam::111122223333:role/LegacyBackupRole\"\n    },\n    {\n      \"RoleName\": \"PartnerAnalyticsRole\",\n      \"Arn\": \"arn:aws:iam::111122223333:role/PartnerAnalyticsRole\"\n    },\n    {\n      \"RoleName\": \"CrossAccountDeployRole\",\n      \"Arn\": \"arn:aws:iam::111122223333:role/CrossAccountDeployRole\"\n    },\n    {\n      \"RoleName\": \"AppLambdaExecRole\",\n      \"Arn\": \"arn:aws:iam::111122223333:role/AppLambdaExecRole\"\n    },\n    {\n      \"RoleName\": \"SecurityAuditRole\",\n      \"Arn\": \"arn:aws:iam::111122223333:role/SecurityAuditRole\"\n    }\n  ]\n}"
+          },
+          {
+            "match": "^aws iam get-role --role-name legacybackuprole$",
+            "sets": [
+              "rev_legacy"
+            ],
+            "output": "{\n  \"Role\": {\n    \"Path\": \"/\",\n    \"RoleName\": \"LegacyBackupRole\",\n    \"RoleId\": \"AROAEXAMPLELEGACY001\",\n    \"Arn\": \"arn:aws:iam::111122223333:role/LegacyBackupRole\",\n    \"CreateDate\": \"2024-02-09T11:30:12+00:00\",\n    \"AssumeRolePolicyDocument\": {\n      \"Version\": \"2012-10-17\",\n      \"Statement\": [\n        {\n          \"Effect\": \"Allow\",\n          \"Principal\": {\n            \"AWS\": \"*\"\n          },\n          \"Action\": \"sts:AssumeRole\"\n        }\n      ]\n    },\n    \"MaxSessionDuration\": 3600\n  }\n}"
+          },
+          {
+            "match": "^aws iam get-role --role-name partneranalyticsrole$",
+            "sets": [
+              "rev_partner"
+            ],
+            "output": "{\n  \"Role\": {\n    \"Path\": \"/\",\n    \"RoleName\": \"PartnerAnalyticsRole\",\n    \"RoleId\": \"AROAEXAMPLEPARTNER01\",\n    \"Arn\": \"arn:aws:iam::111122223333:role/PartnerAnalyticsRole\",\n    \"CreateDate\": \"2025-08-21T09:04:55+00:00\",\n    \"AssumeRolePolicyDocument\": {\n      \"Version\": \"2012-10-17\",\n      \"Statement\": [\n        {\n          \"Effect\": \"Allow\",\n          \"Principal\": {\n            \"AWS\": \"arn:aws:iam::444455556666:root\"\n          },\n          \"Action\": \"sts:AssumeRole\"\n        }\n      ]\n    },\n    \"MaxSessionDuration\": 3600\n  }\n}"
+          },
+          {
+            "match": "^aws iam get-role --role-name crossaccountdeployrole$",
+            "sets": [
+              "rev_deploy"
+            ],
+            "output": "{\n  \"Role\": {\n    \"Path\": \"/\",\n    \"RoleName\": \"CrossAccountDeployRole\",\n    \"RoleId\": \"AROAEXAMPLEDEPLOY001\",\n    \"Arn\": \"arn:aws:iam::111122223333:role/CrossAccountDeployRole\",\n    \"CreateDate\": \"2025-11-03T15:18:40+00:00\",\n    \"AssumeRolePolicyDocument\": {\n      \"Version\": \"2012-10-17\",\n      \"Statement\": [\n        {\n          \"Effect\": \"Allow\",\n          \"Principal\": {\n            \"AWS\": \"arn:aws:iam::777788889999:root\"\n          },\n          \"Action\": \"sts:AssumeRole\"\n        }\n      ]\n    },\n    \"MaxSessionDuration\": 3600\n  }\n}"
+          },
+          {
+            "match": "^aws iam get-role --role-name applambdaexecrole$",
+            "output": "{\n  \"Role\": {\n    \"Path\": \"/\",\n    \"RoleName\": \"AppLambdaExecRole\",\n    \"RoleId\": \"AROAEXAMPLELAMBDA01\",\n    \"Arn\": \"arn:aws:iam::111122223333:role/AppLambdaExecRole\",\n    \"CreateDate\": \"2025-05-17T13:22:01+00:00\",\n    \"AssumeRolePolicyDocument\": {\n      \"Version\": \"2012-10-17\",\n      \"Statement\": [\n        {\n          \"Effect\": \"Allow\",\n          \"Principal\": {\n            \"Service\": \"lambda.amazonaws.com\"\n          },\n          \"Action\": \"sts:AssumeRole\"\n        }\n      ]\n    },\n    \"MaxSessionDuration\": 3600\n  }\n}"
+          },
+          {
+            "match": "^aws iam get-role --role-name securityauditrole$",
+            "output": "{\n  \"Role\": {\n    \"Path\": \"/\",\n    \"RoleName\": \"SecurityAuditRole\",\n    \"RoleId\": \"AROAEXAMPLEAUDIT0001\",\n    \"Arn\": \"arn:aws:iam::111122223333:role/SecurityAuditRole\",\n    \"CreateDate\": \"2025-01-12T08:00:00+00:00\",\n    \"AssumeRolePolicyDocument\": {\n      \"Version\": \"2012-10-17\",\n      \"Statement\": [\n        {\n          \"Effect\": \"Allow\",\n          \"Principal\": {\n            \"AWS\": \"arn:aws:iam::111122223333:root\"\n          },\n          \"Action\": \"sts:AssumeRole\",\n          \"Condition\": {\n            \"Bool\": {\n              \"aws:MultiFactorAuthPresent\": \"true\"\n            }\n          }\n        }\n      ]\n    },\n    \"MaxSessionDuration\": 3600\n  }\n}"
+          },
+          {
+            "match": "^aws iam get-role --role-name (\\S+)$",
+            "output": "An error occurred (NoSuchEntity) when calling the GetRole operation: The role with name $1 cannot be found."
+          },
+          {
+            "match": "^aws accessanalyzer list-findings --analyzer-arn arn:aws:access-analyzer:us-east-1:111122223333:analyzer\\/account-analyzer( .*)?$",
+            "sets": [
+              "got_findings"
+            ],
+            "output": "{\n  \"findings\": [\n    {\n      \"id\": \"a1b2c3d4-0001-4aaa-9aaa-000000000001\",\n      \"principal\": {\n        \"AWS\": \"*\"\n      },\n      \"action\": [\n        \"sts:AssumeRole\"\n      ],\n      \"resource\": \"arn:aws:iam::111122223333:role/LegacyBackupRole\",\n      \"isPublic\": true,\n      \"resourceType\": \"AWS::IAM::Role\",\n      \"condition\": {},\n      \"createdAt\": \"2026-06-14T07:12:09+00:00\",\n      \"analyzedAt\": \"2026-11-19T02:00:44+00:00\",\n      \"updatedAt\": \"2026-06-14T07:12:09+00:00\",\n      \"status\": \"ACTIVE\",\n      \"resourceOwnerAccount\": \"111122223333\"\n    },\n    {\n      \"id\": \"a1b2c3d4-0002-4aaa-9aaa-000000000002\",\n      \"principal\": {\n        \"AWS\": \"arn:aws:iam::444455556666:root\"\n      },\n      \"action\": [\n        \"sts:AssumeRole\"\n      ],\n      \"resource\": \"arn:aws:iam::111122223333:role/PartnerAnalyticsRole\",\n      \"isPublic\": false,\n      \"resourceType\": \"AWS::IAM::Role\",\n      \"condition\": {},\n      \"createdAt\": \"2026-06-14T07:12:09+00:00\",\n      \"analyzedAt\": \"2026-11-19T02:00:44+00:00\",\n      \"updatedAt\": \"2026-06-14T07:12:09+00:00\",\n      \"status\": \"ACTIVE\",\n      \"resourceOwnerAccount\": \"111122223333\"\n    },\n    {\n      \"id\": \"a1b2c3d4-0003-4aaa-9aaa-000000000003\",\n      \"principal\": {\n        \"AWS\": \"arn:aws:iam::777788889999:root\"\n      },\n      \"action\": [\n        \"sts:AssumeRole\"\n      ],\n      \"resource\": \"arn:aws:iam::111122223333:role/CrossAccountDeployRole\",\n      \"isPublic\": false,\n      \"resourceType\": \"AWS::IAM::Role\",\n      \"condition\": {},\n      \"createdAt\": \"2026-06-14T07:12:09+00:00\",\n      \"analyzedAt\": \"2026-11-19T02:00:44+00:00\",\n      \"updatedAt\": \"2026-06-14T07:12:09+00:00\",\n      \"status\": \"ACTIVE\",\n      \"resourceOwnerAccount\": \"111122223333\"\n    }\n  ]\n}"
+          },
+          {
+            "match": "^aws accessanalyzer list-findings\\b",
+            "output": "An error occurred (ResourceNotFoundException) when calling the ListFindings operation: Analyzer not found. Use --analyzer-arn arn:aws:access-analyzer:us-east-1:111122223333:analyzer/account-analyzer"
+          },
+          {
+            "match": "^\\./rescan-trust\\.sh$",
+            "requires": [
+              "got_findings",
+              "rev_legacy",
+              "rev_partner",
+              "rev_deploy"
+            ],
+            "output": "rescan-trust.sh: rescanning the remediated trust policies (account 111122223333)\n  LegacyBackupRole        trust: backup-orchestrator only ................... no external access\n  PartnerAnalyticsRole    trust: northwind-collector + sts:ExternalId ....... external, conditioned (expected)\n  CrossAccountDeployRole  trust: ci-runner + aws:PrincipalOrgID ............. org-internal, conditioned\n\nActive findings: 0 public, 0 unconditioned. 3 resolved.\nFLAG{trust_policies_locked_down_4b8d}"
+          },
+          {
+            "match": "^\\./rescan-trust\\.sh$",
+            "output": "rescan-trust.sh: nothing to verify yet. List the analyzer findings, read the trust policy of every flagged role with `aws iam get-role`, fix them in the tasks, then re-run."
+          },
+          {
+            "match": "^aws iam (update-assume-role-policy|delete-role|create-role|attach-role-policy)\\b",
+            "output": "An error occurred (AccessDenied) when calling the IAM operation: User: arn:aws:sts::111122223333:assumed-role/SecurityAuditRole/audit-session is not authorized to perform that action. This audit role is read-only; remediation is done in the policy tasks."
+          }
+        ]
+      },
+      "solution": [
+        "aws sts get-caller-identity",
+        "aws iam list-roles",
+        "aws accessanalyzer list-findings --analyzer-arn arn:aws:access-analyzer:us-east-1:111122223333:analyzer/account-analyzer",
+        "aws iam get-role --role-name LegacyBackupRole",
+        "aws iam get-role --role-name PartnerAnalyticsRole",
+        "aws iam get-role --role-name CrossAccountDeployRole",
+        "./rescan-trust.sh"
+      ],
+      "tasks": [
+        {
+          "id": "t1",
+          "kind": "choice",
+          "prompt": "Read the trust policy of every role the analyzer flagged. Which roles have a trust policy that is too permissive (select all that apply)?",
+          "options": [
+            "LegacyBackupRole",
+            "PartnerAnalyticsRole",
+            "CrossAccountDeployRole",
+            "AppLambdaExecRole",
+            "SecurityAuditRole"
+          ],
+          "correct": [
+            0,
+            1,
+            2
+          ],
+          "explanation": "LegacyBackupRole trusts \"*\", PartnerAnalyticsRole trusts a vendor account root with no ExternalId, and CrossAccountDeployRole trusts a member account root with no organisation condition. AppLambdaExecRole trusts only the Lambda service, and SecurityAuditRole trusts only its own account and demands MFA, so both are fine."
+        },
+        {
+          "id": "t2",
+          "kind": "answer",
+          "prompt": "Which role is reachable by ANY AWS principal on the internet (the analyzer marks it isPublic: true)? Give the role name.",
+          "accept": [
+            "legacybackuprole",
+            "legacy backup role",
+            "arn:aws:iam::111122223333:role/legacybackuprole"
+          ],
+          "explanation": "LegacyBackupRole has Principal {\"AWS\": \"*\"}, which means any authenticated AWS identity, in any account, that has (or can obtain) sts:AssumeRole permission can attempt to assume it. Public roles are usually forgotten legacy integrations; the only thing standing between the world and the role is its permissions policy."
+        },
+        {
+          "id": "t3",
+          "kind": "policy",
+          "mode": "resource",
+          "prompt": "Fix LegacyBackupRole's trust policy. Only the backup-orchestrator role in THIS account (including its sessions) may assume it. No other role in the account, and no outside principal, may.",
+          "starter": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Effect\": \"Allow\",\n      \"Principal\": {\n        \"AWS\": \"*\"\n      },\n      \"Action\": \"sts:AssumeRole\"\n    }\n  ]\n}",
+          "solution": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Effect\": \"Allow\",\n      \"Principal\": {\n        \"AWS\": \"arn:aws:iam::111122223333:role/backup-orchestrator\"\n      },\n      \"Action\": \"sts:AssumeRole\"\n    }\n  ]\n}",
+          "tests": [
+            {
+              "name": "backup-orchestrator can assume the role",
+              "action": "sts:AssumeRole",
+              "principal": "arn:aws:iam::111122223333:role/backup-orchestrator",
+              "expect": "allow"
+            },
+            {
+              "name": "A backup-orchestrator session can assume the role",
+              "action": "sts:AssumeRole",
+              "principal": "arn:aws:sts::111122223333:assumed-role/backup-orchestrator/job-42",
+              "expect": "allow"
+            },
+            {
+              "name": "Another role in the same account cannot assume it",
+              "action": "sts:AssumeRole",
+              "principal": "arn:aws:iam::111122223333:role/app-web",
+              "expect": "deny"
+            },
+            {
+              "name": "A random user in an unrelated account cannot assume it",
+              "action": "sts:AssumeRole",
+              "principal": "arn:aws:iam::999900001111:user/anyone",
+              "expect": "deny"
+            }
+          ],
+          "explanation": "The fix replaces the wildcard with the one identity that needs the role. Naming a role (not the account root) matters: a root principal would delegate the decision to every identity policy in the account, while a role ARN grants only that role. A wildcard principal in a trust policy is almost never intended."
+        },
+        {
+          "id": "t4",
+          "kind": "choice",
+          "prompt": "PartnerAnalyticsRole trusts the vendor's whole account root with no condition. What is the real risk, and what does sts:ExternalId add?",
+          "options": [
+            "Any identity in the vendor account with sts:AssumeRole permission, including the vendor acting on behalf of ANOTHER customer, can assume your role; the ExternalId ties the request to your tenant so it cannot be replayed for someone else",
+            "The vendor can read your S3 buckets directly without assuming anything",
+            "ExternalId encrypts the temporary credentials returned by STS",
+            "ExternalId makes the role usable only from the vendor's IP addresses"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "This is the confused-deputy problem. The vendor is a shared service; without a customer-unique ExternalId that the vendor must present, a second customer of the vendor could trick the service into assuming YOUR role. ExternalId is not a password or encryption: it is an identifier the vendor must include so the assume-role request is tied to your tenant. Also scope the Principal to the vendor's exact role instead of the account root."
+        },
+        {
+          "id": "t5",
+          "kind": "policy",
+          "mode": "resource",
+          "prompt": "Fix PartnerAnalyticsRole's trust policy. Only Northwind's northwind-collector role may assume it, and only when it supplies the agreed ExternalId (see integration-notes.txt). Other roles in the vendor's account, and unrelated principals, must be denied.",
+          "starter": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Effect\": \"Allow\",\n      \"Principal\": {\n        \"AWS\": \"arn:aws:iam::444455556666:root\"\n      },\n      \"Action\": \"sts:AssumeRole\"\n    }\n  ]\n}",
+          "solution": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Effect\": \"Allow\",\n      \"Principal\": {\n        \"AWS\": \"arn:aws:iam::444455556666:role/northwind-collector\"\n      },\n      \"Action\": \"sts:AssumeRole\",\n      \"Condition\": {\n        \"StringEquals\": {\n          \"sts:ExternalId\": \"nw-9d41-prod\"\n        }\n      }\n    }\n  ]\n}",
+          "tests": [
+            {
+              "name": "northwind-collector with the correct ExternalId can assume",
+              "action": "sts:AssumeRole",
+              "principal": "arn:aws:iam::444455556666:role/northwind-collector",
+              "context": {
+                "sts:ExternalId": "nw-9d41-prod"
+              },
+              "expect": "allow"
+            },
+            {
+              "name": "northwind-collector without an ExternalId is denied",
+              "action": "sts:AssumeRole",
+              "principal": "arn:aws:iam::444455556666:role/northwind-collector",
+              "expect": "deny"
+            },
+            {
+              "name": "northwind-collector with a wrong ExternalId is denied",
+              "action": "sts:AssumeRole",
+              "principal": "arn:aws:iam::444455556666:role/northwind-collector",
+              "context": {
+                "sts:ExternalId": "nw-0000-guess"
+              },
+              "expect": "deny"
+            },
+            {
+              "name": "Another role in the vendor's account is denied even with the ExternalId",
+              "action": "sts:AssumeRole",
+              "principal": "arn:aws:iam::444455556666:role/northwind-intern",
+              "context": {
+                "sts:ExternalId": "nw-9d41-prod"
+              },
+              "expect": "deny"
+            },
+            {
+              "name": "An unrelated account's role is denied",
+              "action": "sts:AssumeRole",
+              "principal": "arn:aws:iam::999900001111:role/anything",
+              "context": {
+                "sts:ExternalId": "nw-9d41-prod"
+              },
+              "expect": "deny"
+            }
+          ],
+          "explanation": "Two independent controls: the Principal narrows trust from the vendor's entire account to the single role that should call you, and the sts:ExternalId condition (StringEquals) makes the request prove it is acting for your tenant. A missing ExternalId fails a StringEquals condition, so forgetting to send it is denied rather than ignored."
+        },
+        {
+          "id": "t6",
+          "kind": "answer",
+          "prompt": "CrossAccountDeployRole trusts a member account in your own AWS Organization. Which global condition key restricts a trust policy to principals that belong to your organisation?",
+          "accept": [
+            "aws:principalorgid",
+            "principalorgid",
+            "aws:principalorgpaths",
+            "principalorgpaths"
+          ],
+          "explanation": "aws:PrincipalOrgID compares the caller's Organization id against yours, so even if the account id in a trust policy were mistyped or a member account were later moved out of the organisation, outsiders could not assume the role. It is a guardrail that survives account churn; it complements, not replaces, naming the exact role."
+        },
+        {
+          "id": "t7",
+          "kind": "policy",
+          "mode": "resource",
+          "prompt": "Fix CrossAccountDeployRole's trust policy. Only the ci-runner role in the dev-tools account may assume it, and only when the caller belongs to the organisation o-a1b2c3d4e5. Other roles in that account must be denied, as must callers outside the organisation.",
+          "starter": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Effect\": \"Allow\",\n      \"Principal\": {\n        \"AWS\": \"arn:aws:iam::777788889999:root\"\n      },\n      \"Action\": \"sts:AssumeRole\"\n    }\n  ]\n}",
+          "solution": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Effect\": \"Allow\",\n      \"Principal\": {\n        \"AWS\": \"arn:aws:iam::777788889999:role/ci-runner\"\n      },\n      \"Action\": \"sts:AssumeRole\",\n      \"Condition\": {\n        \"StringEquals\": {\n          \"aws:PrincipalOrgID\": \"o-a1b2c3d4e5\"\n        }\n      }\n    }\n  ]\n}",
+          "tests": [
+            {
+              "name": "ci-runner inside the organisation can assume",
+              "action": "sts:AssumeRole",
+              "principal": "arn:aws:iam::777788889999:role/ci-runner",
+              "context": {
+                "aws:PrincipalOrgID": "o-a1b2c3d4e5"
+              },
+              "expect": "allow"
+            },
+            {
+              "name": "ci-runner with a foreign organisation id is denied",
+              "action": "sts:AssumeRole",
+              "principal": "arn:aws:iam::777788889999:role/ci-runner",
+              "context": {
+                "aws:PrincipalOrgID": "o-zzzzzzzzzz"
+              },
+              "expect": "deny"
+            },
+            {
+              "name": "Another role in the dev-tools account is denied",
+              "action": "sts:AssumeRole",
+              "principal": "arn:aws:iam::777788889999:role/dev-sandbox",
+              "context": {
+                "aws:PrincipalOrgID": "o-a1b2c3d4e5"
+              },
+              "expect": "deny"
+            },
+            {
+              "name": "A same-named role in an outside account is denied",
+              "action": "sts:AssumeRole",
+              "principal": "arn:aws:iam::888899990000:role/ci-runner",
+              "context": {
+                "aws:PrincipalOrgID": "o-a1b2c3d4e5"
+              },
+              "expect": "deny"
+            },
+            {
+              "name": "A caller with no organisation context is denied",
+              "action": "sts:AssumeRole",
+              "principal": "arn:aws:iam::777788889999:role/ci-runner",
+              "expect": "deny"
+            }
+          ],
+          "explanation": "Trusting an account root means every identity in that account with sts:AssumeRole permission can become the role, which is more than one CI job needs. Naming the exact role limits who, and aws:PrincipalOrgID limits where the caller may come from, giving defence in depth if the account or the role name is ever reused."
+        },
+        {
+          "id": "t8",
+          "kind": "flag",
+          "prompt": "After fixing all three trust policies, run the lab's rescan helper (`./rescan-trust.sh`). It only runs after you have listed the analyzer findings and read each flagged role. Paste the flag from the clean report.",
+          "flag": "FLAG{trust_policies_locked_down_4b8d}",
+          "explanation": "Remediation is complete only when the scanner that raised the finding no longer reports it. Note that the vendor role remains an intentional external-access path: the goal is not zero cross-account trust but zero UNCONDITIONED, over-broad trust."
+        },
+        {
+          "id": "t9",
+          "kind": "answer",
+          "prompt": "Which AWS service continuously analyses resource policies and role trust policies and reports resources shared outside your account or organisation (the source of the findings you used)?",
+          "accept": [
+            "iam access analyzer",
+            "access analyzer",
+            "aws iam access analyzer",
+            "aws access analyzer",
+            "accessanalyzer"
+          ],
+          "explanation": "IAM Access Analyzer uses automated reasoning to find roles, buckets, keys and other resources that grant access to principals outside your zone of trust. Enable it in every region you use and route findings to a ticket queue so a new public trust policy is noticed within hours, not months."
+        }
+      ],
+      "takeaways": [
+        "A trust policy is a resource policy on the role. Principal \"*\", or a whole account (:root) with no condition, means anyone (or anyone in that account with sts:AssumeRole) can become the role.",
+        "Third-party access needs the vendor's exact role as Principal plus sts:ExternalId (the confused-deputy defence). Access from your own other accounts should name the exact role and add aws:PrincipalOrgID.",
+        "Review trust policies continuously with IAM Access Analyzer: it is how an unconditioned, public or cross-account trust gets noticed before someone else notices it."
+      ]
+    }
+  }
+]

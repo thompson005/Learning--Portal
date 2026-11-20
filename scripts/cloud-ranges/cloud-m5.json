@@ -1,0 +1,1161 @@
+[
+  {
+    "labId": "cloud-L10",
+    "title": "Find Your Exposed Buckets",
+    "objective": "Audit your own AWS account for S3 exposure, work out WHY each public bucket is public (ACL, bucket policy, or missing Block Public Access), close every gap, and prove it with Access Analyzer.",
+    "successCriteria": [
+      "You identified which buckets are public and the mechanism for each (ACL grant vs bucket policy with Principal \"*\")",
+      "You explained why a bucket with partial Block Public Access settings was still exposed",
+      "You applied Block Public Access to every exposed bucket (or the whole account) and confirmed Access Analyzer shows no active public S3 findings"
+    ],
+    "hints": [
+      "Start with list-buckets, then check each bucket three ways: its Block Public Access config, its policy status, and its ACL. A public bucket can come from any one of them.",
+      "A bucket with no Block Public Access configuration at all has nothing stopping an ACL or a Principal \"*\" policy. One bucket is exposed through its ACL (look for the AllUsers group); another has ACL-only protection but a public policy.",
+      "Run put-public-access-block with all four settings set to true on acme-web-assets-prod, acme-customer-uploads and acme-marketing-site, then run list-findings against the analyzer and read /security/s3-audit/signoff."
+    ],
+    "estimatedHours": 1,
+    "resources": [
+      {
+        "title": "AWS docs: Blocking public access to your Amazon S3 storage",
+        "url": "https://docs.aws.amazon.com/AmazonS3/latest/userguide/access-control-block-public-access.html",
+        "type": "link"
+      },
+      {
+        "title": "AWS docs: Reviewing bucket access using IAM Access Analyzer for S3",
+        "url": "https://docs.aws.amazon.com/AmazonS3/latest/userguide/access-analyzer.html",
+        "type": "link"
+      },
+      {
+        "title": "AWS docs: Access control list (ACL) overview",
+        "url": "https://docs.aws.amazon.com/AmazonS3/latest/userguide/acl-overview.html",
+        "type": "link"
+      }
+    ],
+    "range": {
+      "scenario": "You are the cloud security engineer for Acme in account 111122223333. A routine review flagged that nobody has checked S3 exposure since the account was created, and several teams have created buckets over the years. Using your remediation role, audit every bucket in the account: find out which ones are reachable by the public internet and, for each, exactly why (an ACL, a bucket policy, or nothing stopping either). Then close the gaps and verify. The security pipeline writes a sign-off parameter, /security/s3-audit/signoff, only once IAM Access Analyzer shows no active public S3 findings. Everything here is simulated and read from your own account's configuration.",
+      "artifacts": [
+        {
+          "name": "bpa-settings.txt",
+          "language": "text",
+          "content": "S3 Block Public Access has four independent settings (bucket level and account level):\n\n  BlockPublicAcls        reject PUT requests that include a public ACL\n  IgnorePublicAcls       ignore existing public ACLs on the bucket and its objects\n  BlockPublicPolicy      reject bucket policies that grant public access\n  RestrictPublicBuckets  limit a bucket with a public policy to AWS services and\n                         authorized users in the owner account\n\nS3 evaluates the most restrictive combination of the account-level and bucket-level settings.\nA setting that is false (or a missing configuration) blocks nothing.",
+          "note": "Reference sheet for the four Block Public Access settings."
+        },
+        {
+          "name": "remediation-cheatsheet.sh",
+          "language": "bash",
+          "content": "# Audit (read-only)\naws s3api list-buckets\naws s3api get-public-access-block --bucket <name>\naws s3api get-bucket-policy-status --bucket <name>\naws s3api get-bucket-acl --bucket <name>\naws s3api get-bucket-policy --bucket <name>\naws accessanalyzer list-analyzers\naws accessanalyzer list-findings --analyzer-arn <arn>\n\n# Fix (bucket level)\naws s3api put-public-access-block --bucket <name> \\\n  --public-access-block-configuration \\\n  BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true\n\n# Fix (whole account)\naws s3control put-public-access-block --account-id 111122223333 \\\n  --public-access-block-configuration \\\n  BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true\n\n# Sign-off written by the pipeline when the analyzer is clean\naws ssm get-parameter --name /security/s3-audit/signoff",
+          "note": "Command syntax you will need."
+        }
+      ],
+      "terminal": {
+        "prompt": "secops@acme-audit:~$",
+        "intro": "Using role S3AuditRemediation in account 111122223333, region us-east-1. Simulated shell: configuration reads only.",
+        "help": "Audit and fix your own S3 estate, e.g.\n  aws s3api list-buckets\n  aws s3api get-public-access-block --bucket <name>\n  aws s3api get-bucket-policy-status --bucket <name>\n  aws s3api get-bucket-acl --bucket <name>\n  aws s3api get-bucket-policy --bucket <name>\n  aws s3api put-public-access-block --bucket <name> --public-access-block-configuration BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true\n  aws s3control get-public-access-block --account-id 111122223333\n  aws accessanalyzer list-analyzers\n  aws accessanalyzer list-findings --analyzer-arn <arn>\n  aws ssm get-parameter --name /security/s3-audit/signoff",
+        "rules": [
+          {
+            "match": "--no-sign-request",
+            "output": "[lab] Out of scope. This range audits YOUR OWN account by reading its configuration (get-*/list-* calls). It does not probe buckets anonymously."
+          },
+          {
+            "match": "^aws sts get-caller-identity$",
+            "output": "{\n  \"UserId\": \"AROAEXAMPLES3AUDIT01:secops\",\n  \"Account\": \"111122223333\",\n  \"Arn\": \"arn:aws:sts::111122223333:assumed-role/S3AuditRemediation/secops\"\n}"
+          },
+          {
+            "match": "^aws s3api list-buckets(?: --region \\S+)?$",
+            "sets": [
+              "listed"
+            ],
+            "output": "{\n  \"Buckets\": [\n    {\n      \"Name\": \"acme-web-assets-prod\",\n      \"CreationDate\": \"2023-03-14T08:21:09+00:00\"\n    },\n    {\n      \"Name\": \"acme-customer-uploads\",\n      \"CreationDate\": \"2023-06-02T13:40:51+00:00\"\n    },\n    {\n      \"Name\": \"acme-marketing-site\",\n      \"CreationDate\": \"2024-01-21T10:05:33+00:00\"\n    },\n    {\n      \"Name\": \"acme-db-backups\",\n      \"CreationDate\": \"2022-11-08T07:12:18+00:00\"\n    },\n    {\n      \"Name\": \"acme-logs-archive\",\n      \"CreationDate\": \"2022-11-08T07:15:02+00:00\"\n    },\n    {\n      \"Name\": \"acme-shared-tools\",\n      \"CreationDate\": \"2024-05-30T16:48:27+00:00\"\n    }\n  ],\n  \"Owner\": {\n    \"DisplayName\": \"acme-prod\",\n    \"ID\": \"5f1c9a7d3b2e4a60c8d19e0b7a4f2c3d6e8b1a0942f7d5c3e1b9a8076d4c2f10\"\n  }\n}"
+          },
+          {
+            "match": "^aws s3 ls$",
+            "sets": [
+              "listed"
+            ],
+            "output": "2023-03-14 08:21:09 acme-web-assets-prod\n2023-06-02 13:40:51 acme-customer-uploads\n2024-01-21 10:05:33 acme-marketing-site\n2022-11-08 07:12:18 acme-db-backups\n2022-11-08 07:15:02 acme-logs-archive\n2024-05-30 16:48:27 acme-shared-tools"
+          },
+          {
+            "match": "^aws s3api get-public-access-block(?: --region \\S+)? --bucket acme-web-assets-prod(?: --region \\S+)?$",
+            "requires": [
+              "bpa_web"
+            ],
+            "output": "{\n  \"PublicAccessBlockConfiguration\": {\n    \"BlockPublicAcls\": true,\n    \"IgnorePublicAcls\": true,\n    \"BlockPublicPolicy\": true,\n    \"RestrictPublicBuckets\": true\n  }\n}"
+          },
+          {
+            "match": "^aws s3api get-public-access-block(?: --region \\S+)? --bucket acme-web-assets-prod(?: --region \\S+)?$",
+            "output": "An error occurred (NoSuchPublicAccessBlockConfiguration) when calling the GetPublicAccessBlock operation: The public access block configuration was not found"
+          },
+          {
+            "match": "^aws s3api get-bucket-policy-status(?: --region \\S+)? --bucket acme-web-assets-prod(?: --region \\S+)?$",
+            "output": "{\n  \"PolicyStatus\": {\n    \"IsPublic\": true\n  }\n}"
+          },
+          {
+            "match": "^aws s3api get-bucket-acl(?: --region \\S+)? --bucket acme-web-assets-prod(?: --region \\S+)?$",
+            "output": "{\n  \"Owner\": {\n    \"DisplayName\": \"acme-prod\",\n    \"ID\": \"5f1c9a7d3b2e4a60c8d19e0b7a4f2c3d6e8b1a0942f7d5c3e1b9a8076d4c2f10\"\n  },\n  \"Grants\": [\n    {\n      \"Grantee\": {\n        \"DisplayName\": \"acme-prod\",\n        \"ID\": \"5f1c9a7d3b2e4a60c8d19e0b7a4f2c3d6e8b1a0942f7d5c3e1b9a8076d4c2f10\",\n        \"Type\": \"CanonicalUser\"\n      },\n      \"Permission\": \"FULL_CONTROL\"\n    }\n  ]\n}"
+          },
+          {
+            "match": "^aws s3api get-bucket-policy(?: --region \\S+)? --bucket acme-web-assets-prod(?: --region \\S+)?$",
+            "output": "{\n    \"Policy\": \"{\\\"Version\\\":\\\"2012-10-17\\\",\\\"Statement\\\":[{\\\"Sid\\\":\\\"PublicReadGetObject\\\",\\\"Effect\\\":\\\"Allow\\\",\\\"Principal\\\":\\\"*\\\",\\\"Action\\\":\\\"s3:GetObject\\\",\\\"Resource\\\":\\\"arn:aws:s3:::acme-web-assets-prod/*\\\"}]}\"\n}"
+          },
+          {
+            "match": "^aws s3api get-public-access-block(?: --region \\S+)? --bucket acme-customer-uploads(?: --region \\S+)?$",
+            "requires": [
+              "bpa_uploads"
+            ],
+            "output": "{\n  \"PublicAccessBlockConfiguration\": {\n    \"BlockPublicAcls\": true,\n    \"IgnorePublicAcls\": true,\n    \"BlockPublicPolicy\": true,\n    \"RestrictPublicBuckets\": true\n  }\n}"
+          },
+          {
+            "match": "^aws s3api get-public-access-block(?: --region \\S+)? --bucket acme-customer-uploads(?: --region \\S+)?$",
+            "output": "An error occurred (NoSuchPublicAccessBlockConfiguration) when calling the GetPublicAccessBlock operation: The public access block configuration was not found"
+          },
+          {
+            "match": "^aws s3api get-bucket-policy-status(?: --region \\S+)? --bucket acme-customer-uploads(?: --region \\S+)?$",
+            "output": "An error occurred (NoSuchBucketPolicy) when calling the GetBucketPolicyStatus operation: The bucket policy does not exist"
+          },
+          {
+            "match": "^aws s3api get-bucket-acl(?: --region \\S+)? --bucket acme-customer-uploads(?: --region \\S+)?$",
+            "output": "{\n  \"Owner\": {\n    \"DisplayName\": \"acme-prod\",\n    \"ID\": \"5f1c9a7d3b2e4a60c8d19e0b7a4f2c3d6e8b1a0942f7d5c3e1b9a8076d4c2f10\"\n  },\n  \"Grants\": [\n    {\n      \"Grantee\": {\n        \"DisplayName\": \"acme-prod\",\n        \"ID\": \"5f1c9a7d3b2e4a60c8d19e0b7a4f2c3d6e8b1a0942f7d5c3e1b9a8076d4c2f10\",\n        \"Type\": \"CanonicalUser\"\n      },\n      \"Permission\": \"FULL_CONTROL\"\n    },\n    {\n      \"Grantee\": {\n        \"Type\": \"Group\",\n        \"URI\": \"http://acs.amazonaws.com/groups/global/AllUsers\"\n      },\n      \"Permission\": \"READ\"\n    }\n  ]\n}"
+          },
+          {
+            "match": "^aws s3api get-bucket-policy(?: --region \\S+)? --bucket acme-customer-uploads(?: --region \\S+)?$",
+            "output": "An error occurred (NoSuchBucketPolicy) when calling the GetBucketPolicy operation: The bucket policy does not exist"
+          },
+          {
+            "match": "^aws s3api get-public-access-block(?: --region \\S+)? --bucket acme-marketing-site(?: --region \\S+)?$",
+            "requires": [
+              "bpa_mkt"
+            ],
+            "output": "{\n  \"PublicAccessBlockConfiguration\": {\n    \"BlockPublicAcls\": true,\n    \"IgnorePublicAcls\": true,\n    \"BlockPublicPolicy\": true,\n    \"RestrictPublicBuckets\": true\n  }\n}"
+          },
+          {
+            "match": "^aws s3api get-public-access-block(?: --region \\S+)? --bucket acme-marketing-site(?: --region \\S+)?$",
+            "output": "{\n  \"PublicAccessBlockConfiguration\": {\n    \"BlockPublicAcls\": true,\n    \"IgnorePublicAcls\": true,\n    \"BlockPublicPolicy\": false,\n    \"RestrictPublicBuckets\": false\n  }\n}"
+          },
+          {
+            "match": "^aws s3api get-bucket-policy-status(?: --region \\S+)? --bucket acme-marketing-site(?: --region \\S+)?$",
+            "output": "{\n  \"PolicyStatus\": {\n    \"IsPublic\": true\n  }\n}"
+          },
+          {
+            "match": "^aws s3api get-bucket-acl(?: --region \\S+)? --bucket acme-marketing-site(?: --region \\S+)?$",
+            "output": "{\n  \"Owner\": {\n    \"DisplayName\": \"acme-prod\",\n    \"ID\": \"5f1c9a7d3b2e4a60c8d19e0b7a4f2c3d6e8b1a0942f7d5c3e1b9a8076d4c2f10\"\n  },\n  \"Grants\": [\n    {\n      \"Grantee\": {\n        \"DisplayName\": \"acme-prod\",\n        \"ID\": \"5f1c9a7d3b2e4a60c8d19e0b7a4f2c3d6e8b1a0942f7d5c3e1b9a8076d4c2f10\",\n        \"Type\": \"CanonicalUser\"\n      },\n      \"Permission\": \"FULL_CONTROL\"\n    }\n  ]\n}"
+          },
+          {
+            "match": "^aws s3api get-bucket-policy(?: --region \\S+)? --bucket acme-marketing-site(?: --region \\S+)?$",
+            "output": "{\n    \"Policy\": \"{\\\"Version\\\":\\\"2012-10-17\\\",\\\"Statement\\\":[{\\\"Sid\\\":\\\"AllowAnyoneToBrowse\\\",\\\"Effect\\\":\\\"Allow\\\",\\\"Principal\\\":\\\"*\\\",\\\"Action\\\":[\\\"s3:GetObject\\\",\\\"s3:ListBucket\\\"],\\\"Resource\\\":[\\\"arn:aws:s3:::acme-marketing-site\\\",\\\"arn:aws:s3:::acme-marketing-site/*\\\"]}]}\"\n}"
+          },
+          {
+            "match": "^aws s3api get-public-access-block(?: --region \\S+)? --bucket acme-db-backups(?: --region \\S+)?$",
+            "output": "{\n  \"PublicAccessBlockConfiguration\": {\n    \"BlockPublicAcls\": true,\n    \"IgnorePublicAcls\": true,\n    \"BlockPublicPolicy\": true,\n    \"RestrictPublicBuckets\": true\n  }\n}"
+          },
+          {
+            "match": "^aws s3api get-bucket-policy-status(?: --region \\S+)? --bucket acme-db-backups(?: --region \\S+)?$",
+            "output": "{\n  \"PolicyStatus\": {\n    \"IsPublic\": false\n  }\n}"
+          },
+          {
+            "match": "^aws s3api get-bucket-acl(?: --region \\S+)? --bucket acme-db-backups(?: --region \\S+)?$",
+            "output": "{\n  \"Owner\": {\n    \"DisplayName\": \"acme-prod\",\n    \"ID\": \"5f1c9a7d3b2e4a60c8d19e0b7a4f2c3d6e8b1a0942f7d5c3e1b9a8076d4c2f10\"\n  },\n  \"Grants\": [\n    {\n      \"Grantee\": {\n        \"DisplayName\": \"acme-prod\",\n        \"ID\": \"5f1c9a7d3b2e4a60c8d19e0b7a4f2c3d6e8b1a0942f7d5c3e1b9a8076d4c2f10\",\n        \"Type\": \"CanonicalUser\"\n      },\n      \"Permission\": \"FULL_CONTROL\"\n    }\n  ]\n}"
+          },
+          {
+            "match": "^aws s3api get-bucket-policy(?: --region \\S+)? --bucket acme-db-backups(?: --region \\S+)?$",
+            "output": "{\n    \"Policy\": \"{\\\"Version\\\":\\\"2012-10-17\\\",\\\"Statement\\\":[{\\\"Sid\\\":\\\"BackupRoleOnly\\\",\\\"Effect\\\":\\\"Allow\\\",\\\"Principal\\\":{\\\"AWS\\\":\\\"arn:aws:iam::111122223333:role/BackupRole\\\"},\\\"Action\\\":[\\\"s3:GetObject\\\",\\\"s3:PutObject\\\"],\\\"Resource\\\":\\\"arn:aws:s3:::acme-db-backups/*\\\"}]}\"\n}"
+          },
+          {
+            "match": "^aws s3api get-public-access-block(?: --region \\S+)? --bucket acme-logs-archive(?: --region \\S+)?$",
+            "output": "{\n  \"PublicAccessBlockConfiguration\": {\n    \"BlockPublicAcls\": true,\n    \"IgnorePublicAcls\": true,\n    \"BlockPublicPolicy\": true,\n    \"RestrictPublicBuckets\": true\n  }\n}"
+          },
+          {
+            "match": "^aws s3api get-bucket-policy-status(?: --region \\S+)? --bucket acme-logs-archive(?: --region \\S+)?$",
+            "output": "An error occurred (NoSuchBucketPolicy) when calling the GetBucketPolicyStatus operation: The bucket policy does not exist"
+          },
+          {
+            "match": "^aws s3api get-bucket-acl(?: --region \\S+)? --bucket acme-logs-archive(?: --region \\S+)?$",
+            "output": "{\n  \"Owner\": {\n    \"DisplayName\": \"acme-prod\",\n    \"ID\": \"5f1c9a7d3b2e4a60c8d19e0b7a4f2c3d6e8b1a0942f7d5c3e1b9a8076d4c2f10\"\n  },\n  \"Grants\": [\n    {\n      \"Grantee\": {\n        \"DisplayName\": \"acme-prod\",\n        \"ID\": \"5f1c9a7d3b2e4a60c8d19e0b7a4f2c3d6e8b1a0942f7d5c3e1b9a8076d4c2f10\",\n        \"Type\": \"CanonicalUser\"\n      },\n      \"Permission\": \"FULL_CONTROL\"\n    }\n  ]\n}"
+          },
+          {
+            "match": "^aws s3api get-bucket-policy(?: --region \\S+)? --bucket acme-logs-archive(?: --region \\S+)?$",
+            "output": "An error occurred (NoSuchBucketPolicy) when calling the GetBucketPolicy operation: The bucket policy does not exist"
+          },
+          {
+            "match": "^aws s3api get-public-access-block(?: --region \\S+)? --bucket acme-shared-tools(?: --region \\S+)?$",
+            "output": "{\n  \"PublicAccessBlockConfiguration\": {\n    \"BlockPublicAcls\": true,\n    \"IgnorePublicAcls\": true,\n    \"BlockPublicPolicy\": true,\n    \"RestrictPublicBuckets\": true\n  }\n}"
+          },
+          {
+            "match": "^aws s3api get-bucket-policy-status(?: --region \\S+)? --bucket acme-shared-tools(?: --region \\S+)?$",
+            "output": "{\n  \"PolicyStatus\": {\n    \"IsPublic\": false\n  }\n}"
+          },
+          {
+            "match": "^aws s3api get-bucket-acl(?: --region \\S+)? --bucket acme-shared-tools(?: --region \\S+)?$",
+            "output": "{\n  \"Owner\": {\n    \"DisplayName\": \"acme-prod\",\n    \"ID\": \"5f1c9a7d3b2e4a60c8d19e0b7a4f2c3d6e8b1a0942f7d5c3e1b9a8076d4c2f10\"\n  },\n  \"Grants\": [\n    {\n      \"Grantee\": {\n        \"DisplayName\": \"acme-prod\",\n        \"ID\": \"5f1c9a7d3b2e4a60c8d19e0b7a4f2c3d6e8b1a0942f7d5c3e1b9a8076d4c2f10\",\n        \"Type\": \"CanonicalUser\"\n      },\n      \"Permission\": \"FULL_CONTROL\"\n    }\n  ]\n}"
+          },
+          {
+            "match": "^aws s3api get-bucket-policy(?: --region \\S+)? --bucket acme-shared-tools(?: --region \\S+)?$",
+            "output": "{\n    \"Policy\": \"{\\\"Version\\\":\\\"2012-10-17\\\",\\\"Statement\\\":[{\\\"Sid\\\":\\\"OrgReadTools\\\",\\\"Effect\\\":\\\"Allow\\\",\\\"Principal\\\":\\\"*\\\",\\\"Action\\\":\\\"s3:GetObject\\\",\\\"Resource\\\":\\\"arn:aws:s3:::acme-shared-tools/*\\\",\\\"Condition\\\":{\\\"StringEquals\\\":{\\\"aws:PrincipalOrgID\\\":\\\"o-a1b2c3d4e5\\\"}}}]}\"\n}"
+          },
+          {
+            "match": "^aws s3api put-public-access-block(?=.*--bucket acme-web-assets-prod(?: |$))(?=.*blockpublicacls=true)(?=.*ignorepublicacls=true)(?=.*blockpublicpolicy=true)(?=.*restrictpublicbuckets=true).*$",
+            "sets": [
+              "bpa_web"
+            ],
+            "output": ""
+          },
+          {
+            "match": "^aws s3api put-public-access-block(?=.*--bucket acme-customer-uploads(?: |$))(?=.*blockpublicacls=true)(?=.*ignorepublicacls=true)(?=.*blockpublicpolicy=true)(?=.*restrictpublicbuckets=true).*$",
+            "sets": [
+              "bpa_uploads"
+            ],
+            "output": ""
+          },
+          {
+            "match": "^aws s3api put-public-access-block(?=.*--bucket acme-marketing-site(?: |$))(?=.*blockpublicacls=true)(?=.*ignorepublicacls=true)(?=.*blockpublicpolicy=true)(?=.*restrictpublicbuckets=true).*$",
+            "sets": [
+              "bpa_mkt"
+            ],
+            "output": ""
+          },
+          {
+            "match": "^aws s3api put-public-access-block(?=.*--bucket \\S+).*$",
+            "output": "[lab] Applied, but this audit only accepts the full guardrail: BlockPublicAcls, IgnorePublicAcls, BlockPublicPolicy and RestrictPublicBuckets must ALL be true. A partial block leaves a path open. (Bucket already fully blocked? Nothing more to do.)"
+          },
+          {
+            "match": "^aws s3api put-public-access-block\\b",
+            "output": "usage: aws s3api put-public-access-block --bucket <name> --public-access-block-configuration BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true"
+          },
+          {
+            "match": "^aws s3api (put-bucket-acl|delete-bucket-policy|put-bucket-policy)\\b",
+            "output": "[lab] Accepted in a real account, but this audit checks the guardrail, not a one-off edit: use put-public-access-block so the exposure cannot come back."
+          },
+          {
+            "match": "^aws s3control get-public-access-block --account-id 111122223333(?: --region \\S+)?$",
+            "requires": [
+              "acct_bpa"
+            ],
+            "output": "{\n  \"PublicAccessBlockConfiguration\": {\n    \"BlockPublicAcls\": true,\n    \"IgnorePublicAcls\": true,\n    \"BlockPublicPolicy\": true,\n    \"RestrictPublicBuckets\": true\n  }\n}"
+          },
+          {
+            "match": "^aws s3control get-public-access-block --account-id 111122223333(?: --region \\S+)?$",
+            "output": "An error occurred (NoSuchPublicAccessBlockConfiguration) when calling the GetPublicAccessBlock operation: The public access block configuration was not found"
+          },
+          {
+            "match": "^aws s3control put-public-access-block(?=.*--account-id 111122223333(?: |$))(?=.*blockpublicacls=true)(?=.*ignorepublicacls=true)(?=.*blockpublicpolicy=true)(?=.*restrictpublicbuckets=true).*$",
+            "sets": [
+              "acct_bpa"
+            ],
+            "output": ""
+          },
+          {
+            "match": "^aws s3control put-public-access-block\\b",
+            "output": "[lab] Needs --account-id 111122223333 and all four settings set to true (BlockPublicAcls, IgnorePublicAcls, BlockPublicPolicy, RestrictPublicBuckets)."
+          },
+          {
+            "match": "^aws accessanalyzer list-analyzers\\b",
+            "output": "{\n  \"analyzers\": [\n    {\n      \"arn\": \"arn:aws:access-analyzer:us-east-1:111122223333:analyzer/acme-account-analyzer\",\n      \"name\": \"acme-account-analyzer\",\n      \"type\": \"ACCOUNT\",\n      \"createdAt\": \"2025-01-10T09:12:44+00:00\",\n      \"lastResourceAnalyzed\": \"arn:aws:s3:::acme-marketing-site\",\n      \"status\": \"ACTIVE\"\n    }\n  ]\n}"
+          },
+          {
+            "match": "^aws accessanalyzer list-findings\\b",
+            "requires": [
+              "bpa_web",
+              "bpa_uploads",
+              "bpa_mkt"
+            ],
+            "sets": [
+              "clean"
+            ],
+            "output": "{\n  \"findings\": [\n    {\n      \"id\": \"0a1f2c3d-4b5e-4f60-8a71-92b3c4d5e6f7\",\n      \"resourceType\": \"AWS::S3::Bucket\",\n      \"resource\": \"arn:aws:s3:::acme-web-assets-prod\",\n      \"resourceOwnerAccount\": \"111122223333\",\n      \"isPublic\": false,\n      \"principal\": {\n        \"AWS\": \"*\"\n      },\n      \"action\": [\n        \"s3:GetObject\"\n      ],\n      \"condition\": {},\n      \"status\": \"RESOLVED\",\n      \"createdAt\": \"2025-02-03T11:20:05+00:00\",\n      \"analyzedAt\": \"2025-02-03T11:20:05+00:00\",\n      \"updatedAt\": \"2025-02-03T11:20:05+00:00\"\n    },\n    {\n      \"id\": \"1b2e3d4c-5a6f-4071-9b82-a3c4d5e6f708\",\n      \"resourceType\": \"AWS::S3::Bucket\",\n      \"resource\": \"arn:aws:s3:::acme-customer-uploads\",\n      \"resourceOwnerAccount\": \"111122223333\",\n      \"isPublic\": false,\n      \"principal\": {\n        \"AWS\": \"*\"\n      },\n      \"action\": [\n        \"s3:ListBucket\"\n      ],\n      \"condition\": {},\n      \"status\": \"RESOLVED\",\n      \"createdAt\": \"2025-02-03T11:20:05+00:00\",\n      \"analyzedAt\": \"2025-02-03T11:20:05+00:00\",\n      \"updatedAt\": \"2025-02-03T11:20:05+00:00\"\n    },\n    {\n      \"id\": \"2c3d4e5f-6b70-4182-8c93-b4d5e6f70819\",\n      \"resourceType\": \"AWS::S3::Bucket\",\n      \"resource\": \"arn:aws:s3:::acme-marketing-site\",\n      \"resourceOwnerAccount\": \"111122223333\",\n      \"isPublic\": false,\n      \"principal\": {\n        \"AWS\": \"*\"\n      },\n      \"action\": [\n        \"s3:GetObject\",\n        \"s3:ListBucket\"\n      ],\n      \"condition\": {},\n      \"status\": \"RESOLVED\",\n      \"createdAt\": \"2025-02-03T11:20:05+00:00\",\n      \"analyzedAt\": \"2025-02-03T11:20:05+00:00\",\n      \"updatedAt\": \"2025-02-03T11:20:05+00:00\"\n    }\n  ]\n}"
+          },
+          {
+            "match": "^aws accessanalyzer list-findings\\b",
+            "requires": [
+              "acct_bpa"
+            ],
+            "sets": [
+              "clean"
+            ],
+            "output": "{\n  \"findings\": [\n    {\n      \"id\": \"0a1f2c3d-4b5e-4f60-8a71-92b3c4d5e6f7\",\n      \"resourceType\": \"AWS::S3::Bucket\",\n      \"resource\": \"arn:aws:s3:::acme-web-assets-prod\",\n      \"resourceOwnerAccount\": \"111122223333\",\n      \"isPublic\": false,\n      \"principal\": {\n        \"AWS\": \"*\"\n      },\n      \"action\": [\n        \"s3:GetObject\"\n      ],\n      \"condition\": {},\n      \"status\": \"RESOLVED\",\n      \"createdAt\": \"2025-02-03T11:20:05+00:00\",\n      \"analyzedAt\": \"2025-02-03T11:20:05+00:00\",\n      \"updatedAt\": \"2025-02-03T11:20:05+00:00\"\n    },\n    {\n      \"id\": \"1b2e3d4c-5a6f-4071-9b82-a3c4d5e6f708\",\n      \"resourceType\": \"AWS::S3::Bucket\",\n      \"resource\": \"arn:aws:s3:::acme-customer-uploads\",\n      \"resourceOwnerAccount\": \"111122223333\",\n      \"isPublic\": false,\n      \"principal\": {\n        \"AWS\": \"*\"\n      },\n      \"action\": [\n        \"s3:ListBucket\"\n      ],\n      \"condition\": {},\n      \"status\": \"RESOLVED\",\n      \"createdAt\": \"2025-02-03T11:20:05+00:00\",\n      \"analyzedAt\": \"2025-02-03T11:20:05+00:00\",\n      \"updatedAt\": \"2025-02-03T11:20:05+00:00\"\n    },\n    {\n      \"id\": \"2c3d4e5f-6b70-4182-8c93-b4d5e6f70819\",\n      \"resourceType\": \"AWS::S3::Bucket\",\n      \"resource\": \"arn:aws:s3:::acme-marketing-site\",\n      \"resourceOwnerAccount\": \"111122223333\",\n      \"isPublic\": false,\n      \"principal\": {\n        \"AWS\": \"*\"\n      },\n      \"action\": [\n        \"s3:GetObject\",\n        \"s3:ListBucket\"\n      ],\n      \"condition\": {},\n      \"status\": \"RESOLVED\",\n      \"createdAt\": \"2025-02-03T11:20:05+00:00\",\n      \"analyzedAt\": \"2025-02-03T11:20:05+00:00\",\n      \"updatedAt\": \"2025-02-03T11:20:05+00:00\"\n    }\n  ]\n}"
+          },
+          {
+            "match": "^aws accessanalyzer list-findings\\b",
+            "output": "{\n  \"findings\": [\n    {\n      \"id\": \"0a1f2c3d-4b5e-4f60-8a71-92b3c4d5e6f7\",\n      \"resourceType\": \"AWS::S3::Bucket\",\n      \"resource\": \"arn:aws:s3:::acme-web-assets-prod\",\n      \"resourceOwnerAccount\": \"111122223333\",\n      \"isPublic\": true,\n      \"principal\": {\n        \"AWS\": \"*\"\n      },\n      \"action\": [\n        \"s3:GetObject\"\n      ],\n      \"condition\": {},\n      \"status\": \"ACTIVE\",\n      \"createdAt\": \"2025-02-03T11:20:05+00:00\",\n      \"analyzedAt\": \"2025-02-03T11:20:05+00:00\",\n      \"updatedAt\": \"2025-02-03T11:20:05+00:00\"\n    },\n    {\n      \"id\": \"1b2e3d4c-5a6f-4071-9b82-a3c4d5e6f708\",\n      \"resourceType\": \"AWS::S3::Bucket\",\n      \"resource\": \"arn:aws:s3:::acme-customer-uploads\",\n      \"resourceOwnerAccount\": \"111122223333\",\n      \"isPublic\": true,\n      \"principal\": {\n        \"AWS\": \"*\"\n      },\n      \"action\": [\n        \"s3:ListBucket\"\n      ],\n      \"condition\": {},\n      \"status\": \"ACTIVE\",\n      \"createdAt\": \"2025-02-03T11:20:05+00:00\",\n      \"analyzedAt\": \"2025-02-03T11:20:05+00:00\",\n      \"updatedAt\": \"2025-02-03T11:20:05+00:00\"\n    },\n    {\n      \"id\": \"2c3d4e5f-6b70-4182-8c93-b4d5e6f70819\",\n      \"resourceType\": \"AWS::S3::Bucket\",\n      \"resource\": \"arn:aws:s3:::acme-marketing-site\",\n      \"resourceOwnerAccount\": \"111122223333\",\n      \"isPublic\": true,\n      \"principal\": {\n        \"AWS\": \"*\"\n      },\n      \"action\": [\n        \"s3:GetObject\",\n        \"s3:ListBucket\"\n      ],\n      \"condition\": {},\n      \"status\": \"ACTIVE\",\n      \"createdAt\": \"2025-02-03T11:20:05+00:00\",\n      \"analyzedAt\": \"2025-02-03T11:20:05+00:00\",\n      \"updatedAt\": \"2025-02-03T11:20:05+00:00\"\n    }\n  ]\n}"
+          },
+          {
+            "match": "^aws ssm get-parameter --name /security/s3-audit/signoff\\b",
+            "requires": [
+              "clean"
+            ],
+            "output": "{\n  \"Parameter\": {\n    \"Name\": \"/security/s3-audit/signoff\",\n    \"Type\": \"String\",\n    \"Value\": \"FLAG{s3_exposure_closed_acl_policy_bpa}\",\n    \"Version\": 1,\n    \"LastModifiedDate\": \"2025-02-04T09:30:12+00:00\",\n    \"ARN\": \"arn:aws:ssm:us-east-1:111122223333:parameter/security/s3-audit/signoff\",\n    \"DataType\": \"text\"\n  }\n}"
+          },
+          {
+            "match": "^aws ssm get-parameter --name /security/s3-audit/signoff\\b",
+            "output": "An error occurred (ParameterNotFound) when calling the GetParameter operation:"
+          },
+          {
+            "match": "^aws s3api get-(public-access-block|bucket-acl|bucket-policy|bucket-policy-status)(?: --region \\S+)? --bucket (\\S+)",
+            "output": "An error occurred (NoSuchBucket) when calling the $1 operation: The specified bucket does not exist"
+          }
+        ]
+      },
+      "solution": [
+        "aws s3api list-buckets",
+        "aws s3api get-public-access-block --bucket acme-web-assets-prod",
+        "aws s3api get-bucket-policy-status --bucket acme-web-assets-prod",
+        "aws s3api get-bucket-acl --bucket acme-customer-uploads",
+        "aws s3api get-public-access-block --bucket acme-marketing-site",
+        "aws s3api put-public-access-block --bucket acme-web-assets-prod --public-access-block-configuration BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true",
+        "aws s3api put-public-access-block --bucket acme-customer-uploads --public-access-block-configuration BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true",
+        "aws s3api put-public-access-block --bucket acme-marketing-site --public-access-block-configuration BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true",
+        "aws accessanalyzer list-findings --analyzer-arn arn:aws:access-analyzer:us-east-1:111122223333:analyzer/acme-account-analyzer",
+        "aws ssm get-parameter --name /security/s3-audit/signoff"
+      ],
+      "tasks": [
+        {
+          "id": "t1",
+          "kind": "answer",
+          "prompt": "Inspect each bucket's ACL. Which bucket has no bucket policy at all but is public because its ACL grants READ to the AllUsers group?",
+          "accept": [
+            "acme-customer-uploads",
+            "customer-uploads",
+            "arn:aws:s3:::acme-customer-uploads"
+          ],
+          "explanation": "ACLs are the older S3 access mechanism. A grant to the AllUsers group URI (http://acs.amazonaws.com/groups/global/AllUsers) makes the bucket or object readable by anyone. It never shows up in get-bucket-policy, which is why checking only policies misses it."
+        },
+        {
+          "id": "t2",
+          "kind": "choice",
+          "prompt": "Which buckets are public because a bucket policy allows Principal \"*\" with nothing narrowing who can use it? Select all that apply.",
+          "options": [
+            "acme-web-assets-prod",
+            "acme-marketing-site",
+            "acme-shared-tools",
+            "acme-customer-uploads",
+            "acme-db-backups"
+          ],
+          "correct": [
+            0,
+            1
+          ],
+          "explanation": "acme-web-assets-prod and acme-marketing-site both allow Principal \"*\" unconditionally. acme-shared-tools also says Principal \"*\" but is limited by an aws:PrincipalOrgID condition, so it is reachable only from inside your AWS Organization and get-bucket-policy-status reports IsPublic false. Always read the Condition block before calling a bucket public."
+        },
+        {
+          "id": "t3",
+          "kind": "choice",
+          "prompt": "acme-marketing-site has BlockPublicAcls and IgnorePublicAcls turned on, yet it is still public. Why?",
+          "options": [
+            "Those two settings only govern ACLs; BlockPublicPolicy and RestrictPublicBuckets are off, so the Principal \"*\" policy still works",
+            "The bucket has no objects, so the policy is not evaluated",
+            "Block Public Access is advisory until the bucket policy is deleted",
+            "IgnorePublicAcls also causes S3 to ignore bucket policies"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "The four Block Public Access settings are independent. The two ACL settings do nothing about a bucket policy. BlockPublicPolicy stops a public policy from being attached, and RestrictPublicBuckets neutralizes one that already exists. Partial configuration is a common false sense of safety."
+        },
+        {
+          "id": "t4",
+          "kind": "flag",
+          "prompt": "Close every exposure you found with all four Block Public Access settings (per bucket, or at account level), confirm in IAM Access Analyzer that the findings are resolved, then read /security/s3-audit/signoff. Paste the flag.",
+          "flag": "FLAG{s3_exposure_closed_acl_policy_bpa}",
+          "explanation": "Applying all four settings neutralizes ACL grants and public policies in one move, and Access Analyzer re-evaluated the buckets and resolved the findings. The sign-off only appears once the analyzer is clean, so it is proof the fix worked rather than just that a command ran."
+        },
+        {
+          "id": "t5",
+          "kind": "choice",
+          "prompt": "Which approach best prevents ANY current or future bucket in the account from being made public by an ACL or policy?",
+          "options": [
+            "Turn on all four settings at the account level (s3control put-public-access-block); S3 applies the most restrictive of account and bucket settings",
+            "Set all four settings on every existing bucket; new buckets inherit them automatically",
+            "Account-level settings only affect buckets created after the change",
+            "Bucket-level settings always override account-level settings, so account-level is only a default"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Account-level Block Public Access applies to every bucket, existing and future, and S3 enforces the most restrictive combination of account and bucket settings. Bucket-level settings do not inherit to new buckets and cannot loosen the account-level block. Use per-bucket exceptions only for a deliberate public site, ideally served through CloudFront."
+        },
+        {
+          "id": "t6",
+          "kind": "choice",
+          "prompt": "acme-shared-tools has a policy with Principal \"*\" but Access Analyzer raises no finding and policy status says IsPublic false. What explains this?",
+          "options": [
+            "The Condition on aws:PrincipalOrgID restricts access to principals in your AWS Organization",
+            "Principal \"*\" in a bucket policy never grants anything",
+            "Access Analyzer ignores buckets that have tags",
+            "Block Public Access was enabled after the policy was written"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Condition keys such as aws:PrincipalOrgID, aws:SourceVpce and aws:SourceVpc can scope a wildcard principal to a trusted set, so S3 and Access Analyzer do not treat the bucket as public. This is the pattern you will build in the Lock the Bucket lab."
+        },
+        {
+          "id": "t7",
+          "kind": "answer",
+          "prompt": "Which AWS service continuously analyzes resource policies and ACLs and reports findings for S3 buckets that are shared publicly or externally?",
+          "accept": [
+            "iam access analyzer",
+            "access analyzer",
+            "aws iam access analyzer",
+            "aws access analyzer",
+            "accessanalyzer"
+          ],
+          "explanation": "IAM Access Analyzer uses automated reasoning over resource policies and ACLs to report public and cross-account access. Running it in every account (or an organization analyzer) gives you ongoing detection instead of a one-time audit."
+        }
+      ],
+      "takeaways": [
+        "A bucket can be public through an ACL, a bucket policy, or both. Audit all three places: Block Public Access, ACL, and policy.",
+        "Block Public Access has four independent settings. ACL-only protection does not stop a public policy, and vice versa.",
+        "Turn on account-level Block Public Access as the default guardrail and keep IAM Access Analyzer running to catch drift.",
+        "Read the Condition block: a wildcard principal narrowed by aws:PrincipalOrgID or a VPC endpoint is not the same as public."
+      ]
+    }
+  },
+  {
+    "labId": "cloud-L11",
+    "title": "Find and Unshare Public Snapshots",
+    "objective": "Audit your own EBS and RDS snapshots for public or over-shared access, remove the unsafe shares, turn on snapshot block public access, and learn how customer-managed KMS encryption limits sharing.",
+    "successCriteria": [
+      "You identified the public EBS snapshot, the public RDS snapshot, and the snapshot shared with an unapproved account",
+      "You removed each unsafe share without breaking the approved share to the staging account",
+      "You enabled block-all-sharing for EBS snapshots and read the audit sign-off"
+    ],
+    "hints": [
+      "describe-snapshots tells you what exists, but not who can use it. The sharing list is a separate attribute you query one snapshot at a time.",
+      "Check createVolumePermission on every snapshot. A Group of \"all\" means public; a UserId is an account id, so compare it against approved-accounts.txt. RDS has its own attribute named restore.",
+      "Remove the public EBS share and the unapproved UserId with modify-snapshot-attribute --operation-type remove, remove \"all\" from the RDS snapshot's restore attribute, then run enable-snapshot-block-public-access --state block-all-sharing."
+    ],
+    "estimatedHours": 1,
+    "resources": [
+      {
+        "title": "AWS docs: Share an Amazon EBS snapshot",
+        "url": "https://docs.aws.amazon.com/ebs/latest/userguide/ebs-modifying-snapshot-permissions.html",
+        "type": "link"
+      },
+      {
+        "title": "AWS docs: Sharing a DB snapshot (Amazon RDS)",
+        "url": "https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_ShareSnapshot.html",
+        "type": "link"
+      },
+      {
+        "title": "AWS docs: What is AWS Key Management Service?",
+        "url": "https://docs.aws.amazon.com/kms/latest/developerguide/overview.html",
+        "type": "link"
+      }
+    ],
+    "range": {
+      "scenario": "A recent review of public cloud data leaks has Acme's leadership asking one question: are any of our snapshots shared outside the company? You are the cloud security engineer for account 111122223333. Snapshots are easy to forget: they outlive their volumes, they are rarely reviewed, and one wrong share setting makes a full copy of a disk or database available to other accounts. Audit your own EBS and RDS snapshots, fix what you find, and put a guardrail in place. The audit pipeline writes /security/snapshot-audit/signoff once every unsafe share is gone and snapshot block public access is on. Everything here is simulated and works on your own account's configuration only.",
+      "artifacts": [
+        {
+          "name": "approved-accounts.txt",
+          "language": "text",
+          "content": "Acme AWS accounts approved to receive snapshot shares\n\n111122223333  prod (this account)\n444455556666  staging         approved for: staging-seed snapshots only\n555566667777  security-tools  approved for: forensic copies on request\n\nAny other account id seen in a snapshot share list is NOT approved and must be removed.",
+          "note": "The shortlist of accounts that may legitimately receive shares."
+        },
+        {
+          "name": "ebs-cmk-key-policy.json",
+          "language": "json",
+          "content": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"EnableIAMPermissionsInOwnerAccount\",\n      \"Effect\": \"Allow\",\n      \"Principal\": {\n        \"AWS\": \"arn:aws:iam::111122223333:root\"\n      },\n      \"Action\": \"kms:*\",\n      \"Resource\": \"*\"\n    },\n    {\n      \"Sid\": \"AllowStagingToUseKeyForSharedSnapshots\",\n      \"Effect\": \"Allow\",\n      \"Principal\": {\n        \"AWS\": \"arn:aws:iam::444455556666:root\"\n      },\n      \"Action\": [\n        \"kms:Decrypt\",\n        \"kms:DescribeKey\",\n        \"kms:CreateGrant\",\n        \"kms:ReEncrypt*\"\n      ],\n      \"Resource\": \"*\"\n    }\n  ]\n}",
+          "note": "Key policy of the customer-managed key alias/acme-ebs-cmk: an encrypted snapshot is only usable by accounts the KEY allows."
+        },
+        {
+          "name": "snapshot-cheatsheet.sh",
+          "language": "bash",
+          "content": "aws ec2 describe-snapshots --owner-ids self\naws ec2 describe-snapshot-attribute --snapshot-id <snap-id> --attribute createVolumePermission\naws ec2 modify-snapshot-attribute --snapshot-id <snap-id> --attribute createVolumePermission \\\n  --operation-type remove --group-names all\naws ec2 modify-snapshot-attribute --snapshot-id <snap-id> --attribute createVolumePermission \\\n  --operation-type remove --user-ids <account-id>\naws ec2 get-snapshot-block-public-access-state\naws ec2 enable-snapshot-block-public-access --state block-all-sharing\n\naws rds describe-db-snapshots --snapshot-type manual\naws rds describe-db-snapshot-attributes --db-snapshot-identifier <id>\naws rds modify-db-snapshot-attribute --db-snapshot-identifier <id> --attribute-name restore --values-to-remove all\n\naws ssm get-parameter --name /security/snapshot-audit/signoff",
+          "note": "Command syntax you will need."
+        }
+      ],
+      "terminal": {
+        "prompt": "secops@acme-audit:~$",
+        "intro": "Using role SnapshotAuditRemediation in account 111122223333, region us-east-1. Simulated shell.",
+        "help": "Audit and fix your own snapshots, e.g.\n  aws ec2 describe-snapshots --owner-ids self\n  aws ec2 describe-snapshot-attribute --snapshot-id <id> --attribute createVolumePermission\n  aws ec2 modify-snapshot-attribute --snapshot-id <id> --attribute createVolumePermission --operation-type remove --group-names all\n  aws ec2 get-snapshot-block-public-access-state\n  aws ec2 enable-snapshot-block-public-access --state block-all-sharing\n  aws rds describe-db-snapshots --snapshot-type manual\n  aws rds describe-db-snapshot-attributes --db-snapshot-identifier <id>\n  aws rds modify-db-snapshot-attribute --db-snapshot-identifier <id> --attribute-name restore --values-to-remove all\n  aws ssm get-parameter --name /security/snapshot-audit/signoff",
+        "rules": [
+          {
+            "match": "--no-sign-request",
+            "output": "[lab] Out of scope. This range audits and fixes snapshots in YOUR OWN account. It does not read or mount anyone else's data."
+          },
+          {
+            "match": "^aws ec2 (create-volume|run-instances|attach-volume)\\b",
+            "output": "[lab] Not needed here. You are auditing sharing permissions, not reading snapshot contents. Use describe-snapshot-attribute and modify-snapshot-attribute."
+          },
+          {
+            "match": "^aws sts get-caller-identity$",
+            "output": "{\n  \"UserId\": \"AROAEXAMPLEEC2AUDIT01:secops\",\n  \"Account\": \"111122223333\",\n  \"Arn\": \"arn:aws:sts::111122223333:assumed-role/SnapshotAuditRemediation/secops\"\n}"
+          },
+          {
+            "match": "^aws ec2 describe-snapshots(?=.*--owner-ids (?:self|111122223333)(?: |$)).*$",
+            "sets": [
+              "listed_snaps"
+            ],
+            "output": "{\n  \"Snapshots\": [\n    {\n      \"Description\": \"prod-db-data nightly\",\n      \"Encrypted\": false,\n      \"OwnerId\": \"111122223333\",\n      \"Progress\": \"100%\",\n      \"SnapshotId\": \"snap-0a1b2c3d4e5f60001\",\n      \"StartTime\": \"2025-01-10T02:00:00+00:00\",\n      \"State\": \"completed\",\n      \"VolumeId\": \"vol-0f1e2d3c4b5a69871\",\n      \"VolumeSize\": 100,\n      \"Tags\": [\n        {\n          \"Key\": \"Name\",\n          \"Value\": \"prod-db-data\"\n        }\n      ],\n      \"StorageTier\": \"standard\"\n    },\n    {\n      \"Description\": \"build-cache weekly\",\n      \"Encrypted\": true,\n      \"KmsKeyId\": \"arn:aws:kms:us-east-1:111122223333:key/4c1d9e27-8a3b-4f56-b0d2-7e9a1c3f5b68\",\n      \"OwnerId\": \"111122223333\",\n      \"Progress\": \"100%\",\n      \"SnapshotId\": \"snap-0a1b2c3d4e5f60002\",\n      \"StartTime\": \"2025-02-11T02:00:00+00:00\",\n      \"State\": \"completed\",\n      \"VolumeId\": \"vol-0a9b8c7d6e5f40322\",\n      \"VolumeSize\": 50,\n      \"Tags\": [\n        {\n          \"Key\": \"Name\",\n          \"Value\": \"build-cache\"\n        }\n      ],\n      \"StorageTier\": \"standard\"\n    },\n    {\n      \"Description\": \"staging seed data\",\n      \"Encrypted\": false,\n      \"OwnerId\": \"111122223333\",\n      \"Progress\": \"100%\",\n      \"SnapshotId\": \"snap-0a1b2c3d4e5f60003\",\n      \"StartTime\": \"2025-03-12T02:00:00+00:00\",\n      \"State\": \"completed\",\n      \"VolumeId\": \"vol-0b1c2d3e4f5a67890\",\n      \"VolumeSize\": 20,\n      \"Tags\": [\n        {\n          \"Key\": \"Name\",\n          \"Value\": \"staging-seed\"\n        }\n      ],\n      \"StorageTier\": \"standard\"\n    },\n    {\n      \"Description\": \"finance export 2025-Q1\",\n      \"Encrypted\": false,\n      \"OwnerId\": \"111122223333\",\n      \"Progress\": \"100%\",\n      \"SnapshotId\": \"snap-0a1b2c3d4e5f60004\",\n      \"StartTime\": \"2025-01-13T02:00:00+00:00\",\n      \"State\": \"completed\",\n      \"VolumeId\": \"vol-0c2d3e4f5a6b78901\",\n      \"VolumeSize\": 40,\n      \"Tags\": [\n        {\n          \"Key\": \"Name\",\n          \"Value\": \"finance-export\"\n        }\n      ],\n      \"StorageTier\": \"standard\"\n    },\n    {\n      \"Description\": \"old test volume\",\n      \"Encrypted\": false,\n      \"OwnerId\": \"111122223333\",\n      \"Progress\": \"100%\",\n      \"SnapshotId\": \"snap-0a1b2c3d4e5f60005\",\n      \"StartTime\": \"2025-02-14T02:00:00+00:00\",\n      \"State\": \"completed\",\n      \"VolumeId\": \"vol-0d3e4f5a6b7c89012\",\n      \"VolumeSize\": 8,\n      \"Tags\": [\n        {\n          \"Key\": \"Name\",\n          \"Value\": \"old-test\"\n        }\n      ],\n      \"StorageTier\": \"standard\"\n    }\n  ]\n}"
+          },
+          {
+            "match": "^aws ec2 describe-snapshots\\b",
+            "output": "[lab] Add --owner-ids self. Without it EC2 also pages through snapshots that other accounts made public, which is noise for an audit of your own estate."
+          },
+          {
+            "match": "^aws ec2 describe-snapshot-attribute(?=.*--snapshot-id snap-0a1b2c3d4e5f60001(?: |$))(?=.*--attribute createVolumePermission).*$",
+            "requires": [
+              "unshared_pub"
+            ],
+            "output": "{\n  \"SnapshotId\": \"snap-0a1b2c3d4e5f60001\",\n  \"CreateVolumePermissions\": []\n}"
+          },
+          {
+            "match": "^aws ec2 describe-snapshot-attribute(?=.*--snapshot-id snap-0a1b2c3d4e5f60001(?: |$))(?=.*--attribute createVolumePermission).*$",
+            "sets": [
+              "saw_public"
+            ],
+            "output": "{\n  \"SnapshotId\": \"snap-0a1b2c3d4e5f60001\",\n  \"CreateVolumePermissions\": [\n    {\n      \"Group\": \"all\"\n    }\n  ]\n}"
+          },
+          {
+            "match": "^aws ec2 describe-snapshot-attribute(?=.*--snapshot-id snap-0a1b2c3d4e5f60004(?: |$))(?=.*--attribute createVolumePermission).*$",
+            "requires": [
+              "unshared_fin"
+            ],
+            "output": "{\n  \"SnapshotId\": \"snap-0a1b2c3d4e5f60004\",\n  \"CreateVolumePermissions\": []\n}"
+          },
+          {
+            "match": "^aws ec2 describe-snapshot-attribute(?=.*--snapshot-id snap-0a1b2c3d4e5f60004(?: |$))(?=.*--attribute createVolumePermission).*$",
+            "output": "{\n  \"SnapshotId\": \"snap-0a1b2c3d4e5f60004\",\n  \"CreateVolumePermissions\": [\n    {\n      \"UserId\": \"777788889999\"\n    }\n  ]\n}"
+          },
+          {
+            "match": "^aws ec2 describe-snapshot-attribute(?=.*--snapshot-id snap-0a1b2c3d4e5f60003(?: |$))(?=.*--attribute createVolumePermission).*$",
+            "output": "{\n  \"SnapshotId\": \"snap-0a1b2c3d4e5f60003\",\n  \"CreateVolumePermissions\": [\n    {\n      \"UserId\": \"444455556666\"\n    }\n  ]\n}"
+          },
+          {
+            "match": "^aws ec2 describe-snapshot-attribute(?=.*--snapshot-id snap-0a1b2c3d4e5f60002(?: |$))(?=.*--attribute createVolumePermission).*$",
+            "output": "{\n  \"SnapshotId\": \"snap-0a1b2c3d4e5f60002\",\n  \"CreateVolumePermissions\": []\n}"
+          },
+          {
+            "match": "^aws ec2 describe-snapshot-attribute(?=.*--snapshot-id snap-0a1b2c3d4e5f60005(?: |$))(?=.*--attribute createVolumePermission).*$",
+            "output": "{\n  \"SnapshotId\": \"snap-0a1b2c3d4e5f60005\",\n  \"CreateVolumePermissions\": []\n}"
+          },
+          {
+            "match": "^aws ec2 describe-snapshot-attribute\\b",
+            "output": "usage: aws ec2 describe-snapshot-attribute --snapshot-id <snap-id> --attribute createVolumePermission"
+          },
+          {
+            "match": "^aws ec2 modify-snapshot-attribute(?=.*--snapshot-id snap-0a1b2c3d4e5f60001(?: |$))(?=.*--operation-type remove)(?=.*--group-names all(?: |$)).*$",
+            "sets": [
+              "unshared_pub"
+            ],
+            "output": ""
+          },
+          {
+            "match": "^aws ec2 modify-snapshot-attribute(?=.*--snapshot-id snap-0a1b2c3d4e5f60004(?: |$))(?=.*--operation-type remove)(?=.*--user-ids 777788889999(?: |$)).*$",
+            "sets": [
+              "unshared_fin"
+            ],
+            "output": ""
+          },
+          {
+            "match": "^aws ec2 modify-snapshot-attribute\\b",
+            "output": "[lab] No change made. In scope: remove the public share (--operation-type remove --group-names all) from the public snapshot, and remove the unapproved account's share (--user-ids <id>) from the snapshot it was granted on. The share to 444455556666 is approved (see approved-accounts.txt)."
+          },
+          {
+            "match": "^aws ec2 get-snapshot-block-public-access-state(?: --region \\S+)?$",
+            "requires": [
+              "bpa_snap"
+            ],
+            "output": "{\n  \"State\": \"block-all-sharing\"\n}"
+          },
+          {
+            "match": "^aws ec2 get-snapshot-block-public-access-state(?: --region \\S+)?$",
+            "requires": [
+              "bpa_new"
+            ],
+            "output": "{\n  \"State\": \"block-new-sharing\"\n}"
+          },
+          {
+            "match": "^aws ec2 get-snapshot-block-public-access-state(?: --region \\S+)?$",
+            "output": "{\n  \"State\": \"unblocked\"\n}"
+          },
+          {
+            "match": "^aws ec2 enable-snapshot-block-public-access --state block-all-sharing(?: --region \\S+)?$",
+            "sets": [
+              "bpa_snap"
+            ],
+            "output": "{\n  \"State\": \"block-all-sharing\"\n}"
+          },
+          {
+            "match": "^aws ec2 enable-snapshot-block-public-access --state block-new-sharing(?: --region \\S+)?$",
+            "sets": [
+              "bpa_new"
+            ],
+            "output": "{\n  \"State\": \"block-new-sharing\"\n}"
+          },
+          {
+            "match": "^aws ec2 enable-snapshot-block-public-access\\b",
+            "output": "usage: aws ec2 enable-snapshot-block-public-access --state <block-all-sharing|block-new-sharing>"
+          },
+          {
+            "match": "^aws ec2 copy-snapshot(?=.*--source-snapshot-id snap-0a1b2c3d4e5f60001(?: |$))(?=.*--encrypted)(?=.*--kms-key-id \\S+).*$",
+            "output": "{\n  \"SnapshotId\": \"snap-0a1b2c3d4e5f60009\"\n}"
+          },
+          {
+            "match": "^aws rds describe-db-snapshots(?=.*--snapshot-type manual).*$",
+            "output": "{\n  \"DBSnapshots\": [\n    {\n      \"DBSnapshotIdentifier\": \"orders-db-2025-02-manual\",\n      \"DBInstanceIdentifier\": \"orders-db\",\n      \"Engine\": \"postgres\",\n      \"Status\": \"available\",\n      \"AllocatedStorage\": 100,\n      \"Encrypted\": false,\n      \"SnapshotType\": \"manual\"\n    },\n    {\n      \"DBSnapshotIdentifier\": \"reports-db-2025-03-manual\",\n      \"DBInstanceIdentifier\": \"reports-db\",\n      \"Engine\": \"postgres\",\n      \"Status\": \"available\",\n      \"AllocatedStorage\": 100,\n      \"Encrypted\": true,\n      \"KmsKeyId\": \"arn:aws:kms:us-east-1:111122223333:key/4c1d9e27-8a3b-4f56-b0d2-7e9a1c3f5b68\",\n      \"SnapshotType\": \"manual\"\n    }\n  ]\n}"
+          },
+          {
+            "match": "^aws rds describe-db-snapshot-attributes(?=.*--db-snapshot-identifier orders-db-2025-02-manual(?: |$)).*$",
+            "requires": [
+              "unshared_rds"
+            ],
+            "output": "{\n  \"DBSnapshotAttributesResult\": {\n    \"DBSnapshotIdentifier\": \"orders-db-2025-02-manual\",\n    \"DBSnapshotAttributes\": [\n      {\n        \"AttributeName\": \"restore\",\n        \"AttributeValues\": []\n      }\n    ]\n  }\n}"
+          },
+          {
+            "match": "^aws rds describe-db-snapshot-attributes(?=.*--db-snapshot-identifier orders-db-2025-02-manual(?: |$)).*$",
+            "output": "{\n  \"DBSnapshotAttributesResult\": {\n    \"DBSnapshotIdentifier\": \"orders-db-2025-02-manual\",\n    \"DBSnapshotAttributes\": [\n      {\n        \"AttributeName\": \"restore\",\n        \"AttributeValues\": [\n          \"all\"\n        ]\n      }\n    ]\n  }\n}"
+          },
+          {
+            "match": "^aws rds describe-db-snapshot-attributes(?=.*--db-snapshot-identifier reports-db-2025-03-manual(?: |$)).*$",
+            "output": "{\n  \"DBSnapshotAttributesResult\": {\n    \"DBSnapshotIdentifier\": \"reports-db-2025-03-manual\",\n    \"DBSnapshotAttributes\": [\n      {\n        \"AttributeName\": \"restore\",\n        \"AttributeValues\": []\n      }\n    ]\n  }\n}"
+          },
+          {
+            "match": "^aws rds modify-db-snapshot-attribute(?=.*--db-snapshot-identifier orders-db-2025-02-manual(?: |$))(?=.*--attribute-name restore)(?=.*--values-to-remove all(?: |$)).*$",
+            "sets": [
+              "unshared_rds"
+            ],
+            "output": "{\n  \"DBSnapshotAttributesResult\": {\n    \"DBSnapshotIdentifier\": \"orders-db-2025-02-manual\",\n    \"DBSnapshotAttributes\": [\n      {\n        \"AttributeName\": \"restore\",\n        \"AttributeValues\": []\n      }\n    ]\n  }\n}"
+          },
+          {
+            "match": "^aws rds modify-db-snapshot-attribute\\b",
+            "output": "[lab] No change made. To unshare use: aws rds modify-db-snapshot-attribute --db-snapshot-identifier <id> --attribute-name restore --values-to-remove all"
+          },
+          {
+            "match": "^aws ssm get-parameter --name /security/snapshot-audit/signoff\\b",
+            "requires": [
+              "unshared_pub",
+              "unshared_fin",
+              "unshared_rds",
+              "bpa_snap"
+            ],
+            "output": "{\n  \"Parameter\": {\n    \"Name\": \"/security/snapshot-audit/signoff\",\n    \"Type\": \"String\",\n    \"Value\": \"FLAG{snapshots_unshared_and_blocked}\",\n    \"Version\": 1,\n    \"LastModifiedDate\": \"2025-02-04T09:30:12+00:00\",\n    \"ARN\": \"arn:aws:ssm:us-east-1:111122223333:parameter/security/snapshot-audit/signoff\",\n    \"DataType\": \"text\"\n  }\n}"
+          },
+          {
+            "match": "^aws ssm get-parameter --name /security/snapshot-audit/signoff\\b",
+            "output": "An error occurred (ParameterNotFound) when calling the GetParameter operation:"
+          }
+        ]
+      },
+      "solution": [
+        "aws ec2 describe-snapshots --owner-ids self",
+        "aws ec2 describe-snapshot-attribute --snapshot-id snap-0a1b2c3d4e5f60001 --attribute createVolumePermission",
+        "aws ec2 describe-snapshot-attribute --snapshot-id snap-0a1b2c3d4e5f60004 --attribute createVolumePermission",
+        "aws ec2 modify-snapshot-attribute --snapshot-id snap-0a1b2c3d4e5f60001 --attribute createVolumePermission --operation-type remove --group-names all",
+        "aws ec2 modify-snapshot-attribute --snapshot-id snap-0a1b2c3d4e5f60004 --attribute createVolumePermission --operation-type remove --user-ids 777788889999",
+        "aws rds describe-db-snapshots --snapshot-type manual",
+        "aws rds describe-db-snapshot-attributes --db-snapshot-identifier orders-db-2025-02-manual",
+        "aws rds modify-db-snapshot-attribute --db-snapshot-identifier orders-db-2025-02-manual --attribute-name restore --values-to-remove all",
+        "aws ec2 enable-snapshot-block-public-access --state block-all-sharing",
+        "aws ssm get-parameter --name /security/snapshot-audit/signoff"
+      ],
+      "tasks": [
+        {
+          "id": "t1",
+          "kind": "answer",
+          "prompt": "Check the createVolumePermission of each EBS snapshot. Which snapshot id is shared with everyone (Group: all)?",
+          "accept": [
+            "snap-0a1b2c3d4e5f60001"
+          ],
+          "explanation": "A createVolumePermission entry with Group \"all\" makes the snapshot public: any AWS account can copy it and restore a volume from it. This one holds production database files, so it is the highest-risk item in the estate."
+        },
+        {
+          "id": "t2",
+          "kind": "choice",
+          "prompt": "In describe-snapshot-attribute output, what is the difference between {\"Group\": \"all\"} and {\"UserId\": \"444455556666\"}?",
+          "options": [
+            "Group \"all\" makes the snapshot public to every AWS account; a UserId shares it only with that specific account",
+            "Group \"all\" shares with every account in your AWS Organization; UserId shares with one IAM user",
+            "They are equivalent; UserId is just the older syntax",
+            "Group \"all\" only allows copying, UserId also allows deleting the snapshot"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Group \"all\" is the public share. A UserId is an AWS account id (not an IAM user) and grants that one account permission to create volumes from the snapshot. Neither lets the other party delete your snapshot, but both let them read all its data."
+        },
+        {
+          "id": "t3",
+          "kind": "answer",
+          "prompt": "Compare the share lists with approved-accounts.txt. Which AWS account id is NOT approved but still has access to one of your snapshots?",
+          "accept": [
+            "777788889999"
+          ],
+          "explanation": "Account 777788889999 appears on the finance export snapshot but is not on the approved list. Shares to individual accounts are quieter than public ones and are rarely reviewed, so keep a list of approved recipients and diff against it."
+        },
+        {
+          "id": "t4",
+          "kind": "choice",
+          "prompt": "The public RDS manual snapshot orders-db-2025-02-manual is exposed through its restore attribute. Which value in that attribute makes it public, and what removes it?",
+          "options": [
+            "AttributeValues contains \"all\"; remove it with modify-db-snapshot-attribute --attribute-name restore --values-to-remove all",
+            "AttributeValues contains \"public\"; delete the snapshot and recreate it",
+            "AttributeValues contains an account id; modify the DB instance instead",
+            "AttributeName is \"publiclyAccessible\"; disable it on the DB instance"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "For RDS snapshots the restore attribute lists the accounts allowed to restore. The special value \"all\" means every AWS account. Removing it with modify-db-snapshot-attribute fixes the share without touching the database instance (PubliclyAccessible is a different, unrelated setting)."
+        },
+        {
+          "id": "t5",
+          "kind": "flag",
+          "prompt": "Remove the public EBS share, the unapproved account's share, and the public RDS share (leave the approved staging share alone), enable block-all-sharing for EBS snapshots, then read /security/snapshot-audit/signoff. Paste the flag.",
+          "flag": "FLAG{snapshots_unshared_and_blocked}",
+          "explanation": "Removing each share closes the specific exposures, and block-all-sharing is the guardrail that stops anyone from re-publishing a snapshot later. The sign-off only exists when both are true, so it proves the fix and the control, not just one of them."
+        },
+        {
+          "id": "t6",
+          "kind": "choice",
+          "prompt": "How does encrypting snapshots with a customer-managed KMS key (CMK) limit sharing?",
+          "options": [
+            "An encrypted snapshot cannot be made public, and a CMK-encrypted snapshot is usable cross-account only if you share it AND the key policy allows that account",
+            "Encryption removes the need for sharing controls because the data is unreadable to everyone",
+            "A snapshot encrypted with the default aws/ebs key can be shared with any account as long as it is not public",
+            "Only the account root user can ever copy an encrypted snapshot"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "EBS and RDS do not let you share an encrypted snapshot publicly. For cross-account use you must share the snapshot and grant the other account access to the CMK in its key policy (see ebs-cmk-key-policy.json). Snapshots encrypted with the AWS-managed default key cannot be shared cross-account, because you cannot edit that key's policy. This gives you a second control point you own."
+        },
+        {
+          "id": "t7",
+          "kind": "choice",
+          "prompt": "What does --state block-all-sharing do that --state block-new-sharing does not?",
+          "options": [
+            "It also stops snapshots that were already public from being accessible, rather than only blocking new public shares",
+            "It prevents sharing with specific accounts as well as public sharing",
+            "It deletes every snapshot with a public share",
+            "Nothing; the two states are aliases"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "block-new-sharing prevents anyone from making additional snapshots public but leaves existing public snapshots exposed. block-all-sharing also makes already-public snapshots inaccessible to the public. Neither blocks private shares to named accounts, so the approved-account review still matters. The setting is per Region."
+        },
+        {
+          "id": "t8",
+          "kind": "answer",
+          "prompt": "What is the exact value of the --group-names argument you pass to remove a snapshot's public share?",
+          "accept": [
+            "all",
+            "--group-names all",
+            "group-names all"
+          ],
+          "explanation": "The only supported group is \"all\", which represents the public. Together with --operation-type remove and --attribute createVolumePermission it removes the public entry without touching the account-specific shares that are still approved."
+        }
+      ],
+      "takeaways": [
+        "Snapshot exposure lives in a separate attribute (createVolumePermission for EBS, restore for RDS), so describing snapshots is not enough. Query the sharing list.",
+        "Group \"all\" is public; account ids are private shares. Review both against an approved-recipient list.",
+        "Turn on EBS snapshot block public access (block-all-sharing) as a regional guardrail, and encrypt snapshots with a customer-managed key you control.",
+        "Encrypted snapshots cannot be public, and cross-account use needs both a share and a key-policy grant."
+      ]
+    }
+  },
+  {
+    "labId": "cloud-L12",
+    "title": "Lock the Bucket",
+    "objective": "Fix four real bucket-policy problems on your own buckets: remove public read while keeping the app working, deny non-TLS requests, and restrict access to a VPC endpoint or your AWS Organization with a condition.",
+    "successCriteria": [
+      "You removed the anonymous grant from a bucket policy while keeping the application role's access intact",
+      "You wrote a Deny statement that rejects requests that do not use TLS (aws:SecureTransport)",
+      "You restricted a bucket to a VPC endpoint (aws:SourceVpce) and another to your AWS Organization (aws:PrincipalOrgID)"
+    ],
+    "hints": [
+      "Read each starter policy and ask who is allowed, to do what, from where. The tests describe behaviours you must preserve and behaviours you must stop.",
+      "An explicit Deny always wins. To say \"only from X\", deny everything that is NOT from X (StringNotEquals) instead of trying to allow only X. A negated test on a missing key evaluates true, so a request with no VPC endpoint is denied too.",
+      "For TLS use a Deny with Principal \"*\", Action \"s3:*\", both the bucket and bucket/* ARNs, and Condition Bool aws:SecureTransport = \"false\". For the organization, keep the Allow but add StringEquals aws:PrincipalOrgID."
+    ],
+    "estimatedHours": 2,
+    "resources": [
+      {
+        "title": "AWS docs: Bucket policy examples",
+        "url": "https://docs.aws.amazon.com/AmazonS3/latest/userguide/example-bucket-policies.html",
+        "type": "link"
+      },
+      {
+        "title": "AWS docs: Controlling access from VPC endpoints with bucket policies",
+        "url": "https://docs.aws.amazon.com/AmazonS3/latest/userguide/example-bucket-policies-vpc-endpoint.html",
+        "type": "link"
+      },
+      {
+        "title": "AWS docs: Blocking public access to your Amazon S3 storage",
+        "url": "https://docs.aws.amazon.com/AmazonS3/latest/userguide/access-control-block-public-access.html",
+        "type": "link"
+      },
+      {
+        "title": "AWS docs: AWS global condition context keys",
+        "url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_condition-keys.html",
+        "type": "link"
+      }
+    ],
+    "range": {
+      "scenario": "Your audit of Acme's S3 estate (account 111122223333) turned up four buckets whose bucket policies are too loose: one allows anonymous reads that nobody remembers adding, one accepts plain-HTTP requests, one is reachable from anywhere when it should only be reachable from inside the VPC, and one shares build artifacts with a wildcard principal when it should be limited to your AWS Organization. Fix each policy in the editor. The grader evaluates your policy against realistic requests, so you must keep legitimate access working while removing the exposure. A small terminal lets you check the current Block Public Access state and apply the guardrail. Everything is simulated.",
+      "artifacts": [
+        {
+          "name": "acme-app-assets-prod-policy.json",
+          "language": "json",
+          "content": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"PublicRead\",\n      \"Effect\": \"Allow\",\n      \"Principal\": \"*\",\n      \"Action\": \"s3:GetObject\",\n      \"Resource\": \"arn:aws:s3:::acme-app-assets-prod/*\"\n    },\n    {\n      \"Sid\": \"AppRoleReadWrite\",\n      \"Effect\": \"Allow\",\n      \"Principal\": {\n        \"AWS\": \"arn:aws:iam::111122223333:role/app-server-role\"\n      },\n      \"Action\": [\n        \"s3:GetObject\",\n        \"s3:PutObject\"\n      ],\n      \"Resource\": \"arn:aws:s3:::acme-app-assets-prod/*\"\n    }\n  ]\n}",
+          "note": "Task 1: the policy that currently allows anonymous reads."
+        },
+        {
+          "name": "acme-reports-prod-policy.json",
+          "language": "json",
+          "content": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"ReportsRoleAccess\",\n      \"Effect\": \"Allow\",\n      \"Principal\": {\n        \"AWS\": \"arn:aws:iam::111122223333:role/reports-role\"\n      },\n      \"Action\": [\n        \"s3:GetObject\",\n        \"s3:PutObject\"\n      ],\n      \"Resource\": \"arn:aws:s3:::acme-reports-prod/*\"\n    }\n  ]\n}",
+          "note": "Task 2: the policy with no transport-security rule."
+        },
+        {
+          "name": "acme-data-lake-policy.json",
+          "language": "json",
+          "content": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"AnalyticsRead\",\n      \"Effect\": \"Allow\",\n      \"Principal\": \"*\",\n      \"Action\": \"s3:GetObject\",\n      \"Resource\": \"arn:aws:s3:::acme-data-lake/*\"\n    }\n  ]\n}",
+          "note": "Task 3: the policy to restrict to the data-lake VPC endpoint (vpce-0a1b2c3d4e5f67890)."
+        },
+        {
+          "name": "acme-shared-artifacts-policy.json",
+          "language": "json",
+          "content": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"ShareArtifacts\",\n      \"Effect\": \"Allow\",\n      \"Principal\": \"*\",\n      \"Action\": \"s3:GetObject\",\n      \"Resource\": \"arn:aws:s3:::acme-shared-artifacts/*\"\n    }\n  ]\n}",
+          "note": "Task 4: the policy to restrict to your AWS Organization (o-a1b2c3d4e5)."
+        }
+      ],
+      "terminal": {
+        "prompt": "secops@acme-audit:~$",
+        "intro": "Using role S3PolicyAdmin in account 111122223333. Optional: use this to check the guardrail on acme-app-assets-prod. Policy tasks are graded in the editors.",
+        "help": "Optional commands:\n  aws s3api get-public-access-block --bucket acme-app-assets-prod\n  aws s3api get-bucket-policy --bucket acme-app-assets-prod\n  aws s3api get-bucket-policy-status --bucket acme-app-assets-prod\n  aws s3api put-public-access-block --bucket acme-app-assets-prod --public-access-block-configuration BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true\n  aws s3api put-bucket-policy --bucket <name> --policy file://policy.json",
+        "rules": [
+          {
+            "match": "^aws s3api get-public-access-block --bucket acme-app-assets-prod(?: --region \\S+)?$",
+            "requires": [
+              "bpa_app"
+            ],
+            "output": "{\n  \"PublicAccessBlockConfiguration\": {\n    \"BlockPublicAcls\": true,\n    \"IgnorePublicAcls\": true,\n    \"BlockPublicPolicy\": true,\n    \"RestrictPublicBuckets\": true\n  }\n}"
+          },
+          {
+            "match": "^aws s3api get-public-access-block --bucket acme-app-assets-prod(?: --region \\S+)?$",
+            "output": "{\n  \"PublicAccessBlockConfiguration\": {\n    \"BlockPublicAcls\": false,\n    \"IgnorePublicAcls\": false,\n    \"BlockPublicPolicy\": false,\n    \"RestrictPublicBuckets\": false\n  }\n}"
+          },
+          {
+            "match": "^aws s3api get-bucket-policy --bucket acme-app-assets-prod(?: --region \\S+)?$",
+            "output": "{\n    \"Policy\": \"{\\\"Version\\\":\\\"2012-10-17\\\",\\\"Statement\\\":[{\\\"Sid\\\":\\\"PublicRead\\\",\\\"Effect\\\":\\\"Allow\\\",\\\"Principal\\\":\\\"*\\\",\\\"Action\\\":\\\"s3:GetObject\\\",\\\"Resource\\\":\\\"arn:aws:s3:::acme-app-assets-prod/*\\\"},{\\\"Sid\\\":\\\"AppRoleReadWrite\\\",\\\"Effect\\\":\\\"Allow\\\",\\\"Principal\\\":{\\\"AWS\\\":\\\"arn:aws:iam::111122223333:role/app-server-role\\\"},\\\"Action\\\":[\\\"s3:GetObject\\\",\\\"s3:PutObject\\\"],\\\"Resource\\\":\\\"arn:aws:s3:::acme-app-assets-prod/*\\\"}]}\"\n}"
+          },
+          {
+            "match": "^aws s3api put-public-access-block(?=.*--bucket acme-app-assets-prod(?: |$))(?=.*blockpublicacls=true)(?=.*ignorepublicacls=true)(?=.*blockpublicpolicy=true)(?=.*restrictpublicbuckets=true).*$",
+            "sets": [
+              "bpa_app"
+            ],
+            "output": ""
+          },
+          {
+            "match": "^aws s3api put-public-access-block\\b",
+            "output": "[lab] Set all four settings to true on acme-app-assets-prod: BlockPublicAcls, IgnorePublicAcls, BlockPublicPolicy, RestrictPublicBuckets."
+          },
+          {
+            "match": "^aws s3api put-bucket-policy --bucket (\\S+) --policy file://\\S+$",
+            "output": ""
+          },
+          {
+            "match": "^aws s3api get-bucket-policy-status --bucket acme-app-assets-prod(?: --region \\S+)?$",
+            "output": "{\n  \"PolicyStatus\": {\n    \"IsPublic\": true\n  }\n}"
+          }
+        ]
+      },
+      "tasks": [
+        {
+          "id": "t1",
+          "kind": "choice",
+          "prompt": "A developer once set a public-read ACL on a single object in your bucket. Which Block Public Access setting makes S3 ignore that existing ACL, and which one rejects NEW requests that try to add a public ACL?",
+          "options": [
+            "IgnorePublicAcls ignores existing public ACLs; BlockPublicAcls rejects new ones",
+            "BlockPublicAcls ignores existing public ACLs; IgnorePublicAcls rejects new ones",
+            "RestrictPublicBuckets ignores existing ACLs; BlockPublicPolicy rejects new ones",
+            "BlockPublicPolicy covers both ACL cases"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "BlockPublicAcls is preventive: PUT requests that carry a public ACL are rejected. IgnorePublicAcls is corrective: ACLs that already exist are ignored when evaluating access. BlockPublicPolicy and RestrictPublicBuckets are the matching pair for bucket policies."
+        },
+        {
+          "id": "t2",
+          "kind": "policy",
+          "mode": "resource",
+          "prompt": "acme-app-assets-prod: remove the public read from the bucket policy but keep the application role (app-server-role) able to read and write objects. Anonymous users must not be able to read objects.",
+          "starter": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"PublicRead\",\n      \"Effect\": \"Allow\",\n      \"Principal\": \"*\",\n      \"Action\": \"s3:GetObject\",\n      \"Resource\": \"arn:aws:s3:::acme-app-assets-prod/*\"\n    },\n    {\n      \"Sid\": \"AppRoleReadWrite\",\n      \"Effect\": \"Allow\",\n      \"Principal\": {\n        \"AWS\": \"arn:aws:iam::111122223333:role/app-server-role\"\n      },\n      \"Action\": [\n        \"s3:GetObject\",\n        \"s3:PutObject\"\n      ],\n      \"Resource\": \"arn:aws:s3:::acme-app-assets-prod/*\"\n    }\n  ]\n}",
+          "solution": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"AppRoleReadWrite\",\n      \"Effect\": \"Allow\",\n      \"Principal\": {\n        \"AWS\": \"arn:aws:iam::111122223333:role/app-server-role\"\n      },\n      \"Action\": [\n        \"s3:GetObject\",\n        \"s3:PutObject\"\n      ],\n      \"Resource\": \"arn:aws:s3:::acme-app-assets-prod/*\"\n    }\n  ]\n}",
+          "tests": [
+            {
+              "name": "Anonymous users cannot read objects",
+              "action": "s3:GetObject",
+              "resource": "arn:aws:s3:::acme-app-assets-prod/logo.png",
+              "principal": "anonymous",
+              "expect": "deny"
+            },
+            {
+              "name": "Anonymous users cannot write objects",
+              "action": "s3:PutObject",
+              "resource": "arn:aws:s3:::acme-app-assets-prod/logo.png",
+              "principal": "anonymous",
+              "expect": "deny"
+            },
+            {
+              "name": "The application role can still read objects",
+              "action": "s3:GetObject",
+              "resource": "arn:aws:s3:::acme-app-assets-prod/logo.png",
+              "principal": "arn:aws:sts::111122223333:assumed-role/app-server-role/i-0abc1234def567890",
+              "expect": "allow"
+            },
+            {
+              "name": "The application role can still write objects",
+              "action": "s3:PutObject",
+              "resource": "arn:aws:s3:::acme-app-assets-prod/logo.png",
+              "principal": "arn:aws:sts::111122223333:assumed-role/app-server-role/i-0abc1234def567890",
+              "expect": "allow"
+            },
+            {
+              "name": "An unrelated role is not granted access by this policy",
+              "action": "s3:GetObject",
+              "resource": "arn:aws:s3:::acme-app-assets-prod/logo.png",
+              "principal": "arn:aws:iam::111122223333:role/intern-role",
+              "expect": "deny"
+            }
+          ],
+          "explanation": "The fix is to delete the Principal \"*\" statement, not to narrow the whole policy. The role-specific statement already grants the app exactly what it needs, so removing the public grant closes the exposure with no outage. Pair it with Block Public Access so a public policy can't be re-added."
+        },
+        {
+          "id": "t3",
+          "kind": "policy",
+          "mode": "resource",
+          "prompt": "acme-reports-prod: the reports role works today but the bucket accepts plain-HTTP requests. Add a statement so every request that does not use TLS is denied, for every principal and for both bucket-level and object-level actions, while HTTPS access by the reports role keeps working.",
+          "starter": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"ReportsRoleAccess\",\n      \"Effect\": \"Allow\",\n      \"Principal\": {\n        \"AWS\": \"arn:aws:iam::111122223333:role/reports-role\"\n      },\n      \"Action\": [\n        \"s3:GetObject\",\n        \"s3:PutObject\"\n      ],\n      \"Resource\": \"arn:aws:s3:::acme-reports-prod/*\"\n    }\n  ]\n}",
+          "solution": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"ReportsRoleAccess\",\n      \"Effect\": \"Allow\",\n      \"Principal\": {\n        \"AWS\": \"arn:aws:iam::111122223333:role/reports-role\"\n      },\n      \"Action\": [\n        \"s3:GetObject\",\n        \"s3:PutObject\"\n      ],\n      \"Resource\": \"arn:aws:s3:::acme-reports-prod/*\"\n    },\n    {\n      \"Sid\": \"DenyInsecureTransport\",\n      \"Effect\": \"Deny\",\n      \"Principal\": \"*\",\n      \"Action\": \"s3:*\",\n      \"Resource\": [\n        \"arn:aws:s3:::acme-reports-prod\",\n        \"arn:aws:s3:::acme-reports-prod/*\"\n      ],\n      \"Condition\": {\n        \"Bool\": {\n          \"aws:SecureTransport\": \"false\"\n        }\n      }\n    }\n  ]\n}",
+          "tests": [
+            {
+              "name": "Reports role can read over HTTPS",
+              "action": "s3:GetObject",
+              "resource": "arn:aws:s3:::acme-reports-prod/2025/q1-report.pdf",
+              "principal": "arn:aws:sts::111122223333:assumed-role/reports-role/session1",
+              "context": {
+                "aws:SecureTransport": true
+              },
+              "expect": "allow"
+            },
+            {
+              "name": "Reports role can write over HTTPS",
+              "action": "s3:PutObject",
+              "resource": "arn:aws:s3:::acme-reports-prod/2025/q1-report.pdf",
+              "principal": "arn:aws:sts::111122223333:assumed-role/reports-role/session1",
+              "context": {
+                "aws:SecureTransport": true
+              },
+              "expect": "allow"
+            },
+            {
+              "name": "Reports role is denied reading over plain HTTP",
+              "action": "s3:GetObject",
+              "resource": "arn:aws:s3:::acme-reports-prod/2025/q1-report.pdf",
+              "principal": "arn:aws:sts::111122223333:assumed-role/reports-role/session1",
+              "context": {
+                "aws:SecureTransport": false
+              },
+              "expect": "deny"
+            },
+            {
+              "name": "Reports role is denied writing over plain HTTP",
+              "action": "s3:PutObject",
+              "resource": "arn:aws:s3:::acme-reports-prod/2025/q1-report.pdf",
+              "principal": "arn:aws:sts::111122223333:assumed-role/reports-role/session1",
+              "context": {
+                "aws:SecureTransport": false
+              },
+              "expect": "deny"
+            },
+            {
+              "name": "Bucket-level actions over plain HTTP are denied too",
+              "action": "s3:ListBucket",
+              "resource": "arn:aws:s3:::acme-reports-prod",
+              "principal": "arn:aws:sts::111122223333:assumed-role/reports-role/session1",
+              "context": {
+                "aws:SecureTransport": false
+              },
+              "expect": "deny"
+            },
+            {
+              "name": "Anonymous users cannot read even over HTTPS",
+              "action": "s3:GetObject",
+              "resource": "arn:aws:s3:::acme-reports-prod/2025/q1-report.pdf",
+              "principal": "anonymous",
+              "context": {
+                "aws:SecureTransport": true
+              },
+              "expect": "deny"
+            }
+          ],
+          "explanation": "A Deny with Condition Bool aws:SecureTransport = false rejects any request sent without TLS. Use Principal \"*\" and Action \"s3:*\" so it covers everyone and every action, and list both the bucket ARN and the bucket/* ARN so bucket-level calls such as ListBucket are covered. Because an explicit Deny always wins, no other statement can undo it."
+        },
+        {
+          "id": "t4",
+          "kind": "answer",
+          "prompt": "Which IAM global condition key (a Bool key) does the deny-non-TLS statement test?",
+          "accept": [
+            "aws:securetransport",
+            "securetransport"
+          ],
+          "explanation": "aws:SecureTransport is true when the request used TLS and false when it used plain HTTP. Denying when it is false enforces encryption in transit. A common companion is a minimum TLS version condition using s3:TlsVersion."
+        },
+        {
+          "id": "t5",
+          "kind": "policy",
+          "mode": "resource",
+          "prompt": "acme-data-lake: the policy currently allows anyone to read. Remove that and restrict the bucket so it is only reachable through the VPC endpoint vpce-0a1b2c3d4e5f67890. The analytics role (granted by its identity policy) must keep working from that endpoint but be denied from the internet or any other endpoint.",
+          "starter": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"AnalyticsRead\",\n      \"Effect\": \"Allow\",\n      \"Principal\": \"*\",\n      \"Action\": \"s3:GetObject\",\n      \"Resource\": \"arn:aws:s3:::acme-data-lake/*\"\n    }\n  ]\n}",
+          "solution": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"DenyOutsideVpcEndpoint\",\n      \"Effect\": \"Deny\",\n      \"Principal\": \"*\",\n      \"Action\": \"s3:*\",\n      \"Resource\": [\n        \"arn:aws:s3:::acme-data-lake\",\n        \"arn:aws:s3:::acme-data-lake/*\"\n      ],\n      \"Condition\": {\n        \"StringNotEquals\": {\n          \"aws:SourceVpce\": \"vpce-0a1b2c3d4e5f67890\"\n        }\n      }\n    }\n  ]\n}",
+          "fixed": {
+            "identity": [
+              "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"AnalyticsRoleRead\",\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"s3:GetObject\",\n        \"s3:ListBucket\"\n      ],\n      \"Resource\": [\n        \"arn:aws:s3:::acme-data-lake\",\n        \"arn:aws:s3:::acme-data-lake/*\"\n      ]\n    }\n  ]\n}"
+            ]
+          },
+          "tests": [
+            {
+              "name": "Analytics role can read through the approved VPC endpoint",
+              "action": "s3:GetObject",
+              "resource": "arn:aws:s3:::acme-data-lake/events/2025/part-0001.parquet",
+              "principal": "arn:aws:sts::111122223333:assumed-role/analytics-role/session1",
+              "context": {
+                "aws:SourceVpce": "vpce-0a1b2c3d4e5f67890"
+              },
+              "expect": "allow"
+            },
+            {
+              "name": "Analytics role is denied from the internet (no VPC endpoint)",
+              "action": "s3:GetObject",
+              "resource": "arn:aws:s3:::acme-data-lake/events/2025/part-0001.parquet",
+              "principal": "arn:aws:sts::111122223333:assumed-role/analytics-role/session1",
+              "expect": "deny"
+            },
+            {
+              "name": "Analytics role is denied through a different VPC endpoint",
+              "action": "s3:GetObject",
+              "resource": "arn:aws:s3:::acme-data-lake/events/2025/part-0001.parquet",
+              "principal": "arn:aws:sts::111122223333:assumed-role/analytics-role/session1",
+              "context": {
+                "aws:SourceVpce": "vpce-0fffffffffffffff0"
+              },
+              "expect": "deny"
+            },
+            {
+              "name": "Analytics role still cannot write, even through the approved endpoint",
+              "action": "s3:PutObject",
+              "resource": "arn:aws:s3:::acme-data-lake/events/2025/part-0001.parquet",
+              "principal": "arn:aws:sts::111122223333:assumed-role/analytics-role/session1",
+              "context": {
+                "aws:SourceVpce": "vpce-0a1b2c3d4e5f67890"
+              },
+              "expect": "deny"
+            }
+          ],
+          "explanation": "The role is already allowed by its identity policy, so an Allow with a VPC condition on the bucket would not take away its internet access. The reliable pattern is a Deny on StringNotEquals aws:SourceVpce: a request that does not come through your endpoint, including one with no endpoint at all, is denied. Because it is a deny with Principal \"*\", plan a break-glass path, or you can lock out administrators too."
+        },
+        {
+          "id": "t6",
+          "kind": "policy",
+          "mode": "resource",
+          "prompt": "acme-shared-artifacts: the policy shares builds with Principal \"*\". Keep it as a read-only share but restrict it to principals in your AWS Organization (o-a1b2c3d4e5). Principals from other organizations and anonymous users must be denied. The consuming accounts already allow s3:GetObject in their own identity policies.",
+          "starter": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"ShareArtifacts\",\n      \"Effect\": \"Allow\",\n      \"Principal\": \"*\",\n      \"Action\": \"s3:GetObject\",\n      \"Resource\": \"arn:aws:s3:::acme-shared-artifacts/*\"\n    }\n  ]\n}",
+          "solution": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"ShareArtifactsWithOrg\",\n      \"Effect\": \"Allow\",\n      \"Principal\": \"*\",\n      \"Action\": \"s3:GetObject\",\n      \"Resource\": \"arn:aws:s3:::acme-shared-artifacts/*\",\n      \"Condition\": {\n        \"StringEquals\": {\n          \"aws:PrincipalOrgID\": \"o-a1b2c3d4e5\"\n        }\n      }\n    }\n  ]\n}",
+          "fixed": {
+            "identity": [
+              "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"ConsumerRead\",\n      \"Effect\": \"Allow\",\n      \"Action\": \"s3:GetObject\",\n      \"Resource\": \"arn:aws:s3:::acme-shared-artifacts/*\"\n    }\n  ]\n}"
+            ],
+            "crossAccount": true
+          },
+          "tests": [
+            {
+              "name": "A CI role in a member account can read",
+              "action": "s3:GetObject",
+              "resource": "arn:aws:s3:::acme-shared-artifacts/builds/app-1.4.2.tar.gz",
+              "principal": "arn:aws:iam::444455556666:role/ci-deployer",
+              "context": {
+                "aws:PrincipalOrgID": "o-a1b2c3d4e5"
+              },
+              "expect": "allow"
+            },
+            {
+              "name": "A role in a second member account can read",
+              "action": "s3:GetObject",
+              "resource": "arn:aws:s3:::acme-shared-artifacts/builds/app-1.4.2.tar.gz",
+              "principal": "arn:aws:iam::555566667777:role/security-reader",
+              "context": {
+                "aws:PrincipalOrgID": "o-a1b2c3d4e5"
+              },
+              "expect": "allow"
+            },
+            {
+              "name": "A role from another organization is denied",
+              "action": "s3:GetObject",
+              "resource": "arn:aws:s3:::acme-shared-artifacts/builds/app-1.4.2.tar.gz",
+              "principal": "arn:aws:iam::999900001111:role/external",
+              "context": {
+                "aws:PrincipalOrgID": "o-zzzzzzzzzz"
+              },
+              "expect": "deny"
+            },
+            {
+              "name": "Anonymous users are denied",
+              "action": "s3:GetObject",
+              "resource": "arn:aws:s3:::acme-shared-artifacts/builds/app-1.4.2.tar.gz",
+              "principal": "anonymous",
+              "expect": "deny"
+            },
+            {
+              "name": "Org members cannot write through this share",
+              "action": "s3:PutObject",
+              "resource": "arn:aws:s3:::acme-shared-artifacts/builds/app-1.4.2.tar.gz",
+              "principal": "arn:aws:iam::444455556666:role/ci-deployer",
+              "context": {
+                "aws:PrincipalOrgID": "o-a1b2c3d4e5"
+              },
+              "expect": "deny"
+            }
+          ],
+          "explanation": "aws:PrincipalOrgID with StringEquals scopes a wildcard principal to every account in the organization, including accounts added later, without listing them. Cross-account access still needs an identity-policy allow on the caller's side, which is why the evaluation uses crossAccount. Because the condition fixes who can match, S3 does not treat this as a public policy."
+        },
+        {
+          "id": "t7",
+          "kind": "choice",
+          "prompt": "Account-level Block Public Access has all four settings on, but one bucket's own Block Public Access configuration has all four off. What is the effective result for that bucket?",
+          "options": [
+            "Public access is blocked: S3 applies the most restrictive combination of account-level and bucket-level settings",
+            "Public access is allowed, because the bucket's own settings override the account",
+            "Public access is blocked only for buckets created after the account setting was enabled",
+            "It is undefined until you delete the bucket-level configuration"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "S3 evaluates account-level and bucket-level Block Public Access together and the stricter value wins for each setting, so a bucket cannot opt out of the account guardrail. Account-level is the right place for a default-deny stance."
+        },
+        {
+          "id": "t8",
+          "kind": "choice",
+          "prompt": "A bucket still has a Principal \"*\" policy, but RestrictPublicBuckets is on. What is the right conclusion?",
+          "options": [
+            "Anonymous access is blocked by the guardrail, but the public statement should still be removed so switching the setting off does not re-expose the bucket",
+            "The policy is automatically deleted by Block Public Access",
+            "Anonymous GET requests keep working because the policy is explicit",
+            "Only ListBucket is blocked; object reads still work"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "RestrictPublicBuckets limits a bucket with a public policy to AWS service principals and authorized users in the bucket owner's account. It does not edit the policy, so the dangerous statement is still there waiting for someone to turn the setting off. Defense in depth means fixing the policy and keeping the guardrail on."
+        }
+      ],
+      "takeaways": [
+        "Fix the policy as well as turning on Block Public Access: the guardrail can be switched off, a deleted public statement cannot come back by itself.",
+        "To express \"only from here\", deny everything that is NOT from here (StringNotEquals on aws:SourceVpce) because an explicit Deny beats any Allow and also catches requests that lack the key.",
+        "Deny aws:SecureTransport = false on both the bucket and bucket/* ARNs to enforce TLS for every principal.",
+        "A wildcard principal scoped by aws:PrincipalOrgID is an organization share, not a public one, and it covers future accounts automatically."
+      ]
+    }
+  }
+]

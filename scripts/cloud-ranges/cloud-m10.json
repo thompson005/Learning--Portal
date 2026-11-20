@@ -1,0 +1,832 @@
+[
+  {
+    "labId": "cloud-L23",
+    "objective": "As the defender, hunt a live attacker through a CloudTrail export: separate benign noise from attacker activity, pin down the source IP and the stolen identity, and see how the attacker blinded your logging. Then write the guardrail that stops it.",
+    "successCriteria": [
+      "You identified the single source IP that performed the attacker's ConsoleLogin, privilege escalation and log tampering",
+      "You found the persistence the attacker created and explained why the trail goes silent",
+      "You wrote an identity policy that denies StopLogging/DeleteTrail/UpdateTrail/PutEventSelectors on the org trail without breaking day-to-day CloudTrail use"
+    ],
+    "hints": [
+      "Many of these API calls also appear in normal, benign activity. Look at WHERE each call came from, not just what it was.",
+      "lookup-events cannot filter by IP. Look up the log-tampering events first, then use jq on the exported file to pivot on the IP you find.",
+      "Search for StopLogging, take its sourceIPAddress, then filter cloudtrail-events.json with select(.sourceIPAddress==\"<ip>\"). For the policy, add a Deny scoped to the org-trail ARN with an ArnNotLike condition on aws:PrincipalArn for the break-glass role."
+    ],
+    "estimatedHours": 2,
+    "resources": [
+      {
+        "title": "AWS docs: CloudTrail record contents",
+        "url": "https://docs.aws.amazon.com/awscloudtrail/latest/userguide/cloudtrail-event-reference-record-contents.html",
+        "type": "link"
+      },
+      {
+        "title": "AWS docs: Viewing CloudTrail events with event history",
+        "url": "https://docs.aws.amazon.com/awscloudtrail/latest/userguide/view-cloudtrail-events.html",
+        "type": "link"
+      },
+      {
+        "title": "AWS docs: IAM global condition context keys",
+        "url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_condition-keys.html",
+        "type": "link"
+      }
+    ],
+    "range": {
+      "scenario": "You are on the blue team at Acme Payments (account 111122223333). GuardDuty has not fired, but a developer reports that their IAM user dev-bob was used while they were asleep. You have been handed a CloudTrail export of the day's management events from the organisation trail `org-trail`: a mix of ordinary staff activity and an intruder. Your job is to hunt the attacker in the log, work out which identity and which IP they used, show what they did to your logging, and then write the policy guardrail that would have stopped them from blinding you. Use the terminal like a SOC analyst with the AWS CLI and jq; cloudtrail-events.json is the exported file.",
+      "artifacts": [
+        {
+          "name": "cloudtrail-events.json",
+          "language": "json",
+          "content": "{\n  \"Records\": [\n    {\n      \"eventVersion\": \"1.08\",\n      \"userIdentity\": {\n        \"type\": \"IAMUser\",\n        \"principalId\": \"AIDAEXAMPLEALICE0001\",\n        \"arn\": \"arn:aws:iam::111122223333:user/alice\",\n        \"accountId\": \"111122223333\",\n        \"userName\": \"alice\"\n      },\n      \"eventTime\": \"2026-03-14T08:55:02Z\",\n      \"eventSource\": \"signin.amazonaws.com\",\n      \"eventName\": \"ConsoleLogin\",\n      \"awsRegion\": \"us-east-1\",\n      \"sourceIPAddress\": \"198.51.100.10\",\n      \"userAgent\": \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36\",\n      \"requestParameters\": null,\n      \"responseElements\": {\n        \"ConsoleLogin\": \"Success\"\n      },\n      \"eventID\": \"815c0b1c-a476-4b8e-8b2e-3613f2677209\",\n      \"readOnly\": false,\n      \"eventType\": \"AwsConsoleSignIn\",\n      \"recipientAccountId\": \"111122223333\",\n      \"additionalEventData\": {\n        \"LoginTo\": \"https://console.aws.amazon.com/console/home?state=hashArgs&isauthcode=true\",\n        \"MobileVersion\": \"No\",\n        \"MFAUsed\": \"Yes\"\n      }\n    },\n    {\n      \"eventVersion\": \"1.08\",\n      \"userIdentity\": {\n        \"type\": \"IAMUser\",\n        \"principalId\": \"AIDAEXAMPLEDEVBOB01\",\n        \"arn\": \"arn:aws:iam::111122223333:user/dev-bob\",\n        \"accountId\": \"111122223333\",\n        \"userName\": \"dev-bob\"\n      },\n      \"eventTime\": \"2026-03-14T09:12:44Z\",\n      \"eventSource\": \"signin.amazonaws.com\",\n      \"eventName\": \"ConsoleLogin\",\n      \"awsRegion\": \"us-east-1\",\n      \"sourceIPAddress\": \"198.51.100.31\",\n      \"userAgent\": \"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36\",\n      \"requestParameters\": null,\n      \"responseElements\": {\n        \"ConsoleLogin\": \"Success\"\n      },\n      \"eventID\": \"1faef93d-5bd7-481a-8f22-6873cb66338b\",\n      \"readOnly\": false,\n      \"eventType\": \"AwsConsoleSignIn\",\n      \"recipientAccountId\": \"111122223333\",\n      \"additionalEventData\": {\n        \"LoginTo\": \"https://console.aws.amazon.com/console/home?state=hashArgs&isauthcode=true\",\n        \"MobileVersion\": \"No\",\n        \"MFAUsed\": \"Yes\"\n      }\n    },\n    {\n      \"eventVersion\": \"1.08\",\n      \"userIdentity\": {\n        \"type\": \"AssumedRole\",\n        \"principalId\": \"AROAEXAMPLEOPSROLE:ops-bot\",\n        \"arn\": \"arn:aws:sts::111122223333:assumed-role/ops-role/ops-bot\",\n        \"accountId\": \"111122223333\",\n        \"accessKeyId\": \"ASIAOPSBOT012EXAMPLE\",\n        \"sessionContext\": {\n          \"sessionIssuer\": {\n            \"type\": \"Role\",\n            \"principalId\": \"AROAEXAMPLEOPSROLE\",\n            \"arn\": \"arn:aws:iam::111122223333:role/ops-role\",\n            \"accountId\": \"111122223333\",\n            \"userName\": \"ops-role\"\n          },\n          \"attributes\": {\n            \"creationDate\": \"2026-03-14T08:00:00Z\",\n            \"mfaAuthenticated\": \"false\"\n          }\n        }\n      },\n      \"eventTime\": \"2026-03-14T09:15:40Z\",\n      \"eventSource\": \"ec2.amazonaws.com\",\n      \"eventName\": \"DescribeInstances\",\n      \"awsRegion\": \"us-east-1\",\n      \"sourceIPAddress\": \"198.51.100.23\",\n      \"userAgent\": \"aws-sdk-go/1.50.0 (go1.21.6; linux; amd64)\",\n      \"requestParameters\": {\n        \"instancesSet\": {},\n        \"filterSet\": {}\n      },\n      \"responseElements\": null,\n      \"eventID\": \"37d54cc0-9edc-4f98-8a1c-1fc8770f9cfd\",\n      \"readOnly\": true,\n      \"eventType\": \"AwsApiCall\",\n      \"recipientAccountId\": \"111122223333\"\n    },\n    {\n      \"eventVersion\": \"1.08\",\n      \"userIdentity\": {\n        \"type\": \"IAMUser\",\n        \"principalId\": \"AIDAEXAMPLEALICE0001\",\n        \"arn\": \"arn:aws:iam::111122223333:user/alice\",\n        \"accountId\": \"111122223333\",\n        \"accessKeyId\": \"AKIAALICE0123EXAMPLE\",\n        \"userName\": \"alice\"\n      },\n      \"eventTime\": \"2026-03-14T09:47:12Z\",\n      \"eventSource\": \"sts.amazonaws.com\",\n      \"eventName\": \"GetCallerIdentity\",\n      \"awsRegion\": \"us-east-1\",\n      \"sourceIPAddress\": \"198.51.100.10\",\n      \"userAgent\": \"aws-cli/2.15.30 Python/3.11.8 Windows/10 exe/AMD64 prompt/off command/sts.get-caller-identity\",\n      \"requestParameters\": null,\n      \"responseElements\": null,\n      \"eventID\": \"8dc46457-82d9-49db-8b92-89246bd78d6f\",\n      \"readOnly\": true,\n      \"eventType\": \"AwsApiCall\",\n      \"recipientAccountId\": \"111122223333\"\n    },\n    {\n      \"eventVersion\": \"1.08\",\n      \"userIdentity\": {\n        \"type\": \"IAMUser\",\n        \"principalId\": \"AIDAEXAMPLEBACKUP01\",\n        \"arn\": \"arn:aws:iam::111122223333:user/svc-backup\",\n        \"accountId\": \"111122223333\",\n        \"accessKeyId\": \"AKIABACKUP012EXAMPLE\",\n        \"userName\": \"svc-backup\"\n      },\n      \"eventTime\": \"2026-03-14T10:03:31Z\",\n      \"eventSource\": \"s3.amazonaws.com\",\n      \"eventName\": \"ListBuckets\",\n      \"awsRegion\": \"us-east-1\",\n      \"sourceIPAddress\": \"198.51.100.23\",\n      \"userAgent\": \"Boto3/1.34.62 md/Botocore#1.34.62 ua/2.0 os/linux#5.15.0-1053-aws md/arch#x86_64 lang/python#3.10.12 md/pyimpl#CPython Botocore/1.34.62\",\n      \"requestParameters\": {\n        \"Host\": \"s3.amazonaws.com\"\n      },\n      \"responseElements\": null,\n      \"eventID\": \"7d6ce502-0530-4b4e-8bf3-a04f6bc1b8e9\",\n      \"readOnly\": true,\n      \"eventType\": \"AwsApiCall\",\n      \"recipientAccountId\": \"111122223333\"\n    },\n    {\n      \"eventVersion\": \"1.08\",\n      \"userIdentity\": {\n        \"type\": \"AssumedRole\",\n        \"principalId\": \"AROAEXAMPLEOPSROLE:ops-bot\",\n        \"arn\": \"arn:aws:sts::111122223333:assumed-role/ops-role/ops-bot\",\n        \"accountId\": \"111122223333\",\n        \"accessKeyId\": \"ASIAOPSBOT012EXAMPLE\",\n        \"sessionContext\": {\n          \"sessionIssuer\": {\n            \"type\": \"Role\",\n            \"principalId\": \"AROAEXAMPLEOPSROLE\",\n            \"arn\": \"arn:aws:iam::111122223333:role/ops-role\",\n            \"accountId\": \"111122223333\",\n            \"userName\": \"ops-role\"\n          },\n          \"attributes\": {\n            \"creationDate\": \"2026-03-14T08:00:00Z\",\n            \"mfaAuthenticated\": \"false\"\n          }\n        }\n      },\n      \"eventTime\": \"2026-03-14T10:30:09Z\",\n      \"eventSource\": \"ec2.amazonaws.com\",\n      \"eventName\": \"CreateTags\",\n      \"awsRegion\": \"us-east-1\",\n      \"sourceIPAddress\": \"198.51.100.23\",\n      \"userAgent\": \"aws-sdk-go/1.50.0 (go1.21.6; linux; amd64)\",\n      \"requestParameters\": {\n        \"resourcesSet\": {\n          \"items\": [\n            {\n              \"resourceId\": \"i-0a1b2c3d4e5f60789\"\n            }\n          ]\n        },\n        \"tagSet\": {\n          \"items\": [\n            {\n              \"key\": \"patched\",\n              \"value\": \"2026-03\"\n            }\n          ]\n        }\n      },\n      \"responseElements\": {\n        \"_return\": true\n      },\n      \"eventID\": \"358ead75-1c79-4bca-85d0-289882de617d\",\n      \"readOnly\": false,\n      \"eventType\": \"AwsApiCall\",\n      \"recipientAccountId\": \"111122223333\"\n    },\n    {\n      \"eventVersion\": \"1.08\",\n      \"userIdentity\": {\n        \"type\": \"IAMUser\",\n        \"principalId\": \"AIDAEXAMPLEALICE0001\",\n        \"arn\": \"arn:aws:iam::111122223333:user/alice\",\n        \"accountId\": \"111122223333\",\n        \"accessKeyId\": \"AKIAALICE0123EXAMPLE\",\n        \"userName\": \"alice\"\n      },\n      \"eventTime\": \"2026-03-14T11:20:44Z\",\n      \"eventSource\": \"iam.amazonaws.com\",\n      \"eventName\": \"CreateAccessKey\",\n      \"awsRegion\": \"us-east-1\",\n      \"sourceIPAddress\": \"198.51.100.10\",\n      \"userAgent\": \"aws-cli/2.15.30 Python/3.11.8 Windows/10 exe/AMD64 prompt/off command/iam.create-access-key\",\n      \"requestParameters\": {\n        \"userName\": \"ci-runner\"\n      },\n      \"responseElements\": {\n        \"accessKey\": {\n          \"userName\": \"ci-runner\",\n          \"accessKeyId\": \"AKIACIRUN0123EXAMPLE\",\n          \"status\": \"Active\",\n          \"createDate\": \"Mar 14, 2026 11:20:44 AM\"\n        }\n      },\n      \"eventID\": \"19b638c9-8b25-4228-83b7-1c2e2448f8fd\",\n      \"readOnly\": false,\n      \"eventType\": \"AwsApiCall\",\n      \"recipientAccountId\": \"111122223333\"\n    },\n    {\n      \"eventVersion\": \"1.08\",\n      \"userIdentity\": {\n        \"type\": \"IAMUser\",\n        \"principalId\": \"AIDAEXAMPLEALICE0001\",\n        \"arn\": \"arn:aws:iam::111122223333:user/alice\",\n        \"accountId\": \"111122223333\",\n        \"accessKeyId\": \"AKIAALICE0123EXAMPLE\",\n        \"userName\": \"alice\"\n      },\n      \"eventTime\": \"2026-03-14T12:05:18Z\",\n      \"eventSource\": \"iam.amazonaws.com\",\n      \"eventName\": \"AttachUserPolicy\",\n      \"awsRegion\": \"us-east-1\",\n      \"sourceIPAddress\": \"198.51.100.10\",\n      \"userAgent\": \"aws-cli/2.15.30 Python/3.11.8 Windows/10 exe/AMD64 prompt/off command/iam.attach-user-policy\",\n      \"requestParameters\": {\n        \"userName\": \"auditor\",\n        \"policyArn\": \"arn:aws:iam::aws:policy/ReadOnlyAccess\"\n      },\n      \"responseElements\": null,\n      \"eventID\": \"1d829360-bc59-4ded-85f2-be1f2da883b0\",\n      \"readOnly\": false,\n      \"eventType\": \"AwsApiCall\",\n      \"recipientAccountId\": \"111122223333\"\n    },\n    {\n      \"eventVersion\": \"1.08\",\n      \"userIdentity\": {\n        \"type\": \"IAMUser\",\n        \"principalId\": \"AIDAEXAMPLEALICE0001\",\n        \"arn\": \"arn:aws:iam::111122223333:user/alice\",\n        \"accountId\": \"111122223333\",\n        \"accessKeyId\": \"AKIAALICE0123EXAMPLE\",\n        \"userName\": \"alice\"\n      },\n      \"eventTime\": \"2026-03-14T13:40:00Z\",\n      \"eventSource\": \"cloudtrail.amazonaws.com\",\n      \"eventName\": \"GetTrailStatus\",\n      \"awsRegion\": \"us-east-1\",\n      \"sourceIPAddress\": \"198.51.100.10\",\n      \"userAgent\": \"aws-cli/2.15.30 Python/3.11.8 Windows/10 exe/AMD64 prompt/off command/cloudtrail.get-trail-status\",\n      \"requestParameters\": {\n        \"name\": \"org-trail\"\n      },\n      \"responseElements\": null,\n      \"eventID\": \"06666644-5e0a-46c0-869d-c52d1bcb4fe3\",\n      \"readOnly\": true,\n      \"eventType\": \"AwsApiCall\",\n      \"recipientAccountId\": \"111122223333\"\n    },\n    {\n      \"eventVersion\": \"1.08\",\n      \"userIdentity\": {\n        \"type\": \"IAMUser\",\n        \"principalId\": \"AIDAEXAMPLEDEVBOB01\",\n        \"arn\": \"arn:aws:iam::111122223333:user/dev-bob\",\n        \"accountId\": \"111122223333\",\n        \"userName\": \"dev-bob\"\n      },\n      \"eventTime\": \"2026-03-14T14:10:55Z\",\n      \"eventSource\": \"signin.amazonaws.com\",\n      \"eventName\": \"ConsoleLogin\",\n      \"awsRegion\": \"us-east-1\",\n      \"sourceIPAddress\": \"203.0.113.77\",\n      \"userAgent\": \"Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/115.0\",\n      \"requestParameters\": null,\n      \"responseElements\": {\n        \"ConsoleLogin\": \"Failure\"\n      },\n      \"eventID\": \"42d3994d-0931-4666-8151-efd61afb9853\",\n      \"readOnly\": false,\n      \"eventType\": \"AwsConsoleSignIn\",\n      \"recipientAccountId\": \"111122223333\",\n      \"additionalEventData\": {\n        \"LoginTo\": \"https://console.aws.amazon.com/console/home?state=hashArgs&isauthcode=true\",\n        \"MobileVersion\": \"No\",\n        \"MFAUsed\": \"No\"\n      },\n      \"errorMessage\": \"Failed authentication\"\n    },\n    {\n      \"eventVersion\": \"1.08\",\n      \"userIdentity\": {\n        \"type\": \"IAMUser\",\n        \"principalId\": \"AIDAEXAMPLEDEVBOB01\",\n        \"arn\": \"arn:aws:iam::111122223333:user/dev-bob\",\n        \"accountId\": \"111122223333\",\n        \"userName\": \"dev-bob\"\n      },\n      \"eventTime\": \"2026-03-14T14:12:07Z\",\n      \"eventSource\": \"signin.amazonaws.com\",\n      \"eventName\": \"ConsoleLogin\",\n      \"awsRegion\": \"us-east-1\",\n      \"sourceIPAddress\": \"203.0.113.77\",\n      \"userAgent\": \"Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/115.0\",\n      \"requestParameters\": null,\n      \"responseElements\": {\n        \"ConsoleLogin\": \"Success\"\n      },\n      \"eventID\": \"6cd22b5f-7362-4303-86c7-ecff88687f55\",\n      \"readOnly\": false,\n      \"eventType\": \"AwsConsoleSignIn\",\n      \"recipientAccountId\": \"111122223333\",\n      \"additionalEventData\": {\n        \"LoginTo\": \"https://console.aws.amazon.com/console/home?state=hashArgs&isauthcode=true\",\n        \"MobileVersion\": \"No\",\n        \"MFAUsed\": \"No\"\n      }\n    },\n    {\n      \"eventVersion\": \"1.08\",\n      \"userIdentity\": {\n        \"type\": \"IAMUser\",\n        \"principalId\": \"AIDAEXAMPLEDEVBOB01\",\n        \"arn\": \"arn:aws:iam::111122223333:user/dev-bob\",\n        \"accountId\": \"111122223333\",\n        \"accessKeyId\": \"AKIAIOSFODNN7EXAMPLE\",\n        \"userName\": \"dev-bob\"\n      },\n      \"eventTime\": \"2026-03-14T14:14:51Z\",\n      \"eventSource\": \"sts.amazonaws.com\",\n      \"eventName\": \"GetCallerIdentity\",\n      \"awsRegion\": \"us-east-1\",\n      \"sourceIPAddress\": \"203.0.113.77\",\n      \"userAgent\": \"aws-cli/2.15.30 Python/3.11.8 Linux/6.5.0-kali3-amd64 exe/x86_64.kali.2024 prompt/off command/sts.get-caller-identity\",\n      \"requestParameters\": null,\n      \"responseElements\": null,\n      \"eventID\": \"d6d8596c-1840-43ee-8640-298c1686b306\",\n      \"readOnly\": true,\n      \"eventType\": \"AwsApiCall\",\n      \"recipientAccountId\": \"111122223333\"\n    },\n    {\n      \"eventVersion\": \"1.08\",\n      \"userIdentity\": {\n        \"type\": \"IAMUser\",\n        \"principalId\": \"AIDAEXAMPLEDEVBOB01\",\n        \"arn\": \"arn:aws:iam::111122223333:user/dev-bob\",\n        \"accountId\": \"111122223333\",\n        \"accessKeyId\": \"AKIAIOSFODNN7EXAMPLE\",\n        \"userName\": \"dev-bob\"\n      },\n      \"eventTime\": \"2026-03-14T14:15:33Z\",\n      \"eventSource\": \"s3.amazonaws.com\",\n      \"eventName\": \"ListBuckets\",\n      \"awsRegion\": \"us-east-1\",\n      \"sourceIPAddress\": \"203.0.113.77\",\n      \"userAgent\": \"aws-cli/2.15.30 Python/3.11.8 Linux/6.5.0-kali3-amd64 exe/x86_64.kali.2024 prompt/off command/s3api.list-buckets\",\n      \"requestParameters\": {\n        \"Host\": \"s3.amazonaws.com\"\n      },\n      \"responseElements\": null,\n      \"eventID\": \"e38bb746-78b0-4d5c-82c8-1217306cc76d\",\n      \"readOnly\": true,\n      \"eventType\": \"AwsApiCall\",\n      \"recipientAccountId\": \"111122223333\"\n    },\n    {\n      \"eventVersion\": \"1.08\",\n      \"userIdentity\": {\n        \"type\": \"IAMUser\",\n        \"principalId\": \"AIDAEXAMPLEDEVBOB01\",\n        \"arn\": \"arn:aws:iam::111122223333:user/dev-bob\",\n        \"accountId\": \"111122223333\",\n        \"accessKeyId\": \"AKIAIOSFODNN7EXAMPLE\",\n        \"userName\": \"dev-bob\"\n      },\n      \"eventTime\": \"2026-03-14T14:16:20Z\",\n      \"eventSource\": \"iam.amazonaws.com\",\n      \"eventName\": \"GetAccountAuthorizationDetails\",\n      \"awsRegion\": \"us-east-1\",\n      \"sourceIPAddress\": \"203.0.113.77\",\n      \"userAgent\": \"aws-cli/2.15.30 Python/3.11.8 Linux/6.5.0-kali3-amd64 exe/x86_64.kali.2024 prompt/off command/iam.get-account-authorization-details\",\n      \"requestParameters\": null,\n      \"responseElements\": null,\n      \"eventID\": \"a64332a4-f3e8-493b-8d91-8edb0f997ac0\",\n      \"readOnly\": true,\n      \"eventType\": \"AwsApiCall\",\n      \"recipientAccountId\": \"111122223333\"\n    },\n    {\n      \"eventVersion\": \"1.08\",\n      \"userIdentity\": {\n        \"type\": \"IAMUser\",\n        \"principalId\": \"AIDAEXAMPLEDEVBOB01\",\n        \"arn\": \"arn:aws:iam::111122223333:user/dev-bob\",\n        \"accountId\": \"111122223333\",\n        \"accessKeyId\": \"AKIAIOSFODNN7EXAMPLE\",\n        \"userName\": \"dev-bob\"\n      },\n      \"eventTime\": \"2026-03-14T14:19:48Z\",\n      \"eventSource\": \"iam.amazonaws.com\",\n      \"eventName\": \"CreateAccessKey\",\n      \"awsRegion\": \"us-east-1\",\n      \"sourceIPAddress\": \"203.0.113.77\",\n      \"userAgent\": \"aws-cli/2.15.30 Python/3.11.8 Linux/6.5.0-kali3-amd64 exe/x86_64.kali.2024 prompt/off command/iam.create-access-key\",\n      \"requestParameters\": {\n        \"userName\": \"svc-backup\"\n      },\n      \"responseElements\": {\n        \"accessKey\": {\n          \"userName\": \"svc-backup\",\n          \"accessKeyId\": \"AKIAI44QH8DHBEXAMPLE\",\n          \"status\": \"Active\",\n          \"createDate\": \"Mar 14, 2026 2:19:48 PM\"\n        }\n      },\n      \"eventID\": \"0cb0948c-d159-4ba3-87ff-4c0cadfcd6d4\",\n      \"readOnly\": false,\n      \"eventType\": \"AwsApiCall\",\n      \"recipientAccountId\": \"111122223333\"\n    },\n    {\n      \"eventVersion\": \"1.08\",\n      \"userIdentity\": {\n        \"type\": \"IAMUser\",\n        \"principalId\": \"AIDAEXAMPLEDEVBOB01\",\n        \"arn\": \"arn:aws:iam::111122223333:user/dev-bob\",\n        \"accountId\": \"111122223333\",\n        \"accessKeyId\": \"AKIAIOSFODNN7EXAMPLE\",\n        \"userName\": \"dev-bob\"\n      },\n      \"eventTime\": \"2026-03-14T14:21:15Z\",\n      \"eventSource\": \"iam.amazonaws.com\",\n      \"eventName\": \"AttachUserPolicy\",\n      \"awsRegion\": \"us-east-1\",\n      \"sourceIPAddress\": \"203.0.113.77\",\n      \"userAgent\": \"aws-cli/2.15.30 Python/3.11.8 Linux/6.5.0-kali3-amd64 exe/x86_64.kali.2024 prompt/off command/iam.attach-user-policy\",\n      \"requestParameters\": {\n        \"userName\": \"dev-bob\",\n        \"policyArn\": \"arn:aws:iam::aws:policy/AdministratorAccess\"\n      },\n      \"responseElements\": null,\n      \"eventID\": \"9e47a8db-be13-4ee8-8947-c538fade7e45\",\n      \"readOnly\": false,\n      \"eventType\": \"AwsApiCall\",\n      \"recipientAccountId\": \"111122223333\"\n    },\n    {\n      \"eventVersion\": \"1.08\",\n      \"userIdentity\": {\n        \"type\": \"IAMUser\",\n        \"principalId\": \"AIDAEXAMPLEDEVBOB01\",\n        \"arn\": \"arn:aws:iam::111122223333:user/dev-bob\",\n        \"accountId\": \"111122223333\",\n        \"accessKeyId\": \"AKIAIOSFODNN7EXAMPLE\",\n        \"userName\": \"dev-bob\"\n      },\n      \"eventTime\": \"2026-03-14T14:23:40Z\",\n      \"eventSource\": \"cloudtrail.amazonaws.com\",\n      \"eventName\": \"PutEventSelectors\",\n      \"awsRegion\": \"us-east-1\",\n      \"sourceIPAddress\": \"203.0.113.77\",\n      \"userAgent\": \"aws-cli/2.15.30 Python/3.11.8 Linux/6.5.0-kali3-amd64 exe/x86_64.kali.2024 prompt/off command/cloudtrail.put-event-selectors\",\n      \"requestParameters\": {\n        \"trailName\": \"org-trail\",\n        \"eventSelectors\": [\n          {\n            \"readWriteType\": \"WriteOnly\",\n            \"includeManagementEvents\": true,\n            \"dataResources\": []\n          }\n        ]\n      },\n      \"responseElements\": {\n        \"trailARN\": \"arn:aws:cloudtrail:us-east-1:111122223333:trail/org-trail\"\n      },\n      \"eventID\": \"21f49772-9e0e-4ffd-8ae0-dc7a510caff3\",\n      \"readOnly\": false,\n      \"eventType\": \"AwsApiCall\",\n      \"recipientAccountId\": \"111122223333\"\n    },\n    {\n      \"eventVersion\": \"1.08\",\n      \"userIdentity\": {\n        \"type\": \"IAMUser\",\n        \"principalId\": \"AIDAEXAMPLEDEVBOB01\",\n        \"arn\": \"arn:aws:iam::111122223333:user/dev-bob\",\n        \"accountId\": \"111122223333\",\n        \"accessKeyId\": \"AKIAIOSFODNN7EXAMPLE\",\n        \"userName\": \"dev-bob\"\n      },\n      \"eventTime\": \"2026-03-14T14:24:30Z\",\n      \"eventSource\": \"cloudtrail.amazonaws.com\",\n      \"eventName\": \"StopLogging\",\n      \"awsRegion\": \"us-east-1\",\n      \"sourceIPAddress\": \"203.0.113.77\",\n      \"userAgent\": \"aws-cli/2.15.30 Python/3.11.8 Linux/6.5.0-kali3-amd64 exe/x86_64.kali.2024 prompt/off command/cloudtrail.stop-logging\",\n      \"requestParameters\": {\n        \"name\": \"org-trail\"\n      },\n      \"responseElements\": null,\n      \"eventID\": \"00652804-ce93-4187-8eec-e19f03e89ef1\",\n      \"readOnly\": false,\n      \"eventType\": \"AwsApiCall\",\n      \"recipientAccountId\": \"111122223333\"\n    }\n  ]\n}",
+          "note": "Exported management events from org-trail for 2026-03-14 (18 events: benign staff activity plus an intruder)."
+        },
+        {
+          "name": "corporate-ranges.txt",
+          "language": "text",
+          "content": "Acme Payments - known egress ranges (from the network team)\n\n198.51.100.0/24   Head-office NAT + VPN pool\n  198.51.100.10   alice (cloud admin workstation)\n  198.51.100.23   ops automation host (ops-role, svc-backup job)\n  198.51.100.31   engineering floor (dev-bob's laptop)\n\nAnything else calling the AWS APIs with a human IAM user is unexpected.",
+          "note": "Use this to decide which source IPs are normal."
+        },
+        {
+          "name": "developer-cloudtrail-policy.json",
+          "language": "json",
+          "content": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"DevCloudTrailAccess\",\n      \"Effect\": \"Allow\",\n      \"Action\": \"cloudtrail:*\",\n      \"Resource\": \"*\"\n    }\n  ]\n}",
+          "note": "The permissions on dev-bob's developer role: too broad, and how the attacker was able to switch off logging."
+        }
+      ],
+      "terminal": {
+        "prompt": "analyst@soc:~$",
+        "intro": "Signed in as SecOpsAnalyst (read-only). cloudtrail-events.json is in the working directory. Region: us-east-1.",
+        "help": "Commands you can try:\n  aws sts get-caller-identity\n  aws cloudtrail describe-trails\n  aws cloudtrail get-trail-status --name org-trail\n  aws cloudtrail lookup-events --lookup-attributes AttributeKey=EventName,AttributeValue=<EventName>\n  aws cloudtrail lookup-events --lookup-attributes AttributeKey=Username,AttributeValue=<user>\n  jq -r '.Records[] | [.eventTime,.eventName,.sourceIPAddress,.userIdentity.userName] | @tsv' cloudtrail-events.json\n  jq -c '.Records[] | select(.sourceIPAddress==\"<ip>\")' cloudtrail-events.json",
+        "rules": [
+          {
+            "match": "^aws sts get-caller-identity$",
+            "output": "{\n  \"UserId\": \"AROAEXAMPLESECOPS01:analyst\",\n  \"Account\": \"111122223333\",\n  \"Arn\": \"arn:aws:sts::111122223333:assumed-role/SecOpsAnalyst/analyst\"\n}"
+          },
+          {
+            "match": "^aws cloudtrail describe-trails\\b",
+            "output": "{\n  \"trailList\": [\n    {\n      \"Name\": \"org-trail\",\n      \"S3BucketName\": \"acme-cloudtrail-logs-111122223333\",\n      \"HomeRegion\": \"us-east-1\",\n      \"IsMultiRegionTrail\": true,\n      \"IncludeGlobalServiceEvents\": true,\n      \"LogFileValidationEnabled\": true,\n      \"TrailARN\": \"arn:aws:cloudtrail:us-east-1:111122223333:trail/org-trail\"\n    }\n  ]\n}"
+          },
+          {
+            "match": "^aws cloudtrail get-trail-status\\b.*org-trail",
+            "sets": [
+              "saw_tamper"
+            ],
+            "output": "{\n  \"IsLogging\": false,\n  \"LatestDeliveryTime\": \"2026-03-14T14:25:02+00:00\",\n  \"StartLoggingTime\": \"2026-01-09T10:00:11+00:00\",\n  \"StopLoggingTime\": \"2026-03-14T14:24:30+00:00\",\n  \"LatestDigestDeliveryTime\": \"2026-03-14T14:05:00+00:00\"\n}"
+          },
+          {
+            "match": "^aws cloudtrail (?:start-logging|stop-logging|delete-trail|update-trail|put-event-selectors)\\b",
+            "output": "An error occurred (AccessDeniedException) when calling the cloudtrail operation: User: arn:aws:sts::111122223333:assumed-role/SecOpsAnalyst/analyst is not authorized to perform that cloudtrail action because no identity-based policy allows it.\n(Analysts are read-only. Escalate to the SecurityAdmin on-call to re-enable logging.)"
+          },
+          {
+            "match": "^aws cloudtrail lookup-events\\b.*AttributeKey=(?!EventName\\b|Username\\b|AccessKeyId\\b|EventId\\b|ReadOnly\\b|ResourceType\\b|ResourceName\\b|EventSource\\b)\\S+",
+            "output": "An error occurred (InvalidLookupAttributesException) when calling the LookupEvents operation: Invalid lookup attribute key. Valid keys are: EventId, EventName, ReadOnly, Username, ResourceType, ResourceName, EventSource, AccessKeyId.\n(There is no SourceIPAddress lookup attribute: to pivot on an IP, export the events and filter them with jq.)"
+          },
+          {
+            "match": "^aws cloudtrail lookup-events\\b.*AttributeKey=EventName,AttributeValue=StopLogging\\b",
+            "sets": [
+              "saw_tamper"
+            ],
+            "output": "{\n  \"Events\": [\n    {\n      \"EventId\": \"00652804-ce93-4187-8eec-e19f03e89ef1\",\n      \"EventName\": \"StopLogging\",\n      \"ReadOnly\": \"false\",\n      \"AccessKeyId\": \"AKIAIOSFODNN7EXAMPLE\",\n      \"EventTime\": \"2026-03-14T14:24:30+00:00\",\n      \"EventSource\": \"cloudtrail.amazonaws.com\",\n      \"Username\": \"dev-bob\",\n      \"Resources\": [],\n      \"CloudTrailEvent\": \"{\\\"eventVersion\\\":\\\"1.08\\\",\\\"userIdentity\\\":{\\\"type\\\":\\\"IAMUser\\\",\\\"principalId\\\":\\\"AIDAEXAMPLEDEVBOB01\\\",\\\"arn\\\":\\\"arn:aws:iam::111122223333:user/dev-bob\\\",\\\"accountId\\\":\\\"111122223333\\\",\\\"accessKeyId\\\":\\\"AKIAIOSFODNN7EXAMPLE\\\",\\\"userName\\\":\\\"dev-bob\\\"},\\\"eventTime\\\":\\\"2026-03-14T14:24:30Z\\\",\\\"eventSource\\\":\\\"cloudtrail.amazonaws.com\\\",\\\"eventName\\\":\\\"StopLogging\\\",\\\"awsRegion\\\":\\\"us-east-1\\\",\\\"sourceIPAddress\\\":\\\"203.0.113.77\\\",\\\"userAgent\\\":\\\"aws-cli/2.15.30 Python/3.11.8 Linux/6.5.0-kali3-amd64 exe/x86_64.kali.2024 prompt/off command/cloudtrail.stop-logging\\\",\\\"requestParameters\\\":{\\\"name\\\":\\\"org-trail\\\"},\\\"responseElements\\\":null,\\\"eventID\\\":\\\"00652804-ce93-4187-8eec-e19f03e89ef1\\\",\\\"readOnly\\\":false,\\\"eventType\\\":\\\"AwsApiCall\\\",\\\"recipientAccountId\\\":\\\"111122223333\\\"}\"\n    }\n  ]\n}"
+          },
+          {
+            "match": "^aws cloudtrail lookup-events\\b.*AttributeKey=EventName,AttributeValue=PutEventSelectors\\b",
+            "sets": [
+              "saw_tamper"
+            ],
+            "output": "{\n  \"Events\": [\n    {\n      \"EventId\": \"21f49772-9e0e-4ffd-8ae0-dc7a510caff3\",\n      \"EventName\": \"PutEventSelectors\",\n      \"ReadOnly\": \"false\",\n      \"AccessKeyId\": \"AKIAIOSFODNN7EXAMPLE\",\n      \"EventTime\": \"2026-03-14T14:23:40+00:00\",\n      \"EventSource\": \"cloudtrail.amazonaws.com\",\n      \"Username\": \"dev-bob\",\n      \"Resources\": [],\n      \"CloudTrailEvent\": \"{\\\"eventVersion\\\":\\\"1.08\\\",\\\"userIdentity\\\":{\\\"type\\\":\\\"IAMUser\\\",\\\"principalId\\\":\\\"AIDAEXAMPLEDEVBOB01\\\",\\\"arn\\\":\\\"arn:aws:iam::111122223333:user/dev-bob\\\",\\\"accountId\\\":\\\"111122223333\\\",\\\"accessKeyId\\\":\\\"AKIAIOSFODNN7EXAMPLE\\\",\\\"userName\\\":\\\"dev-bob\\\"},\\\"eventTime\\\":\\\"2026-03-14T14:23:40Z\\\",\\\"eventSource\\\":\\\"cloudtrail.amazonaws.com\\\",\\\"eventName\\\":\\\"PutEventSelectors\\\",\\\"awsRegion\\\":\\\"us-east-1\\\",\\\"sourceIPAddress\\\":\\\"203.0.113.77\\\",\\\"userAgent\\\":\\\"aws-cli/2.15.30 Python/3.11.8 Linux/6.5.0-kali3-amd64 exe/x86_64.kali.2024 prompt/off command/cloudtrail.put-event-selectors\\\",\\\"requestParameters\\\":{\\\"trailName\\\":\\\"org-trail\\\",\\\"eventSelectors\\\":[{\\\"readWriteType\\\":\\\"WriteOnly\\\",\\\"includeManagementEvents\\\":true,\\\"dataResources\\\":[]}]},\\\"responseElements\\\":{\\\"trailARN\\\":\\\"arn:aws:cloudtrail:us-east-1:111122223333:trail/org-trail\\\"},\\\"eventID\\\":\\\"21f49772-9e0e-4ffd-8ae0-dc7a510caff3\\\",\\\"readOnly\\\":false,\\\"eventType\\\":\\\"AwsApiCall\\\",\\\"recipientAccountId\\\":\\\"111122223333\\\"}\"\n    }\n  ]\n}"
+          },
+          {
+            "match": "^aws cloudtrail lookup-events\\b.*AttributeKey=EventName,AttributeValue=ConsoleLogin\\b",
+            "output": "{\n  \"Events\": [\n    {\n      \"EventId\": \"815c0b1c-a476-4b8e-8b2e-3613f2677209\",\n      \"EventName\": \"ConsoleLogin\",\n      \"ReadOnly\": \"false\",\n      \"AccessKeyId\": \"\",\n      \"EventTime\": \"2026-03-14T08:55:02+00:00\",\n      \"EventSource\": \"signin.amazonaws.com\",\n      \"Username\": \"alice\",\n      \"Resources\": [],\n      \"CloudTrailEvent\": \"{\\\"eventVersion\\\":\\\"1.08\\\",\\\"userIdentity\\\":{\\\"type\\\":\\\"IAMUser\\\",\\\"principalId\\\":\\\"AIDAEXAMPLEALICE0001\\\",\\\"arn\\\":\\\"arn:aws:iam::111122223333:user/alice\\\",\\\"accountId\\\":\\\"111122223333\\\",\\\"userName\\\":\\\"alice\\\"},\\\"eventTime\\\":\\\"2026-03-14T08:55:02Z\\\",\\\"eventSource\\\":\\\"signin.amazonaws.com\\\",\\\"eventName\\\":\\\"ConsoleLogin\\\",\\\"awsRegion\\\":\\\"us-east-1\\\",\\\"sourceIPAddress\\\":\\\"198.51.100.10\\\",\\\"userAgent\\\":\\\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36\\\",\\\"requestParameters\\\":null,\\\"responseElements\\\":{\\\"ConsoleLogin\\\":\\\"Success\\\"},\\\"eventID\\\":\\\"815c0b1c-a476-4b8e-8b2e-3613f2677209\\\",\\\"readOnly\\\":false,\\\"eventType\\\":\\\"AwsConsoleSignIn\\\",\\\"recipientAccountId\\\":\\\"111122223333\\\",\\\"additionalEventData\\\":{\\\"LoginTo\\\":\\\"https://console.aws.amazon.com/console/home?state=hashArgs&isauthcode=true\\\",\\\"MobileVersion\\\":\\\"No\\\",\\\"MFAUsed\\\":\\\"Yes\\\"}}\"\n    },\n    {\n      \"EventId\": \"1faef93d-5bd7-481a-8f22-6873cb66338b\",\n      \"EventName\": \"ConsoleLogin\",\n      \"ReadOnly\": \"false\",\n      \"AccessKeyId\": \"\",\n      \"EventTime\": \"2026-03-14T09:12:44+00:00\",\n      \"EventSource\": \"signin.amazonaws.com\",\n      \"Username\": \"dev-bob\",\n      \"Resources\": [],\n      \"CloudTrailEvent\": \"{\\\"eventVersion\\\":\\\"1.08\\\",\\\"userIdentity\\\":{\\\"type\\\":\\\"IAMUser\\\",\\\"principalId\\\":\\\"AIDAEXAMPLEDEVBOB01\\\",\\\"arn\\\":\\\"arn:aws:iam::111122223333:user/dev-bob\\\",\\\"accountId\\\":\\\"111122223333\\\",\\\"userName\\\":\\\"dev-bob\\\"},\\\"eventTime\\\":\\\"2026-03-14T09:12:44Z\\\",\\\"eventSource\\\":\\\"signin.amazonaws.com\\\",\\\"eventName\\\":\\\"ConsoleLogin\\\",\\\"awsRegion\\\":\\\"us-east-1\\\",\\\"sourceIPAddress\\\":\\\"198.51.100.31\\\",\\\"userAgent\\\":\\\"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36\\\",\\\"requestParameters\\\":null,\\\"responseElements\\\":{\\\"ConsoleLogin\\\":\\\"Success\\\"},\\\"eventID\\\":\\\"1faef93d-5bd7-481a-8f22-6873cb66338b\\\",\\\"readOnly\\\":false,\\\"eventType\\\":\\\"AwsConsoleSignIn\\\",\\\"recipientAccountId\\\":\\\"111122223333\\\",\\\"additionalEventData\\\":{\\\"LoginTo\\\":\\\"https://console.aws.amazon.com/console/home?state=hashArgs&isauthcode=true\\\",\\\"MobileVersion\\\":\\\"No\\\",\\\"MFAUsed\\\":\\\"Yes\\\"}}\"\n    },\n    {\n      \"EventId\": \"42d3994d-0931-4666-8151-efd61afb9853\",\n      \"EventName\": \"ConsoleLogin\",\n      \"ReadOnly\": \"false\",\n      \"AccessKeyId\": \"\",\n      \"EventTime\": \"2026-03-14T14:10:55+00:00\",\n      \"EventSource\": \"signin.amazonaws.com\",\n      \"Username\": \"dev-bob\",\n      \"Resources\": [],\n      \"CloudTrailEvent\": \"{\\\"eventVersion\\\":\\\"1.08\\\",\\\"userIdentity\\\":{\\\"type\\\":\\\"IAMUser\\\",\\\"principalId\\\":\\\"AIDAEXAMPLEDEVBOB01\\\",\\\"arn\\\":\\\"arn:aws:iam::111122223333:user/dev-bob\\\",\\\"accountId\\\":\\\"111122223333\\\",\\\"userName\\\":\\\"dev-bob\\\"},\\\"eventTime\\\":\\\"2026-03-14T14:10:55Z\\\",\\\"eventSource\\\":\\\"signin.amazonaws.com\\\",\\\"eventName\\\":\\\"ConsoleLogin\\\",\\\"awsRegion\\\":\\\"us-east-1\\\",\\\"sourceIPAddress\\\":\\\"203.0.113.77\\\",\\\"userAgent\\\":\\\"Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/115.0\\\",\\\"requestParameters\\\":null,\\\"responseElements\\\":{\\\"ConsoleLogin\\\":\\\"Failure\\\"},\\\"eventID\\\":\\\"42d3994d-0931-4666-8151-efd61afb9853\\\",\\\"readOnly\\\":false,\\\"eventType\\\":\\\"AwsConsoleSignIn\\\",\\\"recipientAccountId\\\":\\\"111122223333\\\",\\\"additionalEventData\\\":{\\\"LoginTo\\\":\\\"https://console.aws.amazon.com/console/home?state=hashArgs&isauthcode=true\\\",\\\"MobileVersion\\\":\\\"No\\\",\\\"MFAUsed\\\":\\\"No\\\"},\\\"errorMessage\\\":\\\"Failed authentication\\\"}\"\n    },\n    {\n      \"EventId\": \"6cd22b5f-7362-4303-86c7-ecff88687f55\",\n      \"EventName\": \"ConsoleLogin\",\n      \"ReadOnly\": \"false\",\n      \"AccessKeyId\": \"\",\n      \"EventTime\": \"2026-03-14T14:12:07+00:00\",\n      \"EventSource\": \"signin.amazonaws.com\",\n      \"Username\": \"dev-bob\",\n      \"Resources\": [],\n      \"CloudTrailEvent\": \"{\\\"eventVersion\\\":\\\"1.08\\\",\\\"userIdentity\\\":{\\\"type\\\":\\\"IAMUser\\\",\\\"principalId\\\":\\\"AIDAEXAMPLEDEVBOB01\\\",\\\"arn\\\":\\\"arn:aws:iam::111122223333:user/dev-bob\\\",\\\"accountId\\\":\\\"111122223333\\\",\\\"userName\\\":\\\"dev-bob\\\"},\\\"eventTime\\\":\\\"2026-03-14T14:12:07Z\\\",\\\"eventSource\\\":\\\"signin.amazonaws.com\\\",\\\"eventName\\\":\\\"ConsoleLogin\\\",\\\"awsRegion\\\":\\\"us-east-1\\\",\\\"sourceIPAddress\\\":\\\"203.0.113.77\\\",\\\"userAgent\\\":\\\"Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/115.0\\\",\\\"requestParameters\\\":null,\\\"responseElements\\\":{\\\"ConsoleLogin\\\":\\\"Success\\\"},\\\"eventID\\\":\\\"6cd22b5f-7362-4303-86c7-ecff88687f55\\\",\\\"readOnly\\\":false,\\\"eventType\\\":\\\"AwsConsoleSignIn\\\",\\\"recipientAccountId\\\":\\\"111122223333\\\",\\\"additionalEventData\\\":{\\\"LoginTo\\\":\\\"https://console.aws.amazon.com/console/home?state=hashArgs&isauthcode=true\\\",\\\"MobileVersion\\\":\\\"No\\\",\\\"MFAUsed\\\":\\\"No\\\"}}\"\n    }\n  ]\n}"
+          },
+          {
+            "match": "^aws cloudtrail lookup-events\\b.*AttributeKey=EventName,AttributeValue=GetCallerIdentity\\b",
+            "output": "{\n  \"Events\": [\n    {\n      \"EventId\": \"8dc46457-82d9-49db-8b92-89246bd78d6f\",\n      \"EventName\": \"GetCallerIdentity\",\n      \"ReadOnly\": \"true\",\n      \"AccessKeyId\": \"AKIAALICE0123EXAMPLE\",\n      \"EventTime\": \"2026-03-14T09:47:12+00:00\",\n      \"EventSource\": \"sts.amazonaws.com\",\n      \"Username\": \"alice\",\n      \"Resources\": [],\n      \"CloudTrailEvent\": \"{\\\"eventVersion\\\":\\\"1.08\\\",\\\"userIdentity\\\":{\\\"type\\\":\\\"IAMUser\\\",\\\"principalId\\\":\\\"AIDAEXAMPLEALICE0001\\\",\\\"arn\\\":\\\"arn:aws:iam::111122223333:user/alice\\\",\\\"accountId\\\":\\\"111122223333\\\",\\\"accessKeyId\\\":\\\"AKIAALICE0123EXAMPLE\\\",\\\"userName\\\":\\\"alice\\\"},\\\"eventTime\\\":\\\"2026-03-14T09:47:12Z\\\",\\\"eventSource\\\":\\\"sts.amazonaws.com\\\",\\\"eventName\\\":\\\"GetCallerIdentity\\\",\\\"awsRegion\\\":\\\"us-east-1\\\",\\\"sourceIPAddress\\\":\\\"198.51.100.10\\\",\\\"userAgent\\\":\\\"aws-cli/2.15.30 Python/3.11.8 Windows/10 exe/AMD64 prompt/off command/sts.get-caller-identity\\\",\\\"requestParameters\\\":null,\\\"responseElements\\\":null,\\\"eventID\\\":\\\"8dc46457-82d9-49db-8b92-89246bd78d6f\\\",\\\"readOnly\\\":true,\\\"eventType\\\":\\\"AwsApiCall\\\",\\\"recipientAccountId\\\":\\\"111122223333\\\"}\"\n    },\n    {\n      \"EventId\": \"d6d8596c-1840-43ee-8640-298c1686b306\",\n      \"EventName\": \"GetCallerIdentity\",\n      \"ReadOnly\": \"true\",\n      \"AccessKeyId\": \"AKIAIOSFODNN7EXAMPLE\",\n      \"EventTime\": \"2026-03-14T14:14:51+00:00\",\n      \"EventSource\": \"sts.amazonaws.com\",\n      \"Username\": \"dev-bob\",\n      \"Resources\": [],\n      \"CloudTrailEvent\": \"{\\\"eventVersion\\\":\\\"1.08\\\",\\\"userIdentity\\\":{\\\"type\\\":\\\"IAMUser\\\",\\\"principalId\\\":\\\"AIDAEXAMPLEDEVBOB01\\\",\\\"arn\\\":\\\"arn:aws:iam::111122223333:user/dev-bob\\\",\\\"accountId\\\":\\\"111122223333\\\",\\\"accessKeyId\\\":\\\"AKIAIOSFODNN7EXAMPLE\\\",\\\"userName\\\":\\\"dev-bob\\\"},\\\"eventTime\\\":\\\"2026-03-14T14:14:51Z\\\",\\\"eventSource\\\":\\\"sts.amazonaws.com\\\",\\\"eventName\\\":\\\"GetCallerIdentity\\\",\\\"awsRegion\\\":\\\"us-east-1\\\",\\\"sourceIPAddress\\\":\\\"203.0.113.77\\\",\\\"userAgent\\\":\\\"aws-cli/2.15.30 Python/3.11.8 Linux/6.5.0-kali3-amd64 exe/x86_64.kali.2024 prompt/off command/sts.get-caller-identity\\\",\\\"requestParameters\\\":null,\\\"responseElements\\\":null,\\\"eventID\\\":\\\"d6d8596c-1840-43ee-8640-298c1686b306\\\",\\\"readOnly\\\":true,\\\"eventType\\\":\\\"AwsApiCall\\\",\\\"recipientAccountId\\\":\\\"111122223333\\\"}\"\n    }\n  ]\n}"
+          },
+          {
+            "match": "^aws cloudtrail lookup-events\\b.*AttributeKey=EventName,AttributeValue=ListBuckets\\b",
+            "output": "{\n  \"Events\": [\n    {\n      \"EventId\": \"7d6ce502-0530-4b4e-8bf3-a04f6bc1b8e9\",\n      \"EventName\": \"ListBuckets\",\n      \"ReadOnly\": \"true\",\n      \"AccessKeyId\": \"AKIABACKUP012EXAMPLE\",\n      \"EventTime\": \"2026-03-14T10:03:31+00:00\",\n      \"EventSource\": \"s3.amazonaws.com\",\n      \"Username\": \"svc-backup\",\n      \"Resources\": [],\n      \"CloudTrailEvent\": \"{\\\"eventVersion\\\":\\\"1.08\\\",\\\"userIdentity\\\":{\\\"type\\\":\\\"IAMUser\\\",\\\"principalId\\\":\\\"AIDAEXAMPLEBACKUP01\\\",\\\"arn\\\":\\\"arn:aws:iam::111122223333:user/svc-backup\\\",\\\"accountId\\\":\\\"111122223333\\\",\\\"accessKeyId\\\":\\\"AKIABACKUP012EXAMPLE\\\",\\\"userName\\\":\\\"svc-backup\\\"},\\\"eventTime\\\":\\\"2026-03-14T10:03:31Z\\\",\\\"eventSource\\\":\\\"s3.amazonaws.com\\\",\\\"eventName\\\":\\\"ListBuckets\\\",\\\"awsRegion\\\":\\\"us-east-1\\\",\\\"sourceIPAddress\\\":\\\"198.51.100.23\\\",\\\"userAgent\\\":\\\"Boto3/1.34.62 md/Botocore#1.34.62 ua/2.0 os/linux#5.15.0-1053-aws md/arch#x86_64 lang/python#3.10.12 md/pyimpl#CPython Botocore/1.34.62\\\",\\\"requestParameters\\\":{\\\"Host\\\":\\\"s3.amazonaws.com\\\"},\\\"responseElements\\\":null,\\\"eventID\\\":\\\"7d6ce502-0530-4b4e-8bf3-a04f6bc1b8e9\\\",\\\"readOnly\\\":true,\\\"eventType\\\":\\\"AwsApiCall\\\",\\\"recipientAccountId\\\":\\\"111122223333\\\"}\"\n    },\n    {\n      \"EventId\": \"e38bb746-78b0-4d5c-82c8-1217306cc76d\",\n      \"EventName\": \"ListBuckets\",\n      \"ReadOnly\": \"true\",\n      \"AccessKeyId\": \"AKIAIOSFODNN7EXAMPLE\",\n      \"EventTime\": \"2026-03-14T14:15:33+00:00\",\n      \"EventSource\": \"s3.amazonaws.com\",\n      \"Username\": \"dev-bob\",\n      \"Resources\": [],\n      \"CloudTrailEvent\": \"{\\\"eventVersion\\\":\\\"1.08\\\",\\\"userIdentity\\\":{\\\"type\\\":\\\"IAMUser\\\",\\\"principalId\\\":\\\"AIDAEXAMPLEDEVBOB01\\\",\\\"arn\\\":\\\"arn:aws:iam::111122223333:user/dev-bob\\\",\\\"accountId\\\":\\\"111122223333\\\",\\\"accessKeyId\\\":\\\"AKIAIOSFODNN7EXAMPLE\\\",\\\"userName\\\":\\\"dev-bob\\\"},\\\"eventTime\\\":\\\"2026-03-14T14:15:33Z\\\",\\\"eventSource\\\":\\\"s3.amazonaws.com\\\",\\\"eventName\\\":\\\"ListBuckets\\\",\\\"awsRegion\\\":\\\"us-east-1\\\",\\\"sourceIPAddress\\\":\\\"203.0.113.77\\\",\\\"userAgent\\\":\\\"aws-cli/2.15.30 Python/3.11.8 Linux/6.5.0-kali3-amd64 exe/x86_64.kali.2024 prompt/off command/s3api.list-buckets\\\",\\\"requestParameters\\\":{\\\"Host\\\":\\\"s3.amazonaws.com\\\"},\\\"responseElements\\\":null,\\\"eventID\\\":\\\"e38bb746-78b0-4d5c-82c8-1217306cc76d\\\",\\\"readOnly\\\":true,\\\"eventType\\\":\\\"AwsApiCall\\\",\\\"recipientAccountId\\\":\\\"111122223333\\\"}\"\n    }\n  ]\n}"
+          },
+          {
+            "match": "^aws cloudtrail lookup-events\\b.*AttributeKey=EventName,AttributeValue=CreateAccessKey\\b",
+            "output": "{\n  \"Events\": [\n    {\n      \"EventId\": \"19b638c9-8b25-4228-83b7-1c2e2448f8fd\",\n      \"EventName\": \"CreateAccessKey\",\n      \"ReadOnly\": \"false\",\n      \"AccessKeyId\": \"AKIAALICE0123EXAMPLE\",\n      \"EventTime\": \"2026-03-14T11:20:44+00:00\",\n      \"EventSource\": \"iam.amazonaws.com\",\n      \"Username\": \"alice\",\n      \"Resources\": [],\n      \"CloudTrailEvent\": \"{\\\"eventVersion\\\":\\\"1.08\\\",\\\"userIdentity\\\":{\\\"type\\\":\\\"IAMUser\\\",\\\"principalId\\\":\\\"AIDAEXAMPLEALICE0001\\\",\\\"arn\\\":\\\"arn:aws:iam::111122223333:user/alice\\\",\\\"accountId\\\":\\\"111122223333\\\",\\\"accessKeyId\\\":\\\"AKIAALICE0123EXAMPLE\\\",\\\"userName\\\":\\\"alice\\\"},\\\"eventTime\\\":\\\"2026-03-14T11:20:44Z\\\",\\\"eventSource\\\":\\\"iam.amazonaws.com\\\",\\\"eventName\\\":\\\"CreateAccessKey\\\",\\\"awsRegion\\\":\\\"us-east-1\\\",\\\"sourceIPAddress\\\":\\\"198.51.100.10\\\",\\\"userAgent\\\":\\\"aws-cli/2.15.30 Python/3.11.8 Windows/10 exe/AMD64 prompt/off command/iam.create-access-key\\\",\\\"requestParameters\\\":{\\\"userName\\\":\\\"ci-runner\\\"},\\\"responseElements\\\":{\\\"accessKey\\\":{\\\"userName\\\":\\\"ci-runner\\\",\\\"accessKeyId\\\":\\\"AKIACIRUN0123EXAMPLE\\\",\\\"status\\\":\\\"Active\\\",\\\"createDate\\\":\\\"Mar 14, 2026 11:20:44 AM\\\"}},\\\"eventID\\\":\\\"19b638c9-8b25-4228-83b7-1c2e2448f8fd\\\",\\\"readOnly\\\":false,\\\"eventType\\\":\\\"AwsApiCall\\\",\\\"recipientAccountId\\\":\\\"111122223333\\\"}\"\n    },\n    {\n      \"EventId\": \"0cb0948c-d159-4ba3-87ff-4c0cadfcd6d4\",\n      \"EventName\": \"CreateAccessKey\",\n      \"ReadOnly\": \"false\",\n      \"AccessKeyId\": \"AKIAIOSFODNN7EXAMPLE\",\n      \"EventTime\": \"2026-03-14T14:19:48+00:00\",\n      \"EventSource\": \"iam.amazonaws.com\",\n      \"Username\": \"dev-bob\",\n      \"Resources\": [],\n      \"CloudTrailEvent\": \"{\\\"eventVersion\\\":\\\"1.08\\\",\\\"userIdentity\\\":{\\\"type\\\":\\\"IAMUser\\\",\\\"principalId\\\":\\\"AIDAEXAMPLEDEVBOB01\\\",\\\"arn\\\":\\\"arn:aws:iam::111122223333:user/dev-bob\\\",\\\"accountId\\\":\\\"111122223333\\\",\\\"accessKeyId\\\":\\\"AKIAIOSFODNN7EXAMPLE\\\",\\\"userName\\\":\\\"dev-bob\\\"},\\\"eventTime\\\":\\\"2026-03-14T14:19:48Z\\\",\\\"eventSource\\\":\\\"iam.amazonaws.com\\\",\\\"eventName\\\":\\\"CreateAccessKey\\\",\\\"awsRegion\\\":\\\"us-east-1\\\",\\\"sourceIPAddress\\\":\\\"203.0.113.77\\\",\\\"userAgent\\\":\\\"aws-cli/2.15.30 Python/3.11.8 Linux/6.5.0-kali3-amd64 exe/x86_64.kali.2024 prompt/off command/iam.create-access-key\\\",\\\"requestParameters\\\":{\\\"userName\\\":\\\"svc-backup\\\"},\\\"responseElements\\\":{\\\"accessKey\\\":{\\\"userName\\\":\\\"svc-backup\\\",\\\"accessKeyId\\\":\\\"AKIAI44QH8DHBEXAMPLE\\\",\\\"status\\\":\\\"Active\\\",\\\"createDate\\\":\\\"Mar 14, 2026 2:19:48 PM\\\"}},\\\"eventID\\\":\\\"0cb0948c-d159-4ba3-87ff-4c0cadfcd6d4\\\",\\\"readOnly\\\":false,\\\"eventType\\\":\\\"AwsApiCall\\\",\\\"recipientAccountId\\\":\\\"111122223333\\\"}\"\n    }\n  ]\n}"
+          },
+          {
+            "match": "^aws cloudtrail lookup-events\\b.*AttributeKey=EventName,AttributeValue=AttachUserPolicy\\b",
+            "output": "{\n  \"Events\": [\n    {\n      \"EventId\": \"1d829360-bc59-4ded-85f2-be1f2da883b0\",\n      \"EventName\": \"AttachUserPolicy\",\n      \"ReadOnly\": \"false\",\n      \"AccessKeyId\": \"AKIAALICE0123EXAMPLE\",\n      \"EventTime\": \"2026-03-14T12:05:18+00:00\",\n      \"EventSource\": \"iam.amazonaws.com\",\n      \"Username\": \"alice\",\n      \"Resources\": [],\n      \"CloudTrailEvent\": \"{\\\"eventVersion\\\":\\\"1.08\\\",\\\"userIdentity\\\":{\\\"type\\\":\\\"IAMUser\\\",\\\"principalId\\\":\\\"AIDAEXAMPLEALICE0001\\\",\\\"arn\\\":\\\"arn:aws:iam::111122223333:user/alice\\\",\\\"accountId\\\":\\\"111122223333\\\",\\\"accessKeyId\\\":\\\"AKIAALICE0123EXAMPLE\\\",\\\"userName\\\":\\\"alice\\\"},\\\"eventTime\\\":\\\"2026-03-14T12:05:18Z\\\",\\\"eventSource\\\":\\\"iam.amazonaws.com\\\",\\\"eventName\\\":\\\"AttachUserPolicy\\\",\\\"awsRegion\\\":\\\"us-east-1\\\",\\\"sourceIPAddress\\\":\\\"198.51.100.10\\\",\\\"userAgent\\\":\\\"aws-cli/2.15.30 Python/3.11.8 Windows/10 exe/AMD64 prompt/off command/iam.attach-user-policy\\\",\\\"requestParameters\\\":{\\\"userName\\\":\\\"auditor\\\",\\\"policyArn\\\":\\\"arn:aws:iam::aws:policy/ReadOnlyAccess\\\"},\\\"responseElements\\\":null,\\\"eventID\\\":\\\"1d829360-bc59-4ded-85f2-be1f2da883b0\\\",\\\"readOnly\\\":false,\\\"eventType\\\":\\\"AwsApiCall\\\",\\\"recipientAccountId\\\":\\\"111122223333\\\"}\"\n    },\n    {\n      \"EventId\": \"9e47a8db-be13-4ee8-8947-c538fade7e45\",\n      \"EventName\": \"AttachUserPolicy\",\n      \"ReadOnly\": \"false\",\n      \"AccessKeyId\": \"AKIAIOSFODNN7EXAMPLE\",\n      \"EventTime\": \"2026-03-14T14:21:15+00:00\",\n      \"EventSource\": \"iam.amazonaws.com\",\n      \"Username\": \"dev-bob\",\n      \"Resources\": [],\n      \"CloudTrailEvent\": \"{\\\"eventVersion\\\":\\\"1.08\\\",\\\"userIdentity\\\":{\\\"type\\\":\\\"IAMUser\\\",\\\"principalId\\\":\\\"AIDAEXAMPLEDEVBOB01\\\",\\\"arn\\\":\\\"arn:aws:iam::111122223333:user/dev-bob\\\",\\\"accountId\\\":\\\"111122223333\\\",\\\"accessKeyId\\\":\\\"AKIAIOSFODNN7EXAMPLE\\\",\\\"userName\\\":\\\"dev-bob\\\"},\\\"eventTime\\\":\\\"2026-03-14T14:21:15Z\\\",\\\"eventSource\\\":\\\"iam.amazonaws.com\\\",\\\"eventName\\\":\\\"AttachUserPolicy\\\",\\\"awsRegion\\\":\\\"us-east-1\\\",\\\"sourceIPAddress\\\":\\\"203.0.113.77\\\",\\\"userAgent\\\":\\\"aws-cli/2.15.30 Python/3.11.8 Linux/6.5.0-kali3-amd64 exe/x86_64.kali.2024 prompt/off command/iam.attach-user-policy\\\",\\\"requestParameters\\\":{\\\"userName\\\":\\\"dev-bob\\\",\\\"policyArn\\\":\\\"arn:aws:iam::aws:policy/AdministratorAccess\\\"},\\\"responseElements\\\":null,\\\"eventID\\\":\\\"9e47a8db-be13-4ee8-8947-c538fade7e45\\\",\\\"readOnly\\\":false,\\\"eventType\\\":\\\"AwsApiCall\\\",\\\"recipientAccountId\\\":\\\"111122223333\\\"}\"\n    }\n  ]\n}"
+          },
+          {
+            "match": "^aws cloudtrail lookup-events\\b.*AttributeKey=EventName,AttributeValue=GetAccountAuthorizationDetails\\b",
+            "output": "{\n  \"Events\": [\n    {\n      \"EventId\": \"a64332a4-f3e8-493b-8d91-8edb0f997ac0\",\n      \"EventName\": \"GetAccountAuthorizationDetails\",\n      \"ReadOnly\": \"true\",\n      \"AccessKeyId\": \"AKIAIOSFODNN7EXAMPLE\",\n      \"EventTime\": \"2026-03-14T14:16:20+00:00\",\n      \"EventSource\": \"iam.amazonaws.com\",\n      \"Username\": \"dev-bob\",\n      \"Resources\": [],\n      \"CloudTrailEvent\": \"{\\\"eventVersion\\\":\\\"1.08\\\",\\\"userIdentity\\\":{\\\"type\\\":\\\"IAMUser\\\",\\\"principalId\\\":\\\"AIDAEXAMPLEDEVBOB01\\\",\\\"arn\\\":\\\"arn:aws:iam::111122223333:user/dev-bob\\\",\\\"accountId\\\":\\\"111122223333\\\",\\\"accessKeyId\\\":\\\"AKIAIOSFODNN7EXAMPLE\\\",\\\"userName\\\":\\\"dev-bob\\\"},\\\"eventTime\\\":\\\"2026-03-14T14:16:20Z\\\",\\\"eventSource\\\":\\\"iam.amazonaws.com\\\",\\\"eventName\\\":\\\"GetAccountAuthorizationDetails\\\",\\\"awsRegion\\\":\\\"us-east-1\\\",\\\"sourceIPAddress\\\":\\\"203.0.113.77\\\",\\\"userAgent\\\":\\\"aws-cli/2.15.30 Python/3.11.8 Linux/6.5.0-kali3-amd64 exe/x86_64.kali.2024 prompt/off command/iam.get-account-authorization-details\\\",\\\"requestParameters\\\":null,\\\"responseElements\\\":null,\\\"eventID\\\":\\\"a64332a4-f3e8-493b-8d91-8edb0f997ac0\\\",\\\"readOnly\\\":true,\\\"eventType\\\":\\\"AwsApiCall\\\",\\\"recipientAccountId\\\":\\\"111122223333\\\"}\"\n    }\n  ]\n}"
+          },
+          {
+            "match": "^aws cloudtrail lookup-events\\b.*AttributeKey=EventName,AttributeValue=DescribeInstances\\b",
+            "output": "{\n  \"Events\": [\n    {\n      \"EventId\": \"37d54cc0-9edc-4f98-8a1c-1fc8770f9cfd\",\n      \"EventName\": \"DescribeInstances\",\n      \"ReadOnly\": \"true\",\n      \"AccessKeyId\": \"ASIAOPSBOT012EXAMPLE\",\n      \"EventTime\": \"2026-03-14T09:15:40+00:00\",\n      \"EventSource\": \"ec2.amazonaws.com\",\n      \"Username\": \"ops-bot\",\n      \"Resources\": [],\n      \"CloudTrailEvent\": \"{\\\"eventVersion\\\":\\\"1.08\\\",\\\"userIdentity\\\":{\\\"type\\\":\\\"AssumedRole\\\",\\\"principalId\\\":\\\"AROAEXAMPLEOPSROLE:ops-bot\\\",\\\"arn\\\":\\\"arn:aws:sts::111122223333:assumed-role/ops-role/ops-bot\\\",\\\"accountId\\\":\\\"111122223333\\\",\\\"accessKeyId\\\":\\\"ASIAOPSBOT012EXAMPLE\\\",\\\"sessionContext\\\":{\\\"sessionIssuer\\\":{\\\"type\\\":\\\"Role\\\",\\\"principalId\\\":\\\"AROAEXAMPLEOPSROLE\\\",\\\"arn\\\":\\\"arn:aws:iam::111122223333:role/ops-role\\\",\\\"accountId\\\":\\\"111122223333\\\",\\\"userName\\\":\\\"ops-role\\\"},\\\"attributes\\\":{\\\"creationDate\\\":\\\"2026-03-14T08:00:00Z\\\",\\\"mfaAuthenticated\\\":\\\"false\\\"}}},\\\"eventTime\\\":\\\"2026-03-14T09:15:40Z\\\",\\\"eventSource\\\":\\\"ec2.amazonaws.com\\\",\\\"eventName\\\":\\\"DescribeInstances\\\",\\\"awsRegion\\\":\\\"us-east-1\\\",\\\"sourceIPAddress\\\":\\\"198.51.100.23\\\",\\\"userAgent\\\":\\\"aws-sdk-go/1.50.0 (go1.21.6; linux; amd64)\\\",\\\"requestParameters\\\":{\\\"instancesSet\\\":{},\\\"filterSet\\\":{}},\\\"responseElements\\\":null,\\\"eventID\\\":\\\"37d54cc0-9edc-4f98-8a1c-1fc8770f9cfd\\\",\\\"readOnly\\\":true,\\\"eventType\\\":\\\"AwsApiCall\\\",\\\"recipientAccountId\\\":\\\"111122223333\\\"}\"\n    }\n  ]\n}"
+          },
+          {
+            "match": "^aws cloudtrail lookup-events\\b.*AttributeKey=EventName,AttributeValue=GetTrailStatus\\b",
+            "output": "{\n  \"Events\": [\n    {\n      \"EventId\": \"06666644-5e0a-46c0-869d-c52d1bcb4fe3\",\n      \"EventName\": \"GetTrailStatus\",\n      \"ReadOnly\": \"true\",\n      \"AccessKeyId\": \"AKIAALICE0123EXAMPLE\",\n      \"EventTime\": \"2026-03-14T13:40:00+00:00\",\n      \"EventSource\": \"cloudtrail.amazonaws.com\",\n      \"Username\": \"alice\",\n      \"Resources\": [],\n      \"CloudTrailEvent\": \"{\\\"eventVersion\\\":\\\"1.08\\\",\\\"userIdentity\\\":{\\\"type\\\":\\\"IAMUser\\\",\\\"principalId\\\":\\\"AIDAEXAMPLEALICE0001\\\",\\\"arn\\\":\\\"arn:aws:iam::111122223333:user/alice\\\",\\\"accountId\\\":\\\"111122223333\\\",\\\"accessKeyId\\\":\\\"AKIAALICE0123EXAMPLE\\\",\\\"userName\\\":\\\"alice\\\"},\\\"eventTime\\\":\\\"2026-03-14T13:40:00Z\\\",\\\"eventSource\\\":\\\"cloudtrail.amazonaws.com\\\",\\\"eventName\\\":\\\"GetTrailStatus\\\",\\\"awsRegion\\\":\\\"us-east-1\\\",\\\"sourceIPAddress\\\":\\\"198.51.100.10\\\",\\\"userAgent\\\":\\\"aws-cli/2.15.30 Python/3.11.8 Windows/10 exe/AMD64 prompt/off command/cloudtrail.get-trail-status\\\",\\\"requestParameters\\\":{\\\"name\\\":\\\"org-trail\\\"},\\\"responseElements\\\":null,\\\"eventID\\\":\\\"06666644-5e0a-46c0-869d-c52d1bcb4fe3\\\",\\\"readOnly\\\":true,\\\"eventType\\\":\\\"AwsApiCall\\\",\\\"recipientAccountId\\\":\\\"111122223333\\\"}\"\n    }\n  ]\n}"
+          },
+          {
+            "match": "^aws cloudtrail lookup-events\\b.*AttributeKey=EventName,AttributeValue=CreateTags\\b",
+            "output": "{\n  \"Events\": [\n    {\n      \"EventId\": \"358ead75-1c79-4bca-85d0-289882de617d\",\n      \"EventName\": \"CreateTags\",\n      \"ReadOnly\": \"false\",\n      \"AccessKeyId\": \"ASIAOPSBOT012EXAMPLE\",\n      \"EventTime\": \"2026-03-14T10:30:09+00:00\",\n      \"EventSource\": \"ec2.amazonaws.com\",\n      \"Username\": \"ops-bot\",\n      \"Resources\": [],\n      \"CloudTrailEvent\": \"{\\\"eventVersion\\\":\\\"1.08\\\",\\\"userIdentity\\\":{\\\"type\\\":\\\"AssumedRole\\\",\\\"principalId\\\":\\\"AROAEXAMPLEOPSROLE:ops-bot\\\",\\\"arn\\\":\\\"arn:aws:sts::111122223333:assumed-role/ops-role/ops-bot\\\",\\\"accountId\\\":\\\"111122223333\\\",\\\"accessKeyId\\\":\\\"ASIAOPSBOT012EXAMPLE\\\",\\\"sessionContext\\\":{\\\"sessionIssuer\\\":{\\\"type\\\":\\\"Role\\\",\\\"principalId\\\":\\\"AROAEXAMPLEOPSROLE\\\",\\\"arn\\\":\\\"arn:aws:iam::111122223333:role/ops-role\\\",\\\"accountId\\\":\\\"111122223333\\\",\\\"userName\\\":\\\"ops-role\\\"},\\\"attributes\\\":{\\\"creationDate\\\":\\\"2026-03-14T08:00:00Z\\\",\\\"mfaAuthenticated\\\":\\\"false\\\"}}},\\\"eventTime\\\":\\\"2026-03-14T10:30:09Z\\\",\\\"eventSource\\\":\\\"ec2.amazonaws.com\\\",\\\"eventName\\\":\\\"CreateTags\\\",\\\"awsRegion\\\":\\\"us-east-1\\\",\\\"sourceIPAddress\\\":\\\"198.51.100.23\\\",\\\"userAgent\\\":\\\"aws-sdk-go/1.50.0 (go1.21.6; linux; amd64)\\\",\\\"requestParameters\\\":{\\\"resourcesSet\\\":{\\\"items\\\":[{\\\"resourceId\\\":\\\"i-0a1b2c3d4e5f60789\\\"}]},\\\"tagSet\\\":{\\\"items\\\":[{\\\"key\\\":\\\"patched\\\",\\\"value\\\":\\\"2026-03\\\"}]}},\\\"responseElements\\\":{\\\"_return\\\":true},\\\"eventID\\\":\\\"358ead75-1c79-4bca-85d0-289882de617d\\\",\\\"readOnly\\\":false,\\\"eventType\\\":\\\"AwsApiCall\\\",\\\"recipientAccountId\\\":\\\"111122223333\\\"}\"\n    }\n  ]\n}"
+          },
+          {
+            "match": "^aws cloudtrail lookup-events\\b.*AttributeKey=Username,AttributeValue=dev-bob\\b",
+            "output": "{\n  \"Events\": [\n    {\n      \"EventId\": \"1faef93d-5bd7-481a-8f22-6873cb66338b\",\n      \"EventName\": \"ConsoleLogin\",\n      \"ReadOnly\": \"false\",\n      \"AccessKeyId\": \"\",\n      \"EventTime\": \"2026-03-14T09:12:44+00:00\",\n      \"EventSource\": \"signin.amazonaws.com\",\n      \"Username\": \"dev-bob\",\n      \"Resources\": [],\n      \"CloudTrailEvent\": \"{\\\"eventVersion\\\":\\\"1.08\\\",\\\"userIdentity\\\":{\\\"type\\\":\\\"IAMUser\\\",\\\"principalId\\\":\\\"AIDAEXAMPLEDEVBOB01\\\",\\\"arn\\\":\\\"arn:aws:iam::111122223333:user/dev-bob\\\",\\\"accountId\\\":\\\"111122223333\\\",\\\"userName\\\":\\\"dev-bob\\\"},\\\"eventTime\\\":\\\"2026-03-14T09:12:44Z\\\",\\\"eventSource\\\":\\\"signin.amazonaws.com\\\",\\\"eventName\\\":\\\"ConsoleLogin\\\",\\\"awsRegion\\\":\\\"us-east-1\\\",\\\"sourceIPAddress\\\":\\\"198.51.100.31\\\",\\\"userAgent\\\":\\\"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36\\\",\\\"requestParameters\\\":null,\\\"responseElements\\\":{\\\"ConsoleLogin\\\":\\\"Success\\\"},\\\"eventID\\\":\\\"1faef93d-5bd7-481a-8f22-6873cb66338b\\\",\\\"readOnly\\\":false,\\\"eventType\\\":\\\"AwsConsoleSignIn\\\",\\\"recipientAccountId\\\":\\\"111122223333\\\",\\\"additionalEventData\\\":{\\\"LoginTo\\\":\\\"https://console.aws.amazon.com/console/home?state=hashArgs&isauthcode=true\\\",\\\"MobileVersion\\\":\\\"No\\\",\\\"MFAUsed\\\":\\\"Yes\\\"}}\"\n    },\n    {\n      \"EventId\": \"42d3994d-0931-4666-8151-efd61afb9853\",\n      \"EventName\": \"ConsoleLogin\",\n      \"ReadOnly\": \"false\",\n      \"AccessKeyId\": \"\",\n      \"EventTime\": \"2026-03-14T14:10:55+00:00\",\n      \"EventSource\": \"signin.amazonaws.com\",\n      \"Username\": \"dev-bob\",\n      \"Resources\": [],\n      \"CloudTrailEvent\": \"{\\\"eventVersion\\\":\\\"1.08\\\",\\\"userIdentity\\\":{\\\"type\\\":\\\"IAMUser\\\",\\\"principalId\\\":\\\"AIDAEXAMPLEDEVBOB01\\\",\\\"arn\\\":\\\"arn:aws:iam::111122223333:user/dev-bob\\\",\\\"accountId\\\":\\\"111122223333\\\",\\\"userName\\\":\\\"dev-bob\\\"},\\\"eventTime\\\":\\\"2026-03-14T14:10:55Z\\\",\\\"eventSource\\\":\\\"signin.amazonaws.com\\\",\\\"eventName\\\":\\\"ConsoleLogin\\\",\\\"awsRegion\\\":\\\"us-east-1\\\",\\\"sourceIPAddress\\\":\\\"203.0.113.77\\\",\\\"userAgent\\\":\\\"Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/115.0\\\",\\\"requestParameters\\\":null,\\\"responseElements\\\":{\\\"ConsoleLogin\\\":\\\"Failure\\\"},\\\"eventID\\\":\\\"42d3994d-0931-4666-8151-efd61afb9853\\\",\\\"readOnly\\\":false,\\\"eventType\\\":\\\"AwsConsoleSignIn\\\",\\\"recipientAccountId\\\":\\\"111122223333\\\",\\\"additionalEventData\\\":{\\\"LoginTo\\\":\\\"https://console.aws.amazon.com/console/home?state=hashArgs&isauthcode=true\\\",\\\"MobileVersion\\\":\\\"No\\\",\\\"MFAUsed\\\":\\\"No\\\"},\\\"errorMessage\\\":\\\"Failed authentication\\\"}\"\n    },\n    {\n      \"EventId\": \"6cd22b5f-7362-4303-86c7-ecff88687f55\",\n      \"EventName\": \"ConsoleLogin\",\n      \"ReadOnly\": \"false\",\n      \"AccessKeyId\": \"\",\n      \"EventTime\": \"2026-03-14T14:12:07+00:00\",\n      \"EventSource\": \"signin.amazonaws.com\",\n      \"Username\": \"dev-bob\",\n      \"Resources\": [],\n      \"CloudTrailEvent\": \"{\\\"eventVersion\\\":\\\"1.08\\\",\\\"userIdentity\\\":{\\\"type\\\":\\\"IAMUser\\\",\\\"principalId\\\":\\\"AIDAEXAMPLEDEVBOB01\\\",\\\"arn\\\":\\\"arn:aws:iam::111122223333:user/dev-bob\\\",\\\"accountId\\\":\\\"111122223333\\\",\\\"userName\\\":\\\"dev-bob\\\"},\\\"eventTime\\\":\\\"2026-03-14T14:12:07Z\\\",\\\"eventSource\\\":\\\"signin.amazonaws.com\\\",\\\"eventName\\\":\\\"ConsoleLogin\\\",\\\"awsRegion\\\":\\\"us-east-1\\\",\\\"sourceIPAddress\\\":\\\"203.0.113.77\\\",\\\"userAgent\\\":\\\"Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/115.0\\\",\\\"requestParameters\\\":null,\\\"responseElements\\\":{\\\"ConsoleLogin\\\":\\\"Success\\\"},\\\"eventID\\\":\\\"6cd22b5f-7362-4303-86c7-ecff88687f55\\\",\\\"readOnly\\\":false,\\\"eventType\\\":\\\"AwsConsoleSignIn\\\",\\\"recipientAccountId\\\":\\\"111122223333\\\",\\\"additionalEventData\\\":{\\\"LoginTo\\\":\\\"https://console.aws.amazon.com/console/home?state=hashArgs&isauthcode=true\\\",\\\"MobileVersion\\\":\\\"No\\\",\\\"MFAUsed\\\":\\\"No\\\"}}\"\n    },\n    {\n      \"EventId\": \"d6d8596c-1840-43ee-8640-298c1686b306\",\n      \"EventName\": \"GetCallerIdentity\",\n      \"ReadOnly\": \"true\",\n      \"AccessKeyId\": \"AKIAIOSFODNN7EXAMPLE\",\n      \"EventTime\": \"2026-03-14T14:14:51+00:00\",\n      \"EventSource\": \"sts.amazonaws.com\",\n      \"Username\": \"dev-bob\",\n      \"Resources\": [],\n      \"CloudTrailEvent\": \"{\\\"eventVersion\\\":\\\"1.08\\\",\\\"userIdentity\\\":{\\\"type\\\":\\\"IAMUser\\\",\\\"principalId\\\":\\\"AIDAEXAMPLEDEVBOB01\\\",\\\"arn\\\":\\\"arn:aws:iam::111122223333:user/dev-bob\\\",\\\"accountId\\\":\\\"111122223333\\\",\\\"accessKeyId\\\":\\\"AKIAIOSFODNN7EXAMPLE\\\",\\\"userName\\\":\\\"dev-bob\\\"},\\\"eventTime\\\":\\\"2026-03-14T14:14:51Z\\\",\\\"eventSource\\\":\\\"sts.amazonaws.com\\\",\\\"eventName\\\":\\\"GetCallerIdentity\\\",\\\"awsRegion\\\":\\\"us-east-1\\\",\\\"sourceIPAddress\\\":\\\"203.0.113.77\\\",\\\"userAgent\\\":\\\"aws-cli/2.15.30 Python/3.11.8 Linux/6.5.0-kali3-amd64 exe/x86_64.kali.2024 prompt/off command/sts.get-caller-identity\\\",\\\"requestParameters\\\":null,\\\"responseElements\\\":null,\\\"eventID\\\":\\\"d6d8596c-1840-43ee-8640-298c1686b306\\\",\\\"readOnly\\\":true,\\\"eventType\\\":\\\"AwsApiCall\\\",\\\"recipientAccountId\\\":\\\"111122223333\\\"}\"\n    },\n    {\n      \"EventId\": \"e38bb746-78b0-4d5c-82c8-1217306cc76d\",\n      \"EventName\": \"ListBuckets\",\n      \"ReadOnly\": \"true\",\n      \"AccessKeyId\": \"AKIAIOSFODNN7EXAMPLE\",\n      \"EventTime\": \"2026-03-14T14:15:33+00:00\",\n      \"EventSource\": \"s3.amazonaws.com\",\n      \"Username\": \"dev-bob\",\n      \"Resources\": [],\n      \"CloudTrailEvent\": \"{\\\"eventVersion\\\":\\\"1.08\\\",\\\"userIdentity\\\":{\\\"type\\\":\\\"IAMUser\\\",\\\"principalId\\\":\\\"AIDAEXAMPLEDEVBOB01\\\",\\\"arn\\\":\\\"arn:aws:iam::111122223333:user/dev-bob\\\",\\\"accountId\\\":\\\"111122223333\\\",\\\"accessKeyId\\\":\\\"AKIAIOSFODNN7EXAMPLE\\\",\\\"userName\\\":\\\"dev-bob\\\"},\\\"eventTime\\\":\\\"2026-03-14T14:15:33Z\\\",\\\"eventSource\\\":\\\"s3.amazonaws.com\\\",\\\"eventName\\\":\\\"ListBuckets\\\",\\\"awsRegion\\\":\\\"us-east-1\\\",\\\"sourceIPAddress\\\":\\\"203.0.113.77\\\",\\\"userAgent\\\":\\\"aws-cli/2.15.30 Python/3.11.8 Linux/6.5.0-kali3-amd64 exe/x86_64.kali.2024 prompt/off command/s3api.list-buckets\\\",\\\"requestParameters\\\":{\\\"Host\\\":\\\"s3.amazonaws.com\\\"},\\\"responseElements\\\":null,\\\"eventID\\\":\\\"e38bb746-78b0-4d5c-82c8-1217306cc76d\\\",\\\"readOnly\\\":true,\\\"eventType\\\":\\\"AwsApiCall\\\",\\\"recipientAccountId\\\":\\\"111122223333\\\"}\"\n    },\n    {\n      \"EventId\": \"a64332a4-f3e8-493b-8d91-8edb0f997ac0\",\n      \"EventName\": \"GetAccountAuthorizationDetails\",\n      \"ReadOnly\": \"true\",\n      \"AccessKeyId\": \"AKIAIOSFODNN7EXAMPLE\",\n      \"EventTime\": \"2026-03-14T14:16:20+00:00\",\n      \"EventSource\": \"iam.amazonaws.com\",\n      \"Username\": \"dev-bob\",\n      \"Resources\": [],\n      \"CloudTrailEvent\": \"{\\\"eventVersion\\\":\\\"1.08\\\",\\\"userIdentity\\\":{\\\"type\\\":\\\"IAMUser\\\",\\\"principalId\\\":\\\"AIDAEXAMPLEDEVBOB01\\\",\\\"arn\\\":\\\"arn:aws:iam::111122223333:user/dev-bob\\\",\\\"accountId\\\":\\\"111122223333\\\",\\\"accessKeyId\\\":\\\"AKIAIOSFODNN7EXAMPLE\\\",\\\"userName\\\":\\\"dev-bob\\\"},\\\"eventTime\\\":\\\"2026-03-14T14:16:20Z\\\",\\\"eventSource\\\":\\\"iam.amazonaws.com\\\",\\\"eventName\\\":\\\"GetAccountAuthorizationDetails\\\",\\\"awsRegion\\\":\\\"us-east-1\\\",\\\"sourceIPAddress\\\":\\\"203.0.113.77\\\",\\\"userAgent\\\":\\\"aws-cli/2.15.30 Python/3.11.8 Linux/6.5.0-kali3-amd64 exe/x86_64.kali.2024 prompt/off command/iam.get-account-authorization-details\\\",\\\"requestParameters\\\":null,\\\"responseElements\\\":null,\\\"eventID\\\":\\\"a64332a4-f3e8-493b-8d91-8edb0f997ac0\\\",\\\"readOnly\\\":true,\\\"eventType\\\":\\\"AwsApiCall\\\",\\\"recipientAccountId\\\":\\\"111122223333\\\"}\"\n    },\n    {\n      \"EventId\": \"0cb0948c-d159-4ba3-87ff-4c0cadfcd6d4\",\n      \"EventName\": \"CreateAccessKey\",\n      \"ReadOnly\": \"false\",\n      \"AccessKeyId\": \"AKIAIOSFODNN7EXAMPLE\",\n      \"EventTime\": \"2026-03-14T14:19:48+00:00\",\n      \"EventSource\": \"iam.amazonaws.com\",\n      \"Username\": \"dev-bob\",\n      \"Resources\": [],\n      \"CloudTrailEvent\": \"{\\\"eventVersion\\\":\\\"1.08\\\",\\\"userIdentity\\\":{\\\"type\\\":\\\"IAMUser\\\",\\\"principalId\\\":\\\"AIDAEXAMPLEDEVBOB01\\\",\\\"arn\\\":\\\"arn:aws:iam::111122223333:user/dev-bob\\\",\\\"accountId\\\":\\\"111122223333\\\",\\\"accessKeyId\\\":\\\"AKIAIOSFODNN7EXAMPLE\\\",\\\"userName\\\":\\\"dev-bob\\\"},\\\"eventTime\\\":\\\"2026-03-14T14:19:48Z\\\",\\\"eventSource\\\":\\\"iam.amazonaws.com\\\",\\\"eventName\\\":\\\"CreateAccessKey\\\",\\\"awsRegion\\\":\\\"us-east-1\\\",\\\"sourceIPAddress\\\":\\\"203.0.113.77\\\",\\\"userAgent\\\":\\\"aws-cli/2.15.30 Python/3.11.8 Linux/6.5.0-kali3-amd64 exe/x86_64.kali.2024 prompt/off command/iam.create-access-key\\\",\\\"requestParameters\\\":{\\\"userName\\\":\\\"svc-backup\\\"},\\\"responseElements\\\":{\\\"accessKey\\\":{\\\"userName\\\":\\\"svc-backup\\\",\\\"accessKeyId\\\":\\\"AKIAI44QH8DHBEXAMPLE\\\",\\\"status\\\":\\\"Active\\\",\\\"createDate\\\":\\\"Mar 14, 2026 2:19:48 PM\\\"}},\\\"eventID\\\":\\\"0cb0948c-d159-4ba3-87ff-4c0cadfcd6d4\\\",\\\"readOnly\\\":false,\\\"eventType\\\":\\\"AwsApiCall\\\",\\\"recipientAccountId\\\":\\\"111122223333\\\"}\"\n    },\n    {\n      \"EventId\": \"9e47a8db-be13-4ee8-8947-c538fade7e45\",\n      \"EventName\": \"AttachUserPolicy\",\n      \"ReadOnly\": \"false\",\n      \"AccessKeyId\": \"AKIAIOSFODNN7EXAMPLE\",\n      \"EventTime\": \"2026-03-14T14:21:15+00:00\",\n      \"EventSource\": \"iam.amazonaws.com\",\n      \"Username\": \"dev-bob\",\n      \"Resources\": [],\n      \"CloudTrailEvent\": \"{\\\"eventVersion\\\":\\\"1.08\\\",\\\"userIdentity\\\":{\\\"type\\\":\\\"IAMUser\\\",\\\"principalId\\\":\\\"AIDAEXAMPLEDEVBOB01\\\",\\\"arn\\\":\\\"arn:aws:iam::111122223333:user/dev-bob\\\",\\\"accountId\\\":\\\"111122223333\\\",\\\"accessKeyId\\\":\\\"AKIAIOSFODNN7EXAMPLE\\\",\\\"userName\\\":\\\"dev-bob\\\"},\\\"eventTime\\\":\\\"2026-03-14T14:21:15Z\\\",\\\"eventSource\\\":\\\"iam.amazonaws.com\\\",\\\"eventName\\\":\\\"AttachUserPolicy\\\",\\\"awsRegion\\\":\\\"us-east-1\\\",\\\"sourceIPAddress\\\":\\\"203.0.113.77\\\",\\\"userAgent\\\":\\\"aws-cli/2.15.30 Python/3.11.8 Linux/6.5.0-kali3-amd64 exe/x86_64.kali.2024 prompt/off command/iam.attach-user-policy\\\",\\\"requestParameters\\\":{\\\"userName\\\":\\\"dev-bob\\\",\\\"policyArn\\\":\\\"arn:aws:iam::aws:policy/AdministratorAccess\\\"},\\\"responseElements\\\":null,\\\"eventID\\\":\\\"9e47a8db-be13-4ee8-8947-c538fade7e45\\\",\\\"readOnly\\\":false,\\\"eventType\\\":\\\"AwsApiCall\\\",\\\"recipientAccountId\\\":\\\"111122223333\\\"}\"\n    },\n    {\n      \"EventId\": \"21f49772-9e0e-4ffd-8ae0-dc7a510caff3\",\n      \"EventName\": \"PutEventSelectors\",\n      \"ReadOnly\": \"false\",\n      \"AccessKeyId\": \"AKIAIOSFODNN7EXAMPLE\",\n      \"EventTime\": \"2026-03-14T14:23:40+00:00\",\n      \"EventSource\": \"cloudtrail.amazonaws.com\",\n      \"Username\": \"dev-bob\",\n      \"Resources\": [],\n      \"CloudTrailEvent\": \"{\\\"eventVersion\\\":\\\"1.08\\\",\\\"userIdentity\\\":{\\\"type\\\":\\\"IAMUser\\\",\\\"principalId\\\":\\\"AIDAEXAMPLEDEVBOB01\\\",\\\"arn\\\":\\\"arn:aws:iam::111122223333:user/dev-bob\\\",\\\"accountId\\\":\\\"111122223333\\\",\\\"accessKeyId\\\":\\\"AKIAIOSFODNN7EXAMPLE\\\",\\\"userName\\\":\\\"dev-bob\\\"},\\\"eventTime\\\":\\\"2026-03-14T14:23:40Z\\\",\\\"eventSource\\\":\\\"cloudtrail.amazonaws.com\\\",\\\"eventName\\\":\\\"PutEventSelectors\\\",\\\"awsRegion\\\":\\\"us-east-1\\\",\\\"sourceIPAddress\\\":\\\"203.0.113.77\\\",\\\"userAgent\\\":\\\"aws-cli/2.15.30 Python/3.11.8 Linux/6.5.0-kali3-amd64 exe/x86_64.kali.2024 prompt/off command/cloudtrail.put-event-selectors\\\",\\\"requestParameters\\\":{\\\"trailName\\\":\\\"org-trail\\\",\\\"eventSelectors\\\":[{\\\"readWriteType\\\":\\\"WriteOnly\\\",\\\"includeManagementEvents\\\":true,\\\"dataResources\\\":[]}]},\\\"responseElements\\\":{\\\"trailARN\\\":\\\"arn:aws:cloudtrail:us-east-1:111122223333:trail/org-trail\\\"},\\\"eventID\\\":\\\"21f49772-9e0e-4ffd-8ae0-dc7a510caff3\\\",\\\"readOnly\\\":false,\\\"eventType\\\":\\\"AwsApiCall\\\",\\\"recipientAccountId\\\":\\\"111122223333\\\"}\"\n    },\n    {\n      \"EventId\": \"00652804-ce93-4187-8eec-e19f03e89ef1\",\n      \"EventName\": \"StopLogging\",\n      \"ReadOnly\": \"false\",\n      \"AccessKeyId\": \"AKIAIOSFODNN7EXAMPLE\",\n      \"EventTime\": \"2026-03-14T14:24:30+00:00\",\n      \"EventSource\": \"cloudtrail.amazonaws.com\",\n      \"Username\": \"dev-bob\",\n      \"Resources\": [],\n      \"CloudTrailEvent\": \"{\\\"eventVersion\\\":\\\"1.08\\\",\\\"userIdentity\\\":{\\\"type\\\":\\\"IAMUser\\\",\\\"principalId\\\":\\\"AIDAEXAMPLEDEVBOB01\\\",\\\"arn\\\":\\\"arn:aws:iam::111122223333:user/dev-bob\\\",\\\"accountId\\\":\\\"111122223333\\\",\\\"accessKeyId\\\":\\\"AKIAIOSFODNN7EXAMPLE\\\",\\\"userName\\\":\\\"dev-bob\\\"},\\\"eventTime\\\":\\\"2026-03-14T14:24:30Z\\\",\\\"eventSource\\\":\\\"cloudtrail.amazonaws.com\\\",\\\"eventName\\\":\\\"StopLogging\\\",\\\"awsRegion\\\":\\\"us-east-1\\\",\\\"sourceIPAddress\\\":\\\"203.0.113.77\\\",\\\"userAgent\\\":\\\"aws-cli/2.15.30 Python/3.11.8 Linux/6.5.0-kali3-amd64 exe/x86_64.kali.2024 prompt/off command/cloudtrail.stop-logging\\\",\\\"requestParameters\\\":{\\\"name\\\":\\\"org-trail\\\"},\\\"responseElements\\\":null,\\\"eventID\\\":\\\"00652804-ce93-4187-8eec-e19f03e89ef1\\\",\\\"readOnly\\\":false,\\\"eventType\\\":\\\"AwsApiCall\\\",\\\"recipientAccountId\\\":\\\"111122223333\\\"}\"\n    }\n  ]\n}"
+          },
+          {
+            "match": "^aws cloudtrail lookup-events\\b.*AttributeKey=Username,AttributeValue=alice\\b",
+            "output": "{\n  \"Events\": [\n    {\n      \"EventId\": \"815c0b1c-a476-4b8e-8b2e-3613f2677209\",\n      \"EventName\": \"ConsoleLogin\",\n      \"ReadOnly\": \"false\",\n      \"AccessKeyId\": \"\",\n      \"EventTime\": \"2026-03-14T08:55:02+00:00\",\n      \"EventSource\": \"signin.amazonaws.com\",\n      \"Username\": \"alice\",\n      \"Resources\": [],\n      \"CloudTrailEvent\": \"{\\\"eventVersion\\\":\\\"1.08\\\",\\\"userIdentity\\\":{\\\"type\\\":\\\"IAMUser\\\",\\\"principalId\\\":\\\"AIDAEXAMPLEALICE0001\\\",\\\"arn\\\":\\\"arn:aws:iam::111122223333:user/alice\\\",\\\"accountId\\\":\\\"111122223333\\\",\\\"userName\\\":\\\"alice\\\"},\\\"eventTime\\\":\\\"2026-03-14T08:55:02Z\\\",\\\"eventSource\\\":\\\"signin.amazonaws.com\\\",\\\"eventName\\\":\\\"ConsoleLogin\\\",\\\"awsRegion\\\":\\\"us-east-1\\\",\\\"sourceIPAddress\\\":\\\"198.51.100.10\\\",\\\"userAgent\\\":\\\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36\\\",\\\"requestParameters\\\":null,\\\"responseElements\\\":{\\\"ConsoleLogin\\\":\\\"Success\\\"},\\\"eventID\\\":\\\"815c0b1c-a476-4b8e-8b2e-3613f2677209\\\",\\\"readOnly\\\":false,\\\"eventType\\\":\\\"AwsConsoleSignIn\\\",\\\"recipientAccountId\\\":\\\"111122223333\\\",\\\"additionalEventData\\\":{\\\"LoginTo\\\":\\\"https://console.aws.amazon.com/console/home?state=hashArgs&isauthcode=true\\\",\\\"MobileVersion\\\":\\\"No\\\",\\\"MFAUsed\\\":\\\"Yes\\\"}}\"\n    },\n    {\n      \"EventId\": \"8dc46457-82d9-49db-8b92-89246bd78d6f\",\n      \"EventName\": \"GetCallerIdentity\",\n      \"ReadOnly\": \"true\",\n      \"AccessKeyId\": \"AKIAALICE0123EXAMPLE\",\n      \"EventTime\": \"2026-03-14T09:47:12+00:00\",\n      \"EventSource\": \"sts.amazonaws.com\",\n      \"Username\": \"alice\",\n      \"Resources\": [],\n      \"CloudTrailEvent\": \"{\\\"eventVersion\\\":\\\"1.08\\\",\\\"userIdentity\\\":{\\\"type\\\":\\\"IAMUser\\\",\\\"principalId\\\":\\\"AIDAEXAMPLEALICE0001\\\",\\\"arn\\\":\\\"arn:aws:iam::111122223333:user/alice\\\",\\\"accountId\\\":\\\"111122223333\\\",\\\"accessKeyId\\\":\\\"AKIAALICE0123EXAMPLE\\\",\\\"userName\\\":\\\"alice\\\"},\\\"eventTime\\\":\\\"2026-03-14T09:47:12Z\\\",\\\"eventSource\\\":\\\"sts.amazonaws.com\\\",\\\"eventName\\\":\\\"GetCallerIdentity\\\",\\\"awsRegion\\\":\\\"us-east-1\\\",\\\"sourceIPAddress\\\":\\\"198.51.100.10\\\",\\\"userAgent\\\":\\\"aws-cli/2.15.30 Python/3.11.8 Windows/10 exe/AMD64 prompt/off command/sts.get-caller-identity\\\",\\\"requestParameters\\\":null,\\\"responseElements\\\":null,\\\"eventID\\\":\\\"8dc46457-82d9-49db-8b92-89246bd78d6f\\\",\\\"readOnly\\\":true,\\\"eventType\\\":\\\"AwsApiCall\\\",\\\"recipientAccountId\\\":\\\"111122223333\\\"}\"\n    },\n    {\n      \"EventId\": \"19b638c9-8b25-4228-83b7-1c2e2448f8fd\",\n      \"EventName\": \"CreateAccessKey\",\n      \"ReadOnly\": \"false\",\n      \"AccessKeyId\": \"AKIAALICE0123EXAMPLE\",\n      \"EventTime\": \"2026-03-14T11:20:44+00:00\",\n      \"EventSource\": \"iam.amazonaws.com\",\n      \"Username\": \"alice\",\n      \"Resources\": [],\n      \"CloudTrailEvent\": \"{\\\"eventVersion\\\":\\\"1.08\\\",\\\"userIdentity\\\":{\\\"type\\\":\\\"IAMUser\\\",\\\"principalId\\\":\\\"AIDAEXAMPLEALICE0001\\\",\\\"arn\\\":\\\"arn:aws:iam::111122223333:user/alice\\\",\\\"accountId\\\":\\\"111122223333\\\",\\\"accessKeyId\\\":\\\"AKIAALICE0123EXAMPLE\\\",\\\"userName\\\":\\\"alice\\\"},\\\"eventTime\\\":\\\"2026-03-14T11:20:44Z\\\",\\\"eventSource\\\":\\\"iam.amazonaws.com\\\",\\\"eventName\\\":\\\"CreateAccessKey\\\",\\\"awsRegion\\\":\\\"us-east-1\\\",\\\"sourceIPAddress\\\":\\\"198.51.100.10\\\",\\\"userAgent\\\":\\\"aws-cli/2.15.30 Python/3.11.8 Windows/10 exe/AMD64 prompt/off command/iam.create-access-key\\\",\\\"requestParameters\\\":{\\\"userName\\\":\\\"ci-runner\\\"},\\\"responseElements\\\":{\\\"accessKey\\\":{\\\"userName\\\":\\\"ci-runner\\\",\\\"accessKeyId\\\":\\\"AKIACIRUN0123EXAMPLE\\\",\\\"status\\\":\\\"Active\\\",\\\"createDate\\\":\\\"Mar 14, 2026 11:20:44 AM\\\"}},\\\"eventID\\\":\\\"19b638c9-8b25-4228-83b7-1c2e2448f8fd\\\",\\\"readOnly\\\":false,\\\"eventType\\\":\\\"AwsApiCall\\\",\\\"recipientAccountId\\\":\\\"111122223333\\\"}\"\n    },\n    {\n      \"EventId\": \"1d829360-bc59-4ded-85f2-be1f2da883b0\",\n      \"EventName\": \"AttachUserPolicy\",\n      \"ReadOnly\": \"false\",\n      \"AccessKeyId\": \"AKIAALICE0123EXAMPLE\",\n      \"EventTime\": \"2026-03-14T12:05:18+00:00\",\n      \"EventSource\": \"iam.amazonaws.com\",\n      \"Username\": \"alice\",\n      \"Resources\": [],\n      \"CloudTrailEvent\": \"{\\\"eventVersion\\\":\\\"1.08\\\",\\\"userIdentity\\\":{\\\"type\\\":\\\"IAMUser\\\",\\\"principalId\\\":\\\"AIDAEXAMPLEALICE0001\\\",\\\"arn\\\":\\\"arn:aws:iam::111122223333:user/alice\\\",\\\"accountId\\\":\\\"111122223333\\\",\\\"accessKeyId\\\":\\\"AKIAALICE0123EXAMPLE\\\",\\\"userName\\\":\\\"alice\\\"},\\\"eventTime\\\":\\\"2026-03-14T12:05:18Z\\\",\\\"eventSource\\\":\\\"iam.amazonaws.com\\\",\\\"eventName\\\":\\\"AttachUserPolicy\\\",\\\"awsRegion\\\":\\\"us-east-1\\\",\\\"sourceIPAddress\\\":\\\"198.51.100.10\\\",\\\"userAgent\\\":\\\"aws-cli/2.15.30 Python/3.11.8 Windows/10 exe/AMD64 prompt/off command/iam.attach-user-policy\\\",\\\"requestParameters\\\":{\\\"userName\\\":\\\"auditor\\\",\\\"policyArn\\\":\\\"arn:aws:iam::aws:policy/ReadOnlyAccess\\\"},\\\"responseElements\\\":null,\\\"eventID\\\":\\\"1d829360-bc59-4ded-85f2-be1f2da883b0\\\",\\\"readOnly\\\":false,\\\"eventType\\\":\\\"AwsApiCall\\\",\\\"recipientAccountId\\\":\\\"111122223333\\\"}\"\n    },\n    {\n      \"EventId\": \"06666644-5e0a-46c0-869d-c52d1bcb4fe3\",\n      \"EventName\": \"GetTrailStatus\",\n      \"ReadOnly\": \"true\",\n      \"AccessKeyId\": \"AKIAALICE0123EXAMPLE\",\n      \"EventTime\": \"2026-03-14T13:40:00+00:00\",\n      \"EventSource\": \"cloudtrail.amazonaws.com\",\n      \"Username\": \"alice\",\n      \"Resources\": [],\n      \"CloudTrailEvent\": \"{\\\"eventVersion\\\":\\\"1.08\\\",\\\"userIdentity\\\":{\\\"type\\\":\\\"IAMUser\\\",\\\"principalId\\\":\\\"AIDAEXAMPLEALICE0001\\\",\\\"arn\\\":\\\"arn:aws:iam::111122223333:user/alice\\\",\\\"accountId\\\":\\\"111122223333\\\",\\\"accessKeyId\\\":\\\"AKIAALICE0123EXAMPLE\\\",\\\"userName\\\":\\\"alice\\\"},\\\"eventTime\\\":\\\"2026-03-14T13:40:00Z\\\",\\\"eventSource\\\":\\\"cloudtrail.amazonaws.com\\\",\\\"eventName\\\":\\\"GetTrailStatus\\\",\\\"awsRegion\\\":\\\"us-east-1\\\",\\\"sourceIPAddress\\\":\\\"198.51.100.10\\\",\\\"userAgent\\\":\\\"aws-cli/2.15.30 Python/3.11.8 Windows/10 exe/AMD64 prompt/off command/cloudtrail.get-trail-status\\\",\\\"requestParameters\\\":{\\\"name\\\":\\\"org-trail\\\"},\\\"responseElements\\\":null,\\\"eventID\\\":\\\"06666644-5e0a-46c0-869d-c52d1bcb4fe3\\\",\\\"readOnly\\\":true,\\\"eventType\\\":\\\"AwsApiCall\\\",\\\"recipientAccountId\\\":\\\"111122223333\\\"}\"\n    }\n  ]\n}"
+          },
+          {
+            "match": "^aws cloudtrail lookup-events\\b.*AttributeKey=Username,AttributeValue=svc-backup\\b",
+            "output": "{\n  \"Events\": [\n    {\n      \"EventId\": \"7d6ce502-0530-4b4e-8bf3-a04f6bc1b8e9\",\n      \"EventName\": \"ListBuckets\",\n      \"ReadOnly\": \"true\",\n      \"AccessKeyId\": \"AKIABACKUP012EXAMPLE\",\n      \"EventTime\": \"2026-03-14T10:03:31+00:00\",\n      \"EventSource\": \"s3.amazonaws.com\",\n      \"Username\": \"svc-backup\",\n      \"Resources\": [],\n      \"CloudTrailEvent\": \"{\\\"eventVersion\\\":\\\"1.08\\\",\\\"userIdentity\\\":{\\\"type\\\":\\\"IAMUser\\\",\\\"principalId\\\":\\\"AIDAEXAMPLEBACKUP01\\\",\\\"arn\\\":\\\"arn:aws:iam::111122223333:user/svc-backup\\\",\\\"accountId\\\":\\\"111122223333\\\",\\\"accessKeyId\\\":\\\"AKIABACKUP012EXAMPLE\\\",\\\"userName\\\":\\\"svc-backup\\\"},\\\"eventTime\\\":\\\"2026-03-14T10:03:31Z\\\",\\\"eventSource\\\":\\\"s3.amazonaws.com\\\",\\\"eventName\\\":\\\"ListBuckets\\\",\\\"awsRegion\\\":\\\"us-east-1\\\",\\\"sourceIPAddress\\\":\\\"198.51.100.23\\\",\\\"userAgent\\\":\\\"Boto3/1.34.62 md/Botocore#1.34.62 ua/2.0 os/linux#5.15.0-1053-aws md/arch#x86_64 lang/python#3.10.12 md/pyimpl#CPython Botocore/1.34.62\\\",\\\"requestParameters\\\":{\\\"Host\\\":\\\"s3.amazonaws.com\\\"},\\\"responseElements\\\":null,\\\"eventID\\\":\\\"7d6ce502-0530-4b4e-8bf3-a04f6bc1b8e9\\\",\\\"readOnly\\\":true,\\\"eventType\\\":\\\"AwsApiCall\\\",\\\"recipientAccountId\\\":\\\"111122223333\\\"}\"\n    }\n  ]\n}"
+          },
+          {
+            "match": "^aws cloudtrail lookup-events\\b.*AttributeKey=Username,AttributeValue=ops-bot\\b",
+            "output": "{\n  \"Events\": [\n    {\n      \"EventId\": \"37d54cc0-9edc-4f98-8a1c-1fc8770f9cfd\",\n      \"EventName\": \"DescribeInstances\",\n      \"ReadOnly\": \"true\",\n      \"AccessKeyId\": \"ASIAOPSBOT012EXAMPLE\",\n      \"EventTime\": \"2026-03-14T09:15:40+00:00\",\n      \"EventSource\": \"ec2.amazonaws.com\",\n      \"Username\": \"ops-bot\",\n      \"Resources\": [],\n      \"CloudTrailEvent\": \"{\\\"eventVersion\\\":\\\"1.08\\\",\\\"userIdentity\\\":{\\\"type\\\":\\\"AssumedRole\\\",\\\"principalId\\\":\\\"AROAEXAMPLEOPSROLE:ops-bot\\\",\\\"arn\\\":\\\"arn:aws:sts::111122223333:assumed-role/ops-role/ops-bot\\\",\\\"accountId\\\":\\\"111122223333\\\",\\\"accessKeyId\\\":\\\"ASIAOPSBOT012EXAMPLE\\\",\\\"sessionContext\\\":{\\\"sessionIssuer\\\":{\\\"type\\\":\\\"Role\\\",\\\"principalId\\\":\\\"AROAEXAMPLEOPSROLE\\\",\\\"arn\\\":\\\"arn:aws:iam::111122223333:role/ops-role\\\",\\\"accountId\\\":\\\"111122223333\\\",\\\"userName\\\":\\\"ops-role\\\"},\\\"attributes\\\":{\\\"creationDate\\\":\\\"2026-03-14T08:00:00Z\\\",\\\"mfaAuthenticated\\\":\\\"false\\\"}}},\\\"eventTime\\\":\\\"2026-03-14T09:15:40Z\\\",\\\"eventSource\\\":\\\"ec2.amazonaws.com\\\",\\\"eventName\\\":\\\"DescribeInstances\\\",\\\"awsRegion\\\":\\\"us-east-1\\\",\\\"sourceIPAddress\\\":\\\"198.51.100.23\\\",\\\"userAgent\\\":\\\"aws-sdk-go/1.50.0 (go1.21.6; linux; amd64)\\\",\\\"requestParameters\\\":{\\\"instancesSet\\\":{},\\\"filterSet\\\":{}},\\\"responseElements\\\":null,\\\"eventID\\\":\\\"37d54cc0-9edc-4f98-8a1c-1fc8770f9cfd\\\",\\\"readOnly\\\":true,\\\"eventType\\\":\\\"AwsApiCall\\\",\\\"recipientAccountId\\\":\\\"111122223333\\\"}\"\n    },\n    {\n      \"EventId\": \"358ead75-1c79-4bca-85d0-289882de617d\",\n      \"EventName\": \"CreateTags\",\n      \"ReadOnly\": \"false\",\n      \"AccessKeyId\": \"ASIAOPSBOT012EXAMPLE\",\n      \"EventTime\": \"2026-03-14T10:30:09+00:00\",\n      \"EventSource\": \"ec2.amazonaws.com\",\n      \"Username\": \"ops-bot\",\n      \"Resources\": [],\n      \"CloudTrailEvent\": \"{\\\"eventVersion\\\":\\\"1.08\\\",\\\"userIdentity\\\":{\\\"type\\\":\\\"AssumedRole\\\",\\\"principalId\\\":\\\"AROAEXAMPLEOPSROLE:ops-bot\\\",\\\"arn\\\":\\\"arn:aws:sts::111122223333:assumed-role/ops-role/ops-bot\\\",\\\"accountId\\\":\\\"111122223333\\\",\\\"accessKeyId\\\":\\\"ASIAOPSBOT012EXAMPLE\\\",\\\"sessionContext\\\":{\\\"sessionIssuer\\\":{\\\"type\\\":\\\"Role\\\",\\\"principalId\\\":\\\"AROAEXAMPLEOPSROLE\\\",\\\"arn\\\":\\\"arn:aws:iam::111122223333:role/ops-role\\\",\\\"accountId\\\":\\\"111122223333\\\",\\\"userName\\\":\\\"ops-role\\\"},\\\"attributes\\\":{\\\"creationDate\\\":\\\"2026-03-14T08:00:00Z\\\",\\\"mfaAuthenticated\\\":\\\"false\\\"}}},\\\"eventTime\\\":\\\"2026-03-14T10:30:09Z\\\",\\\"eventSource\\\":\\\"ec2.amazonaws.com\\\",\\\"eventName\\\":\\\"CreateTags\\\",\\\"awsRegion\\\":\\\"us-east-1\\\",\\\"sourceIPAddress\\\":\\\"198.51.100.23\\\",\\\"userAgent\\\":\\\"aws-sdk-go/1.50.0 (go1.21.6; linux; amd64)\\\",\\\"requestParameters\\\":{\\\"resourcesSet\\\":{\\\"items\\\":[{\\\"resourceId\\\":\\\"i-0a1b2c3d4e5f60789\\\"}]},\\\"tagSet\\\":{\\\"items\\\":[{\\\"key\\\":\\\"patched\\\",\\\"value\\\":\\\"2026-03\\\"}]}},\\\"responseElements\\\":{\\\"_return\\\":true},\\\"eventID\\\":\\\"358ead75-1c79-4bca-85d0-289882de617d\\\",\\\"readOnly\\\":false,\\\"eventType\\\":\\\"AwsApiCall\\\",\\\"recipientAccountId\\\":\\\"111122223333\\\"}\"\n    }\n  ]\n}"
+          },
+          {
+            "match": "^aws cloudtrail lookup-events\\b.*AttributeKey=AccessKeyId,AttributeValue=AKIAIOSFODNN7EXAMPLE\\b",
+            "output": "{\n  \"Events\": [\n    {\n      \"EventId\": \"d6d8596c-1840-43ee-8640-298c1686b306\",\n      \"EventName\": \"GetCallerIdentity\",\n      \"ReadOnly\": \"true\",\n      \"AccessKeyId\": \"AKIAIOSFODNN7EXAMPLE\",\n      \"EventTime\": \"2026-03-14T14:14:51+00:00\",\n      \"EventSource\": \"sts.amazonaws.com\",\n      \"Username\": \"dev-bob\",\n      \"Resources\": [],\n      \"CloudTrailEvent\": \"{\\\"eventVersion\\\":\\\"1.08\\\",\\\"userIdentity\\\":{\\\"type\\\":\\\"IAMUser\\\",\\\"principalId\\\":\\\"AIDAEXAMPLEDEVBOB01\\\",\\\"arn\\\":\\\"arn:aws:iam::111122223333:user/dev-bob\\\",\\\"accountId\\\":\\\"111122223333\\\",\\\"accessKeyId\\\":\\\"AKIAIOSFODNN7EXAMPLE\\\",\\\"userName\\\":\\\"dev-bob\\\"},\\\"eventTime\\\":\\\"2026-03-14T14:14:51Z\\\",\\\"eventSource\\\":\\\"sts.amazonaws.com\\\",\\\"eventName\\\":\\\"GetCallerIdentity\\\",\\\"awsRegion\\\":\\\"us-east-1\\\",\\\"sourceIPAddress\\\":\\\"203.0.113.77\\\",\\\"userAgent\\\":\\\"aws-cli/2.15.30 Python/3.11.8 Linux/6.5.0-kali3-amd64 exe/x86_64.kali.2024 prompt/off command/sts.get-caller-identity\\\",\\\"requestParameters\\\":null,\\\"responseElements\\\":null,\\\"eventID\\\":\\\"d6d8596c-1840-43ee-8640-298c1686b306\\\",\\\"readOnly\\\":true,\\\"eventType\\\":\\\"AwsApiCall\\\",\\\"recipientAccountId\\\":\\\"111122223333\\\"}\"\n    },\n    {\n      \"EventId\": \"e38bb746-78b0-4d5c-82c8-1217306cc76d\",\n      \"EventName\": \"ListBuckets\",\n      \"ReadOnly\": \"true\",\n      \"AccessKeyId\": \"AKIAIOSFODNN7EXAMPLE\",\n      \"EventTime\": \"2026-03-14T14:15:33+00:00\",\n      \"EventSource\": \"s3.amazonaws.com\",\n      \"Username\": \"dev-bob\",\n      \"Resources\": [],\n      \"CloudTrailEvent\": \"{\\\"eventVersion\\\":\\\"1.08\\\",\\\"userIdentity\\\":{\\\"type\\\":\\\"IAMUser\\\",\\\"principalId\\\":\\\"AIDAEXAMPLEDEVBOB01\\\",\\\"arn\\\":\\\"arn:aws:iam::111122223333:user/dev-bob\\\",\\\"accountId\\\":\\\"111122223333\\\",\\\"accessKeyId\\\":\\\"AKIAIOSFODNN7EXAMPLE\\\",\\\"userName\\\":\\\"dev-bob\\\"},\\\"eventTime\\\":\\\"2026-03-14T14:15:33Z\\\",\\\"eventSource\\\":\\\"s3.amazonaws.com\\\",\\\"eventName\\\":\\\"ListBuckets\\\",\\\"awsRegion\\\":\\\"us-east-1\\\",\\\"sourceIPAddress\\\":\\\"203.0.113.77\\\",\\\"userAgent\\\":\\\"aws-cli/2.15.30 Python/3.11.8 Linux/6.5.0-kali3-amd64 exe/x86_64.kali.2024 prompt/off command/s3api.list-buckets\\\",\\\"requestParameters\\\":{\\\"Host\\\":\\\"s3.amazonaws.com\\\"},\\\"responseElements\\\":null,\\\"eventID\\\":\\\"e38bb746-78b0-4d5c-82c8-1217306cc76d\\\",\\\"readOnly\\\":true,\\\"eventType\\\":\\\"AwsApiCall\\\",\\\"recipientAccountId\\\":\\\"111122223333\\\"}\"\n    },\n    {\n      \"EventId\": \"a64332a4-f3e8-493b-8d91-8edb0f997ac0\",\n      \"EventName\": \"GetAccountAuthorizationDetails\",\n      \"ReadOnly\": \"true\",\n      \"AccessKeyId\": \"AKIAIOSFODNN7EXAMPLE\",\n      \"EventTime\": \"2026-03-14T14:16:20+00:00\",\n      \"EventSource\": \"iam.amazonaws.com\",\n      \"Username\": \"dev-bob\",\n      \"Resources\": [],\n      \"CloudTrailEvent\": \"{\\\"eventVersion\\\":\\\"1.08\\\",\\\"userIdentity\\\":{\\\"type\\\":\\\"IAMUser\\\",\\\"principalId\\\":\\\"AIDAEXAMPLEDEVBOB01\\\",\\\"arn\\\":\\\"arn:aws:iam::111122223333:user/dev-bob\\\",\\\"accountId\\\":\\\"111122223333\\\",\\\"accessKeyId\\\":\\\"AKIAIOSFODNN7EXAMPLE\\\",\\\"userName\\\":\\\"dev-bob\\\"},\\\"eventTime\\\":\\\"2026-03-14T14:16:20Z\\\",\\\"eventSource\\\":\\\"iam.amazonaws.com\\\",\\\"eventName\\\":\\\"GetAccountAuthorizationDetails\\\",\\\"awsRegion\\\":\\\"us-east-1\\\",\\\"sourceIPAddress\\\":\\\"203.0.113.77\\\",\\\"userAgent\\\":\\\"aws-cli/2.15.30 Python/3.11.8 Linux/6.5.0-kali3-amd64 exe/x86_64.kali.2024 prompt/off command/iam.get-account-authorization-details\\\",\\\"requestParameters\\\":null,\\\"responseElements\\\":null,\\\"eventID\\\":\\\"a64332a4-f3e8-493b-8d91-8edb0f997ac0\\\",\\\"readOnly\\\":true,\\\"eventType\\\":\\\"AwsApiCall\\\",\\\"recipientAccountId\\\":\\\"111122223333\\\"}\"\n    },\n    {\n      \"EventId\": \"0cb0948c-d159-4ba3-87ff-4c0cadfcd6d4\",\n      \"EventName\": \"CreateAccessKey\",\n      \"ReadOnly\": \"false\",\n      \"AccessKeyId\": \"AKIAIOSFODNN7EXAMPLE\",\n      \"EventTime\": \"2026-03-14T14:19:48+00:00\",\n      \"EventSource\": \"iam.amazonaws.com\",\n      \"Username\": \"dev-bob\",\n      \"Resources\": [],\n      \"CloudTrailEvent\": \"{\\\"eventVersion\\\":\\\"1.08\\\",\\\"userIdentity\\\":{\\\"type\\\":\\\"IAMUser\\\",\\\"principalId\\\":\\\"AIDAEXAMPLEDEVBOB01\\\",\\\"arn\\\":\\\"arn:aws:iam::111122223333:user/dev-bob\\\",\\\"accountId\\\":\\\"111122223333\\\",\\\"accessKeyId\\\":\\\"AKIAIOSFODNN7EXAMPLE\\\",\\\"userName\\\":\\\"dev-bob\\\"},\\\"eventTime\\\":\\\"2026-03-14T14:19:48Z\\\",\\\"eventSource\\\":\\\"iam.amazonaws.com\\\",\\\"eventName\\\":\\\"CreateAccessKey\\\",\\\"awsRegion\\\":\\\"us-east-1\\\",\\\"sourceIPAddress\\\":\\\"203.0.113.77\\\",\\\"userAgent\\\":\\\"aws-cli/2.15.30 Python/3.11.8 Linux/6.5.0-kali3-amd64 exe/x86_64.kali.2024 prompt/off command/iam.create-access-key\\\",\\\"requestParameters\\\":{\\\"userName\\\":\\\"svc-backup\\\"},\\\"responseElements\\\":{\\\"accessKey\\\":{\\\"userName\\\":\\\"svc-backup\\\",\\\"accessKeyId\\\":\\\"AKIAI44QH8DHBEXAMPLE\\\",\\\"status\\\":\\\"Active\\\",\\\"createDate\\\":\\\"Mar 14, 2026 2:19:48 PM\\\"}},\\\"eventID\\\":\\\"0cb0948c-d159-4ba3-87ff-4c0cadfcd6d4\\\",\\\"readOnly\\\":false,\\\"eventType\\\":\\\"AwsApiCall\\\",\\\"recipientAccountId\\\":\\\"111122223333\\\"}\"\n    },\n    {\n      \"EventId\": \"9e47a8db-be13-4ee8-8947-c538fade7e45\",\n      \"EventName\": \"AttachUserPolicy\",\n      \"ReadOnly\": \"false\",\n      \"AccessKeyId\": \"AKIAIOSFODNN7EXAMPLE\",\n      \"EventTime\": \"2026-03-14T14:21:15+00:00\",\n      \"EventSource\": \"iam.amazonaws.com\",\n      \"Username\": \"dev-bob\",\n      \"Resources\": [],\n      \"CloudTrailEvent\": \"{\\\"eventVersion\\\":\\\"1.08\\\",\\\"userIdentity\\\":{\\\"type\\\":\\\"IAMUser\\\",\\\"principalId\\\":\\\"AIDAEXAMPLEDEVBOB01\\\",\\\"arn\\\":\\\"arn:aws:iam::111122223333:user/dev-bob\\\",\\\"accountId\\\":\\\"111122223333\\\",\\\"accessKeyId\\\":\\\"AKIAIOSFODNN7EXAMPLE\\\",\\\"userName\\\":\\\"dev-bob\\\"},\\\"eventTime\\\":\\\"2026-03-14T14:21:15Z\\\",\\\"eventSource\\\":\\\"iam.amazonaws.com\\\",\\\"eventName\\\":\\\"AttachUserPolicy\\\",\\\"awsRegion\\\":\\\"us-east-1\\\",\\\"sourceIPAddress\\\":\\\"203.0.113.77\\\",\\\"userAgent\\\":\\\"aws-cli/2.15.30 Python/3.11.8 Linux/6.5.0-kali3-amd64 exe/x86_64.kali.2024 prompt/off command/iam.attach-user-policy\\\",\\\"requestParameters\\\":{\\\"userName\\\":\\\"dev-bob\\\",\\\"policyArn\\\":\\\"arn:aws:iam::aws:policy/AdministratorAccess\\\"},\\\"responseElements\\\":null,\\\"eventID\\\":\\\"9e47a8db-be13-4ee8-8947-c538fade7e45\\\",\\\"readOnly\\\":false,\\\"eventType\\\":\\\"AwsApiCall\\\",\\\"recipientAccountId\\\":\\\"111122223333\\\"}\"\n    },\n    {\n      \"EventId\": \"21f49772-9e0e-4ffd-8ae0-dc7a510caff3\",\n      \"EventName\": \"PutEventSelectors\",\n      \"ReadOnly\": \"false\",\n      \"AccessKeyId\": \"AKIAIOSFODNN7EXAMPLE\",\n      \"EventTime\": \"2026-03-14T14:23:40+00:00\",\n      \"EventSource\": \"cloudtrail.amazonaws.com\",\n      \"Username\": \"dev-bob\",\n      \"Resources\": [],\n      \"CloudTrailEvent\": \"{\\\"eventVersion\\\":\\\"1.08\\\",\\\"userIdentity\\\":{\\\"type\\\":\\\"IAMUser\\\",\\\"principalId\\\":\\\"AIDAEXAMPLEDEVBOB01\\\",\\\"arn\\\":\\\"arn:aws:iam::111122223333:user/dev-bob\\\",\\\"accountId\\\":\\\"111122223333\\\",\\\"accessKeyId\\\":\\\"AKIAIOSFODNN7EXAMPLE\\\",\\\"userName\\\":\\\"dev-bob\\\"},\\\"eventTime\\\":\\\"2026-03-14T14:23:40Z\\\",\\\"eventSource\\\":\\\"cloudtrail.amazonaws.com\\\",\\\"eventName\\\":\\\"PutEventSelectors\\\",\\\"awsRegion\\\":\\\"us-east-1\\\",\\\"sourceIPAddress\\\":\\\"203.0.113.77\\\",\\\"userAgent\\\":\\\"aws-cli/2.15.30 Python/3.11.8 Linux/6.5.0-kali3-amd64 exe/x86_64.kali.2024 prompt/off command/cloudtrail.put-event-selectors\\\",\\\"requestParameters\\\":{\\\"trailName\\\":\\\"org-trail\\\",\\\"eventSelectors\\\":[{\\\"readWriteType\\\":\\\"WriteOnly\\\",\\\"includeManagementEvents\\\":true,\\\"dataResources\\\":[]}]},\\\"responseElements\\\":{\\\"trailARN\\\":\\\"arn:aws:cloudtrail:us-east-1:111122223333:trail/org-trail\\\"},\\\"eventID\\\":\\\"21f49772-9e0e-4ffd-8ae0-dc7a510caff3\\\",\\\"readOnly\\\":false,\\\"eventType\\\":\\\"AwsApiCall\\\",\\\"recipientAccountId\\\":\\\"111122223333\\\"}\"\n    },\n    {\n      \"EventId\": \"00652804-ce93-4187-8eec-e19f03e89ef1\",\n      \"EventName\": \"StopLogging\",\n      \"ReadOnly\": \"false\",\n      \"AccessKeyId\": \"AKIAIOSFODNN7EXAMPLE\",\n      \"EventTime\": \"2026-03-14T14:24:30+00:00\",\n      \"EventSource\": \"cloudtrail.amazonaws.com\",\n      \"Username\": \"dev-bob\",\n      \"Resources\": [],\n      \"CloudTrailEvent\": \"{\\\"eventVersion\\\":\\\"1.08\\\",\\\"userIdentity\\\":{\\\"type\\\":\\\"IAMUser\\\",\\\"principalId\\\":\\\"AIDAEXAMPLEDEVBOB01\\\",\\\"arn\\\":\\\"arn:aws:iam::111122223333:user/dev-bob\\\",\\\"accountId\\\":\\\"111122223333\\\",\\\"accessKeyId\\\":\\\"AKIAIOSFODNN7EXAMPLE\\\",\\\"userName\\\":\\\"dev-bob\\\"},\\\"eventTime\\\":\\\"2026-03-14T14:24:30Z\\\",\\\"eventSource\\\":\\\"cloudtrail.amazonaws.com\\\",\\\"eventName\\\":\\\"StopLogging\\\",\\\"awsRegion\\\":\\\"us-east-1\\\",\\\"sourceIPAddress\\\":\\\"203.0.113.77\\\",\\\"userAgent\\\":\\\"aws-cli/2.15.30 Python/3.11.8 Linux/6.5.0-kali3-amd64 exe/x86_64.kali.2024 prompt/off command/cloudtrail.stop-logging\\\",\\\"requestParameters\\\":{\\\"name\\\":\\\"org-trail\\\"},\\\"responseElements\\\":null,\\\"eventID\\\":\\\"00652804-ce93-4187-8eec-e19f03e89ef1\\\",\\\"readOnly\\\":false,\\\"eventType\\\":\\\"AwsApiCall\\\",\\\"recipientAccountId\\\":\\\"111122223333\\\"}\"\n    }\n  ]\n}"
+          },
+          {
+            "match": "^aws cloudtrail lookup-events\\b",
+            "output": "{\n  \"Events\": []\n}"
+          },
+          {
+            "match": "^jq\\b.*203\\.0\\.113\\.77",
+            "requires": [
+              "saw_tamper"
+            ],
+            "output": "{\"eventTime\":\"2026-03-14T14:10:55Z\",\"eventName\":\"ConsoleLogin\",\"userName\":\"dev-bob\",\"sourceIPAddress\":\"203.0.113.77\"}\n{\"eventTime\":\"2026-03-14T14:12:07Z\",\"eventName\":\"ConsoleLogin\",\"userName\":\"dev-bob\",\"sourceIPAddress\":\"203.0.113.77\"}\n{\"eventTime\":\"2026-03-14T14:14:51Z\",\"eventName\":\"GetCallerIdentity\",\"userName\":\"dev-bob\",\"sourceIPAddress\":\"203.0.113.77\"}\n{\"eventTime\":\"2026-03-14T14:15:33Z\",\"eventName\":\"ListBuckets\",\"userName\":\"dev-bob\",\"sourceIPAddress\":\"203.0.113.77\"}\n{\"eventTime\":\"2026-03-14T14:16:20Z\",\"eventName\":\"GetAccountAuthorizationDetails\",\"userName\":\"dev-bob\",\"sourceIPAddress\":\"203.0.113.77\"}\n{\"eventTime\":\"2026-03-14T14:19:48Z\",\"eventName\":\"CreateAccessKey\",\"userName\":\"dev-bob\",\"sourceIPAddress\":\"203.0.113.77\"}\n{\"eventTime\":\"2026-03-14T14:21:15Z\",\"eventName\":\"AttachUserPolicy\",\"userName\":\"dev-bob\",\"sourceIPAddress\":\"203.0.113.77\"}\n{\"eventTime\":\"2026-03-14T14:23:40Z\",\"eventName\":\"PutEventSelectors\",\"userName\":\"dev-bob\",\"sourceIPAddress\":\"203.0.113.77\"}\n{\"eventTime\":\"2026-03-14T14:24:30Z\",\"eventName\":\"StopLogging\",\"userName\":\"dev-bob\",\"sourceIPAddress\":\"203.0.113.77\"}\n# 9 events, 1 source IP, 1 IAM user, 1 trail silenced\n# soc-enrich: 203.0.113.77 -> session tag FLAG{stoplogging_ip_pivot_c41d}"
+          },
+          {
+            "match": "^jq\\b.*203\\.0\\.113\\.77",
+            "output": "{\"eventTime\":\"2026-03-14T14:10:55Z\",\"eventName\":\"ConsoleLogin\",\"userName\":\"dev-bob\",\"sourceIPAddress\":\"203.0.113.77\"}\n{\"eventTime\":\"2026-03-14T14:12:07Z\",\"eventName\":\"ConsoleLogin\",\"userName\":\"dev-bob\",\"sourceIPAddress\":\"203.0.113.77\"}\n{\"eventTime\":\"2026-03-14T14:14:51Z\",\"eventName\":\"GetCallerIdentity\",\"userName\":\"dev-bob\",\"sourceIPAddress\":\"203.0.113.77\"}\n{\"eventTime\":\"2026-03-14T14:15:33Z\",\"eventName\":\"ListBuckets\",\"userName\":\"dev-bob\",\"sourceIPAddress\":\"203.0.113.77\"}\n{\"eventTime\":\"2026-03-14T14:16:20Z\",\"eventName\":\"GetAccountAuthorizationDetails\",\"userName\":\"dev-bob\",\"sourceIPAddress\":\"203.0.113.77\"}\n{\"eventTime\":\"2026-03-14T14:19:48Z\",\"eventName\":\"CreateAccessKey\",\"userName\":\"dev-bob\",\"sourceIPAddress\":\"203.0.113.77\"}\n{\"eventTime\":\"2026-03-14T14:21:15Z\",\"eventName\":\"AttachUserPolicy\",\"userName\":\"dev-bob\",\"sourceIPAddress\":\"203.0.113.77\"}\n{\"eventTime\":\"2026-03-14T14:23:40Z\",\"eventName\":\"PutEventSelectors\",\"userName\":\"dev-bob\",\"sourceIPAddress\":\"203.0.113.77\"}\n{\"eventTime\":\"2026-03-14T14:24:30Z\",\"eventName\":\"StopLogging\",\"userName\":\"dev-bob\",\"sourceIPAddress\":\"203.0.113.77\"}\n# 9 events from this IP. Is this the whole story? What did it do to your logging?"
+          },
+          {
+            "match": "^jq\\b.*198\\.51\\.100\\.10",
+            "output": "{\"eventTime\":\"2026-03-14T08:55:02Z\",\"eventName\":\"ConsoleLogin\",\"userName\":\"alice\",\"sourceIPAddress\":\"198.51.100.10\"}\n{\"eventTime\":\"2026-03-14T09:47:12Z\",\"eventName\":\"GetCallerIdentity\",\"userName\":\"alice\",\"sourceIPAddress\":\"198.51.100.10\"}\n{\"eventTime\":\"2026-03-14T11:20:44Z\",\"eventName\":\"CreateAccessKey\",\"userName\":\"alice\",\"sourceIPAddress\":\"198.51.100.10\"}\n{\"eventTime\":\"2026-03-14T12:05:18Z\",\"eventName\":\"AttachUserPolicy\",\"userName\":\"alice\",\"sourceIPAddress\":\"198.51.100.10\"}\n{\"eventTime\":\"2026-03-14T13:40:00Z\",\"eventName\":\"GetTrailStatus\",\"userName\":\"alice\",\"sourceIPAddress\":\"198.51.100.10\"}"
+          },
+          {
+            "match": "^jq\\b.*198\\.51\\.100\\.23",
+            "output": "{\"eventTime\":\"2026-03-14T09:15:40Z\",\"eventName\":\"DescribeInstances\",\"userName\":\"ops-bot\",\"sourceIPAddress\":\"198.51.100.23\"}\n{\"eventTime\":\"2026-03-14T10:03:31Z\",\"eventName\":\"ListBuckets\",\"userName\":\"svc-backup\",\"sourceIPAddress\":\"198.51.100.23\"}\n{\"eventTime\":\"2026-03-14T10:30:09Z\",\"eventName\":\"CreateTags\",\"userName\":\"ops-bot\",\"sourceIPAddress\":\"198.51.100.23\"}"
+          },
+          {
+            "match": "^jq\\b.*198\\.51\\.100\\.31",
+            "output": "{\"eventTime\":\"2026-03-14T09:12:44Z\",\"eventName\":\"ConsoleLogin\",\"userName\":\"dev-bob\",\"sourceIPAddress\":\"198.51.100.31\"}"
+          },
+          {
+            "match": "^jq\\b",
+            "output": "2026-03-14T08:55:02Z\tConsoleLogin\t198.51.100.10\talice\n2026-03-14T09:12:44Z\tConsoleLogin\t198.51.100.31\tdev-bob\n2026-03-14T09:15:40Z\tDescribeInstances\t198.51.100.23\tops-bot\n2026-03-14T09:47:12Z\tGetCallerIdentity\t198.51.100.10\talice\n2026-03-14T10:03:31Z\tListBuckets\t198.51.100.23\tsvc-backup\n2026-03-14T10:30:09Z\tCreateTags\t198.51.100.23\tops-bot\n2026-03-14T11:20:44Z\tCreateAccessKey\t198.51.100.10\talice\n2026-03-14T12:05:18Z\tAttachUserPolicy\t198.51.100.10\talice\n2026-03-14T13:40:00Z\tGetTrailStatus\t198.51.100.10\talice\n2026-03-14T14:10:55Z\tConsoleLogin\t203.0.113.77\tdev-bob\n2026-03-14T14:12:07Z\tConsoleLogin\t203.0.113.77\tdev-bob\n2026-03-14T14:14:51Z\tGetCallerIdentity\t203.0.113.77\tdev-bob\n2026-03-14T14:15:33Z\tListBuckets\t203.0.113.77\tdev-bob\n2026-03-14T14:16:20Z\tGetAccountAuthorizationDetails\t203.0.113.77\tdev-bob\n2026-03-14T14:19:48Z\tCreateAccessKey\t203.0.113.77\tdev-bob\n2026-03-14T14:21:15Z\tAttachUserPolicy\t203.0.113.77\tdev-bob\n2026-03-14T14:23:40Z\tPutEventSelectors\t203.0.113.77\tdev-bob\n2026-03-14T14:24:30Z\tStopLogging\t203.0.113.77\tdev-bob"
+          }
+        ]
+      },
+      "solution": [
+        "aws sts get-caller-identity",
+        "jq -r '.Records[] | [.eventTime,.eventName,.sourceIPAddress,.userIdentity.userName] | @tsv' cloudtrail-events.json",
+        "aws cloudtrail lookup-events --lookup-attributes AttributeKey=EventName,AttributeValue=StopLogging",
+        "jq -c '.Records[] | select(.sourceIPAddress==\"203.0.113.77\")' cloudtrail-events.json"
+      ],
+      "tasks": [
+        {
+          "id": "t1",
+          "kind": "choice",
+          "prompt": "Which of these CloudTrail events are HIGH-SIGNAL detections that deserve an alert on their own (even before you know who is behind them)?",
+          "options": [
+            "cloudtrail:StopLogging, DeleteTrail or PutEventSelectors on a production trail",
+            "sts:GetCallerIdentity, every time it is called",
+            "iam:AttachUserPolicy attaching arn:aws:iam::aws:policy/AdministratorAccess",
+            "ec2:DescribeInstances by the ops automation role",
+            "iam:CreateAccessKey for ANOTHER user by a principal that is not the identity-automation role"
+          ],
+          "correct": [
+            0,
+            2,
+            4
+          ],
+          "explanation": "Log tampering, self-service admin grants and minting keys for someone else are rare, high-impact actions with almost no benign explanation, so they are good single-event alerts. GetCallerIdentity is called by every SDK and script all day (it is a useful CORRELATION signal, not an alert on its own), and DescribeInstances by an ops role is normal noise."
+        },
+        {
+          "id": "t2",
+          "kind": "answer",
+          "prompt": "Use the terminal to find who switched off logging. What sourceIPAddress performed the StopLogging call on org-trail?",
+          "accept": [
+            "203.0.113.77"
+          ],
+          "explanation": "StopLogging is unique in this log and came from 203.0.113.77, which is not in corporate-ranges.txt. That IP also made the failed and successful console logins, so it ties the whole intrusion together. Pivoting from a rare, unambiguous event to an IP is the fastest way to untangle a noisy log."
+        },
+        {
+          "id": "t3",
+          "kind": "answer",
+          "prompt": "The attacker created a persistent access key so they could get back in. Which IAM user did they create the new key FOR (see requestParameters of the attacker's CreateAccessKey)?",
+          "accept": [
+            "svc-backup",
+            "svcbackup",
+            "arn:aws:iam::111122223333:user/svc-backup"
+          ],
+          "explanation": "The attacker used dev-bob's credentials but minted a key for svc-backup, a service account nobody logs into, so the persistence would survive dev-bob's password and key being reset. Note the benign CreateAccessKey earlier (alice, for ci-runner, from the office IP): the same event name, but a completely different context."
+        },
+        {
+          "id": "t4",
+          "kind": "flag",
+          "prompt": "Prove the hunt: look up the log-tampering events, then pivot on the attacker's IP across the whole export with jq. Paste the flag from the enrichment line.",
+          "flag": "FLAG{stoplogging_ip_pivot_c41d}",
+          "explanation": "You started from the most unambiguous event (StopLogging), extracted the IP, and filtered the whole export on it, which exposes the full kill chain in one view: failed then successful login without MFA, discovery calls, a persistence key, a self-granted AdministratorAccess, and finally PutEventSelectors + StopLogging to blind you."
+        },
+        {
+          "id": "t5",
+          "kind": "choice",
+          "prompt": "Why is there no activity at all in this trail after 14:24:30Z?",
+          "options": [
+            "StopLogging halted delivery of events to org-trail, so nothing the attacker did afterwards is in this trail",
+            "The attacker deleted the S3 bucket that holds the logs",
+            "CloudTrail only keeps the first hour of an incident",
+            "Events from outside the corporate IP range are filtered out of the trail"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "A stopped trail records nothing, so the attacker's later actions are invisible in it until someone calls StartLogging. The StopLogging call itself IS recorded, which is why you can still see it. This is also why PutEventSelectors at 14:23:40 matters: switching to WriteOnly hides read-only calls such as ListBuckets. Use a second trail, CloudTrail Lake, or GuardDuty as independent coverage."
+        },
+        {
+          "id": "t6",
+          "kind": "policy",
+          "mode": "identity",
+          "prompt": "Fix the developer role's policy so developers keep normal CloudTrail access (search history, read status, manage sandbox trails) but can NEVER stop, delete, re-point or narrow `org-trail`. Only the SecurityAdmin role (arn:aws:iam::111122223333:role/SecurityAdmin) may do that as break-glass. Context key to use: aws:PrincipalArn.",
+          "starter": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"DevCloudTrailAccess\",\n      \"Effect\": \"Allow\",\n      \"Action\": \"cloudtrail:*\",\n      \"Resource\": \"*\"\n    }\n  ]\n}",
+          "solution": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"DevCloudTrailAccess\",\n      \"Effect\": \"Allow\",\n      \"Action\": \"cloudtrail:*\",\n      \"Resource\": \"*\"\n    },\n    {\n      \"Sid\": \"ProtectOrgTrail\",\n      \"Effect\": \"Deny\",\n      \"Action\": [\n        \"cloudtrail:StopLogging\",\n        \"cloudtrail:DeleteTrail\",\n        \"cloudtrail:UpdateTrail\",\n        \"cloudtrail:PutEventSelectors\"\n      ],\n      \"Resource\": \"arn:aws:cloudtrail:us-east-1:111122223333:trail/org-trail\",\n      \"Condition\": {\n        \"ArnNotLike\": {\n          \"aws:PrincipalArn\": \"arn:aws:iam::111122223333:role/SecurityAdmin\"\n        }\n      }\n    }\n  ]\n}",
+          "tests": [
+            {
+              "name": "Developers can still search event history",
+              "action": "cloudtrail:LookupEvents",
+              "resource": "*",
+              "context": {
+                "aws:PrincipalArn": "arn:aws:iam::111122223333:role/developer"
+              },
+              "expect": "allow"
+            },
+            {
+              "name": "Developers can read the org trail's status",
+              "action": "cloudtrail:GetTrailStatus",
+              "resource": "arn:aws:cloudtrail:us-east-1:111122223333:trail/org-trail",
+              "context": {
+                "aws:PrincipalArn": "arn:aws:iam::111122223333:role/developer"
+              },
+              "expect": "allow"
+            },
+            {
+              "name": "Developers cannot stop org-trail",
+              "action": "cloudtrail:StopLogging",
+              "resource": "arn:aws:cloudtrail:us-east-1:111122223333:trail/org-trail",
+              "context": {
+                "aws:PrincipalArn": "arn:aws:iam::111122223333:role/developer"
+              },
+              "expect": "deny"
+            },
+            {
+              "name": "Developers cannot delete org-trail",
+              "action": "cloudtrail:DeleteTrail",
+              "resource": "arn:aws:cloudtrail:us-east-1:111122223333:trail/org-trail",
+              "context": {
+                "aws:PrincipalArn": "arn:aws:iam::111122223333:role/developer"
+              },
+              "expect": "deny"
+            },
+            {
+              "name": "Developers cannot narrow what org-trail records",
+              "action": "cloudtrail:PutEventSelectors",
+              "resource": "arn:aws:cloudtrail:us-east-1:111122223333:trail/org-trail",
+              "context": {
+                "aws:PrincipalArn": "arn:aws:iam::111122223333:role/developer"
+              },
+              "expect": "deny"
+            },
+            {
+              "name": "Developers cannot re-point org-trail to another bucket",
+              "action": "cloudtrail:UpdateTrail",
+              "resource": "arn:aws:cloudtrail:us-east-1:111122223333:trail/org-trail",
+              "context": {
+                "aws:PrincipalArn": "arn:aws:iam::111122223333:role/developer"
+              },
+              "expect": "deny"
+            },
+            {
+              "name": "SecurityAdmin keeps break-glass control of org-trail",
+              "action": "cloudtrail:StopLogging",
+              "resource": "arn:aws:cloudtrail:us-east-1:111122223333:trail/org-trail",
+              "context": {
+                "aws:PrincipalArn": "arn:aws:iam::111122223333:role/SecurityAdmin"
+              },
+              "expect": "allow"
+            },
+            {
+              "name": "Developers can still manage their own sandbox trail",
+              "action": "cloudtrail:StopLogging",
+              "resource": "arn:aws:cloudtrail:us-east-1:111122223333:trail/sandbox-trail",
+              "context": {
+                "aws:PrincipalArn": "arn:aws:iam::111122223333:role/developer"
+              },
+              "expect": "allow"
+            }
+          ],
+          "explanation": "An explicit Deny scoped to the org-trail ARN beats the broad Allow, and ArnNotLike on aws:PrincipalArn carves out the one break-glass role. Scoping by Resource keeps sandbox trails usable, so the control does not push developers to ask for blanket exceptions. In production you would put this in an SCP so even account admins cannot remove it."
+        },
+        {
+          "id": "t7",
+          "kind": "choice",
+          "prompt": "Which EventBridge rule would have alerted the SOC within minutes of the attacker switching off logging?",
+          "options": [
+            "{\"source\":[\"aws.cloudtrail\"],\"detail-type\":[\"AWS API Call via CloudTrail\"],\"detail\":{\"eventSource\":[\"cloudtrail.amazonaws.com\"],\"eventName\":[\"StopLogging\",\"DeleteTrail\",\"UpdateTrail\",\"PutEventSelectors\"]}}",
+            "{\"source\":[\"aws.guardduty\"],\"detail-type\":[\"GuardDuty Finding\"],\"detail\":{\"type\":[\"StopLogging\"]}}",
+            "{\"source\":[\"aws.s3\"],\"detail-type\":[\"Object Created\"],\"detail\":{\"bucket\":{\"name\":[\"acme-cloudtrail-logs-111122223333\"]}}}",
+            "A CloudWatch alarm on CPUUtilization of the bastion host"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Management API calls arrive on the default event bus as 'AWS API Call via CloudTrail', so a rule on the log-tampering event names fires even though the trail is about to go quiet. GuardDuty finding types are not API names (the relevant one is Stealth:IAMUser/CloudTrailLoggingDisabled), and an S3 object-created rule would fire on every normal log delivery and, worse, go silent once the trail is stopped."
+        },
+        {
+          "id": "t8",
+          "kind": "answer",
+          "prompt": "The attacker's CLI user agent contained 'kali'. Which GuardDuty finding family flags API calls made from a Kali Linux-style user agent? (Give the finding type, e.g. Category:ResourceType/Name.)",
+          "accept": [
+            "pentest:iamuser/kalilinux",
+            "pentest:iamuser/kali linux",
+            "pentest:iamuser/kali"
+          ],
+          "explanation": "GuardDuty's PenTest:IAMUser/KaliLinux finding fires on API calls from a Kali Linux user agent (with sibling findings for Parrot and Pentoo). It is cheap, noisy-free signal, but trivially evaded by changing the user agent, so treat it as a bonus detection and never as the only one."
+        }
+      ],
+      "takeaways": [
+        "Hunt from the rare, unambiguous event (StopLogging) to a pivot value (source IP), then expand: the same event name (CreateAccessKey, AttachUserPolicy) appears in benign activity, so context decides.",
+        "Attackers disable or narrow logging early; alert on StopLogging/DeleteTrail/UpdateTrail/PutEventSelectors, protect the trail with a Deny or SCP, and keep a second independent log source.",
+        "lookup-events cannot filter by source IP: export to S3/Athena (or jq) to pivot, and always keep one place where logs cannot be edited by the accounts that generate them."
+      ]
+    }
+  },
+  {
+    "labId": "cloud-L24",
+    "objective": "Run a cloud incident-response tabletop for a leaked access key: scope the attacker from CloudTrail, then contain in an order the attacker cannot step around while preserving evidence, eradicate their persistence, and write the session-revocation guardrail.",
+    "successCriteria": [
+      "You scoped the attacker's activity (assumed role, host access, backdoor user) from CloudTrail before acting",
+      "You contained in a safe order: disable the key, revoke older sessions, isolate the host, snapshot, then terminate",
+      "You removed the attacker's persistence and wrote a deny that revokes only sessions issued before the incident cutoff"
+    ],
+    "hints": [
+      "Read the timeline and finding first. What did the attacker do with the key? Start with CloudTrail, filtered by the leaked access key id.",
+      "Think about what each control does NOT stop. A disabled key does not kill sessions it already issued; revoking sessions while the key is active lets the attacker re-assume. Don't destroy the host before its disk is saved.",
+      "Order: disable key -> put-role-policy to revoke older sessions -> modify-instance-attribute to the quarantine group -> create-snapshot (wait until completed) -> terminate-instances -> remove the backdoor user (key, policy, then user). Then run `tabletop status`."
+    ],
+    "estimatedHours": 2,
+    "resources": [
+      {
+        "title": "AWS Security Incident Response Guide",
+        "url": "https://docs.aws.amazon.com/whitepapers/latest/aws-security-incident-response-guide/aws-security-incident-response-guide.html",
+        "type": "link"
+      },
+      {
+        "title": "AWS docs: Disabling permissions for temporary security credentials",
+        "url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp_control-access_disable-perms.html",
+        "type": "link"
+      },
+      {
+        "title": "AWS docs: Managing access keys for IAM users",
+        "url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_access-keys.html",
+        "type": "link"
+      }
+    ],
+    "range": {
+      "scenario": "You are the incident commander at Acme Payments (account 111122223333). GuardDuty has flagged the long-lived access key of the CI user `ci-deploy` being used from a threat-intel IP. Leadership wants the attacker out in the next hour, but legal also wants a defensible investigation, so you cannot just delete things. Work through the timeline: scope what the key did from CloudTrail, contain in the right order, preserve the evidence, eradicate any persistence, and plan recovery. The terminal is a tabletop simulation of the AWS CLI. It will let you make the classic mistakes and tell you what they cost.",
+      "artifacts": [
+        {
+          "name": "ir-timeline.txt",
+          "language": "text",
+          "content": "CLOUD IR TABLETOP - Acme Payments (account 111122223333)\nTimes are UTC, 2026-03-14.\n\n14:02  DETECTION    GuardDuty: UnauthorizedAccess:IAMUser/MaliciousIPCaller.Custom on the long-lived key of IAM\n                    user ci-deploy. Caller 203.0.113.77 is on the threat-intel list. (guardduty-finding.json)\n14:20  TRIAGE       ci-deploy normally calls AWS only from the CI runners (198.51.100.0/24). Nobody recognises\n                    the IP. Incident declared, bridge opened.\n14:25  SCOPING      Open questions: what did the key do? Did it assume roles? Did it touch compute? Did it\n                    create persistence (new users, keys, roles)?    Source of truth: CloudTrail.\n14:35  CONTAINMENT  Decision point (cutoff for 'old' sessions = 14:35:00Z). In what ORDER do you cut off the key,\n                    the sessions it already minted, and the host, so the attacker cannot step around any single\n                    control? Which evidence must exist BEFORE anything is destroyed?\n15:15  ERADICATION  What must be removed so the attacker has no way back in?\n15:45  RECOVERY     What do you rotate, rebuild and verify before closing the incident?",
+          "note": "The shape of the incident: your job is to answer the open questions in the right order."
+        },
+        {
+          "name": "guardduty-finding.json",
+          "language": "json",
+          "content": "{\n  \"Type\": \"UnauthorizedAccess:IAMUser/MaliciousIPCaller.Custom\",\n  \"Severity\": 8,\n  \"Title\": \"An API was invoked from an IP address on a custom threat list.\",\n  \"AccountId\": \"111122223333\",\n  \"Region\": \"us-east-1\",\n  \"Resource\": {\n    \"ResourceType\": \"AccessKey\",\n    \"AccessKeyDetails\": {\n      \"AccessKeyId\": \"AKIAIOSFODNN7EXAMPLE\",\n      \"PrincipalId\": \"AIDAEXAMPLECIDEPLOY1\",\n      \"UserType\": \"IAMUser\",\n      \"UserName\": \"ci-deploy\"\n    }\n  },\n  \"Service\": {\n    \"Action\": {\n      \"ActionType\": \"AWS_API_CALL\",\n      \"AwsApiCallAction\": {\n        \"Api\": \"GetCallerIdentity\",\n        \"ServiceName\": \"sts.amazonaws.com\",\n        \"CallerType\": \"Remote IP\",\n        \"RemoteIpDetails\": {\n          \"IpAddressV4\": \"203.0.113.77\",\n          \"Country\": {\n            \"CountryName\": \"Unknown\"\n          }\n        }\n      }\n    },\n    \"EventFirstSeen\": \"2026-03-14T14:02:11Z\",\n    \"Count\": 1\n  }\n}",
+          "note": "What GuardDuty told you at 14:02. It shows the first call it saw, not everything the attacker did."
+        },
+        {
+          "name": "inventory.txt",
+          "language": "text",
+          "content": "Known resources (CMDB extract)\n\nIAM user      ci-deploy            key AKIAIOSFODNN7EXAMPLE (Active, created 2025-06-02)\nIAM role      deploy-role          assumed by the CI pipeline; trusts ci-deploy\nEC2 instance  web-app-01           i-0a1b2c3d4e5f60789   private 10.0.4.22\nEBS volume    root volume          vol-0f1e2d3c4b5a69788  50 GiB, attached to web-app-01\nSecurity grp  web-app-sg           sg-0c4d5e6f7a8b9c012   (current group of web-app-01)\nSecurity grp  quarantine-no-in-no-out  sg-0b7e1c9a5d3f2e481  pre-built IR group: NO inbound, NO outbound rules\n\nRunbook note: the quarantine group exists in advance precisely so isolation is one command.",
+          "note": "The IDs you need for your commands."
+        },
+        {
+          "name": "revoke-sessions.json",
+          "language": "json",
+          "content": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Effect\": \"Deny\",\n      \"Action\": [\n        \"*\"\n      ],\n      \"Resource\": [\n        \"*\"\n      ],\n      \"Condition\": {\n        \"DateLessThan\": {\n          \"aws:TokenIssueTime\": \"2026-03-14T14:35:00Z\"\n        }\n      }\n    }\n  ]\n}",
+          "note": "What the IAM console's 'Revoke active sessions' button writes as an inline policy on the role. Real AWS compares aws:TokenIssueTime with DateLessThan."
+        }
+      ],
+      "terminal": {
+        "prompt": "ir@tabletop:~$",
+        "intro": "Signed in as IR-Responder (incident-response role). Region: us-east-1. This is a simulation; commands behave like the AWS CLI and the facilitator reacts to your choices. `tabletop status` shows whether containment is complete.",
+        "help": "Commands you can try:\n  aws sts get-caller-identity\n  aws cloudtrail lookup-events --lookup-attributes AttributeKey=AccessKeyId,AttributeValue=<key id>\n  aws cloudtrail lookup-events --lookup-attributes AttributeKey=Username,AttributeValue=<user or session>\n  aws iam list-access-keys --user-name <user>\n  aws iam update-access-key --user-name <user> --access-key-id <id> --status Inactive\n  aws iam put-role-policy --role-name <role> --policy-name AWSRevokeOlderSessions --policy-document file://revoke-sessions.json\n  aws ec2 describe-instances --instance-ids <id>\n  aws ec2 modify-instance-attribute --instance-id <id> --groups <sg-id>\n  aws ec2 create-snapshot --volume-id <id> --description <text>\n  aws ec2 describe-snapshots --snapshot-ids <id>\n  aws ec2 terminate-instances --instance-ids <id>\n  aws iam detach-user-policy / delete-access-key / delete-user\n  tabletop status",
+        "rules": [
+          {
+            "match": "^aws sts get-caller-identity$",
+            "output": "{\n  \"UserId\": \"AROAEXAMPLEIRRESP01:ir-analyst\",\n  \"Account\": \"111122223333\",\n  \"Arn\": \"arn:aws:sts::111122223333:assumed-role/IR-Responder/ir-analyst\"\n}"
+          },
+          {
+            "match": "^aws cloudtrail lookup-events\\b.*AttributeKey=(?:AccessKeyId,AttributeValue=AKIAIOSFODNN7EXAMPLE|Username,AttributeValue=ci-deploy)\\b",
+            "sets": [
+              "scoped"
+            ],
+            "output": "{\n  \"Events\": [\n    {\n      \"EventId\": \"349cbbac-9d22-431f-84f0-9e02751f6ae5\",\n      \"EventName\": \"GetCallerIdentity\",\n      \"ReadOnly\": \"true\",\n      \"AccessKeyId\": \"AKIAIOSFODNN7EXAMPLE\",\n      \"EventTime\": \"2026-03-14T14:02:11+00:00\",\n      \"EventSource\": \"sts.amazonaws.com\",\n      \"Username\": \"ci-deploy\",\n      \"Resources\": [],\n      \"CloudTrailEvent\": \"{\\\"eventVersion\\\":\\\"1.08\\\",\\\"userIdentity\\\":{\\\"type\\\":\\\"IAMUser\\\",\\\"principalId\\\":\\\"AIDAEXAMPLECIDEPLOY1\\\",\\\"arn\\\":\\\"arn:aws:iam::111122223333:user/ci-deploy\\\",\\\"accountId\\\":\\\"111122223333\\\",\\\"accessKeyId\\\":\\\"AKIAIOSFODNN7EXAMPLE\\\",\\\"userName\\\":\\\"ci-deploy\\\"},\\\"eventTime\\\":\\\"2026-03-14T14:02:11Z\\\",\\\"eventSource\\\":\\\"sts.amazonaws.com\\\",\\\"eventName\\\":\\\"GetCallerIdentity\\\",\\\"awsRegion\\\":\\\"us-east-1\\\",\\\"sourceIPAddress\\\":\\\"203.0.113.77\\\",\\\"userAgent\\\":\\\"aws-cli/2.15.30 Python/3.11.8 Linux/6.5.0-kali3-amd64 exe/x86_64.kali.2024 prompt/off command/sts.get-caller-identity\\\",\\\"requestParameters\\\":null,\\\"responseElements\\\":null,\\\"eventID\\\":\\\"349cbbac-9d22-431f-84f0-9e02751f6ae5\\\",\\\"readOnly\\\":true,\\\"eventType\\\":\\\"AwsApiCall\\\",\\\"recipientAccountId\\\":\\\"111122223333\\\"}\"\n    },\n    {\n      \"EventId\": \"7139b61a-0d04-4c05-8476-5977593c3d1e\",\n      \"EventName\": \"ListRoles\",\n      \"ReadOnly\": \"true\",\n      \"AccessKeyId\": \"AKIAIOSFODNN7EXAMPLE\",\n      \"EventTime\": \"2026-03-14T14:03:40+00:00\",\n      \"EventSource\": \"iam.amazonaws.com\",\n      \"Username\": \"ci-deploy\",\n      \"Resources\": [],\n      \"CloudTrailEvent\": \"{\\\"eventVersion\\\":\\\"1.08\\\",\\\"userIdentity\\\":{\\\"type\\\":\\\"IAMUser\\\",\\\"principalId\\\":\\\"AIDAEXAMPLECIDEPLOY1\\\",\\\"arn\\\":\\\"arn:aws:iam::111122223333:user/ci-deploy\\\",\\\"accountId\\\":\\\"111122223333\\\",\\\"accessKeyId\\\":\\\"AKIAIOSFODNN7EXAMPLE\\\",\\\"userName\\\":\\\"ci-deploy\\\"},\\\"eventTime\\\":\\\"2026-03-14T14:03:40Z\\\",\\\"eventSource\\\":\\\"iam.amazonaws.com\\\",\\\"eventName\\\":\\\"ListRoles\\\",\\\"awsRegion\\\":\\\"us-east-1\\\",\\\"sourceIPAddress\\\":\\\"203.0.113.77\\\",\\\"userAgent\\\":\\\"aws-cli/2.15.30 Python/3.11.8 Linux/6.5.0-kali3-amd64 exe/x86_64.kali.2024 prompt/off command/iam.list-roles\\\",\\\"requestParameters\\\":null,\\\"responseElements\\\":null,\\\"eventID\\\":\\\"7139b61a-0d04-4c05-8476-5977593c3d1e\\\",\\\"readOnly\\\":true,\\\"eventType\\\":\\\"AwsApiCall\\\",\\\"recipientAccountId\\\":\\\"111122223333\\\"}\"\n    },\n    {\n      \"EventId\": \"28644d94-e83e-4841-81f4-3cc336c0deeb\",\n      \"EventName\": \"AssumeRole\",\n      \"ReadOnly\": \"false\",\n      \"AccessKeyId\": \"AKIAIOSFODNN7EXAMPLE\",\n      \"EventTime\": \"2026-03-14T14:04:25+00:00\",\n      \"EventSource\": \"sts.amazonaws.com\",\n      \"Username\": \"ci-deploy\",\n      \"Resources\": [],\n      \"CloudTrailEvent\": \"{\\\"eventVersion\\\":\\\"1.08\\\",\\\"userIdentity\\\":{\\\"type\\\":\\\"IAMUser\\\",\\\"principalId\\\":\\\"AIDAEXAMPLECIDEPLOY1\\\",\\\"arn\\\":\\\"arn:aws:iam::111122223333:user/ci-deploy\\\",\\\"accountId\\\":\\\"111122223333\\\",\\\"accessKeyId\\\":\\\"AKIAIOSFODNN7EXAMPLE\\\",\\\"userName\\\":\\\"ci-deploy\\\"},\\\"eventTime\\\":\\\"2026-03-14T14:04:25Z\\\",\\\"eventSource\\\":\\\"sts.amazonaws.com\\\",\\\"eventName\\\":\\\"AssumeRole\\\",\\\"awsRegion\\\":\\\"us-east-1\\\",\\\"sourceIPAddress\\\":\\\"203.0.113.77\\\",\\\"userAgent\\\":\\\"aws-cli/2.15.30 Python/3.11.8 Linux/6.5.0-kali3-amd64 exe/x86_64.kali.2024 prompt/off command/sts.assume-role\\\",\\\"requestParameters\\\":{\\\"roleArn\\\":\\\"arn:aws:iam::111122223333:role/deploy-role\\\",\\\"roleSessionName\\\":\\\"build-session\\\"},\\\"responseElements\\\":{\\\"credentials\\\":{\\\"accessKeyId\\\":\\\"ASIAIOSFODNN7EXAMPLE\\\",\\\"expiration\\\":\\\"Mar 14, 2026 3:04:25 PM\\\",\\\"sessionToken\\\":\\\"HIDDEN_DUE_TO_SECURITY_REASONS\\\"}},\\\"eventID\\\":\\\"28644d94-e83e-4841-81f4-3cc336c0deeb\\\",\\\"readOnly\\\":false,\\\"eventType\\\":\\\"AwsApiCall\\\",\\\"recipientAccountId\\\":\\\"111122223333\\\"}\"\n    },\n    {\n      \"EventId\": \"a7a5e526-90a9-4f58-8edf-bb81c37696d7\",\n      \"EventName\": \"CreateUser\",\n      \"ReadOnly\": \"false\",\n      \"AccessKeyId\": \"AKIAIOSFODNN7EXAMPLE\",\n      \"EventTime\": \"2026-03-14T14:09:12+00:00\",\n      \"EventSource\": \"iam.amazonaws.com\",\n      \"Username\": \"ci-deploy\",\n      \"Resources\": [],\n      \"CloudTrailEvent\": \"{\\\"eventVersion\\\":\\\"1.08\\\",\\\"userIdentity\\\":{\\\"type\\\":\\\"IAMUser\\\",\\\"principalId\\\":\\\"AIDAEXAMPLECIDEPLOY1\\\",\\\"arn\\\":\\\"arn:aws:iam::111122223333:user/ci-deploy\\\",\\\"accountId\\\":\\\"111122223333\\\",\\\"accessKeyId\\\":\\\"AKIAIOSFODNN7EXAMPLE\\\",\\\"userName\\\":\\\"ci-deploy\\\"},\\\"eventTime\\\":\\\"2026-03-14T14:09:12Z\\\",\\\"eventSource\\\":\\\"iam.amazonaws.com\\\",\\\"eventName\\\":\\\"CreateUser\\\",\\\"awsRegion\\\":\\\"us-east-1\\\",\\\"sourceIPAddress\\\":\\\"203.0.113.77\\\",\\\"userAgent\\\":\\\"aws-cli/2.15.30 Python/3.11.8 Linux/6.5.0-kali3-amd64 exe/x86_64.kali.2024 prompt/off command/iam.create-user\\\",\\\"requestParameters\\\":{\\\"userName\\\":\\\"support-temp\\\"},\\\"responseElements\\\":{\\\"user\\\":{\\\"userName\\\":\\\"support-temp\\\",\\\"arn\\\":\\\"arn:aws:iam::111122223333:user/support-temp\\\"}},\\\"eventID\\\":\\\"a7a5e526-90a9-4f58-8edf-bb81c37696d7\\\",\\\"readOnly\\\":false,\\\"eventType\\\":\\\"AwsApiCall\\\",\\\"recipientAccountId\\\":\\\"111122223333\\\"}\"\n    },\n    {\n      \"EventId\": \"0bcb5517-057f-423d-809d-d112ff93f89b\",\n      \"EventName\": \"CreateAccessKey\",\n      \"ReadOnly\": \"false\",\n      \"AccessKeyId\": \"AKIAIOSFODNN7EXAMPLE\",\n      \"EventTime\": \"2026-03-14T14:09:40+00:00\",\n      \"EventSource\": \"iam.amazonaws.com\",\n      \"Username\": \"ci-deploy\",\n      \"Resources\": [],\n      \"CloudTrailEvent\": \"{\\\"eventVersion\\\":\\\"1.08\\\",\\\"userIdentity\\\":{\\\"type\\\":\\\"IAMUser\\\",\\\"principalId\\\":\\\"AIDAEXAMPLECIDEPLOY1\\\",\\\"arn\\\":\\\"arn:aws:iam::111122223333:user/ci-deploy\\\",\\\"accountId\\\":\\\"111122223333\\\",\\\"accessKeyId\\\":\\\"AKIAIOSFODNN7EXAMPLE\\\",\\\"userName\\\":\\\"ci-deploy\\\"},\\\"eventTime\\\":\\\"2026-03-14T14:09:40Z\\\",\\\"eventSource\\\":\\\"iam.amazonaws.com\\\",\\\"eventName\\\":\\\"CreateAccessKey\\\",\\\"awsRegion\\\":\\\"us-east-1\\\",\\\"sourceIPAddress\\\":\\\"203.0.113.77\\\",\\\"userAgent\\\":\\\"aws-cli/2.15.30 Python/3.11.8 Linux/6.5.0-kali3-amd64 exe/x86_64.kali.2024 prompt/off command/iam.create-access-key\\\",\\\"requestParameters\\\":{\\\"userName\\\":\\\"support-temp\\\"},\\\"responseElements\\\":{\\\"accessKey\\\":{\\\"userName\\\":\\\"support-temp\\\",\\\"accessKeyId\\\":\\\"AKIAI44QH8DHBEXAMPLE\\\",\\\"status\\\":\\\"Active\\\",\\\"createDate\\\":\\\"Mar 14, 2026 2:09:40 PM\\\"}},\\\"eventID\\\":\\\"0bcb5517-057f-423d-809d-d112ff93f89b\\\",\\\"readOnly\\\":false,\\\"eventType\\\":\\\"AwsApiCall\\\",\\\"recipientAccountId\\\":\\\"111122223333\\\"}\"\n    },\n    {\n      \"EventId\": \"5e95693c-d9ff-4a0b-8836-d5b525b06e35\",\n      \"EventName\": \"AttachUserPolicy\",\n      \"ReadOnly\": \"false\",\n      \"AccessKeyId\": \"AKIAIOSFODNN7EXAMPLE\",\n      \"EventTime\": \"2026-03-14T14:10:05+00:00\",\n      \"EventSource\": \"iam.amazonaws.com\",\n      \"Username\": \"ci-deploy\",\n      \"Resources\": [],\n      \"CloudTrailEvent\": \"{\\\"eventVersion\\\":\\\"1.08\\\",\\\"userIdentity\\\":{\\\"type\\\":\\\"IAMUser\\\",\\\"principalId\\\":\\\"AIDAEXAMPLECIDEPLOY1\\\",\\\"arn\\\":\\\"arn:aws:iam::111122223333:user/ci-deploy\\\",\\\"accountId\\\":\\\"111122223333\\\",\\\"accessKeyId\\\":\\\"AKIAIOSFODNN7EXAMPLE\\\",\\\"userName\\\":\\\"ci-deploy\\\"},\\\"eventTime\\\":\\\"2026-03-14T14:10:05Z\\\",\\\"eventSource\\\":\\\"iam.amazonaws.com\\\",\\\"eventName\\\":\\\"AttachUserPolicy\\\",\\\"awsRegion\\\":\\\"us-east-1\\\",\\\"sourceIPAddress\\\":\\\"203.0.113.77\\\",\\\"userAgent\\\":\\\"aws-cli/2.15.30 Python/3.11.8 Linux/6.5.0-kali3-amd64 exe/x86_64.kali.2024 prompt/off command/iam.attach-user-policy\\\",\\\"requestParameters\\\":{\\\"userName\\\":\\\"support-temp\\\",\\\"policyArn\\\":\\\"arn:aws:iam::aws:policy/AdministratorAccess\\\"},\\\"responseElements\\\":null,\\\"eventID\\\":\\\"5e95693c-d9ff-4a0b-8836-d5b525b06e35\\\",\\\"readOnly\\\":false,\\\"eventType\\\":\\\"AwsApiCall\\\",\\\"recipientAccountId\\\":\\\"111122223333\\\"}\"\n    }\n  ]\n}"
+          },
+          {
+            "match": "^aws cloudtrail lookup-events\\b.*AttributeKey=Username,AttributeValue=build-session\\b",
+            "output": "{\n  \"Events\": [\n    {\n      \"EventId\": \"0daac7bb-25cf-4912-8a8e-cf29192a74d5\",\n      \"EventName\": \"DescribeInstances\",\n      \"ReadOnly\": \"true\",\n      \"AccessKeyId\": \"ASIAIOSFODNN7EXAMPLE\",\n      \"EventTime\": \"2026-03-14T14:05:10+00:00\",\n      \"EventSource\": \"ec2.amazonaws.com\",\n      \"Username\": \"build-session\",\n      \"Resources\": [],\n      \"CloudTrailEvent\": \"{\\\"eventVersion\\\":\\\"1.08\\\",\\\"userIdentity\\\":{\\\"type\\\":\\\"AssumedRole\\\",\\\"principalId\\\":\\\"AROAEXAMPLEDEPLOY01:build-session\\\",\\\"arn\\\":\\\"arn:aws:sts::111122223333:assumed-role/deploy-role/build-session\\\",\\\"accountId\\\":\\\"111122223333\\\",\\\"accessKeyId\\\":\\\"ASIAIOSFODNN7EXAMPLE\\\",\\\"sessionContext\\\":{\\\"sessionIssuer\\\":{\\\"type\\\":\\\"Role\\\",\\\"principalId\\\":\\\"AROAEXAMPLEDEPLOY01\\\",\\\"arn\\\":\\\"arn:aws:iam::111122223333:role/deploy-role\\\",\\\"accountId\\\":\\\"111122223333\\\",\\\"userName\\\":\\\"deploy-role\\\"},\\\"attributes\\\":{\\\"creationDate\\\":\\\"2026-03-14T08:00:00Z\\\",\\\"mfaAuthenticated\\\":\\\"false\\\"}}},\\\"eventTime\\\":\\\"2026-03-14T14:05:10Z\\\",\\\"eventSource\\\":\\\"ec2.amazonaws.com\\\",\\\"eventName\\\":\\\"DescribeInstances\\\",\\\"awsRegion\\\":\\\"us-east-1\\\",\\\"sourceIPAddress\\\":\\\"203.0.113.77\\\",\\\"userAgent\\\":\\\"aws-cli/2.15.30 Python/3.11.8 Linux/6.5.0-kali3-amd64 exe/x86_64.kali.2024 prompt/off command/ec2.describe-instances\\\",\\\"requestParameters\\\":{\\\"instancesSet\\\":{},\\\"filterSet\\\":{}},\\\"responseElements\\\":null,\\\"eventID\\\":\\\"0daac7bb-25cf-4912-8a8e-cf29192a74d5\\\",\\\"readOnly\\\":true,\\\"eventType\\\":\\\"AwsApiCall\\\",\\\"recipientAccountId\\\":\\\"111122223333\\\"}\"\n    },\n    {\n      \"EventId\": \"71f6fdb7-fc54-4287-8201-fc4c6d9d3377\",\n      \"EventName\": \"ListBuckets\",\n      \"ReadOnly\": \"true\",\n      \"AccessKeyId\": \"ASIAIOSFODNN7EXAMPLE\",\n      \"EventTime\": \"2026-03-14T14:05:50+00:00\",\n      \"EventSource\": \"s3.amazonaws.com\",\n      \"Username\": \"build-session\",\n      \"Resources\": [],\n      \"CloudTrailEvent\": \"{\\\"eventVersion\\\":\\\"1.08\\\",\\\"userIdentity\\\":{\\\"type\\\":\\\"AssumedRole\\\",\\\"principalId\\\":\\\"AROAEXAMPLEDEPLOY01:build-session\\\",\\\"arn\\\":\\\"arn:aws:sts::111122223333:assumed-role/deploy-role/build-session\\\",\\\"accountId\\\":\\\"111122223333\\\",\\\"accessKeyId\\\":\\\"ASIAIOSFODNN7EXAMPLE\\\",\\\"sessionContext\\\":{\\\"sessionIssuer\\\":{\\\"type\\\":\\\"Role\\\",\\\"principalId\\\":\\\"AROAEXAMPLEDEPLOY01\\\",\\\"arn\\\":\\\"arn:aws:iam::111122223333:role/deploy-role\\\",\\\"accountId\\\":\\\"111122223333\\\",\\\"userName\\\":\\\"deploy-role\\\"},\\\"attributes\\\":{\\\"creationDate\\\":\\\"2026-03-14T08:00:00Z\\\",\\\"mfaAuthenticated\\\":\\\"false\\\"}}},\\\"eventTime\\\":\\\"2026-03-14T14:05:50Z\\\",\\\"eventSource\\\":\\\"s3.amazonaws.com\\\",\\\"eventName\\\":\\\"ListBuckets\\\",\\\"awsRegion\\\":\\\"us-east-1\\\",\\\"sourceIPAddress\\\":\\\"203.0.113.77\\\",\\\"userAgent\\\":\\\"aws-cli/2.15.30 Python/3.11.8 Linux/6.5.0-kali3-amd64 exe/x86_64.kali.2024 prompt/off command/s3api.list-buckets\\\",\\\"requestParameters\\\":{\\\"Host\\\":\\\"s3.amazonaws.com\\\"},\\\"responseElements\\\":null,\\\"eventID\\\":\\\"71f6fdb7-fc54-4287-8201-fc4c6d9d3377\\\",\\\"readOnly\\\":true,\\\"eventType\\\":\\\"AwsApiCall\\\",\\\"recipientAccountId\\\":\\\"111122223333\\\"}\"\n    },\n    {\n      \"EventId\": \"0635ff8b-0f4d-4be1-8ef6-aeeaf94ebddc\",\n      \"EventName\": \"SendCommand\",\n      \"ReadOnly\": \"false\",\n      \"AccessKeyId\": \"ASIAIOSFODNN7EXAMPLE\",\n      \"EventTime\": \"2026-03-14T14:06:30+00:00\",\n      \"EventSource\": \"ssm.amazonaws.com\",\n      \"Username\": \"build-session\",\n      \"Resources\": [],\n      \"CloudTrailEvent\": \"{\\\"eventVersion\\\":\\\"1.08\\\",\\\"userIdentity\\\":{\\\"type\\\":\\\"AssumedRole\\\",\\\"principalId\\\":\\\"AROAEXAMPLEDEPLOY01:build-session\\\",\\\"arn\\\":\\\"arn:aws:sts::111122223333:assumed-role/deploy-role/build-session\\\",\\\"accountId\\\":\\\"111122223333\\\",\\\"accessKeyId\\\":\\\"ASIAIOSFODNN7EXAMPLE\\\",\\\"sessionContext\\\":{\\\"sessionIssuer\\\":{\\\"type\\\":\\\"Role\\\",\\\"principalId\\\":\\\"AROAEXAMPLEDEPLOY01\\\",\\\"arn\\\":\\\"arn:aws:iam::111122223333:role/deploy-role\\\",\\\"accountId\\\":\\\"111122223333\\\",\\\"userName\\\":\\\"deploy-role\\\"},\\\"attributes\\\":{\\\"creationDate\\\":\\\"2026-03-14T08:00:00Z\\\",\\\"mfaAuthenticated\\\":\\\"false\\\"}}},\\\"eventTime\\\":\\\"2026-03-14T14:06:30Z\\\",\\\"eventSource\\\":\\\"ssm.amazonaws.com\\\",\\\"eventName\\\":\\\"SendCommand\\\",\\\"awsRegion\\\":\\\"us-east-1\\\",\\\"sourceIPAddress\\\":\\\"203.0.113.77\\\",\\\"userAgent\\\":\\\"aws-cli/2.15.30 Python/3.11.8 Linux/6.5.0-kali3-amd64 exe/x86_64.kali.2024 prompt/off command/ssm.send-command\\\",\\\"requestParameters\\\":{\\\"documentName\\\":\\\"AWS-RunShellScript\\\",\\\"instanceIds\\\":[\\\"i-0a1b2c3d4e5f60789\\\"],\\\"parameters\\\":\\\"HIDDEN_DUE_TO_SECURITY_REASONS\\\"},\\\"responseElements\\\":{\\\"command\\\":{\\\"commandId\\\":\\\"7c1e2a90-3b4d-4f5e-8a6b-9c0d1e2f3a4b\\\",\\\"status\\\":\\\"Pending\\\"}},\\\"eventID\\\":\\\"0635ff8b-0f4d-4be1-8ef6-aeeaf94ebddc\\\",\\\"readOnly\\\":false,\\\"eventType\\\":\\\"AwsApiCall\\\",\\\"recipientAccountId\\\":\\\"111122223333\\\"}\"\n    }\n  ]\n}"
+          },
+          {
+            "match": "^aws cloudtrail lookup-events\\b.*AttributeKey=AccessKeyId,AttributeValue=AKIAI44QH8DHBEXAMPLE\\b",
+            "output": "{\n  \"Events\": []\n}"
+          },
+          {
+            "match": "^aws cloudtrail lookup-events\\b",
+            "output": "{\n  \"Events\": []\n}"
+          },
+          {
+            "match": "^aws iam list-access-keys\\b.*--user-name ci-deploy\\b",
+            "output": "{\n  \"AccessKeyMetadata\": [\n    {\n      \"UserName\": \"ci-deploy\",\n      \"AccessKeyId\": \"AKIAIOSFODNN7EXAMPLE\",\n      \"Status\": \"Active\",\n      \"CreateDate\": \"2025-06-02T09:14:00+00:00\"\n    }\n  ]\n}"
+          },
+          {
+            "match": "^aws iam list-access-keys\\b.*--user-name support-temp\\b",
+            "requires": [
+              "scoped"
+            ],
+            "output": "{\n  \"AccessKeyMetadata\": [\n    {\n      \"UserName\": \"support-temp\",\n      \"AccessKeyId\": \"AKIAI44QH8DHBEXAMPLE\",\n      \"Status\": \"Active\",\n      \"CreateDate\": \"2026-03-14T14:09:40+00:00\"\n    }\n  ]\n}"
+          },
+          {
+            "match": "^aws iam list-attached-user-policies\\b.*--user-name support-temp\\b",
+            "requires": [
+              "scoped"
+            ],
+            "output": "{\n  \"AttachedPolicies\": [\n    {\n      \"PolicyName\": \"AdministratorAccess\",\n      \"PolicyArn\": \"arn:aws:iam::aws:policy/AdministratorAccess\"\n    }\n  ]\n}"
+          },
+          {
+            "match": "^aws iam (?:list-access-keys|list-attached-user-policies)\\b.*--user-name support-temp\\b",
+            "output": "An error occurred (NoSuchEntity) when calling the iam operation: The user with name support-temp cannot be found.\n(You have not seen this name anywhere yet. Scope the incident first.)"
+          },
+          {
+            "match": "^aws iam update-access-key(?=.*--user-name ci-deploy\\b)(?=.*--access-key-id AKIAIOSFODNN7EXAMPLE\\b)(?=.*--status Inactive\\b)",
+            "sets": [
+              "key_disabled"
+            ],
+            "output": "(no output - success) Access key AKIAIOSFODNN7EXAMPLE for ci-deploy is now Inactive. No NEW calls can be signed with it."
+          },
+          {
+            "match": "^aws iam update-access-key\\b",
+            "output": "usage: aws iam update-access-key --user-name <name> --access-key-id <id> --status Inactive\nCheck user, key id and status. (Disable the leaked key; do not delete it yet.)"
+          },
+          {
+            "match": "^aws iam delete-access-key(?=.*--user-name support-temp\\b)(?=.*--access-key-id AKIAI44QH8DHBEXAMPLE\\b)",
+            "requires": [
+              "scoped"
+            ],
+            "sets": [
+              "backdoor_key_deleted"
+            ],
+            "output": "(no output - success) The attacker's persistence key AKIAI44QH8DHBEXAMPLE is deleted."
+          },
+          {
+            "match": "^aws iam delete-access-key(?=.*--access-key-id AKIAIOSFODNN7EXAMPLE\\b)",
+            "requires": [
+              "key_disabled"
+            ],
+            "output": "(no output - success) Original key deleted. (In a real incident do this in recovery, after you have captured its last-used data and replaced the CI credential.)"
+          },
+          {
+            "match": "^aws iam delete-access-key(?=.*--access-key-id AKIAIOSFODNN7EXAMPLE\\b)",
+            "output": "[tabletop] Not yet. Deleting the leaked key first throws away its last-used metadata and any chance to roll back if this were a false positive. Disable it (reversible), investigate, then delete."
+          },
+          {
+            "match": "^aws iam delete-(?:user|role)\\b.*\\b(?:ci-deploy|deploy-role)\\b",
+            "output": "An error occurred (AccessDenied) when calling the iam operation: User: arn:aws:sts::111122223333:assumed-role/IR-Responder/ir-analyst is not authorized to perform: iam:DeleteUser/DeleteRole\n[tabletop] Deleting the victim identity would break the production pipeline and destroy evidence. Contain it, do not delete it."
+          },
+          {
+            "match": "^aws iam put-role-policy(?=.*--role-name deploy-role\\b)(?=.*--policy-name \\S+)(?=.*--policy-document \\S+)",
+            "requires": [
+              "key_disabled"
+            ],
+            "sets": [
+              "sessions_revoked"
+            ],
+            "output": "(no output - success) Inline policy attached to deploy-role. Every session issued before the cutoff in the policy is now denied. Sessions issued afterwards still work."
+          },
+          {
+            "match": "^aws iam put-role-policy(?=.*--role-name deploy-role\\b)",
+            "output": "(policy attached) [tabletop] WARNING: the ci-deploy access key is STILL ACTIVE. The attacker can call sts:AssumeRole again with it and get a fresh session newer than your cutoff. Disable the key first, then revoke sessions. Containment is not recorded yet."
+          },
+          {
+            "match": "^aws iam put-role-policy\\b",
+            "output": "An error occurred (NoSuchEntity) when calling the PutRolePolicy operation: The role with name <role> cannot be found.\n(Which role did the attacker assume? Check the CloudTrail AssumeRole event.)"
+          },
+          {
+            "match": "^aws ec2 describe-instances\\b",
+            "requires": [
+              "isolated"
+            ],
+            "output": "{\n  \"Reservations\": [\n    {\n      \"Instances\": [\n        {\n          \"InstanceId\": \"i-0a1b2c3d4e5f60789\",\n          \"State\": {\n            \"Code\": 16,\n            \"Name\": \"running\"\n          },\n          \"PrivateIpAddress\": \"10.0.4.22\",\n          \"IamInstanceProfile\": {\n            \"Arn\": \"arn:aws:iam::111122223333:instance-profile/web-app-profile\"\n          },\n          \"SecurityGroups\": [\n            {\n              \"GroupId\": \"sg-0b7e1c9a5d3f2e481\",\n              \"GroupName\": \"quarantine-no-in-no-out\"\n            }\n          ],\n          \"BlockDeviceMappings\": [\n            {\n              \"DeviceName\": \"/dev/xvda\",\n              \"Ebs\": {\n                \"VolumeId\": \"vol-0f1e2d3c4b5a69788\",\n                \"Status\": \"attached\"\n              }\n            }\n          ],\n          \"Tags\": [\n            {\n              \"Key\": \"Name\",\n              \"Value\": \"web-app-01\"\n            }\n          ]\n        }\n      ]\n    }\n  ]\n}"
+          },
+          {
+            "match": "^aws ec2 describe-instances\\b",
+            "output": "{\n  \"Reservations\": [\n    {\n      \"Instances\": [\n        {\n          \"InstanceId\": \"i-0a1b2c3d4e5f60789\",\n          \"State\": {\n            \"Code\": 16,\n            \"Name\": \"running\"\n          },\n          \"PrivateIpAddress\": \"10.0.4.22\",\n          \"IamInstanceProfile\": {\n            \"Arn\": \"arn:aws:iam::111122223333:instance-profile/web-app-profile\"\n          },\n          \"SecurityGroups\": [\n            {\n              \"GroupId\": \"sg-0c4d5e6f7a8b9c012\",\n              \"GroupName\": \"web-app-sg\"\n            }\n          ],\n          \"BlockDeviceMappings\": [\n            {\n              \"DeviceName\": \"/dev/xvda\",\n              \"Ebs\": {\n                \"VolumeId\": \"vol-0f1e2d3c4b5a69788\",\n                \"Status\": \"attached\"\n              }\n            }\n          ],\n          \"Tags\": [\n            {\n              \"Key\": \"Name\",\n              \"Value\": \"web-app-01\"\n            }\n          ]\n        }\n      ]\n    }\n  ]\n}"
+          },
+          {
+            "match": "^aws ec2 modify-instance-attribute(?=.*--instance-id i-0a1b2c3d4e5f60789\\b)(?=.*--groups sg-0b7e1c9a5d3f2e481\\s*$)",
+            "sets": [
+              "isolated"
+            ],
+            "output": "(no output - success) web-app-01 now has ONLY the quarantine security group. New connections are blocked; the instance is still running so memory and processes survive for capture."
+          },
+          {
+            "match": "^aws ec2 modify-instance-attribute\\b",
+            "output": "[tabletop] That does not isolate the instance. The quarantine group sg-0b7e1c9a5d3f2e481 (no inbound, no outbound) must be the ONLY security group on i-0a1b2c3d4e5f60789 (see inventory.txt)."
+          },
+          {
+            "match": "^aws ec2 (?:stop|reboot)-instances\\b",
+            "output": "[tabletop] Not applied. Stopping or rebooting wipes RAM (running processes, open connections, injected code) and the attacker's tooling. Isolate first; capture evidence; only then retire the host."
+          },
+          {
+            "match": "^aws ec2 create-snapshot(?=.*--volume-id vol-0f1e2d3c4b5a69788\\b)",
+            "sets": [
+              "snapshot_created"
+            ],
+            "output": "{\n  \"Description\": \"IR evidence web-app-01\",\n  \"Encrypted\": false,\n  \"OwnerId\": \"111122223333\",\n  \"Progress\": \"\",\n  \"SnapshotId\": \"snap-0d1e2f3a4b5c67890\",\n  \"StartTime\": \"2026-03-14T14:41:09.000Z\",\n  \"State\": \"pending\",\n  \"VolumeId\": \"vol-0f1e2d3c4b5a69788\",\n  \"VolumeSize\": 50,\n  \"Tags\": [\n    {\n      \"Key\": \"ir-case\",\n      \"Value\": \"2026-03-14-ci-deploy\"\n    }\n  ]\n}"
+          },
+          {
+            "match": "^aws ec2 create-snapshot\\b",
+            "output": "An error occurred (InvalidVolume.NotFound) when calling the CreateSnapshot operation: The volume does not exist.\n(Look up the volume attached to the instance in inventory.txt.)"
+          },
+          {
+            "match": "^aws ec2 describe-snapshots\\b",
+            "requires": [
+              "snapshot_created"
+            ],
+            "sets": [
+              "snapshot_done"
+            ],
+            "output": "{\n  \"Snapshots\": [\n    {\n      \"SnapshotId\": \"snap-0d1e2f3a4b5c67890\",\n      \"VolumeId\": \"vol-0f1e2d3c4b5a69788\",\n      \"State\": \"completed\",\n      \"Progress\": \"100%\",\n      \"StartTime\": \"2026-03-14T14:41:09.000Z\",\n      \"Description\": \"IR evidence web-app-01\"\n    }\n  ]\n}"
+          },
+          {
+            "match": "^aws ec2 describe-snapshots\\b",
+            "output": "{\n  \"Snapshots\": []\n}"
+          },
+          {
+            "match": "^aws ec2 wait snapshot-completed\\b",
+            "requires": [
+              "snapshot_created"
+            ],
+            "sets": [
+              "snapshot_done"
+            ],
+            "output": "(no output - waiter returned: snapshot is completed)"
+          },
+          {
+            "match": "^aws ec2 terminate-instances(?=.*--instance-ids i-0a1b2c3d4e5f60789\\b)",
+            "requires": [
+              "snapshot_done",
+              "isolated"
+            ],
+            "sets": [
+              "terminated"
+            ],
+            "output": "{\n  \"TerminatingInstances\": [\n    {\n      \"InstanceId\": \"i-0a1b2c3d4e5f60789\",\n      \"CurrentState\": {\n        \"Code\": 32,\n        \"Name\": \"shutting-down\"\n      },\n      \"PreviousState\": {\n        \"Code\": 16,\n        \"Name\": \"running\"\n      }\n    }\n  ]\n}"
+          },
+          {
+            "match": "^aws ec2 terminate-instances\\b",
+            "output": "[tabletop] Refused by the runbook. Terminating destroys the live host and, if the disk was never snapshotted, the only copy of the attacker's artifacts. Required first: (1) instance isolated with the quarantine group, (2) EBS snapshot COMPLETED. Evidence before destruction."
+          },
+          {
+            "match": "^aws iam detach-user-policy(?=.*--user-name support-temp\\b)(?=.*--policy-arn arn:aws:iam::aws:policy/AdministratorAccess\\b)",
+            "requires": [
+              "scoped"
+            ],
+            "sets": [
+              "backdoor_policy_detached"
+            ],
+            "output": "(no output - success) AdministratorAccess detached from support-temp."
+          },
+          {
+            "match": "^aws iam delete-user\\b.*--user-name support-temp\\b",
+            "requires": [
+              "backdoor_key_deleted",
+              "backdoor_policy_detached"
+            ],
+            "sets": [
+              "backdoor_removed"
+            ],
+            "output": "(no output - success) IAM user support-temp deleted. The attacker's backdoor identity is gone."
+          },
+          {
+            "match": "^aws iam delete-user\\b.*--user-name support-temp\\b",
+            "output": "An error occurred (DeleteConflict) when calling the DeleteUser operation: Cannot delete entity, must delete access keys first.\n(IAM also refuses while managed policies are still attached. Remove the user's credentials and permissions, then delete the user.)"
+          },
+          {
+            "match": "^tabletop status$",
+            "requires": [
+              "scoped",
+              "key_disabled",
+              "sessions_revoked",
+              "isolated",
+              "snapshot_done",
+              "terminated",
+              "backdoor_removed"
+            ],
+            "output": "TABLETOP CONTAINMENT CHECK\n  scoped CloudTrail activity ......... OK\n  leaked key disabled first ........ OK\n  older sessions revoked ........... OK\n  host isolated ................... OK\n  evidence snapshot completed ...... OK\n  host retired AFTER evidence ...... OK\n  persistence removed ............. OK\nContainment complete: FLAG{contained_evidence_preserved_7c2e}"
+          },
+          {
+            "match": "^tabletop status$",
+            "output": "TABLETOP CONTAINMENT CHECK: incomplete.\nThe facilitator needs: the incident scoped from CloudTrail; the leaked credential and its already-issued sessions cut off in an order the attacker cannot step around; the host isolated and its disk preserved BEFORE it is destroyed; and the attacker's persistence removed."
+          }
+        ]
+      },
+      "solution": [
+        "aws sts get-caller-identity",
+        "aws cloudtrail lookup-events --lookup-attributes AttributeKey=AccessKeyId,AttributeValue=AKIAIOSFODNN7EXAMPLE",
+        "aws iam update-access-key --user-name ci-deploy --access-key-id AKIAIOSFODNN7EXAMPLE --status Inactive",
+        "aws iam put-role-policy --role-name deploy-role --policy-name AWSRevokeOlderSessions --policy-document file://revoke-sessions.json",
+        "aws ec2 modify-instance-attribute --instance-id i-0a1b2c3d4e5f60789 --groups sg-0b7e1c9a5d3f2e481",
+        "aws ec2 create-snapshot --volume-id vol-0f1e2d3c4b5a69788 --description \"IR evidence web-app-01\"",
+        "aws ec2 describe-snapshots --snapshot-ids snap-0d1e2f3a4b5c67890",
+        "aws ec2 terminate-instances --instance-ids i-0a1b2c3d4e5f60789",
+        "aws iam detach-user-policy --user-name support-temp --policy-arn arn:aws:iam::aws:policy/AdministratorAccess",
+        "aws iam delete-access-key --user-name support-temp --access-key-id AKIAI44QH8DHBEXAMPLE",
+        "aws iam delete-user --user-name support-temp",
+        "tabletop status"
+      ],
+      "tasks": [
+        {
+          "id": "t1",
+          "kind": "choice",
+          "prompt": "Which containment order is correct for a leaked long-lived access key that has already assumed a role and touched an EC2 instance?",
+          "options": [
+            "Delete the IAM user, terminate the instance, then investigate from CloudTrail",
+            "Disable the key, revoke the role's older sessions, isolate the instance, snapshot its disk, then terminate it",
+            "Revoke the role's older sessions first, then disable the key, then terminate the instance and snapshot afterwards",
+            "Terminate the instance first to stop the attacker's code, then disable the key"
+          ],
+          "correct": [
+            1
+          ],
+          "explanation": "Cut off the source first (disable the key, reversible), THEN revoke the sessions it already minted, so the attacker cannot simply assume the role again. Isolate the host and preserve its disk before you destroy anything. Deleting or terminating first destroys evidence, and revoking sessions while the key is still active lets the attacker mint a newer session than your cutoff."
+        },
+        {
+          "id": "t2",
+          "kind": "answer",
+          "prompt": "Scope the incident in CloudTrail. What is the name of the backdoor IAM user the attacker created for persistence?",
+          "accept": [
+            "support-temp",
+            "supporttemp",
+            "arn:aws:iam::111122223333:user/support-temp"
+          ],
+          "explanation": "Looking up everything the leaked key did shows CreateUser/CreateAccessKey/AttachUserPolicy for support-temp with AdministratorAccess. Disabling the original key would not have removed this: the attacker would still have a second, privileged credential. Always scope for persistence before declaring containment done."
+        },
+        {
+          "id": "t3",
+          "kind": "choice",
+          "prompt": "Why do you DISABLE the leaked access key before deleting it? (Select all that apply.)",
+          "options": [
+            "It is reversible if the alert turns out to be a false positive",
+            "It keeps the key's metadata (such as last-used) available for the investigation",
+            "AWS refuses to delete an access key that has not been disabled first",
+            "A disabled key can still be used by the attacker for 24 hours"
+          ],
+          "correct": [
+            0,
+            1
+          ],
+          "explanation": "Disabling stops new signed requests immediately, is reversible, and preserves the key and its last-used data for the investigation; you delete it later during recovery once it is replaced. AWS does not require a key to be disabled before deletion, and a disabled key cannot be used for new calls."
+        },
+        {
+          "id": "t4",
+          "kind": "choice",
+          "prompt": "After you disable the key, why must you ALSO revoke the role's older sessions?",
+          "options": [
+            "Temporary credentials the key already minted via AssumeRole stay valid until they expire, even after the key is disabled",
+            "Disabling a key also disables the role it can assume, so revocation is purely cosmetic",
+            "Role sessions are tied to the IAM user and die when the user is disabled",
+            "Revocation is only needed for roles used by AWS services, not by people or CI"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "STS credentials are independent of the long-term key that created them and can live for hours. Attaching a deny conditioned on the token's issue time kills every session issued before your cutoff while letting legitimate re-authentication (sessions issued afterwards) keep working."
+        },
+        {
+          "id": "t5",
+          "kind": "policy",
+          "mode": "identity",
+          "prompt": "Write the 'revoke older sessions' deny for deploy-role. Deny everything for any session issued BEFORE the 14:35 cutoff, but let sessions issued after it work normally. The role's existing permissions are fixed. The portal's evaluator cannot compare dates, so this lab exposes the token's issue time as the numeric context key `lab:TokenIssueEpoch` (Unix seconds); in real AWS you would use DateLessThan with aws:TokenIssueTime, as in revoke-sessions.json. Cutoff = 1773498900 (2026-03-14T14:35:00Z).",
+          "starter": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"RevokeOlderSessions\",\n      \"Effect\": \"Deny\",\n      \"Action\": \"*\",\n      \"Resource\": \"*\",\n      \"Condition\": {\n        \"NumericGreaterThan\": {\n          \"lab:TokenIssueEpoch\": 1773498900\n        }\n      }\n    }\n  ]\n}",
+          "solution": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"RevokeOlderSessions\",\n      \"Effect\": \"Deny\",\n      \"Action\": \"*\",\n      \"Resource\": \"*\",\n      \"Condition\": {\n        \"NumericLessThan\": {\n          \"lab:TokenIssueEpoch\": 1773498900\n        }\n      }\n    }\n  ]\n}",
+          "fixed": {
+            "identity": [
+              "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"s3:GetObject\",\n        \"s3:ListBucket\",\n        \"secretsmanager:GetSecretValue\"\n      ],\n      \"Resource\": \"*\"\n    }\n  ]\n}"
+            ]
+          },
+          "tests": [
+            {
+              "name": "The attacker's session issued before the cutoff cannot read data",
+              "action": "s3:GetObject",
+              "resource": "arn:aws:s3:::acme-prod-data/customers.csv",
+              "context": {
+                "lab:TokenIssueEpoch": 1773497100
+              },
+              "expect": "deny"
+            },
+            {
+              "name": "The attacker's session issued before the cutoff cannot read secrets",
+              "action": "secretsmanager:GetSecretValue",
+              "resource": "arn:aws:secretsmanager:us-east-1:111122223333:secret:prod/db-password",
+              "context": {
+                "lab:TokenIssueEpoch": 1773497100
+              },
+              "expect": "deny"
+            },
+            {
+              "name": "A session issued days before the incident is also revoked",
+              "action": "s3:GetObject",
+              "resource": "arn:aws:s3:::acme-prod-data/customers.csv",
+              "context": {
+                "lab:TokenIssueEpoch": 1773239700
+              },
+              "expect": "deny"
+            },
+            {
+              "name": "A fresh session issued after the cutoff keeps working for the pipeline",
+              "action": "s3:GetObject",
+              "resource": "arn:aws:s3:::acme-prod-data/customers.csv",
+              "context": {
+                "lab:TokenIssueEpoch": 1773499500
+              },
+              "expect": "allow"
+            },
+            {
+              "name": "A fresh session after the cutoff can still read its secret",
+              "action": "secretsmanager:GetSecretValue",
+              "resource": "arn:aws:secretsmanager:us-east-1:111122223333:secret:prod/db-password",
+              "context": {
+                "lab:TokenIssueEpoch": 1773499500
+              },
+              "expect": "allow"
+            }
+          ],
+          "explanation": "The deny applies when the session's issue time is EARLIER than the cutoff (NumericLessThan here, DateLessThan on aws:TokenIssueTime in real AWS). Getting the direction wrong either leaves the attacker in or locks out everyone who legitimately re-authenticates. Explicit Deny beats the role's Allow, so one statement revokes every older session at once."
+        },
+        {
+          "id": "t6",
+          "kind": "flag",
+          "prompt": "Run the containment: scope from CloudTrail, then contain in the right order, preserve the evidence, retire the host and remove the persistence. Finish with `tabletop status` and paste the flag.",
+          "flag": "FLAG{contained_evidence_preserved_7c2e}",
+          "explanation": "The simulator gated each step on the one before it: the key had to be disabled before session revocation meant anything, and the host had to be isolated and its disk snapshotted before termination. Finally the backdoor had to be fully removed (key, policy, user). Doing it out of order would have lost evidence or let the attacker back in."
+        },
+        {
+          "id": "t7",
+          "kind": "answer",
+          "prompt": "What must you take of the instance's EBS volume, and see COMPLETED, before terminating the instance so the disk can be analysed later?",
+          "accept": [
+            "snapshot",
+            "a snapshot",
+            "ebs snapshot",
+            "volume snapshot",
+            "an ebs snapshot",
+            "a volume snapshot"
+          ],
+          "explanation": "An EBS snapshot is a point-in-time copy of the disk that you can mount read-only in a forensic account. Once the instance is terminated the root volume is deleted by default, taking the attacker's tooling, logs and persistence with it, so the snapshot must exist and be completed first."
+        },
+        {
+          "id": "t8",
+          "kind": "choice",
+          "prompt": "Which of these belong in the RECOVERY phase? (Select all that apply.)",
+          "options": [
+            "Rotate every secret the compromised role could read and issue a new CI credential",
+            "Rebuild the web server from a known-good image instead of restoring the terminated instance",
+            "Re-enable the leaked key once the attacker's IP is blocked",
+            "Restore the terminated instance from the evidence snapshot into production to save time"
+          ],
+          "correct": [
+            0,
+            1
+          ],
+          "explanation": "Recovery means returning to a trusted state: rotate anything the attacker could have read, replace the leaked credential, and rebuild from a clean image. Re-enabling the leaked key or putting the compromised disk back into production hands the attacker their access again. The snapshot is evidence, not a restore point."
+        }
+      ],
+      "takeaways": [
+        "Order matters: disable the key, then revoke the sessions it already minted, so the attacker cannot re-assume; isolate the host; preserve evidence before destroying anything.",
+        "Disable before delete: you keep reversibility and last-used evidence; delete during recovery, after the credential has been replaced.",
+        "Scope for persistence (new users, keys, roles) before closing: containing only the original credential leaves the attacker's backdoor in place.",
+        "Session revocation is a Deny keyed on token issue time: it kills old sessions but lets legitimate fresh ones through."
+      ]
+    }
+  }
+]

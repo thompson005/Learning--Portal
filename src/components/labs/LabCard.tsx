@@ -25,18 +25,13 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { getProgress, updateLabStatus } from "@/lib/store/progress"
 import { getXp, XP_PER_LAB } from "@/lib/store/gamification"
 import { RESOURCE_ADDITIONS } from "@/lib/data/resourceAdditions"
 import { LabSlideshow } from "@/components/labs/LabSlideshow"
 import { HintList } from "@/components/labs/HintList"
+import { CloudRangeLab } from "@/components/labs/cloud/CloudRangeLab"
+import { StatusBadge } from "@/components/shared/StatusBadge"
 import {
   buildsFromSource,
   dockerTargetSource,
@@ -389,22 +384,9 @@ export function LabCard({ lab, moduleName }: { lab: Lab; moduleName: string }) {
         {status === "completed" && (
           <ShieldCheck className="h-4 w-4 shrink-0 text-brand-green" />
         )}
-        <div onClick={(e) => e.stopPropagation()}>
-          <Select
-            value={status}
-            onValueChange={(v) => handleStatusChange(v as Status)}
-          >
-            <SelectTrigger className="h-8 w-[130px] text-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="not_started">Not Started</SelectItem>
-              <SelectItem value="in_progress">In Progress</SelectItem>
-              <SelectItem value="completed">Completed</SelectItem>
-              <SelectItem value="skipped">Skipped</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+        {/* Status is driven by the portal (opening a lab starts it; finishing it
+            completes it) — never a manual dropdown. */}
+        <StatusBadge status={status} className="shrink-0 rounded-md" />
         <ChevronDown
           className={cn(
             "h-4 w-4 shrink-0 text-muted-foreground transition-transform",
@@ -506,7 +488,9 @@ export function LabCard({ lab, moduleName }: { lab: Lab; moduleName: string }) {
             </div>
           )}
 
-          {lab.slides && lab.slides.length > 0 ? (
+          {lab.range ? (
+            <CloudRangeLab lab={lab} />
+          ) : lab.slides && lab.slides.length > 0 ? (
             <div>
               <p className="mb-1.5 font-mono text-xs font-semibold uppercase tracking-widest text-muted-foreground">
                 Walkthrough
@@ -604,11 +588,14 @@ export function LabCard({ lab, moduleName }: { lab: Lab; moduleName: string }) {
             </div>
           )}
 
-          <LabCompletion
-            lab={lab}
-            status={status}
-            onComplete={() => handleStatusChange("completed")}
-          />
+          {/* Range labs complete themselves once every objective is solved. */}
+          {!lab.range && (
+            <LabCompletion
+              lab={lab}
+              status={status}
+              onComplete={() => handleStatusChange("completed")}
+            />
+          )}
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-1">

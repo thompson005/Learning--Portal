@@ -1,0 +1,980 @@
+[
+  {
+    "labId": "cloud-L05",
+    "title": "Blast Radius of a Leaked Key",
+    "objective": "Respond to a leaked low-privilege access key: work out what it could reach and what it actually did, find the permissions that let it grow, contain it, and tighten its policy.",
+    "successCriteria": [
+      "You identified the source IP and the nature of the unauthorized activity from CloudTrail",
+      "You named the policy statements that let a 'low-privilege' key escalate (PassRole on *, CreatePolicyVersion)",
+      "You deactivated the key without deleting it and verified it is Inactive",
+      "You rewrote the build-bot policy so the pipeline keeps working with a minimal blast radius"
+    ],
+    "hints": [
+      "Start with what the key IS (list-access-keys, list-attached-user-policies) before asking what it DID. The IR runbook artifact gives the order of operations.",
+      "The policy document tells you what the key could do. CloudTrail and Access Advisor tell you what it did. Compare the services it used with what publish.sh needs.",
+      "Look at Resource values: iam:PassRole on * and iam:CreatePolicyVersion on policy/* are the 'it can grow' statements. Prove they are effective with aws iam simulate-principal-policy.",
+      "Contain with: aws iam update-access-key --user-name build-bot --access-key-id AKIAIOSFODNN7EXAMPLE --status Inactive, then close the case with ir-case close once your evidence is gathered."
+    ],
+    "estimatedHours": 2,
+    "resources": [
+      {
+        "title": "AWS docs: Refining permissions using service last accessed data (IAM Access Advisor)",
+        "url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies_access-advisor.html",
+        "type": "link"
+      },
+      {
+        "title": "AWS docs: Security best practices in IAM",
+        "url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/best-practices.html",
+        "type": "link"
+      },
+      {
+        "title": "AWS docs: Getting credential reports for your account",
+        "url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_getting-report.html",
+        "type": "link"
+      },
+      {
+        "title": "AWS docs: Viewing events with CloudTrail Event history",
+        "url": "https://docs.aws.amazon.com/awscloudtrail/latest/userguide/view-cloudtrail-events.html",
+        "type": "link"
+      }
+    ],
+    "range": {
+      "scenario": "You are on the security team at Acme. A secret-scanning alert just landed: the access key for the IAM user `build-bot` (account 111122223333) was committed to a public repository about half an hour ago. The key is described as 'low privilege, it only deploys Lambda builds', so nobody is panicking. Your job is the defender's one: establish the blast radius (what could this key reach, and what did it actually do?), spot the permissions that would let a holder grow beyond the pipeline's remit, rank your remediation leads, contain the key without destroying evidence, and then tighten the policy so the pipeline works with the least possible blast radius. The terminal is a simulated responder shell running as the SecurityIR role.",
+      "artifacts": [
+        {
+          "name": "secret-scanning-alert.txt",
+          "language": "text",
+          "content": "From: no-reply@secret-scanning.example\nSubject: [Action required] Possible exposed AWS access key\nReceived: Wed, 18 Nov 2026 09:20:44 +0000\n\nA credential matching an AWS access key ID was detected in a PUBLIC repository.\n\n  Repository : acme-widgets/ci-scripts (public)\n  File       : deploy/publish.sh   (line 4)\n  Commit     : 9be41c2  pushed 2026-11-18T09:12:09Z\n  Key ID     : AKIAIOSFODNN7EXAMPLE\n  Matched to : IAM user build-bot (account 111122223333)\n\nThe secret half of the key was also present in the commit and is redacted in this notice.\nPublic repositories are scraped continuously: treat the key as compromised, not 'maybe'.",
+          "note": "The alert that started the incident. Note the commit time."
+        },
+        {
+          "name": "deploy/publish.sh (as committed)",
+          "language": "bash",
+          "content": "#!/usr/bin/env bash\nset -euo pipefail\nexport AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE\nexport AWS_SECRET_ACCESS_KEY=\"wJal********REDACTED********\"\n\naws s3 cp build/app.zip s3://acme-build-artifacts/builds/app-latest.zip\naws lambda update-function-code --function-name build-api --s3-bucket acme-build-artifacts --s3-key builds/app-latest.zip",
+          "note": "What the pipeline legitimately does with the key."
+        },
+        {
+          "name": "BuildBotAccess-v3.json",
+          "language": "json",
+          "content": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"ArtifactsBucket\",\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"s3:GetObject\",\n        \"s3:PutObject\",\n        \"s3:ListBucket\"\n      ],\n      \"Resource\": [\n        \"arn:aws:s3:::acme-build-artifacts\",\n        \"arn:aws:s3:::acme-build-artifacts/*\"\n      ]\n    },\n    {\n      \"Sid\": \"LambdaDeploy\",\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"lambda:CreateFunction\",\n        \"lambda:UpdateFunctionCode\",\n        \"lambda:UpdateFunctionConfiguration\",\n        \"lambda:InvokeFunction\"\n      ],\n      \"Resource\": \"*\"\n    },\n    {\n      \"Sid\": \"PassAnyRole\",\n      \"Effect\": \"Allow\",\n      \"Action\": \"iam:PassRole\",\n      \"Resource\": \"*\"\n    },\n    {\n      \"Sid\": \"PipelineSelfService\",\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"iam:CreatePolicyVersion\",\n        \"iam:SetDefaultPolicyVersion\"\n      ],\n      \"Resource\": \"arn:aws:iam::111122223333:policy/*\"\n    },\n    {\n      \"Sid\": \"ReadIam\",\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"iam:Get*\",\n        \"iam:List*\",\n        \"sts:GetCallerIdentity\"\n      ],\n      \"Resource\": \"*\"\n    }\n  ]\n}",
+          "note": "The managed policy attached to build-bot (the whole permission set of the key)."
+        },
+        {
+          "name": "credential-report.csv",
+          "language": "text",
+          "content": "# Credential report (trimmed). Generated 2026-11-18T09:50:02Z\nuser,user_creation_time,password_enabled,mfa_active,access_key_1_active,access_key_1_last_rotated,access_key_1_last_used_date,access_key_1_last_used_region,access_key_1_last_used_service\n<root_account>,2023-09-01T08:00:00+00:00,not_supported,true,false,N/A,N/A,N/A,N/A\nalice,2023-09-04T10:12:44+00:00,true,true,false,N/A,N/A,N/A,N/A\nbuild-bot,2024-02-11T14:03:10+00:00,false,false,true,2024-02-11T14:03:22+00:00,2026-11-18T09:44:51+00:00,us-east-1,iam",
+          "note": "Trimmed IAM credential report. Look at rotation date, MFA and last-used columns."
+        },
+        {
+          "name": "ir-runbook.txt",
+          "language": "text",
+          "content": "IR RUNBOOK: exposed IAM access key (summary)\n\n1. CONTAIN    Deactivate the key (iam update-access-key --status Inactive). Do NOT delete it yet:\n              deactivation is reversible and keeps last-used metadata for the investigation.\n2. SCOPE      What could the key do (policies, boundaries, groups)?  What DID it do (CloudTrail\n              management events, data events if enabled, Access Advisor)?\n3. ERADICATE  Remove permissions the workload never needed; replace the key (prefer short-lived\n              credentials via role assumption / OIDC federation); then delete the old key.\n              Rewriting git history does not un-leak a secret: the key is already burned.\n4. VERIFY     Re-check the key state and the effective permissions. Record evidence on the ticket.\n5. LEARN      Add a guardrail so this class of leak cannot recur.\n\nResponder role SecurityIR can read IAM/CloudTrail and deactivate keys. It has an explicit Deny on\niam:DeleteAccessKey until step 3 is approved.",
+          "note": "Your team's runbook for an exposed key."
+        }
+      ],
+      "terminal": {
+        "prompt": "responder@ir-sandbox:~$",
+        "intro": "Assumed role SecurityIR (account 111122223333, us-east-1). Read access to IAM and CloudTrail; may deactivate access keys. Case: IR-2026-1120.",
+        "help": "Commands you can try (like the AWS CLI):\n  aws sts get-caller-identity\n  aws iam list-access-keys --user-name <user>\n  aws iam get-access-key-last-used --access-key-id <id>\n  aws iam list-attached-user-policies --user-name <user>\n  aws iam list-user-policies --user-name <user>\n  aws iam list-groups-for-user --user-name <user>\n  aws iam get-policy --policy-arn <arn>\n  aws iam get-policy-version --policy-arn <arn> --version-id <v>\n  aws iam get-account-authorization-details --filter User\n  aws iam generate-service-last-accessed-details --arn <principal-arn>\n  aws iam get-service-last-accessed-details --job-id <id>\n  aws iam simulate-principal-policy --policy-source-arn <arn> --action-names <action>\n  aws cloudtrail lookup-events --lookup-attributes AttributeKey=<AccessKeyId|Username|EventName>,AttributeValue=<v>\n  aws iam update-access-key --user-name <u> --access-key-id <id> --status <Active|Inactive>\n  ir-case close          (moves the incident to ERADICATE once containment evidence is complete)",
+        "rules": [
+          {
+            "match": "^aws sts get-caller-identity$",
+            "output": "{\n    \"UserId\": \"AROAEXAMPLEIRROLE01:responder\",\n    \"Account\": \"111122223333\",\n    \"Arn\": \"arn:aws:sts::111122223333:assumed-role/SecurityIR/responder\"\n}",
+            "sets": [
+              "whoami"
+            ]
+          },
+          {
+            "match": "^aws iam list-access-keys --user-name build-bot$",
+            "output": "{\n    \"AccessKeyMetadata\": [\n        {\n            \"UserName\": \"build-bot\",\n            \"AccessKeyId\": \"AKIAIOSFODNN7EXAMPLE\",\n            \"Status\": \"Inactive\",\n            \"CreateDate\": \"2024-02-11T14:03:22+00:00\"\n        }\n    ]\n}",
+            "requires": [
+              "key_inactive"
+            ]
+          },
+          {
+            "match": "^aws iam list-access-keys --user-name build-bot$",
+            "output": "{\n    \"AccessKeyMetadata\": [\n        {\n            \"UserName\": \"build-bot\",\n            \"AccessKeyId\": \"AKIAIOSFODNN7EXAMPLE\",\n            \"Status\": \"Active\",\n            \"CreateDate\": \"2024-02-11T14:03:22+00:00\"\n        }\n    ]\n}",
+            "sets": [
+              "key_listed"
+            ]
+          },
+          {
+            "match": "^aws iam get-access-key-last-used --access-key-id akiaiosfodnn7example$",
+            "output": "{\n    \"UserName\": \"build-bot\",\n    \"AccessKeyLastUsed\": {\n        \"LastUsedDate\": \"2026-11-18T09:44:51+00:00\",\n        \"ServiceName\": \"iam\",\n        \"Region\": \"us-east-1\"\n    }\n}",
+            "sets": [
+              "key_last_used"
+            ]
+          },
+          {
+            "match": "^aws iam get-access-key-last-used --access-key-id (\\S+)$",
+            "output": "An error occurred (NoSuchEntity) when calling the GetAccessKeyLastUsed operation: The Access Key with id $1 cannot be found."
+          },
+          {
+            "match": "^aws iam list-attached-user-policies --user-name build-bot$",
+            "output": "{\n    \"AttachedPolicies\": [\n        {\n            \"PolicyName\": \"BuildBotAccess\",\n            \"PolicyArn\": \"arn:aws:iam::111122223333:policy/BuildBotAccess\"\n        }\n    ]\n}",
+            "sets": [
+              "policies_listed"
+            ]
+          },
+          {
+            "match": "^aws iam list-user-policies --user-name build-bot$",
+            "output": "{\n    \"PolicyNames\": []\n}"
+          },
+          {
+            "match": "^aws iam list-groups-for-user --user-name build-bot$",
+            "output": "{\n    \"Groups\": []\n}"
+          },
+          {
+            "match": "^aws iam list-access-keys --user-name (?!build-bot$)(\\S+)$",
+            "output": "An error occurred (NoSuchEntity) when calling the ListAccessKeys operation: The user with name $1 cannot be found."
+          },
+          {
+            "match": "^aws iam list-attached-user-policies --user-name (?!build-bot$)(\\S+)$",
+            "output": "An error occurred (NoSuchEntity) when calling the ListAttachedUserPolicies operation: The user with name $1 cannot be found."
+          },
+          {
+            "match": "^aws iam list-user-policies --user-name (?!build-bot$)(\\S+)$",
+            "output": "An error occurred (NoSuchEntity) when calling the ListUserPolicies operation: The user with name $1 cannot be found."
+          },
+          {
+            "match": "^aws iam list-groups-for-user --user-name (?!build-bot$)(\\S+)$",
+            "output": "An error occurred (NoSuchEntity) when calling the ListGroupsForUser operation: The user with name $1 cannot be found."
+          },
+          {
+            "match": "^aws iam get-policy --policy-arn arn:aws:iam::111122223333:policy/buildbotaccess$",
+            "output": "{\n    \"Policy\": {\n        \"PolicyName\": \"BuildBotAccess\",\n        \"PolicyId\": \"ANPAEXAMPLEBUILDBOT01\",\n        \"Arn\": \"arn:aws:iam::111122223333:policy/BuildBotAccess\",\n        \"DefaultVersionId\": \"v3\",\n        \"AttachmentCount\": 1,\n        \"PermissionsBoundaryUsageCount\": 0,\n        \"IsAttachable\": true\n    }\n}"
+          },
+          {
+            "match": "^aws iam get-policy-version --policy-arn arn:aws:iam::111122223333:policy/buildbotaccess --version-id v3$",
+            "output": "{\n    \"PolicyVersion\": {\n        \"Document\": {\n            \"Version\": \"2012-10-17\",\n            \"Statement\": [\n                {\n                    \"Sid\": \"ArtifactsBucket\",\n                    \"Effect\": \"Allow\",\n                    \"Action\": [\n                        \"s3:GetObject\",\n                        \"s3:PutObject\",\n                        \"s3:ListBucket\"\n                    ],\n                    \"Resource\": [\n                        \"arn:aws:s3:::acme-build-artifacts\",\n                        \"arn:aws:s3:::acme-build-artifacts/*\"\n                    ]\n                },\n                {\n                    \"Sid\": \"LambdaDeploy\",\n                    \"Effect\": \"Allow\",\n                    \"Action\": [\n                        \"lambda:CreateFunction\",\n                        \"lambda:UpdateFunctionCode\",\n                        \"lambda:UpdateFunctionConfiguration\",\n                        \"lambda:InvokeFunction\"\n                    ],\n                    \"Resource\": \"*\"\n                },\n                {\n                    \"Sid\": \"PassAnyRole\",\n                    \"Effect\": \"Allow\",\n                    \"Action\": \"iam:PassRole\",\n                    \"Resource\": \"*\"\n                },\n                {\n                    \"Sid\": \"PipelineSelfService\",\n                    \"Effect\": \"Allow\",\n                    \"Action\": [\n                        \"iam:CreatePolicyVersion\",\n                        \"iam:SetDefaultPolicyVersion\"\n                    ],\n                    \"Resource\": \"arn:aws:iam::111122223333:policy/*\"\n                },\n                {\n                    \"Sid\": \"ReadIam\",\n                    \"Effect\": \"Allow\",\n                    \"Action\": [\n                        \"iam:Get*\",\n                        \"iam:List*\",\n                        \"sts:GetCallerIdentity\"\n                    ],\n                    \"Resource\": \"*\"\n                }\n            ]\n        },\n        \"VersionId\": \"v3\",\n        \"IsDefaultVersion\": true,\n        \"CreateDate\": \"2025-06-02T10:11:12+00:00\"\n    }\n}",
+            "sets": [
+              "policy_read"
+            ]
+          },
+          {
+            "match": "^aws iam get-policy-version\\b",
+            "output": "An error occurred (NoSuchEntity) when calling the GetPolicyVersion operation: Policy version or policy not found. (Use `aws iam get-policy --policy-arn <arn>` to see the default version id.)"
+          },
+          {
+            "match": "^aws iam get-account-authorization-details( --filter user)?$",
+            "output": "{\n    \"UserDetailList\": [\n        {\n            \"Path\": \"/\",\n            \"UserName\": \"alice\",\n            \"UserId\": \"AIDAEXAMPLEALICE0001\",\n            \"Arn\": \"arn:aws:iam::111122223333:user/alice\",\n            \"CreateDate\": \"2023-09-04T10:12:44+00:00\",\n            \"GroupList\": [\n                \"PlatformAdmins\"\n            ],\n            \"AttachedManagedPolicies\": [],\n            \"Tags\": []\n        },\n        {\n            \"Path\": \"/\",\n            \"UserName\": \"build-bot\",\n            \"UserId\": \"AIDAEXAMPLEBUILD0001\",\n            \"Arn\": \"arn:aws:iam::111122223333:user/build-bot\",\n            \"CreateDate\": \"2024-02-11T14:03:10+00:00\",\n            \"GroupList\": [],\n            \"AttachedManagedPolicies\": [\n                {\n                    \"PolicyName\": \"BuildBotAccess\",\n                    \"PolicyArn\": \"arn:aws:iam::111122223333:policy/BuildBotAccess\"\n                }\n            ],\n            \"Tags\": [\n                {\n                    \"Key\": \"owner\",\n                    \"Value\": \"platform-team\"\n                }\n            ]\n        }\n    ],\n    \"IsTruncated\": false\n}\n(build-bot has no permissions boundary and no inline policies: the managed policy BuildBotAccess is its entire permission set)",
+            "sets": [
+              "auth_details"
+            ]
+          },
+          {
+            "match": "^aws iam generate-service-last-accessed-details --arn arn:aws:iam::111122223333:user/build-bot$",
+            "output": "{\n    \"JobId\": \"ab12cd34-5678-90ef-1234-567890EXAMPLE\"\n}",
+            "sets": [
+              "job_started"
+            ]
+          },
+          {
+            "match": "^aws iam get-service-last-accessed-details --job-id (\\S+)$",
+            "output": "{\n    \"JobStatus\": \"COMPLETED\",\n    \"JobType\": \"SERVICE_LEVEL\",\n    \"JobCreationDate\": \"2026-11-18T09:52:10+00:00\",\n    \"JobCompletionDate\": \"2026-11-18T09:52:12+00:00\",\n    \"ServicesLastAccessed\": [\n        {\n            \"ServiceName\": \"AWS Identity and Access Management\",\n            \"LastAuthenticated\": \"2026-11-18T09:44:00+00:00\",\n            \"ServiceNamespace\": \"iam\",\n            \"LastAuthenticatedEntity\": \"arn:aws:iam::111122223333:user/build-bot\",\n            \"LastAuthenticatedRegion\": \"us-east-1\",\n            \"TotalAuthenticatedEntities\": 1\n        },\n        {\n            \"ServiceName\": \"AWS Security Token Service\",\n            \"LastAuthenticated\": \"2026-11-18T09:40:00+00:00\",\n            \"ServiceNamespace\": \"sts\",\n            \"LastAuthenticatedEntity\": \"arn:aws:iam::111122223333:user/build-bot\",\n            \"LastAuthenticatedRegion\": \"us-east-1\",\n            \"TotalAuthenticatedEntities\": 1\n        },\n        {\n            \"ServiceName\": \"AWS Lambda\",\n            \"LastAuthenticated\": \"2026-11-17T22:00:00+00:00\",\n            \"ServiceNamespace\": \"lambda\",\n            \"LastAuthenticatedEntity\": \"arn:aws:iam::111122223333:user/build-bot\",\n            \"LastAuthenticatedRegion\": \"us-east-1\",\n            \"TotalAuthenticatedEntities\": 1\n        },\n        {\n            \"ServiceName\": \"Amazon S3\",\n            \"LastAuthenticated\": \"2026-11-17T22:00:00+00:00\",\n            \"ServiceNamespace\": \"s3\",\n            \"LastAuthenticatedEntity\": \"arn:aws:iam::111122223333:user/build-bot\",\n            \"LastAuthenticatedRegion\": \"us-east-1\",\n            \"TotalAuthenticatedEntities\": 1\n        },\n        {\n            \"ServiceName\": \"Amazon EC2\",\n            \"ServiceNamespace\": \"ec2\",\n            \"TotalAuthenticatedEntities\": 0\n        }\n    ],\n    \"IsTruncated\": false\n}",
+            "requires": [
+              "job_started"
+            ],
+            "sets": [
+              "advisor_reviewed"
+            ]
+          },
+          {
+            "match": "^aws iam get-service-last-accessed-details\\b",
+            "output": "An error occurred (NoSuchEntity) when calling the GetServiceLastAccessedDetails operation: Job not found. Start one with generate-service-last-accessed-details first."
+          },
+          {
+            "match": "^aws cloudtrail lookup-events --lookup-attributes attributekey=eventname,attributevalue=attachuserpolicy\\b.*$",
+            "output": "{\n    \"Events\": [\n        {\n            \"EventId\": \"EXAMPLE-5959106e\",\n            \"EventName\": \"AttachUserPolicy\",\n            \"ReadOnly\": \"false\",\n            \"AccessKeyId\": \"AKIAIOSFODNN7EXAMPLE\",\n            \"EventTime\": \"2026-11-18T09:43:02+00:00\",\n            \"EventSource\": \"iam.amazonaws.com\",\n            \"Username\": \"build-bot\",\n            \"Resources\": [],\n            \"CloudTrailEvent\": \"{\\\"eventVersion\\\":\\\"1.09\\\",\\\"eventTime\\\":\\\"2026-11-18T09:43:02Z\\\",\\\"eventSource\\\":\\\"iam.amazonaws.com\\\",\\\"eventName\\\":\\\"AttachUserPolicy\\\",\\\"awsRegion\\\":\\\"us-east-1\\\",\\\"sourceIPAddress\\\":\\\"203.0.113.50\\\",\\\"userAgent\\\":\\\"Boto3/1.34.40 md/Botocore#1.34.40 ua/2.0 os/linux#6.5.0 md/arch#x86_64 lang/python#3.11.7\\\",\\\"errorCode\\\":\\\"AccessDenied\\\",\\\"errorMessage\\\":\\\"User: arn:aws:iam::111122223333:user/build-bot is not authorized to perform: iam:AttachUserPolicy on resource: user build-bot because no identity-based policy allows the iam:AttachUserPolicy action\\\"}\"\n        }\n    ]\n}",
+            "sets": [
+              "escalation_checked"
+            ]
+          },
+          {
+            "match": "^aws cloudtrail lookup-events --lookup-attributes attributekey=eventname,attributevalue=(createpolicyversion|setdefaultpolicyversion|createfunction20150331|createaccesskey|putuserpolicy|createloginprofile)\\b.*$",
+            "output": "{\n    \"Events\": []\n}",
+            "sets": [
+              "escalation_checked"
+            ]
+          },
+          {
+            "match": "^aws cloudtrail lookup-events --lookup-attributes attributekey=(?:accesskeyid,attributevalue=akiaiosfodnn7example|username,attributevalue=build-bot)\\b.*$",
+            "output": "{\n    \"Events\": [\n        {\n            \"EventId\": \"EXAMPLE-411f7f5b\",\n            \"EventName\": \"ListPolicies\",\n            \"ReadOnly\": \"true\",\n            \"AccessKeyId\": \"AKIAIOSFODNN7EXAMPLE\",\n            \"EventTime\": \"2026-11-18T09:44:51+00:00\",\n            \"EventSource\": \"iam.amazonaws.com\",\n            \"Username\": \"build-bot\",\n            \"Resources\": [],\n            \"CloudTrailEvent\": \"{\\\"eventVersion\\\":\\\"1.09\\\",\\\"eventTime\\\":\\\"2026-11-18T09:44:51Z\\\",\\\"eventSource\\\":\\\"iam.amazonaws.com\\\",\\\"eventName\\\":\\\"ListPolicies\\\",\\\"awsRegion\\\":\\\"us-east-1\\\",\\\"sourceIPAddress\\\":\\\"203.0.113.50\\\",\\\"userAgent\\\":\\\"Boto3/1.34.40 md/Botocore#1.34.40 ua/2.0 os/linux#6.5.0 md/arch#x86_64 lang/python#3.11.7\\\"}\"\n        },\n        {\n            \"EventId\": \"EXAMPLE-36d5ecd9\",\n            \"EventName\": \"ListFunctions20150331\",\n            \"ReadOnly\": \"true\",\n            \"AccessKeyId\": \"AKIAIOSFODNN7EXAMPLE\",\n            \"EventTime\": \"2026-11-18T09:44:20+00:00\",\n            \"EventSource\": \"lambda.amazonaws.com\",\n            \"Username\": \"build-bot\",\n            \"Resources\": [],\n            \"CloudTrailEvent\": \"{\\\"eventVersion\\\":\\\"1.09\\\",\\\"eventTime\\\":\\\"2026-11-18T09:44:20Z\\\",\\\"eventSource\\\":\\\"lambda.amazonaws.com\\\",\\\"eventName\\\":\\\"ListFunctions20150331\\\",\\\"awsRegion\\\":\\\"us-east-1\\\",\\\"sourceIPAddress\\\":\\\"203.0.113.50\\\",\\\"userAgent\\\":\\\"Boto3/1.34.40 md/Botocore#1.34.40 ua/2.0 os/linux#6.5.0 md/arch#x86_64 lang/python#3.11.7\\\",\\\"errorCode\\\":\\\"AccessDenied\\\",\\\"errorMessage\\\":\\\"User: arn:aws:iam::111122223333:user/build-bot is not authorized to perform: lambda:ListFunctions on resource: * because no identity-based policy allows the lambda:ListFunctions action\\\"}\"\n        },\n        {\n            \"EventId\": \"EXAMPLE-5959106e\",\n            \"EventName\": \"AttachUserPolicy\",\n            \"ReadOnly\": \"false\",\n            \"AccessKeyId\": \"AKIAIOSFODNN7EXAMPLE\",\n            \"EventTime\": \"2026-11-18T09:43:02+00:00\",\n            \"EventSource\": \"iam.amazonaws.com\",\n            \"Username\": \"build-bot\",\n            \"Resources\": [],\n            \"CloudTrailEvent\": \"{\\\"eventVersion\\\":\\\"1.09\\\",\\\"eventTime\\\":\\\"2026-11-18T09:43:02Z\\\",\\\"eventSource\\\":\\\"iam.amazonaws.com\\\",\\\"eventName\\\":\\\"AttachUserPolicy\\\",\\\"awsRegion\\\":\\\"us-east-1\\\",\\\"sourceIPAddress\\\":\\\"203.0.113.50\\\",\\\"userAgent\\\":\\\"Boto3/1.34.40 md/Botocore#1.34.40 ua/2.0 os/linux#6.5.0 md/arch#x86_64 lang/python#3.11.7\\\",\\\"errorCode\\\":\\\"AccessDenied\\\",\\\"errorMessage\\\":\\\"User: arn:aws:iam::111122223333:user/build-bot is not authorized to perform: iam:AttachUserPolicy on resource: user build-bot because no identity-based policy allows the iam:AttachUserPolicy action\\\"}\"\n        },\n        {\n            \"EventId\": \"EXAMPLE-3bfbc15a\",\n            \"EventName\": \"ListUsers\",\n            \"ReadOnly\": \"true\",\n            \"AccessKeyId\": \"AKIAIOSFODNN7EXAMPLE\",\n            \"EventTime\": \"2026-11-18T09:42:18+00:00\",\n            \"EventSource\": \"iam.amazonaws.com\",\n            \"Username\": \"build-bot\",\n            \"Resources\": [],\n            \"CloudTrailEvent\": \"{\\\"eventVersion\\\":\\\"1.09\\\",\\\"eventTime\\\":\\\"2026-11-18T09:42:18Z\\\",\\\"eventSource\\\":\\\"iam.amazonaws.com\\\",\\\"eventName\\\":\\\"ListUsers\\\",\\\"awsRegion\\\":\\\"us-east-1\\\",\\\"sourceIPAddress\\\":\\\"203.0.113.50\\\",\\\"userAgent\\\":\\\"Boto3/1.34.40 md/Botocore#1.34.40 ua/2.0 os/linux#6.5.0 md/arch#x86_64 lang/python#3.11.7\\\"}\"\n        },\n        {\n            \"EventId\": \"EXAMPLE-2913de7b\",\n            \"EventName\": \"ListRoles\",\n            \"ReadOnly\": \"true\",\n            \"AccessKeyId\": \"AKIAIOSFODNN7EXAMPLE\",\n            \"EventTime\": \"2026-11-18T09:41:40+00:00\",\n            \"EventSource\": \"iam.amazonaws.com\",\n            \"Username\": \"build-bot\",\n            \"Resources\": [],\n            \"CloudTrailEvent\": \"{\\\"eventVersion\\\":\\\"1.09\\\",\\\"eventTime\\\":\\\"2026-11-18T09:41:40Z\\\",\\\"eventSource\\\":\\\"iam.amazonaws.com\\\",\\\"eventName\\\":\\\"ListRoles\\\",\\\"awsRegion\\\":\\\"us-east-1\\\",\\\"sourceIPAddress\\\":\\\"203.0.113.50\\\",\\\"userAgent\\\":\\\"Boto3/1.34.40 md/Botocore#1.34.40 ua/2.0 os/linux#6.5.0 md/arch#x86_64 lang/python#3.11.7\\\"}\"\n        },\n        {\n            \"EventId\": \"EXAMPLE-0a431263\",\n            \"EventName\": \"GetPolicyVersion\",\n            \"ReadOnly\": \"true\",\n            \"AccessKeyId\": \"AKIAIOSFODNN7EXAMPLE\",\n            \"EventTime\": \"2026-11-18T09:41:03+00:00\",\n            \"EventSource\": \"iam.amazonaws.com\",\n            \"Username\": \"build-bot\",\n            \"Resources\": [],\n            \"CloudTrailEvent\": \"{\\\"eventVersion\\\":\\\"1.09\\\",\\\"eventTime\\\":\\\"2026-11-18T09:41:03Z\\\",\\\"eventSource\\\":\\\"iam.amazonaws.com\\\",\\\"eventName\\\":\\\"GetPolicyVersion\\\",\\\"awsRegion\\\":\\\"us-east-1\\\",\\\"sourceIPAddress\\\":\\\"203.0.113.50\\\",\\\"userAgent\\\":\\\"Boto3/1.34.40 md/Botocore#1.34.40 ua/2.0 os/linux#6.5.0 md/arch#x86_64 lang/python#3.11.7\\\"}\"\n        },\n        {\n            \"EventId\": \"EXAMPLE-6968d037\",\n            \"EventName\": \"GetPolicy\",\n            \"ReadOnly\": \"true\",\n            \"AccessKeyId\": \"AKIAIOSFODNN7EXAMPLE\",\n            \"EventTime\": \"2026-11-18T09:40:55+00:00\",\n            \"EventSource\": \"iam.amazonaws.com\",\n            \"Username\": \"build-bot\",\n            \"Resources\": [],\n            \"CloudTrailEvent\": \"{\\\"eventVersion\\\":\\\"1.09\\\",\\\"eventTime\\\":\\\"2026-11-18T09:40:55Z\\\",\\\"eventSource\\\":\\\"iam.amazonaws.com\\\",\\\"eventName\\\":\\\"GetPolicy\\\",\\\"awsRegion\\\":\\\"us-east-1\\\",\\\"sourceIPAddress\\\":\\\"203.0.113.50\\\",\\\"userAgent\\\":\\\"Boto3/1.34.40 md/Botocore#1.34.40 ua/2.0 os/linux#6.5.0 md/arch#x86_64 lang/python#3.11.7\\\"}\"\n        },\n        {\n            \"EventId\": \"EXAMPLE-3cfdf7ee\",\n            \"EventName\": \"ListAttachedUserPolicies\",\n            \"ReadOnly\": \"true\",\n            \"AccessKeyId\": \"AKIAIOSFODNN7EXAMPLE\",\n            \"EventTime\": \"2026-11-18T09:40:31+00:00\",\n            \"EventSource\": \"iam.amazonaws.com\",\n            \"Username\": \"build-bot\",\n            \"Resources\": [],\n            \"CloudTrailEvent\": \"{\\\"eventVersion\\\":\\\"1.09\\\",\\\"eventTime\\\":\\\"2026-11-18T09:40:31Z\\\",\\\"eventSource\\\":\\\"iam.amazonaws.com\\\",\\\"eventName\\\":\\\"ListAttachedUserPolicies\\\",\\\"awsRegion\\\":\\\"us-east-1\\\",\\\"sourceIPAddress\\\":\\\"203.0.113.50\\\",\\\"userAgent\\\":\\\"Boto3/1.34.40 md/Botocore#1.34.40 ua/2.0 os/linux#6.5.0 md/arch#x86_64 lang/python#3.11.7\\\"}\"\n        },\n        {\n            \"EventId\": \"EXAMPLE-5ae50121\",\n            \"EventName\": \"GetCallerIdentity\",\n            \"ReadOnly\": \"true\",\n            \"AccessKeyId\": \"AKIAIOSFODNN7EXAMPLE\",\n            \"EventTime\": \"2026-11-18T09:40:12+00:00\",\n            \"EventSource\": \"sts.amazonaws.com\",\n            \"Username\": \"build-bot\",\n            \"Resources\": [],\n            \"CloudTrailEvent\": \"{\\\"eventVersion\\\":\\\"1.09\\\",\\\"eventTime\\\":\\\"2026-11-18T09:40:12Z\\\",\\\"eventSource\\\":\\\"sts.amazonaws.com\\\",\\\"eventName\\\":\\\"GetCallerIdentity\\\",\\\"awsRegion\\\":\\\"us-east-1\\\",\\\"sourceIPAddress\\\":\\\"203.0.113.50\\\",\\\"userAgent\\\":\\\"Boto3/1.34.40 md/Botocore#1.34.40 ua/2.0 os/linux#6.5.0 md/arch#x86_64 lang/python#3.11.7\\\"}\"\n        },\n        {\n            \"EventId\": \"EXAMPLE-1c21a917\",\n            \"EventName\": \"UpdateFunctionCode20150331v2\",\n            \"ReadOnly\": \"false\",\n            \"AccessKeyId\": \"AKIAIOSFODNN7EXAMPLE\",\n            \"EventTime\": \"2026-11-17T22:15:03+00:00\",\n            \"EventSource\": \"lambda.amazonaws.com\",\n            \"Username\": \"build-bot\",\n            \"Resources\": [],\n            \"CloudTrailEvent\": \"{\\\"eventVersion\\\":\\\"1.09\\\",\\\"eventTime\\\":\\\"2026-11-17T22:15:03Z\\\",\\\"eventSource\\\":\\\"lambda.amazonaws.com\\\",\\\"eventName\\\":\\\"UpdateFunctionCode20150331v2\\\",\\\"awsRegion\\\":\\\"us-east-1\\\",\\\"sourceIPAddress\\\":\\\"198.51.100.20\\\",\\\"userAgent\\\":\\\"aws-cli/2.15.17 Python/3.11.8 Linux/6.1.0 exe/x86_64.ubuntu.22\\\"}\"\n        }\n    ]\n}",
+            "sets": [
+              "trail_reviewed"
+            ]
+          },
+          {
+            "match": "^aws cloudtrail lookup-events\\b",
+            "output": "usage: aws cloudtrail lookup-events --lookup-attributes AttributeKey=<AccessKeyId|Username|EventName>,AttributeValue=<value>"
+          },
+          {
+            "match": "^aws iam simulate-principal-policy(?=.*--policy-source-arn arn:aws:iam::111122223333:user/build-bot)(?=.*--action-names (iam:createpolicyversion|iam:passrole|iam:setdefaultpolicyversion)\\b).*$",
+            "output": "{\n    \"EvaluationResults\": [\n        {\n            \"EvalActionName\": \"$1\",\n            \"EvalResourceName\": \"*\",\n            \"EvalDecision\": \"allowed\",\n            \"MatchedStatements\": [\n                {\n                    \"SourcePolicyId\": \"BuildBotAccess\",\n                    \"SourcePolicyType\": \"IAM Policy\"\n                }\n            ],\n            \"MissingContextValues\": []\n        }\n    ]\n}",
+            "sets": [
+              "simulated"
+            ]
+          },
+          {
+            "match": "^aws iam simulate-principal-policy(?=.*--policy-source-arn arn:aws:iam::111122223333:user/build-bot)(?=.*--action-names (\\S+)).*$",
+            "output": "{\n    \"EvaluationResults\": [\n        {\n            \"EvalActionName\": \"$1\",\n            \"EvalResourceName\": \"*\",\n            \"EvalDecision\": \"implicitDeny\",\n            \"MatchedStatements\": [],\n            \"MissingContextValues\": []\n        }\n    ]\n}",
+            "sets": [
+              "simulated"
+            ]
+          },
+          {
+            "match": "^aws iam update-access-key(?=.*--access-key-id akiaiosfodnn7example)(?=.*--status inactive)(?=.*--user-name build-bot).*$",
+            "output": "(success: the API returns no body)\nAccess key AKIAIOSFODNN7EXAMPLE for build-bot is now Inactive. Re-check with list-access-keys.",
+            "sets": [
+              "key_inactive"
+            ]
+          },
+          {
+            "match": "^aws iam update-access-key\\b",
+            "output": "usage: aws iam update-access-key --user-name <name> --access-key-id <id> --status <Active|Inactive>"
+          },
+          {
+            "match": "^aws iam delete-access-key\\b",
+            "output": "An error occurred (AccessDenied) when calling the DeleteAccessKey operation: User: arn:aws:sts::111122223333:assumed-role/SecurityIR/responder is not authorized to perform: iam:DeleteAccessKey on resource: user build-bot with an explicit deny in an identity-based policy"
+          },
+          {
+            "match": "^ir-case close$",
+            "output": "IR-2026-1120 containment checklist:\n  [x] access key deactivated\n  [x] CloudTrail activity for the key reviewed\n  [x] effective permissions reviewed (policy + Access Advisor)\nCase moved to ERADICATE. Verification token: FLAG{blast_radius_contained_3c1d}",
+            "requires": [
+              "key_inactive",
+              "trail_reviewed",
+              "policy_read",
+              "advisor_reviewed"
+            ],
+            "sets": [
+              "case_closed"
+            ]
+          },
+          {
+            "match": "^ir-case close$",
+            "output": "IR-2026-1120 cannot move to ERADICATE yet. Checklist incomplete:\n  - the key must be deactivated (not deleted)\n  - CloudTrail activity for the key must be reviewed\n  - the effective permissions must be reviewed (the attached policy AND Access Advisor)"
+          }
+        ],
+        "fallback": "Nothing scripted for that command in this range. Type 'help' for the responder commands."
+      },
+      "solution": [
+        "aws sts get-caller-identity",
+        "aws iam list-access-keys --user-name build-bot",
+        "aws iam get-access-key-last-used --access-key-id AKIAIOSFODNN7EXAMPLE",
+        "aws iam list-attached-user-policies --user-name build-bot",
+        "aws iam get-policy-version --policy-arn arn:aws:iam::111122223333:policy/BuildBotAccess --version-id v3",
+        "aws iam generate-service-last-accessed-details --arn arn:aws:iam::111122223333:user/build-bot",
+        "aws iam get-service-last-accessed-details --job-id ab12cd34-5678-90ef-1234-567890EXAMPLE",
+        "aws cloudtrail lookup-events --lookup-attributes AttributeKey=AccessKeyId,AttributeValue=AKIAIOSFODNN7EXAMPLE",
+        "aws cloudtrail lookup-events --lookup-attributes AttributeKey=EventName,AttributeValue=CreatePolicyVersion",
+        "aws iam simulate-principal-policy --policy-source-arn arn:aws:iam::111122223333:user/build-bot --action-names iam:CreatePolicyVersion",
+        "aws iam update-access-key --user-name build-bot --access-key-id AKIAIOSFODNN7EXAMPLE --status Inactive",
+        "aws iam list-access-keys --user-name build-bot",
+        "ir-case close"
+      ],
+      "tasks": [
+        {
+          "id": "t1",
+          "kind": "choice",
+          "prompt": "Read BuildBotAccess-v3.json. Which statements would let a holder of this key GROW beyond what the build pipeline needs? (Select all that apply.)",
+          "options": [
+            "iam:PassRole on Resource * combined with lambda:CreateFunction",
+            "iam:CreatePolicyVersion and iam:SetDefaultPolicyVersion on policy/*",
+            "s3:GetObject / PutObject on the single acme-build-artifacts bucket",
+            "iam:Get* / iam:List* read-only access"
+          ],
+          "correct": [
+            0,
+            1
+          ],
+          "explanation": "PassRole on * lets the key hand ANY role (including a more privileged one) to a Lambda function it creates, and CreatePolicyVersion on policy/* lets it rewrite a managed policy, including the one attached to itself, and make the new version the default. Those two are privilege-escalation primitives. The S3 statement is bounded to one bucket, and read-only IAM access does not grow privilege by itself, but it is what makes reconnaissance trivial, so it is still worth removing."
+        },
+        {
+          "id": "t2",
+          "kind": "answer",
+          "prompt": "Use the CloudTrail lookup for this access key. From which source IP address did the unauthorized activity originate?",
+          "accept": [
+            "203.0.113.50"
+          ],
+          "explanation": "The legitimate CI events come from 198.51.100.20 with an aws-cli user agent and only touch Lambda. The new activity starts roughly 28 minutes after the commit, from 203.0.113.50 with a Boto3 user agent, and is entirely IAM/STS discovery plus a denied attempt to attach a policy. Correlating source IP, user agent and the services touched against the pipeline's baseline is how you tell attacker from automation."
+        },
+        {
+          "id": "t3",
+          "kind": "answer",
+          "prompt": "Which single IAM action in this policy would let the key rewrite its own permissions (answer with the action name)?",
+          "accept": [
+            "iam:createpolicyversion",
+            "createpolicyversion",
+            "iam:setdefaultpolicyversion",
+            "setdefaultpolicyversion"
+          ],
+          "explanation": "iam:CreatePolicyVersion creates a new version of a managed policy; combined with making it the default version (via the --set-as-default flag or SetDefaultPolicyVersion) the key could grant itself any permission. The simulator confirms it is effective for this principal. CloudTrail showed no CreatePolicyVersion call, so no escalation was observed, but the capability existed and had to be closed."
+        },
+        {
+          "id": "t4",
+          "kind": "choice",
+          "prompt": "Rank your remediation leads. Which sequence is the right order of operations for this incident?",
+          "options": [
+            "Deactivate the key and keep it for evidence; review activity and permissions; remove unneeded permissions; replace with short-lived credentials; then delete the old key.",
+            "Force-push to remove the commit from the repo; wait for proof of abuse in CloudTrail; deactivate the key only if abuse is confirmed.",
+            "Rotate the key but leave the old one active for 24 hours so the pipeline does not break.",
+            "Delete the IAM user immediately, then investigate from memory."
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Containment comes first and must be reversible: deactivation stops the key within moments but preserves last-used metadata and lets you restore it if you hit the wrong key. Removing the commit does not help because the key was scraped the moment it went public. Leaving the old key active 'for the pipeline' is exactly the exposure window you are trying to close, and deleting the user destroys evidence and the audit trail."
+        },
+        {
+          "id": "t5",
+          "kind": "flag",
+          "prompt": "Contain the incident and gather the evidence: review the key's activity and permissions, deactivate the key (not delete), then close the containment phase with ir-case close. Paste the verification token.",
+          "flag": "FLAG{blast_radius_contained_3c1d}",
+          "explanation": "The case only advances when containment AND evidence review are both done: key Inactive, CloudTrail reviewed, and effective permissions reviewed through the policy document and Access Advisor. Note the responder role cannot delete the key: separating 'stop the bleeding' from 'destroy the key' is a deliberate guardrail."
+        },
+        {
+          "id": "t6",
+          "kind": "policy",
+          "mode": "identity",
+          "prompt": "Fix BuildBotAccess for the REPLACEMENT key. The pipeline must still read/write objects under builds/ in acme-build-artifacts, list that bucket, update (not create) Lambda functions whose names start with build-, and pass only BuildLambdaRole to Lambda. It must NOT manage IAM policies, pass any other role or pass roles to other services, reach other prefixes or functions, or enumerate IAM.",
+          "starter": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"ArtifactsBucket\",\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"s3:GetObject\",\n        \"s3:PutObject\",\n        \"s3:ListBucket\"\n      ],\n      \"Resource\": [\n        \"arn:aws:s3:::acme-build-artifacts\",\n        \"arn:aws:s3:::acme-build-artifacts/*\"\n      ]\n    },\n    {\n      \"Sid\": \"LambdaDeploy\",\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"lambda:CreateFunction\",\n        \"lambda:UpdateFunctionCode\",\n        \"lambda:UpdateFunctionConfiguration\",\n        \"lambda:InvokeFunction\"\n      ],\n      \"Resource\": \"*\"\n    },\n    {\n      \"Sid\": \"PassAnyRole\",\n      \"Effect\": \"Allow\",\n      \"Action\": \"iam:PassRole\",\n      \"Resource\": \"*\"\n    },\n    {\n      \"Sid\": \"PipelineSelfService\",\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"iam:CreatePolicyVersion\",\n        \"iam:SetDefaultPolicyVersion\"\n      ],\n      \"Resource\": \"arn:aws:iam::111122223333:policy/*\"\n    },\n    {\n      \"Sid\": \"ReadIam\",\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"iam:Get*\",\n        \"iam:List*\",\n        \"sts:GetCallerIdentity\"\n      ],\n      \"Resource\": \"*\"\n    }\n  ]\n}",
+          "solution": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"s3:GetObject\",\n        \"s3:PutObject\"\n      ],\n      \"Resource\": \"arn:aws:s3:::acme-build-artifacts/builds/*\"\n    },\n    {\n      \"Effect\": \"Allow\",\n      \"Action\": \"s3:ListBucket\",\n      \"Resource\": \"arn:aws:s3:::acme-build-artifacts\"\n    },\n    {\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"lambda:UpdateFunctionCode\",\n        \"lambda:UpdateFunctionConfiguration\"\n      ],\n      \"Resource\": \"arn:aws:lambda:us-east-1:111122223333:function:build-*\"\n    },\n    {\n      \"Effect\": \"Allow\",\n      \"Action\": \"iam:PassRole\",\n      \"Resource\": \"arn:aws:iam::111122223333:role/BuildLambdaRole\",\n      \"Condition\": {\n        \"StringEquals\": {\n          \"iam:PassedToService\": \"lambda.amazonaws.com\"\n        }\n      }\n    },\n    {\n      \"Effect\": \"Allow\",\n      \"Action\": \"sts:GetCallerIdentity\",\n      \"Resource\": \"*\"\n    }\n  ]\n}",
+          "tests": [
+            {
+              "name": "Can read build artifacts",
+              "action": "s3:GetObject",
+              "resource": "arn:aws:s3:::acme-build-artifacts/builds/app-latest.zip",
+              "expect": "allow"
+            },
+            {
+              "name": "Can upload build artifacts",
+              "action": "s3:PutObject",
+              "resource": "arn:aws:s3:::acme-build-artifacts/builds/app-latest.zip",
+              "expect": "allow"
+            },
+            {
+              "name": "Can update a build-* Lambda function",
+              "action": "lambda:UpdateFunctionCode",
+              "resource": "arn:aws:lambda:us-east-1:111122223333:function:build-api",
+              "expect": "allow"
+            },
+            {
+              "name": "Can pass BuildLambdaRole to Lambda",
+              "action": "iam:PassRole",
+              "resource": "arn:aws:iam::111122223333:role/BuildLambdaRole",
+              "context": {
+                "iam:PassedToService": "lambda.amazonaws.com"
+              },
+              "expect": "allow"
+            },
+            {
+              "name": "Cannot pass an admin role to Lambda",
+              "action": "iam:PassRole",
+              "resource": "arn:aws:iam::111122223333:role/PlatformAdminRole",
+              "context": {
+                "iam:PassedToService": "lambda.amazonaws.com"
+              },
+              "expect": "deny"
+            },
+            {
+              "name": "Cannot pass BuildLambdaRole to EC2",
+              "action": "iam:PassRole",
+              "resource": "arn:aws:iam::111122223333:role/BuildLambdaRole",
+              "context": {
+                "iam:PassedToService": "ec2.amazonaws.com"
+              },
+              "expect": "deny"
+            },
+            {
+              "name": "Cannot rewrite its own policy",
+              "action": "iam:CreatePolicyVersion",
+              "resource": "arn:aws:iam::111122223333:policy/BuildBotAccess",
+              "expect": "deny"
+            },
+            {
+              "name": "Cannot touch production functions",
+              "action": "lambda:UpdateFunctionCode",
+              "resource": "arn:aws:lambda:us-east-1:111122223333:function:prod-payments",
+              "expect": "deny"
+            },
+            {
+              "name": "Cannot read outside the builds/ prefix",
+              "action": "s3:GetObject",
+              "resource": "arn:aws:s3:::acme-build-artifacts/finance/q3-forecast.xlsx",
+              "expect": "deny"
+            },
+            {
+              "name": "Cannot enumerate IAM users",
+              "action": "iam:ListUsers",
+              "resource": "*",
+              "expect": "deny"
+            }
+          ],
+          "explanation": "Blast-radius reduction is about narrowing three dimensions at once: the actions (no policy management, no CreateFunction, no IAM reads), the resources (one prefix, build-* functions only, one passable role) and the context (iam:PassedToService pins the role to Lambda). Access Advisor and CloudTrail told you the pipeline only ever needs S3 and Lambda updates, so everything else was pure liability."
+        },
+        {
+          "id": "t7",
+          "kind": "choice",
+          "prompt": "CloudTrail shows no CreatePolicyVersion or CreateFunction events for the leaked key. Which conclusion is correct?",
+          "options": [
+            "Nothing was changed and the key never read any data, so the incident can be closed.",
+            "No privilege escalation was observed in management events, but S3 object reads are data events that only exist if data event logging was enabled, so access to the artifacts bucket is still unproven.",
+            "Event history only covers the last 24 hours, so the lookup proves nothing.",
+            "Access Advisor proves the key never touched S3, so data exposure is ruled out."
+          ],
+          "correct": [
+            1
+          ],
+          "explanation": "CloudTrail event history (lookup-events) shows management events for the last 90 days. Data-plane activity such as S3 GetObject is only logged if you enabled data events (or have S3 server access logs). 'No events' is evidence of absence only for what is actually logged. Good responders state the limits of their evidence, then check the extra sources."
+        },
+        {
+          "id": "t8",
+          "kind": "choice",
+          "prompt": "The credential report shows the key was last rotated in February 2024 and the pipeline authenticates with it from outside AWS. What is the best long-term fix for the replacement?",
+          "options": [
+            "Rotate the static key every 90 days and keep it in the repository's .env file.",
+            "Replace the long-lived key with short-lived credentials obtained by assuming a role via the CI provider's OIDC federation, scoped by the tightened policy.",
+            "Base64-encode the key in the script so scanners do not match it.",
+            "Give the key MFA so the pipeline cannot be used by others."
+          ],
+          "correct": [
+            1
+          ],
+          "explanation": "The root cause is a long-lived secret sitting where code lives. Federated, short-lived role credentials expire on their own and leave nothing reusable in the repo; a leaked token is worth minutes, not years. Encoding a secret is not protection, a key in a .env file is the same leak waiting to happen, and an unattended pipeline cannot enter an MFA code."
+        }
+      ],
+      "takeaways": [
+        "Answer two questions separately: what COULD the key do (policy, boundary, groups) and what DID it do (CloudTrail, Access Advisor).",
+        "Contain first and reversibly: deactivate the key, keep the evidence, delete later.",
+        "iam:PassRole on * and iam:CreatePolicyVersion on policy/* make any 'low privilege' key a growth risk: grep policies for them.",
+        "State the limits of your evidence: event history is management events only, data events must be enabled.",
+        "Rebuild the permission set from observed need (Access Advisor) and replace static keys with short-lived federated credentials."
+      ]
+    }
+  },
+  {
+    "labId": "cloud-L06",
+    "title": "Graph the Estate",
+    "objective": "Ingest a sandbox account into a graph, answer 'which principals can reach admin?', find the shortest path from a foothold principal, then break the path at the right choke point with a policy fix and prove it is gone.",
+    "successCriteria": [
+      "You listed every principal that can reach the admin role and identified which ones should not",
+      "You found the shortest path from svc-ci-runner to PlatformAdminRole and its length",
+      "You rewrote the admin role's trust policy so only the human admin can assume it, with MFA",
+      "You re-ingested the graph and confirmed that no automation principal can reach admin any more"
+    ],
+    "hints": [
+      "Begin with the big picture: graph summary, then graph reach-admin. Ask who can reach admin before asking how.",
+      "The graph path command takes <from> <to>. Direction matters: the path starts at the foothold and ends at PlatformAdminRole.",
+      "Cutting the first hop or a middle hop leaves other routes. Look at which single trust relationship every path to admin has in common.",
+      "Read PlatformAdminRole's trust policy with aws iam get-role. Keep alice (with MFA), remove every other principal, apply the fix with aws iam update-assume-role-policy, then graph ingest and re-run graph reach-admin."
+    ],
+    "estimatedHours": 2,
+    "resources": [
+      {
+        "title": "AWS docs: IAM roles - terms and concepts",
+        "url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_terms-and-concepts.html",
+        "type": "link"
+      },
+      {
+        "title": "AWS docs: Configuring MFA-protected API access",
+        "url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_mfa_configure-api-require.html",
+        "type": "link"
+      },
+      {
+        "title": "Neo4j Cypher manual",
+        "url": "https://neo4j.com/docs/cypher-manual/current/",
+        "type": "link"
+      }
+    ],
+    "range": {
+      "scenario": "Your cloud security team has ingested the sandbox AWS account 111122223333 into a graph database (users, roles, policies and the trust relationships between them) so that IAM can be reasoned about as a map instead of a pile of JSON. The CI runners use the IAM user `svc-ci-runner`, whose key lives in a third-party CI provider, so the team's threat model assumes it can be compromised. The question for this sprint is a defender's one: which principals can reach administrator, how short is the shortest route from that foothold, and what is the smallest policy change that removes the paths without breaking the business? You will query the graph, make the fix in IAM, re-ingest, and prove the paths are gone. This lab is about reducing attack paths, so everything you do is read-only analysis plus one change to a trust policy.",
+      "artifacts": [
+        {
+          "name": "graph-schema.txt",
+          "language": "text",
+          "content": "SANDBOX GRAPH SCHEMA (simplified for this lab; it models the same IAM facts a tool like Cartography stores)\n\nNodes\n  (:Principal:User {name})   (:Principal:Role {name, admin})   (:Policy {name})\n\nRelationships\n  (a)-[:CAN_ASSUME]->(r:Role)   a is allowed by r's TRUST POLICY to call sts:AssumeRole on r\n  (r)-[:HAS_POLICY]->(p:Policy) permission policy attached to the role\n\nadmin = true  <=>  the role has the AdministratorAccess policy attached\n\nA 'path' to admin is any chain of CAN_ASSUME edges ending at an admin role: each hop is one more\nset of credentials the holder of the first principal can obtain.",
+          "note": "How to read the graph."
+        },
+        {
+          "name": "ingest-log.txt",
+          "language": "text",
+          "content": "2026-11-20T08:29:40Z  sync start  account=111122223333  region=us-east-1\n2026-11-20T08:29:52Z  iam: 3 users, 5 roles, 5 managed policies\n2026-11-20T08:30:03Z  analysis: parsed 5 role trust policies -> 7 CAN_ASSUME edges\n2026-11-20T08:30:11Z  sync complete\nNOTE  Findings are structural: a CAN_ASSUME edge means the trust policy allows it. Whether the caller also has an identity-policy allow for sts:AssumeRole is a separate check.",
+          "note": "Output of the last graph sync."
+        },
+        {
+          "name": "PlatformAdminRole-trust.json",
+          "language": "json",
+          "content": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"AllowAdminsAndLegacyCD\",\n      \"Effect\": \"Allow\",\n      \"Principal\": {\n        \"AWS\": [\n          \"arn:aws:iam::111122223333:role/DeployRole\",\n          \"arn:aws:iam::111122223333:user/alice\"\n        ]\n      },\n      \"Action\": \"sts:AssumeRole\"\n    }\n  ]\n}",
+          "note": "Current trust policy of the admin role (read it from the account with aws iam get-role)."
+        },
+        {
+          "name": "neo4j-queries.txt",
+          "language": "text",
+          "content": "-- Shortest path from the foothold to the admin role\ncypher MATCH p=shortestPath((a:Principal {name:'svc-ci-runner'})-[*]->(b:Principal {name:'PlatformAdminRole'})) RETURN p\n\n-- Everyone who can reach admin through 1 to 5 assume-role hops\ncypher MATCH (a:Principal)-[:CAN_ASSUME*1..5]->(b:Principal {name:'PlatformAdminRole'}) RETURN DISTINCT a.name\n\n-- Convenience wrappers available in this sandbox\ngraph summary | graph edges [--from <name>] | graph path <from> <to> | graph reach-admin | graph ingest",
+          "note": "Example Cypher you can paste into the terminal, plus the shortcuts."
+        }
+      ],
+      "terminal": {
+        "prompt": "graphlab@sandbox:~$",
+        "intro": "Connected to the sandbox graph (Neo4j) and the sandbox AWS account 111122223333 as a read-mostly analyst. Type 'help'.",
+        "help": "Graph commands:\n  graph summary\n  graph edges [--from <name>]\n  graph path <from> <to>\n  graph reach-admin\n  graph ingest                       (re-sync the account into the graph)\n  cypher <query>                     (the example queries in neo4j-queries.txt)\nAWS commands:\n  aws iam get-role --role-name <name>\n  aws iam update-assume-role-policy --role-name <name> --policy-document file://<file>.json",
+        "rules": [
+          {
+            "match": "^graph summary$",
+            "output": "Neo4j 5 @ bolt://localhost:7687   sandbox account 111122223333   last sync 2026-11-20T08:30:11Z\nNodes:  User 3 | Role 5 | Policy 5\nEdges:  CAN_ASSUME 7 | HAS_POLICY 4\nAdmin-equivalent nodes (HAS_POLICY -> AdministratorAccess): PlatformAdminRole\nFoothold under review: svc-ci-runner (user used by the CI runners, key stored in the CI provider)",
+            "sets": [
+              "summarised"
+            ]
+          },
+          {
+            "match": "^(?:graph reach-admin|cypher .*\\[:can_assume\\*.*\\]->\\(\\w*:principal \\{name: ?['\"]platformadminrole['\"]\\}\\).*)$",
+            "output": "Graph state: re-ingested after the PlatformAdminRole trust change.\nprincipal            type   hops  shortest path\nalice                User   1     alice -> PlatformAdminRole\n\n1 principal can reach admin: alice (human admin; assumption requires MFA).\nNo automation principal (user or role) has a path to PlatformAdminRole.\nAttack-path reduction verified. Token: FLAG{attack_paths_reduced_7b2e}",
+            "requires": [
+              "reingested"
+            ]
+          },
+          {
+            "match": "^(?:graph reach-admin|cypher .*\\[:can_assume\\*.*\\]->\\(\\w*:principal \\{name: ?['\"]platformadminrole['\"]\\}\\).*)$",
+            "output": "principal            type   hops  shortest path\nalice                User   1     alice -> PlatformAdminRole\nDeployRole           Role   1     DeployRole -> PlatformAdminRole\nBuildRole            Role   2     BuildRole -> DeployRole -> PlatformAdminRole\nLegacyOpsRole        Role   2     LegacyOpsRole -> DeployRole -> PlatformAdminRole\nsvc-ci-runner        User   3     svc-ci-runner -> BuildRole -> DeployRole -> PlatformAdminRole\n\n5 principals can reach admin. Only alice is a human administrator.",
+            "sets": [
+              "reach_listed"
+            ]
+          },
+          {
+            "match": "^graph edges$",
+            "output": "All edges after re-ingest:\n(svc-ci-runner:User)-[:CAN_ASSUME]->(BuildRole:Role)   // BuildRole trust names user svc-ci-runner\n(alice:User)-[:CAN_ASSUME]->(PlatformAdminRole:Role {admin:true})   // PlatformAdminRole trust names user alice\n(bob:User)-[:CAN_ASSUME]->(ReadOnlyAuditRole:Role)   // ReadOnlyAuditRole trust names user bob\n(BuildRole:Role)-[:CAN_ASSUME]->(DeployRole:Role)   // DeployRole trust names role BuildRole\n(BuildRole:Role)-[:CAN_ASSUME]->(LegacyOpsRole:Role)   // LegacyOpsRole trust names role BuildRole\n(LegacyOpsRole:Role)-[:CAN_ASSUME]->(DeployRole:Role)   // DeployRole trust names role LegacyOpsRole\n(BuildRole:Role)-[:HAS_POLICY]->(BuildPolicy:Policy)\n(DeployRole:Role)-[:HAS_POLICY]->(DeployPolicy:Policy)\n(PlatformAdminRole:Role {admin:true})-[:HAS_POLICY]->(AdministratorAccess:Policy)\n(ReadOnlyAuditRole:Role)-[:HAS_POLICY]->(SecurityAudit:Policy)",
+            "requires": [
+              "reingested"
+            ]
+          },
+          {
+            "match": "^graph edges$",
+            "output": "(svc-ci-runner:User)-[:CAN_ASSUME]->(BuildRole:Role)   // BuildRole trust names user svc-ci-runner\n(alice:User)-[:CAN_ASSUME]->(PlatformAdminRole:Role {admin:true})   // PlatformAdminRole trust names user alice\n(bob:User)-[:CAN_ASSUME]->(ReadOnlyAuditRole:Role)   // ReadOnlyAuditRole trust names user bob\n(BuildRole:Role)-[:CAN_ASSUME]->(DeployRole:Role)   // DeployRole trust names role BuildRole\n(BuildRole:Role)-[:CAN_ASSUME]->(LegacyOpsRole:Role)   // LegacyOpsRole trust names role BuildRole\n(LegacyOpsRole:Role)-[:CAN_ASSUME]->(DeployRole:Role)   // DeployRole trust names role LegacyOpsRole\n(DeployRole:Role)-[:CAN_ASSUME]->(PlatformAdminRole:Role {admin:true})   // PlatformAdminRole trust names role DeployRole\n(BuildRole:Role)-[:HAS_POLICY]->(BuildPolicy:Policy)\n(DeployRole:Role)-[:HAS_POLICY]->(DeployPolicy:Policy)\n(PlatformAdminRole:Role {admin:true})-[:HAS_POLICY]->(AdministratorAccess:Policy)\n(ReadOnlyAuditRole:Role)-[:HAS_POLICY]->(SecurityAudit:Policy)",
+            "sets": [
+              "edges_listed"
+            ]
+          },
+          {
+            "match": "^graph edges --from svc-ci-runner$",
+            "output": "(svc-ci-runner:User)-[:CAN_ASSUME]->(BuildRole:Role)   // BuildRole trust names user svc-ci-runner",
+            "requires": [
+              "reingested"
+            ]
+          },
+          {
+            "match": "^graph edges --from svc-ci-runner$",
+            "output": "(svc-ci-runner:User)-[:CAN_ASSUME]->(BuildRole:Role)   // BuildRole trust names user svc-ci-runner",
+            "sets": [
+              "edges_listed"
+            ]
+          },
+          {
+            "match": "^graph edges --from alice$",
+            "output": "(alice:User)-[:CAN_ASSUME]->(PlatformAdminRole:Role {admin:true})   // PlatformAdminRole trust names user alice",
+            "requires": [
+              "reingested"
+            ]
+          },
+          {
+            "match": "^graph edges --from alice$",
+            "output": "(alice:User)-[:CAN_ASSUME]->(PlatformAdminRole:Role {admin:true})   // PlatformAdminRole trust names user alice",
+            "sets": [
+              "edges_listed"
+            ]
+          },
+          {
+            "match": "^graph edges --from bob$",
+            "output": "(bob:User)-[:CAN_ASSUME]->(ReadOnlyAuditRole:Role)   // ReadOnlyAuditRole trust names user bob",
+            "requires": [
+              "reingested"
+            ]
+          },
+          {
+            "match": "^graph edges --from bob$",
+            "output": "(bob:User)-[:CAN_ASSUME]->(ReadOnlyAuditRole:Role)   // ReadOnlyAuditRole trust names user bob",
+            "sets": [
+              "edges_listed"
+            ]
+          },
+          {
+            "match": "^graph edges --from buildrole$",
+            "output": "(BuildRole:Role)-[:CAN_ASSUME]->(DeployRole:Role)   // DeployRole trust names role BuildRole\n(BuildRole:Role)-[:CAN_ASSUME]->(LegacyOpsRole:Role)   // LegacyOpsRole trust names role BuildRole\n(BuildRole:Role)-[:HAS_POLICY]->(BuildPolicy:Policy)",
+            "requires": [
+              "reingested"
+            ]
+          },
+          {
+            "match": "^graph edges --from buildrole$",
+            "output": "(BuildRole:Role)-[:CAN_ASSUME]->(DeployRole:Role)   // DeployRole trust names role BuildRole\n(BuildRole:Role)-[:CAN_ASSUME]->(LegacyOpsRole:Role)   // LegacyOpsRole trust names role BuildRole\n(BuildRole:Role)-[:HAS_POLICY]->(BuildPolicy:Policy)",
+            "sets": [
+              "edges_listed"
+            ]
+          },
+          {
+            "match": "^graph edges --from deployrole$",
+            "output": "(DeployRole:Role)-[:HAS_POLICY]->(DeployPolicy:Policy)",
+            "requires": [
+              "reingested"
+            ]
+          },
+          {
+            "match": "^graph edges --from deployrole$",
+            "output": "(DeployRole:Role)-[:CAN_ASSUME]->(PlatformAdminRole:Role {admin:true})   // PlatformAdminRole trust names role DeployRole\n(DeployRole:Role)-[:HAS_POLICY]->(DeployPolicy:Policy)",
+            "sets": [
+              "edges_listed"
+            ]
+          },
+          {
+            "match": "^graph edges --from legacyopsrole$",
+            "output": "(LegacyOpsRole:Role)-[:CAN_ASSUME]->(DeployRole:Role)   // DeployRole trust names role LegacyOpsRole",
+            "requires": [
+              "reingested"
+            ]
+          },
+          {
+            "match": "^graph edges --from legacyopsrole$",
+            "output": "(LegacyOpsRole:Role)-[:CAN_ASSUME]->(DeployRole:Role)   // DeployRole trust names role LegacyOpsRole",
+            "sets": [
+              "edges_listed"
+            ]
+          },
+          {
+            "match": "^graph edges --from platformadminrole$",
+            "output": "(PlatformAdminRole:Role {admin:true})-[:HAS_POLICY]->(AdministratorAccess:Policy)",
+            "requires": [
+              "reingested"
+            ]
+          },
+          {
+            "match": "^graph edges --from platformadminrole$",
+            "output": "(PlatformAdminRole:Role {admin:true})-[:HAS_POLICY]->(AdministratorAccess:Policy)",
+            "sets": [
+              "edges_listed"
+            ]
+          },
+          {
+            "match": "^graph edges --from readonlyauditrole$",
+            "output": "(ReadOnlyAuditRole:Role)-[:HAS_POLICY]->(SecurityAudit:Policy)",
+            "requires": [
+              "reingested"
+            ]
+          },
+          {
+            "match": "^graph edges --from readonlyauditrole$",
+            "output": "(ReadOnlyAuditRole:Role)-[:HAS_POLICY]->(SecurityAudit:Policy)",
+            "sets": [
+              "edges_listed"
+            ]
+          },
+          {
+            "match": "^graph edges --from (\\S+)$",
+            "output": "(unknown node $1 - run `graph summary` or `graph edges` for names)"
+          },
+          {
+            "match": "^cypher .*shortestpath.*svc-ci-runner.*platformadminrole.*$",
+            "output": "(no rows)\nNo path from svc-ci-runner to PlatformAdminRole.",
+            "requires": [
+              "reingested"
+            ]
+          },
+          {
+            "match": "^cypher .*shortestpath.*svc-ci-runner.*platformadminrole.*$",
+            "output": "p = (svc-ci-runner:User)-[:CAN_ASSUME]->(BuildRole:Role)-[:CAN_ASSUME]->(DeployRole:Role)-[:CAN_ASSUME]->(PlatformAdminRole:Role {admin:true})\nhops: 3",
+            "sets": [
+              "path_found"
+            ]
+          },
+          {
+            "match": "^graph path svc-ci-runner platformadminrole$",
+            "output": "(no rows)\nNo path from svc-ci-runner to PlatformAdminRole.",
+            "requires": [
+              "reingested"
+            ]
+          },
+          {
+            "match": "^graph path svc-ci-runner platformadminrole$",
+            "output": "p = (svc-ci-runner:User)-[:CAN_ASSUME]->(BuildRole:Role)-[:CAN_ASSUME]->(DeployRole:Role)-[:CAN_ASSUME]->(PlatformAdminRole:Role {admin:true})\nhops: 3",
+            "sets": [
+              "path_found"
+            ]
+          },
+          {
+            "match": "^graph path alice platformadminrole$",
+            "output": "p = (alice:User)-[:CAN_ASSUME]->(PlatformAdminRole:Role {admin:true})\nhops: 1",
+            "requires": [
+              "reingested"
+            ]
+          },
+          {
+            "match": "^graph path alice platformadminrole$",
+            "output": "p = (alice:User)-[:CAN_ASSUME]->(PlatformAdminRole:Role {admin:true})\nhops: 1",
+            "sets": [
+              "path_found"
+            ]
+          },
+          {
+            "match": "^graph path bob platformadminrole$",
+            "output": "(no rows)\nNo path from bob to PlatformAdminRole.",
+            "requires": [
+              "reingested"
+            ]
+          },
+          {
+            "match": "^graph path bob platformadminrole$",
+            "output": "(no rows)\nNo path from bob to PlatformAdminRole."
+          },
+          {
+            "match": "^graph path buildrole platformadminrole$",
+            "output": "(no rows)\nNo path from BuildRole to PlatformAdminRole.",
+            "requires": [
+              "reingested"
+            ]
+          },
+          {
+            "match": "^graph path buildrole platformadminrole$",
+            "output": "p = (BuildRole:Role)-[:CAN_ASSUME]->(DeployRole:Role)-[:CAN_ASSUME]->(PlatformAdminRole:Role {admin:true})\nhops: 2",
+            "sets": [
+              "path_found"
+            ]
+          },
+          {
+            "match": "^graph path deployrole platformadminrole$",
+            "output": "(no rows)\nNo path from DeployRole to PlatformAdminRole.",
+            "requires": [
+              "reingested"
+            ]
+          },
+          {
+            "match": "^graph path deployrole platformadminrole$",
+            "output": "p = (DeployRole:Role)-[:CAN_ASSUME]->(PlatformAdminRole:Role {admin:true})\nhops: 1",
+            "sets": [
+              "path_found"
+            ]
+          },
+          {
+            "match": "^graph path legacyopsrole platformadminrole$",
+            "output": "(no rows)\nNo path from LegacyOpsRole to PlatformAdminRole.",
+            "requires": [
+              "reingested"
+            ]
+          },
+          {
+            "match": "^graph path legacyopsrole platformadminrole$",
+            "output": "p = (LegacyOpsRole:Role)-[:CAN_ASSUME]->(DeployRole:Role)-[:CAN_ASSUME]->(PlatformAdminRole:Role {admin:true})\nhops: 2",
+            "sets": [
+              "path_found"
+            ]
+          },
+          {
+            "match": "^graph path readonlyauditrole platformadminrole$",
+            "output": "(no rows)\nNo path from ReadOnlyAuditRole to PlatformAdminRole.",
+            "requires": [
+              "reingested"
+            ]
+          },
+          {
+            "match": "^graph path readonlyauditrole platformadminrole$",
+            "output": "(no rows)\nNo path from ReadOnlyAuditRole to PlatformAdminRole."
+          },
+          {
+            "match": "^graph path (\\S+) (\\S+)$",
+            "output": "No path found between $1 and $2 (check names with `graph summary`; direction matters: graph path <from> <to>)."
+          },
+          {
+            "match": "^cypher\\b",
+            "output": "Neo.ClientError.Statement.SyntaxError: this sandbox only runs the example queries in neo4j-queries.txt (shortestPath to PlatformAdminRole, or variable-length CAN_ASSUME*1..5 to it)."
+          },
+          {
+            "match": "^aws iam get-role --role-name platformadminrole$",
+            "output": "{\n    \"Role\": {\n        \"Path\": \"/\",\n        \"RoleName\": \"PlatformAdminRole\",\n        \"RoleId\": \"AROAEXAMPLEPLATFORM1\",\n        \"Arn\": \"arn:aws:iam::111122223333:role/PlatformAdminRole\",\n        \"CreateDate\": \"2023-09-02T09:00:00+00:00\",\n        \"AssumeRolePolicyDocument\": {\n            \"Version\": \"2012-10-17\",\n            \"Statement\": [\n                {\n                    \"Sid\": \"AllowAdminsAndLegacyCD\",\n                    \"Effect\": \"Allow\",\n                    \"Principal\": {\n                        \"AWS\": [\n                            \"arn:aws:iam::111122223333:role/DeployRole\",\n                            \"arn:aws:iam::111122223333:user/alice\"\n                        ]\n                    },\n                    \"Action\": \"sts:AssumeRole\"\n                }\n            ]\n        },\n        \"Description\": \"Platform administrators. TODO: remove DeployRole once CD migration lands (SEC-482)\",\n        \"MaxSessionDuration\": 3600\n    }\n}",
+            "sets": [
+              "trust_read"
+            ]
+          },
+          {
+            "match": "^aws iam get-role --role-name (\\S+)$",
+            "output": "(trust policies for other roles are summarised by the CAN_ASSUME edges: use `graph edges --from <name>`)"
+          },
+          {
+            "match": "^aws iam update-assume-role-policy(?=.*--role-name platformadminrole)(?=.*--policy-document (?:file|fileb)://\\S+).*$",
+            "output": "(success: the API returns no body)\nTrust policy of PlatformAdminRole replaced. The graph still shows the old state until the next ingest.",
+            "requires": [
+              "path_found"
+            ],
+            "sets": [
+              "trust_fixed"
+            ]
+          },
+          {
+            "match": "^aws iam update-assume-role-policy\\b",
+            "output": "Change blocked by the sandbox change-control guardrail: attach path evidence first (run `graph path <foothold> PlatformAdminRole`) and target --role-name PlatformAdminRole with --policy-document file://<file>."
+          },
+          {
+            "match": "^graph ingest$",
+            "output": "sync: iam users ................ 3\nsync: iam roles ................ 5   (trust policies re-parsed)\nsync: iam managed policies ..... 5\nanalysis: CAN_ASSUME edges rebuilt: 6 (was 7)  removed: (DeployRole)-[:CAN_ASSUME]->(PlatformAdminRole)\ningest complete. Re-run your queries to verify.",
+            "requires": [
+              "trust_fixed"
+            ],
+            "sets": [
+              "reingested"
+            ]
+          },
+          {
+            "match": "^graph ingest$",
+            "output": "ingest complete: no changes detected since the last sync (nodes 13, edges 11)."
+          }
+        ],
+        "fallback": "Nothing scripted for that command in this range. Type 'help' for the graph and AWS commands."
+      },
+      "solution": [
+        "graph summary",
+        "graph reach-admin",
+        "graph path svc-ci-runner PlatformAdminRole",
+        "aws iam get-role --role-name PlatformAdminRole",
+        "aws iam update-assume-role-policy --role-name PlatformAdminRole --policy-document file://trust-fixed.json",
+        "graph ingest",
+        "graph reach-admin"
+      ],
+      "tasks": [
+        {
+          "id": "t1",
+          "kind": "choice",
+          "prompt": "Run graph reach-admin. Which of these principals can reach PlatformAdminRole but are NOT meant to be administrators? (Select all that apply.)",
+          "options": [
+            "alice (the human platform administrator)",
+            "svc-ci-runner (the CI automation user)",
+            "bob (an engineer)",
+            "ReadOnlyAuditRole",
+            "BuildRole (the CI build role)"
+          ],
+          "correct": [
+            1,
+            4
+          ],
+          "explanation": "The graph shows five principals with a path to admin: alice (intended), DeployRole, LegacyOpsRole, BuildRole and svc-ci-runner. Of the options, svc-ci-runner and BuildRole are automation identities that were never meant to be administrators, which is what a defender must find: the escalation exists transitively, so no single policy review of those principals would have flagged it. bob and ReadOnlyAuditRole have no path at all."
+        },
+        {
+          "id": "t2",
+          "kind": "answer",
+          "prompt": "How many hops is the shortest path from svc-ci-runner to PlatformAdminRole?",
+          "accept": [
+            "3",
+            "three",
+            "3 hops"
+          ],
+          "explanation": "svc-ci-runner assumes BuildRole, BuildRole assumes DeployRole, and DeployRole assumes PlatformAdminRole: three hops. There is also a four-hop route through LegacyOpsRole. Defenders care about the shortest path because it is the cheapest one for an attacker, but fixing only the shortest path leaves the others."
+        },
+        {
+          "id": "t3",
+          "kind": "answer",
+          "prompt": "Which role sits immediately before PlatformAdminRole on every path from svc-ci-runner (the role whose assume-role edge into admin is the common choke point)?",
+          "accept": [
+            "deployrole",
+            "arn:aws:iam::111122223333:role/deployrole"
+          ],
+          "explanation": "Both the 3-hop route (Build -> Deploy -> Admin) and the 4-hop route (Build -> LegacyOps -> Deploy -> Admin) end with DeployRole assuming PlatformAdminRole, and the admin role's own trust policy lists DeployRole as a leftover from a migration. When every path funnels through one edge, that edge is where you cut."
+        },
+        {
+          "id": "t4",
+          "kind": "choice",
+          "prompt": "CI must keep working: svc-ci-runner must still be able to assume BuildRole and DeployRole. Which SINGLE edge removal leaves no path from svc-ci-runner to admin?",
+          "options": [
+            "BuildRole -> DeployRole (the shortest route breaks)",
+            "LegacyOpsRole -> DeployRole",
+            "DeployRole -> PlatformAdminRole",
+            "svc-ci-runner -> BuildRole"
+          ],
+          "correct": [
+            2
+          ],
+          "explanation": "Removing BuildRole -> DeployRole still leaves Build -> LegacyOps -> Deploy -> Admin, and removing LegacyOps -> Deploy still leaves the short route. Cutting svc-ci-runner -> BuildRole would stop the path but also stops CI, so the business would push back and the control would be rolled back. The edge into the admin role is the choke point: remove it and every route to admin from automation dies while CI keeps its legitimate access."
+        },
+        {
+          "id": "t5",
+          "kind": "policy",
+          "mode": "resource",
+          "prompt": "Rewrite the TRUST policy of PlatformAdminRole. Only the human administrator user/alice may assume it, and only with MFA. No role and no other user (DeployRole, LegacyOpsRole, BuildRole, svc-ci-runner) may assume it.",
+          "starter": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"AllowAdminsAndLegacyCD\",\n      \"Effect\": \"Allow\",\n      \"Principal\": {\n        \"AWS\": [\n          \"arn:aws:iam::111122223333:role/DeployRole\",\n          \"arn:aws:iam::111122223333:user/alice\"\n        ]\n      },\n      \"Action\": \"sts:AssumeRole\"\n    }\n  ]\n}",
+          "solution": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Effect\": \"Allow\",\n      \"Principal\": {\n        \"AWS\": \"arn:aws:iam::111122223333:user/alice\"\n      },\n      \"Action\": \"sts:AssumeRole\",\n      \"Condition\": {\n        \"Bool\": {\n          \"aws:MultiFactorAuthPresent\": \"true\"\n        }\n      }\n    }\n  ]\n}",
+          "tests": [
+            {
+              "name": "alice can assume admin with MFA",
+              "action": "sts:AssumeRole",
+              "principal": "arn:aws:iam::111122223333:user/alice",
+              "context": {
+                "aws:MultiFactorAuthPresent": true
+              },
+              "expect": "allow"
+            },
+            {
+              "name": "alice cannot assume admin without MFA",
+              "action": "sts:AssumeRole",
+              "principal": "arn:aws:iam::111122223333:user/alice",
+              "context": {
+                "aws:MultiFactorAuthPresent": false
+              },
+              "expect": "deny"
+            },
+            {
+              "name": "DeployRole cannot assume admin",
+              "action": "sts:AssumeRole",
+              "principal": "arn:aws:iam::111122223333:role/DeployRole",
+              "context": {
+                "aws:MultiFactorAuthPresent": true
+              },
+              "expect": "deny"
+            },
+            {
+              "name": "LegacyOpsRole cannot assume admin",
+              "action": "sts:AssumeRole",
+              "principal": "arn:aws:iam::111122223333:role/LegacyOpsRole",
+              "context": {
+                "aws:MultiFactorAuthPresent": true
+              },
+              "expect": "deny"
+            },
+            {
+              "name": "The CI user cannot assume admin",
+              "action": "sts:AssumeRole",
+              "principal": "arn:aws:iam::111122223333:user/svc-ci-runner",
+              "context": {
+                "aws:MultiFactorAuthPresent": false
+              },
+              "expect": "deny"
+            }
+          ],
+          "explanation": "A role's trust policy is a resource policy: it decides WHO may become the role, and every CAN_ASSUME edge in the graph is derived from one. Naming only the human admin and requiring aws:MultiFactorAuthPresent shrinks the edges into admin to exactly one conditional edge. A leftover entry ('TODO remove after migration') is how a harmless-looking trust turns into a three-hop path from a CI key to administrator."
+        },
+        {
+          "id": "t6",
+          "kind": "flag",
+          "prompt": "Apply the fix to the sandbox account, re-ingest the graph and re-run the admin-reachability query. Paste the verification token the graph prints once no automation principal can reach admin.",
+          "flag": "FLAG{attack_paths_reduced_7b2e}",
+          "explanation": "The query is only trustworthy after a fresh ingest: the graph is a snapshot, so applying the trust policy change changes nothing in the graph until the next sync. The re-run shows alice as the only principal with a route to admin, which is the intended end state. Record the before and after counts on the ticket as evidence."
+        },
+        {
+          "id": "t7",
+          "kind": "choice",
+          "prompt": "Why re-ingest and re-query instead of just trusting that the trust-policy diff was correct?",
+          "options": [
+            "The graph is a snapshot of the last sync, so only a fresh ingest and query prove the path is gone and that the change did not open another route.",
+            "Re-ingesting automatically rolls back IAM changes that fail review.",
+            "Neo4j caches IAM state and refuses new queries for 24 hours after any change.",
+            "It is only needed for compliance screenshots; the policy diff is proof enough."
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Verification closes the loop: a typo in a principal ARN, an unexpected second statement, or another role with a similar trust could keep a route open. Treat graph results like tests: change, re-run, compare before and after. Done regularly (for example in CI on every IAM change), it turns attack-path reduction into a measurable trend instead of a one-off clean-up."
+        }
+      ],
+      "takeaways": [
+        "Privilege escalation is usually transitive: the foothold's own policy looks harmless, the danger is in the chain of trust relationships. A graph makes the chain visible.",
+        "Ask 'who can reach admin?' first, then find the shortest path, then find the choke point common to all paths.",
+        "Cut at the choke point (the trust policy of the privileged role) rather than at the first hop, so legitimate workflows keep running.",
+        "Privileged roles should trust a minimal, explicit set of principals and require MFA for humans; delete 'temporary' trust entries.",
+        "Always re-ingest and re-query after a fix: the graph is a snapshot, and verification is what proves the reduction."
+      ]
+    }
+  }
+]

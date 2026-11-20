@@ -1,0 +1,829 @@
+[
+  {
+    "labId": "cloud-L03",
+    "objective": "Predict, then fix, five real IAM evaluation puzzles: an explicit Deny, a permission boundary, an SCP region lock, an MFA condition, and a cross-account bucket policy that needs TLS.",
+    "successCriteria": [
+      "You predicted allow/deny correctly for an explicit-Deny case and a permission-boundary case before fixing anything",
+      "You wrote an explicit Deny, a boundary, an SCP, an MFA-conditioned Deny and a bucket policy that all pass their behaviour tests",
+      "You can explain why Deny wins, why boundaries and SCPs never grant, and why cross-account access needs both sides to allow"
+    ],
+    "hints": [
+      "IAM starts at default deny, then looks for an explicit Deny anywhere. Only if there is none does it look for an Allow that every guardrail also permits.",
+      "Boundaries and SCPs only cap permissions; they never grant. A Deny that uses NotAction lets you carve out exceptions without enumerating everything you block.",
+      "For MFA use a Deny with BoolIfExists aws:MultiFactorAuthPresent=false (so a missing key is denied too). For the bucket: name the partner role as Principal, include BOTH the bucket ARN and bucket/* in Resource, and add a Deny on Bool aws:SecureTransport=false."
+    ],
+    "estimatedHours": 2,
+    "resources": [
+      {
+        "title": "AWS docs: Policy evaluation logic",
+        "url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_evaluation-logic.html",
+        "type": "link"
+      },
+      {
+        "title": "AWS docs: Permissions boundaries for IAM entities",
+        "url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies_boundaries.html",
+        "type": "link"
+      },
+      {
+        "title": "AWS docs: Service control policy examples",
+        "url": "https://docs.aws.amazon.com/organizations/latest/userguide/orgs_manage_policies_scps_examples.html",
+        "type": "link"
+      },
+      {
+        "title": "AWS docs: Secure API access with MFA",
+        "url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_mfa_configure-api-require.html",
+        "type": "link"
+      }
+    ],
+    "range": {
+      "scenario": "You have just joined the cloud platform team at Acme (account 111122223333) and the on-call queue is full of access tickets that all come down to one question: what will IAM actually decide? A contractor must not delete production ledgers, a build bot has an admin policy it should never have been trusted with, the Organization needs a region lock, ops want MFA on destructive calls, and a partner needs read access to a bucket. For each ticket you first PREDICT the verdict, then FIX the policy and let the evaluator check your reasoning. Use the terminal to run the IAM policy simulator against real users.",
+      "artifacts": [
+        {
+          "name": "contractor-sam-policy.json",
+          "language": "json",
+          "content": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"S3Everything\",\n      \"Effect\": \"Allow\",\n      \"Action\": \"s3:*\",\n      \"Resource\": \"*\"\n    },\n    {\n      \"Sid\": \"NoDeletesInProd\",\n      \"Effect\": \"Deny\",\n      \"Action\": [\n        \"s3:DeleteObject\",\n        \"s3:DeleteObjectVersion\"\n      ],\n      \"Resource\": \"arn:aws:s3:::acme-prod-ledger/*\"\n    }\n  ]\n}",
+          "note": "Inline policy on IAM user contractor-sam. Statement order does not matter to IAM."
+        },
+        {
+          "name": "ravi-policy.json",
+          "language": "json",
+          "content": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"ListBuckets\",\n      \"Effect\": \"Allow\",\n      \"Action\": \"s3:ListAllMyBuckets\",\n      \"Resource\": \"*\"\n    },\n    {\n      \"Sid\": \"LedgerBuckets\",\n      \"Effect\": \"Allow\",\n      \"Action\": \"s3:*\",\n      \"Resource\": [\n        \"arn:aws:s3:::acme-prod-ledger\",\n        \"arn:aws:s3:::acme-prod-ledger/*\",\n        \"arn:aws:s3:::acme-staging-ledger\",\n        \"arn:aws:s3:::acme-staging-ledger/*\"\n      ]\n    }\n  ]\n}",
+          "note": "Ticket 1: ravi must read prod but never delete or overwrite there; staging stays fully open."
+        },
+        {
+          "name": "buildbot-identity-policy.json",
+          "language": "json",
+          "content": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Effect\": \"Allow\",\n      \"Action\": \"*\",\n      \"Resource\": \"*\"\n    }\n  ]\n}",
+          "note": "Identity policy on the BuildBot role (it was given admin 'to unblock CI')."
+        },
+        {
+          "name": "buildbot-boundary-draft.json",
+          "language": "json",
+          "content": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"AppServices\",\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"s3:*\",\n        \"dynamodb:*\",\n        \"iam:*\"\n      ],\n      \"Resource\": \"*\"\n    }\n  ]\n}",
+          "note": "Ticket 2: draft permissions boundary for BuildBot. It should allow only S3, DynamoDB, logs and CloudWatch."
+        },
+        {
+          "name": "region-lock-scp-draft.json",
+          "language": "json",
+          "content": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"RegionLock\",\n      \"Effect\": \"Deny\",\n      \"Action\": \"*\",\n      \"Resource\": \"*\",\n      \"Condition\": {\n        \"StringNotEquals\": {\n          \"aws:RequestedRegion\": [\n            \"eu-west-1\",\n            \"eu-central-1\"\n          ]\n        }\n      }\n    }\n  ]\n}",
+          "note": "Ticket 3: draft SCP. Workloads may run only in eu-west-1 and eu-central-1. The FullAWSAccess allow SCP stays attached."
+        },
+        {
+          "name": "ops-engineer-policy.json",
+          "language": "json",
+          "content": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"OpsActions\",\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"ec2:Describe*\",\n        \"ec2:StopInstances\",\n        \"ec2:TerminateInstances\",\n        \"rds:DeleteDBInstance\"\n      ],\n      \"Resource\": \"*\"\n    }\n  ]\n}",
+          "note": "Ticket 4: destructive actions must require MFA; describing instances must keep working for access-key sessions."
+        },
+        {
+          "name": "partner-bucket-policy-draft.json",
+          "language": "json",
+          "content": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"PartnerRead\",\n      \"Effect\": \"Allow\",\n      \"Principal\": \"*\",\n      \"Action\": \"s3:GetObject\",\n      \"Resource\": \"arn:aws:s3:::acme-partner-reports/*\"\n    }\n  ]\n}",
+          "note": "Ticket 5: bucket policy for acme-partner-reports. Only the partner role PartnerAnalytics (account 444455556666) may read; TLS only."
+        }
+      ],
+      "terminal": {
+        "prompt": "iam-lab:~$",
+        "intro": "IAM policy simulator shell for account 111122223333. Try: aws iam simulate-principal-policy",
+        "help": "Commands you can try:\n  aws iam simulate-principal-policy --policy-source-arn <user-arn> --action-names <action> --resource-arns <arn>\nUsers in this account: contractor-sam, ravi",
+        "rules": [
+          {
+            "match": "^aws iam simulate-principal-policy(?=.*user/contractor-sam)(?=.*--action-names s3:deleteobject)(?=.*acme-prod-ledger)",
+            "output": "{\n  \"EvaluationResults\": [\n    {\n      \"EvalActionName\": \"s3:DeleteObject\",\n      \"EvalResourceName\": \"arn:aws:s3:::acme-prod-ledger/2026/q3.csv\",\n      \"EvalDecision\": \"explicitDeny\",\n      \"MatchedStatements\": [\n        {\n          \"SourcePolicyId\": \"contractor-sam-inline\",\n          \"SourcePolicyType\": \"IAM Policy\",\n          \"StartPosition\": {\n            \"Line\": 10,\n            \"Column\": 17\n          },\n          \"EndPosition\": {\n            \"Line\": 17,\n            \"Column\": 6\n          }\n        }\n      ],\n      \"MissingContextValues\": []\n    }\n  ]\n}"
+          },
+          {
+            "match": "^aws iam simulate-principal-policy(?=.*user/contractor-sam)(?=.*--action-names s3:getobject)(?=.*acme-prod-ledger)",
+            "output": "{\n  \"EvaluationResults\": [\n    {\n      \"EvalActionName\": \"s3:GetObject\",\n      \"EvalResourceName\": \"arn:aws:s3:::acme-prod-ledger/2026/q3.csv\",\n      \"EvalDecision\": \"allowed\",\n      \"MatchedStatements\": [\n        {\n          \"SourcePolicyId\": \"contractor-sam-inline\",\n          \"SourcePolicyType\": \"IAM Policy\",\n          \"StartPosition\": {\n            \"Line\": 4,\n            \"Column\": 17\n          },\n          \"EndPosition\": {\n            \"Line\": 9,\n            \"Column\": 6\n          }\n        }\n      ],\n      \"MissingContextValues\": []\n    }\n  ]\n}"
+          },
+          {
+            "match": "^aws iam simulate-principal-policy(?=.*user/ravi)(?=.*--action-names s3:deleteobject)(?=.*acme-prod-ledger)",
+            "output": "{\n  \"EvaluationResults\": [\n    {\n      \"EvalActionName\": \"s3:DeleteObject\",\n      \"EvalResourceName\": \"arn:aws:s3:::acme-prod-ledger/2026/q3.csv\",\n      \"EvalDecision\": \"allowed\",\n      \"MatchedStatements\": [\n        {\n          \"SourcePolicyId\": \"ravi-inline\",\n          \"SourcePolicyType\": \"IAM Policy\",\n          \"StartPosition\": {\n            \"Line\": 10,\n            \"Column\": 17\n          },\n          \"EndPosition\": {\n            \"Line\": 18,\n            \"Column\": 6\n          }\n        }\n      ],\n      \"MissingContextValues\": []\n    }\n  ]\n}"
+          },
+          {
+            "match": "^aws iam simulate-principal-policy(?=.*--policy-source-arn arn:aws:iam::111122223333:user/(contractor-sam|ravi))",
+            "output": "{\n  \"EvaluationResults\": [\n    {\n      \"EvalActionName\": \"(requested action)\",\n      \"EvalDecision\": \"implicitDeny\",\n      \"MatchedStatements\": [],\n      \"MissingContextValues\": []\n    }\n  ]\n}"
+          },
+          {
+            "match": "^aws iam simulate-principal-policy",
+            "output": "An error occurred (NoSuchEntity) when calling the SimulatePrincipalPolicy operation: Provide --policy-source-arn for an existing user in this account (contractor-sam or ravi), plus --action-names and --resource-arns."
+          }
+        ],
+        "fallback": "Nothing scripted for that command. Try: aws iam simulate-principal-policy --help"
+      },
+      "tasks": [
+        {
+          "id": "t1",
+          "kind": "choice",
+          "prompt": "Predict first. Read contractor-sam-policy.json. Can contractor-sam call s3:DeleteObject on arn:aws:s3:::acme-prod-ledger/2026/q3.csv?",
+          "options": [
+            "Yes: the Allow on s3:* matches, and an Allow is all that is needed",
+            "No: the explicit Deny matches the request, and an explicit Deny beats every Allow",
+            "Yes: the Allow statement is listed first, and IAM stops at the first match",
+            "No, but only because a bucket policy must also be present to allow it"
+          ],
+          "correct": [
+            1
+          ],
+          "explanation": "IAM does not read statements in order and does not stop at the first match. It collects every matching statement, and a single matching explicit Deny ends the evaluation with deny, no matter how many Allows also match. That is why Deny is the tool for 'never, under any circumstances' rules."
+        },
+        {
+          "id": "t2",
+          "kind": "answer",
+          "prompt": "Verify your prediction in the terminal: simulate s3:DeleteObject on arn:aws:s3:::acme-prod-ledger/2026/q3.csv for contractor-sam. What is the EvalDecision value?",
+          "accept": [
+            "explicitdeny",
+            "explicit deny",
+            "explicit-deny"
+          ],
+          "explanation": "The simulator reports explicitDeny (a Deny statement matched) rather than implicitDeny (nothing allowed it). The difference matters when debugging: an explicitDeny means you must find and change the Deny, because adding more Allows can never fix it."
+        },
+        {
+          "id": "t3",
+          "kind": "policy",
+          "mode": "identity",
+          "prompt": "Ticket 1: fix ravi's policy (ravi-policy.json). He must keep full S3 access to the staging ledger and still list and read the prod ledger, but he must NOT be able to delete objects, delete object versions or upload (overwrite) objects in prod.",
+          "starter": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"ListBuckets\",\n      \"Effect\": \"Allow\",\n      \"Action\": \"s3:ListAllMyBuckets\",\n      \"Resource\": \"*\"\n    },\n    {\n      \"Sid\": \"LedgerBuckets\",\n      \"Effect\": \"Allow\",\n      \"Action\": \"s3:*\",\n      \"Resource\": [\n        \"arn:aws:s3:::acme-prod-ledger\",\n        \"arn:aws:s3:::acme-prod-ledger/*\",\n        \"arn:aws:s3:::acme-staging-ledger\",\n        \"arn:aws:s3:::acme-staging-ledger/*\"\n      ]\n    }\n  ]\n}",
+          "solution": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"ListBuckets\",\n      \"Effect\": \"Allow\",\n      \"Action\": \"s3:ListAllMyBuckets\",\n      \"Resource\": \"*\"\n    },\n    {\n      \"Sid\": \"LedgerBuckets\",\n      \"Effect\": \"Allow\",\n      \"Action\": \"s3:*\",\n      \"Resource\": [\n        \"arn:aws:s3:::acme-prod-ledger\",\n        \"arn:aws:s3:::acme-prod-ledger/*\",\n        \"arn:aws:s3:::acme-staging-ledger\",\n        \"arn:aws:s3:::acme-staging-ledger/*\"\n      ]\n    },\n    {\n      \"Sid\": \"ProdIsReadOnly\",\n      \"Effect\": \"Deny\",\n      \"Action\": [\n        \"s3:DeleteObject\",\n        \"s3:DeleteObjectVersion\",\n        \"s3:PutObject\"\n      ],\n      \"Resource\": \"arn:aws:s3:::acme-prod-ledger/*\"\n    }\n  ]\n}",
+          "tests": [
+            {
+              "name": "Can still read prod ledger objects",
+              "action": "s3:GetObject",
+              "resource": "arn:aws:s3:::acme-prod-ledger/2026/q3.csv",
+              "expect": "allow"
+            },
+            {
+              "name": "Can still list the prod ledger bucket",
+              "action": "s3:ListBucket",
+              "resource": "arn:aws:s3:::acme-prod-ledger",
+              "expect": "allow"
+            },
+            {
+              "name": "Cannot delete prod ledger objects",
+              "action": "s3:DeleteObject",
+              "resource": "arn:aws:s3:::acme-prod-ledger/2026/q3.csv",
+              "expect": "deny"
+            },
+            {
+              "name": "Cannot delete prod object versions",
+              "action": "s3:DeleteObjectVersion",
+              "resource": "arn:aws:s3:::acme-prod-ledger/2026/q3.csv",
+              "expect": "deny"
+            },
+            {
+              "name": "Cannot overwrite prod ledger objects",
+              "action": "s3:PutObject",
+              "resource": "arn:aws:s3:::acme-prod-ledger/2026/q3.csv",
+              "expect": "deny"
+            },
+            {
+              "name": "Can still upload to staging",
+              "action": "s3:PutObject",
+              "resource": "arn:aws:s3:::acme-staging-ledger/scratch/t.csv",
+              "expect": "allow"
+            },
+            {
+              "name": "Can still delete from staging",
+              "action": "s3:DeleteObject",
+              "resource": "arn:aws:s3:::acme-staging-ledger/scratch/t.csv",
+              "expect": "allow"
+            }
+          ],
+          "explanation": "Instead of untangling a broad Allow, add an explicit Deny scoped to the prod objects. Because Deny wins over any Allow, ravi keeps his wide staging rights, reads in prod still work (they are not denied), and writes in prod are blocked even if someone later adds another Allow."
+        },
+        {
+          "id": "t4",
+          "kind": "choice",
+          "prompt": "Predict first. BuildBot's identity policy (buildbot-identity-policy.json) allows * on *. Its permissions boundary allows only s3:*, dynamodb:*, logs:* and cloudwatch:*. Can BuildBot call iam:CreateUser?",
+          "options": [
+            "Yes: the identity policy allows everything, and the boundary only restricts what you can grant",
+            "No: an action must be allowed by BOTH the identity policy and the boundary, and the boundary has no iam allow",
+            "Yes: boundaries only apply to IAM users, not roles",
+            "No: boundaries remove only the actions they explicitly list"
+          ],
+          "correct": [
+            1
+          ],
+          "explanation": "A permission boundary is a cap, not a grant: the effective permission is the intersection of the identity policy and the boundary. An admin policy under a narrow boundary can do only what the boundary allows. Boundaries work as an allow-list, they do not list 'denied' actions."
+        },
+        {
+          "id": "t5",
+          "kind": "policy",
+          "mode": "boundary",
+          "prompt": "Ticket 2: write the permissions boundary for BuildBot (the draft is in buildbot-boundary-draft.json; the admin identity policy is fixed and cannot change). BuildBot may use S3, DynamoDB, CloudWatch Logs and CloudWatch only. IAM and everything else must be out of reach even though its identity policy says *.",
+          "starter": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"AppServices\",\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"s3:*\",\n        \"dynamodb:*\",\n        \"iam:*\"\n      ],\n      \"Resource\": \"*\"\n    }\n  ]\n}",
+          "solution": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"AppServices\",\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"s3:*\",\n        \"dynamodb:*\",\n        \"logs:*\",\n        \"cloudwatch:*\"\n      ],\n      \"Resource\": \"*\"\n    }\n  ]\n}",
+          "fixed": {
+            "identity": [
+              "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Effect\": \"Allow\",\n      \"Action\": \"*\",\n      \"Resource\": \"*\"\n    }\n  ]\n}"
+            ]
+          },
+          "tests": [
+            {
+              "name": "Can read S3 objects",
+              "action": "s3:GetObject",
+              "resource": "arn:aws:s3:::acme-app-data/config.json",
+              "expect": "allow"
+            },
+            {
+              "name": "Can write DynamoDB items",
+              "action": "dynamodb:PutItem",
+              "resource": "arn:aws:dynamodb:us-east-1:111122223333:table/orders",
+              "expect": "allow"
+            },
+            {
+              "name": "Can write CloudWatch Logs",
+              "action": "logs:PutLogEvents",
+              "resource": "arn:aws:logs:us-east-1:111122223333:log-group:/ci/build:*",
+              "expect": "allow"
+            },
+            {
+              "name": "Cannot create IAM users despite the admin policy",
+              "action": "iam:CreateUser",
+              "resource": "arn:aws:iam::111122223333:user/backdoor",
+              "expect": "deny"
+            },
+            {
+              "name": "Cannot attach policies to roles",
+              "action": "iam:AttachRolePolicy",
+              "resource": "arn:aws:iam::111122223333:role/BuildBot",
+              "expect": "deny"
+            },
+            {
+              "name": "Cannot launch EC2 instances",
+              "action": "ec2:RunInstances",
+              "resource": "*",
+              "expect": "deny"
+            }
+          ],
+          "explanation": "The draft boundary allowed iam:*, which silently re-opened the most dangerous service (a role that can edit IAM can remove its own boundary or mint new admins). A boundary should be a tight allow-list. Anything not listed is denied, no matter how broad the identity policy is."
+        },
+        {
+          "id": "t6",
+          "kind": "choice",
+          "prompt": "Predict first. region-lock-scp-draft.json denies Action * unless aws:RequestedRegion is eu-west-1 or eu-central-1. An engineer in the Organization (admin identity policy) runs iam:CreateRole. IAM is a global service whose requests are served from us-east-1. What happens?",
+          "options": [
+            "Allowed: IAM is global, so SCP region conditions are ignored",
+            "Denied: the request region is us-east-1, so the blanket Deny matches and IAM, STS and other global services break too",
+            "Allowed: SCPs never apply to administrators",
+            "Denied only for the management account"
+          ],
+          "correct": [
+            1
+          ],
+          "explanation": "A blanket region Deny also hits global services, which are called with a region of us-east-1. Real region-lock SCPs therefore use NotAction to exempt global services (iam, sts, organizations, route53, support, cloudfront, budgets...) so the lock only bites regional services."
+        },
+        {
+          "id": "t7",
+          "kind": "policy",
+          "mode": "scp",
+          "prompt": "Ticket 3: fix the region-lock SCP (region-lock-scp-draft.json). A fixed FullAWSAccess allow SCP and an admin identity policy are already in place. Regional services must work only in eu-west-1 and eu-central-1; global services such as IAM and STS must keep working.",
+          "starter": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"RegionLock\",\n      \"Effect\": \"Deny\",\n      \"Action\": \"*\",\n      \"Resource\": \"*\",\n      \"Condition\": {\n        \"StringNotEquals\": {\n          \"aws:RequestedRegion\": [\n            \"eu-west-1\",\n            \"eu-central-1\"\n          ]\n        }\n      }\n    }\n  ]\n}",
+          "solution": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"RegionLock\",\n      \"Effect\": \"Deny\",\n      \"NotAction\": [\n        \"iam:*\",\n        \"sts:*\",\n        \"organizations:*\",\n        \"route53:*\",\n        \"support:*\",\n        \"cloudfront:*\",\n        \"budgets:*\"\n      ],\n      \"Resource\": \"*\",\n      \"Condition\": {\n        \"StringNotEquals\": {\n          \"aws:RequestedRegion\": [\n            \"eu-west-1\",\n            \"eu-central-1\"\n          ]\n        }\n      }\n    }\n  ]\n}",
+          "fixed": {
+            "scp": [
+              "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"FullAWSAccess\",\n      \"Effect\": \"Allow\",\n      \"Action\": \"*\",\n      \"Resource\": \"*\"\n    }\n  ]\n}"
+            ],
+            "identity": [
+              "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Effect\": \"Allow\",\n      \"Action\": \"*\",\n      \"Resource\": \"*\"\n    }\n  ]\n}"
+            ]
+          },
+          "tests": [
+            {
+              "name": "Can launch EC2 in eu-west-1",
+              "action": "ec2:RunInstances",
+              "resource": "*",
+              "context": {
+                "aws:RequestedRegion": "eu-west-1"
+              },
+              "expect": "allow"
+            },
+            {
+              "name": "Can create S3 buckets in eu-central-1",
+              "action": "s3:CreateBucket",
+              "resource": "*",
+              "context": {
+                "aws:RequestedRegion": "eu-central-1"
+              },
+              "expect": "allow"
+            },
+            {
+              "name": "Cannot launch EC2 in us-east-1",
+              "action": "ec2:RunInstances",
+              "resource": "*",
+              "context": {
+                "aws:RequestedRegion": "us-east-1"
+              },
+              "expect": "deny"
+            },
+            {
+              "name": "Cannot create S3 buckets in ap-south-1",
+              "action": "s3:CreateBucket",
+              "resource": "*",
+              "context": {
+                "aws:RequestedRegion": "ap-south-1"
+              },
+              "expect": "deny"
+            },
+            {
+              "name": "Global IAM still works (served from us-east-1)",
+              "action": "iam:CreateRole",
+              "resource": "*",
+              "context": {
+                "aws:RequestedRegion": "us-east-1"
+              },
+              "expect": "allow"
+            },
+            {
+              "name": "STS still works from us-east-1",
+              "action": "sts:GetCallerIdentity",
+              "resource": "*",
+              "context": {
+                "aws:RequestedRegion": "us-east-1"
+              },
+              "expect": "allow"
+            }
+          ],
+          "explanation": "SCPs never grant, so the FullAWSAccess allow is what keeps everything permitted and your SCP only adds a Deny on top. Using NotAction for the global services means 'deny everything except these' under the region condition. A condition-based Deny in an SCP is the standard way to enforce data-residency."
+        },
+        {
+          "id": "t8",
+          "kind": "policy",
+          "mode": "identity",
+          "prompt": "Ticket 4: harden ops-engineer-policy.json. ec2:StopInstances, ec2:TerminateInstances and rds:DeleteDBInstance must work only in an MFA-authenticated session. Sessions from a plain access key do not carry aws:MultiFactorAuthPresent at all, and they must still be able to describe instances.",
+          "starter": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"OpsActions\",\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"ec2:Describe*\",\n        \"ec2:StopInstances\",\n        \"ec2:TerminateInstances\",\n        \"rds:DeleteDBInstance\"\n      ],\n      \"Resource\": \"*\"\n    }\n  ]\n}",
+          "solution": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"OpsActions\",\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"ec2:Describe*\",\n        \"ec2:StopInstances\",\n        \"ec2:TerminateInstances\",\n        \"rds:DeleteDBInstance\"\n      ],\n      \"Resource\": \"*\"\n    },\n    {\n      \"Sid\": \"DestructiveNeedsMFA\",\n      \"Effect\": \"Deny\",\n      \"Action\": [\n        \"ec2:StopInstances\",\n        \"ec2:TerminateInstances\",\n        \"rds:DeleteDBInstance\"\n      ],\n      \"Resource\": \"*\",\n      \"Condition\": {\n        \"BoolIfExists\": {\n          \"aws:MultiFactorAuthPresent\": \"false\"\n        }\n      }\n    }\n  ]\n}",
+          "tests": [
+            {
+              "name": "Can describe instances without MFA (key is absent from the request)",
+              "action": "ec2:DescribeInstances",
+              "resource": "*",
+              "expect": "allow"
+            },
+            {
+              "name": "Can terminate instances in an MFA session",
+              "action": "ec2:TerminateInstances",
+              "resource": "arn:aws:ec2:us-east-1:111122223333:instance/i-0abc123def4567890",
+              "context": {
+                "aws:MultiFactorAuthPresent": true
+              },
+              "expect": "allow"
+            },
+            {
+              "name": "Cannot terminate instances when MFA is explicitly false",
+              "action": "ec2:TerminateInstances",
+              "resource": "arn:aws:ec2:us-east-1:111122223333:instance/i-0abc123def4567890",
+              "context": {
+                "aws:MultiFactorAuthPresent": false
+              },
+              "expect": "deny"
+            },
+            {
+              "name": "Cannot terminate instances from a long-term key (no MFA key at all)",
+              "action": "ec2:TerminateInstances",
+              "resource": "arn:aws:ec2:us-east-1:111122223333:instance/i-0abc123def4567890",
+              "expect": "deny"
+            },
+            {
+              "name": "Cannot delete databases without MFA",
+              "action": "rds:DeleteDBInstance",
+              "resource": "arn:aws:rds:us-east-1:111122223333:db:orders",
+              "expect": "deny"
+            },
+            {
+              "name": "Can delete databases in an MFA session",
+              "action": "rds:DeleteDBInstance",
+              "resource": "arn:aws:rds:us-east-1:111122223333:db:orders",
+              "context": {
+                "aws:MultiFactorAuthPresent": true
+              },
+              "expect": "allow"
+            }
+          ],
+          "explanation": "Use a Deny with BoolIfExists aws:MultiFactorAuthPresent=false. Plain Bool would not match when the key is missing (long-term access keys never carry it), so those sessions would slip through. IfExists makes the missing key count as a match, so the Deny covers both 'false' and 'absent'."
+        },
+        {
+          "id": "t9",
+          "kind": "policy",
+          "mode": "resource",
+          "prompt": "Ticket 5: write the bucket policy for acme-partner-reports (draft in partner-bucket-policy-draft.json). The caller's own identity policy already allows s3:* (fixed) and this is a CROSS-ACCOUNT request. Only role arn:aws:iam::444455556666:role/PartnerAnalytics may call s3:GetObject and s3:ListBucket, and every request over plain HTTP must be refused for everyone.",
+          "starter": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"PartnerRead\",\n      \"Effect\": \"Allow\",\n      \"Principal\": \"*\",\n      \"Action\": \"s3:GetObject\",\n      \"Resource\": \"arn:aws:s3:::acme-partner-reports/*\"\n    }\n  ]\n}",
+          "solution": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"PartnerRead\",\n      \"Effect\": \"Allow\",\n      \"Principal\": {\n        \"AWS\": \"arn:aws:iam::444455556666:role/PartnerAnalytics\"\n      },\n      \"Action\": [\n        \"s3:GetObject\",\n        \"s3:ListBucket\"\n      ],\n      \"Resource\": [\n        \"arn:aws:s3:::acme-partner-reports\",\n        \"arn:aws:s3:::acme-partner-reports/*\"\n      ]\n    },\n    {\n      \"Sid\": \"TlsOnly\",\n      \"Effect\": \"Deny\",\n      \"Principal\": \"*\",\n      \"Action\": \"s3:*\",\n      \"Resource\": [\n        \"arn:aws:s3:::acme-partner-reports\",\n        \"arn:aws:s3:::acme-partner-reports/*\"\n      ],\n      \"Condition\": {\n        \"Bool\": {\n          \"aws:SecureTransport\": \"false\"\n        }\n      }\n    }\n  ]\n}",
+          "fixed": {
+            "identity": [
+              "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Effect\": \"Allow\",\n      \"Action\": \"s3:*\",\n      \"Resource\": \"*\"\n    }\n  ]\n}"
+            ],
+            "crossAccount": true
+          },
+          "tests": [
+            {
+              "name": "Partner can read reports over HTTPS",
+              "action": "s3:GetObject",
+              "resource": "arn:aws:s3:::acme-partner-reports/q3/report.pdf",
+              "principal": "arn:aws:iam::444455556666:role/PartnerAnalytics",
+              "context": {
+                "aws:SecureTransport": true
+              },
+              "expect": "allow"
+            },
+            {
+              "name": "Partner can list the bucket over HTTPS",
+              "action": "s3:ListBucket",
+              "resource": "arn:aws:s3:::acme-partner-reports",
+              "principal": "arn:aws:iam::444455556666:role/PartnerAnalytics",
+              "context": {
+                "aws:SecureTransport": true
+              },
+              "expect": "allow"
+            },
+            {
+              "name": "Partner is refused over plain HTTP",
+              "action": "s3:GetObject",
+              "resource": "arn:aws:s3:::acme-partner-reports/q3/report.pdf",
+              "principal": "arn:aws:iam::444455556666:role/PartnerAnalytics",
+              "context": {
+                "aws:SecureTransport": false
+              },
+              "expect": "deny"
+            },
+            {
+              "name": "An unrelated account cannot read reports",
+              "action": "s3:GetObject",
+              "resource": "arn:aws:s3:::acme-partner-reports/q3/report.pdf",
+              "principal": "arn:aws:iam::999988887777:role/Intruder",
+              "context": {
+                "aws:SecureTransport": true
+              },
+              "expect": "deny"
+            },
+            {
+              "name": "Partner cannot upload or overwrite reports",
+              "action": "s3:PutObject",
+              "resource": "arn:aws:s3:::acme-partner-reports/q3/report.pdf",
+              "principal": "arn:aws:iam::444455556666:role/PartnerAnalytics",
+              "context": {
+                "aws:SecureTransport": true
+              },
+              "expect": "deny"
+            }
+          ],
+          "explanation": "Across accounts both sides must allow: the caller's identity policy AND the bucket policy that names the caller. Principal * in the draft let every account in, and Resource listed only bucket/*, so ListBucket (which targets the bucket ARN itself) never matched. The TLS rule is an explicit Deny on aws:SecureTransport=false, which wins over any Allow."
+        }
+      ],
+      "takeaways": [
+        "Evaluation order: explicit Deny anywhere wins; then SCPs and permission boundaries must allow (they only cap); then an identity or resource Allow grants. No match means implicit deny.",
+        "Use explicit Deny for 'never' rules, and BoolIfExists / NotAction patterns so a missing condition key or a global service does not create a loophole.",
+        "Cross-account access needs two yeses (caller's identity policy and the resource policy), and S3 bucket-level actions like ListBucket need the bucket ARN as well as bucket/*."
+      ]
+    }
+  },
+  {
+    "labId": "cloud-L04",
+    "objective": "Assume a cross-account role with the AWS CLI (using an ExternalId), switch to the temporary credentials, prove what the assumed identity can and cannot do, then fix an over-broad role trust policy.",
+    "successCriteria": [
+      "You assumed AuditReaderRole, exported all three temporary credential values and confirmed the assumed-role identity",
+      "You read the audit report using the temporary credentials and showed that the role cannot write or delete",
+      "You rewrote a trust policy so only the intended principal with the correct ExternalId can assume the role"
+    ],
+    "hints": [
+      "Start with `aws sts get-caller-identity`, then try the bucket. The access denied tells you which identity is calling. Look at the role's trust policy artifact for what the role demands from callers.",
+      "AssumeRole returns three secrets: AccessKeyId, SecretAccessKey and SessionToken. Export all three as AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY and AWS_SESSION_TOKEN, then call get-caller-identity again.",
+      "aws sts assume-role --role-arn arn:aws:iam::444455556666:role/AuditReaderRole --role-session-name audit-lab --external-id tz-audit-7f3c. For the trust policy, copy the structure of the working AuditReaderRole trust: a specific Principal plus a StringEquals sts:ExternalId condition."
+    ],
+    "estimatedHours": 1,
+    "resources": [
+      {
+        "title": "AWS docs: STS AssumeRole API reference",
+        "url": "https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRole.html",
+        "type": "link"
+      },
+      {
+        "title": "AWS docs: Access to AWS accounts owned by third parties (ExternalId)",
+        "url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_create_for-user_externalid.html",
+        "type": "link"
+      },
+      {
+        "title": "AWS docs: The confused deputy problem",
+        "url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/confused-deputy.html",
+        "type": "link"
+      }
+    ],
+    "range": {
+      "scenario": "You work for Tessera Audit, a security vendor. Your scanner runs as IAM user deploy-bot in account 111122223333, which has no permissions of its own on the customer's data. Your customer Northwind (account 444455556666) created the role AuditReaderRole for you and shared the ExternalId tz-audit-7f3c. First do the round trip as the vendor: assume the role, switch to the temporary credentials, and read the Q3 findings from the audit bucket. Then wear the customer's hat: Northwind's teammate drafted the trust policy for a second role, ComplianceExportRole, and it trusts far too much. Fix it. Use session name audit-lab so the CloudTrail entries line up.",
+      "artifacts": [
+        {
+          "name": "deploy-bot-policy.json",
+          "language": "json",
+          "content": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"WhoAmI\",\n      \"Effect\": \"Allow\",\n      \"Action\": \"sts:GetCallerIdentity\",\n      \"Resource\": \"*\"\n    },\n    {\n      \"Sid\": \"AssumeVendorRoles\",\n      \"Effect\": \"Allow\",\n      \"Action\": \"sts:AssumeRole\",\n      \"Resource\": [\n        \"arn:aws:iam::444455556666:role/AuditReaderRole\",\n        \"arn:aws:iam::444455556666:role/ComplianceExportRole\"\n      ]\n    }\n  ]\n}",
+          "note": "Identity policy of the vendor's IAM user (account 111122223333). It lets deploy-bot ask to assume the two vendor roles, nothing else."
+        },
+        {
+          "name": "AuditReaderRole-trust.json",
+          "language": "json",
+          "content": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Effect\": \"Allow\",\n      \"Principal\": {\n        \"AWS\": \"arn:aws:iam::111122223333:user/deploy-bot\"\n      },\n      \"Action\": \"sts:AssumeRole\",\n      \"Condition\": {\n        \"StringEquals\": {\n          \"sts:ExternalId\": \"tz-audit-7f3c\"\n        }\n      }\n    }\n  ]\n}",
+          "note": "The deployed trust policy of AuditReaderRole in Northwind's account. Note what it demands from the caller."
+        },
+        {
+          "name": "AuditReaderRole-permissions.json",
+          "language": "json",
+          "content": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"s3:GetObject\",\n        \"s3:ListBucket\"\n      ],\n      \"Resource\": [\n        \"arn:aws:s3:::acme-audit-reports\",\n        \"arn:aws:s3:::acme-audit-reports/*\"\n      ]\n    }\n  ]\n}",
+          "note": "What the role can do once assumed: read the audit report bucket."
+        },
+        {
+          "name": "ComplianceExportRole-trust-draft.json",
+          "language": "json",
+          "content": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"VendorAssume\",\n      \"Effect\": \"Allow\",\n      \"Principal\": {\n        \"AWS\": \"*\"\n      },\n      \"Action\": \"sts:AssumeRole\"\n    }\n  ]\n}",
+          "note": "A teammate's DRAFT trust policy for the new role ComplianceExportRole. Its ExternalId will be tz-export-91ac."
+        }
+      ],
+      "terminal": {
+        "prompt": "deploy-bot@vendor:~$",
+        "intro": "Shell for the Tessera Audit scanner, authenticated with the long-term access key of IAM user deploy-bot. Region: us-east-1.",
+        "help": "Commands you can try (like the AWS CLI):\n  aws sts get-caller-identity\n  aws sts assume-role --role-arn <arn> --role-session-name <name> [--external-id <id>]\n  export AWS_ACCESS_KEY_ID=...  (also AWS_SECRET_ACCESS_KEY, AWS_SESSION_TOKEN)\n  aws s3 ls s3://acme-audit-reports\n  aws s3 cp s3://acme-audit-reports/<key> -\n  aws s3 rm s3://acme-audit-reports/<key>",
+        "rules": [
+          {
+            "match": "^aws sts get-caller-identity$",
+            "requires": [
+              "env_key",
+              "env_secret",
+              "env_token"
+            ],
+            "sets": [
+              "using_role"
+            ],
+            "output": "{\n  \"UserId\": \"AROAEXAMPLEAUDITRD01:audit-lab\",\n  \"Account\": \"444455556666\",\n  \"Arn\": \"arn:aws:sts::444455556666:assumed-role/AuditReaderRole/audit-lab\"\n}"
+          },
+          {
+            "match": "^aws sts get-caller-identity$",
+            "output": "{\n  \"UserId\": \"AIDAEXAMPLEDEPLOY0001\",\n  \"Account\": \"111122223333\",\n  \"Arn\": \"arn:aws:iam::111122223333:user/deploy-bot\"\n}"
+          },
+          {
+            "match": "^aws sts assume-role(?=.*--role-arn arn:aws:iam::444455556666:role/AuditReaderRole(\\s|$))(?=.*--role-session-name audit-lab(\\s|$))(?=.*--external-id tz-audit-7f3c(\\s|$))",
+            "sets": [
+              "assumed_role"
+            ],
+            "output": "{\n  \"Credentials\": {\n    \"AccessKeyId\": \"ASIAIOSFODNN7EXAMPLE\",\n    \"SecretAccessKey\": \"wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY\",\n    \"SessionToken\": \"IQoJb3JpZ2luX2VjEXAMPLE\",\n    \"Expiration\": \"2026-11-20T11:42:10+00:00\"\n  },\n  \"AssumedRoleUser\": {\n    \"AssumedRoleId\": \"AROAEXAMPLEAUDITRD01:audit-lab\",\n    \"Arn\": \"arn:aws:sts::444455556666:assumed-role/AuditReaderRole/audit-lab\"\n  }\n}"
+          },
+          {
+            "match": "^aws sts assume-role(?=.*--role-arn arn:aws:iam::444455556666:role/AuditReaderRole(\\s|$))(?=.*--external-id tz-audit-7f3c(\\s|$))",
+            "output": "(lab) Use --role-session-name audit-lab so the audit trail lines up with the exercise, then run it again."
+          },
+          {
+            "match": "^aws sts assume-role(?!(?=.*--role-arn )(?=.*--role-session-name ))",
+            "output": "usage: aws [options] <command> <subcommand> [<subcommand> ...] [parameters]\naws: error: the following arguments are required: --role-arn, --role-session-name"
+          },
+          {
+            "match": "^aws sts assume-role(?=.*--role-arn arn:aws:iam::444455556666:role/AuditReaderRole(\\s|$))",
+            "output": "An error occurred (AccessDenied) when calling the AssumeRole operation: User: arn:aws:iam::111122223333:user/deploy-bot is not authorized to perform: sts:AssumeRole on resource: arn:aws:iam::444455556666:role/AuditReaderRole"
+          },
+          {
+            "match": "^aws sts assume-role .*--role-arn (arn:aws:iam::\\d+:role/\\S+)",
+            "output": "An error occurred (AccessDenied) when calling the AssumeRole operation: User: arn:aws:iam::111122223333:user/deploy-bot is not authorized to perform: sts:AssumeRole on resource: $1"
+          },
+          {
+            "match": "^export AWS_ACCESS_KEY_ID=[\"']?ASIAIOSFODNN7EXAMPLE[\"']?$",
+            "requires": [
+              "assumed_role"
+            ],
+            "sets": [
+              "env_key"
+            ],
+            "output": ""
+          },
+          {
+            "match": "^export AWS_SECRET_ACCESS_KEY=[\"']?wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY[\"']?$",
+            "requires": [
+              "assumed_role"
+            ],
+            "sets": [
+              "env_secret"
+            ],
+            "output": ""
+          },
+          {
+            "match": "^export AWS_SESSION_TOKEN=[\"']?IQoJb3JpZ2luX2VjEXAMPLE[\"']?$",
+            "requires": [
+              "assumed_role"
+            ],
+            "sets": [
+              "env_token"
+            ],
+            "output": ""
+          },
+          {
+            "match": "^export AWS_[A-Z_]+=",
+            "output": ""
+          },
+          {
+            "match": "^aws s3 ls s3://acme-audit-reports/?$",
+            "requires": [
+              "env_key",
+              "env_secret",
+              "env_token"
+            ],
+            "output": "2026-10-02 09:14:31       1284 q3-findings.txt\n2026-10-02 09:14:35       9120 q3-summary.pdf\n2026-09-18 16:03:02        412 readme.txt"
+          },
+          {
+            "match": "^aws s3 cp s3://acme-audit-reports/q3-findings.txt -$",
+            "requires": [
+              "env_key",
+              "env_secret",
+              "env_token"
+            ],
+            "sets": [
+              "read_report"
+            ],
+            "output": "Northwind Q3 external audit - findings (read-only copy)\n1. HIGH  - Public S3 ACL on build-artifacts (remediated)\n2. MED   - Stale IAM user keys older than 90 days\n3. INFO - Report access verified via assumed role: FLAG{assumerole_ext_id_3b71}"
+          },
+          {
+            "match": "^aws s3 rm\\b",
+            "requires": [
+              "env_key",
+              "env_secret",
+              "env_token"
+            ],
+            "output": "delete failed: s3://acme-audit-reports/q3-findings.txt An error occurred (AccessDenied) when calling the DeleteObject operation: User: arn:aws:sts::444455556666:assumed-role/AuditReaderRole/audit-lab is not authorized to perform: s3:DeleteObject on resource: \"arn:aws:s3:::acme-audit-reports/q3-findings.txt\" because no identity-based policy allows the s3:DeleteObject action"
+          },
+          {
+            "match": "^aws s3 (cp|mv|sync) \\S+ s3://",
+            "requires": [
+              "env_key",
+              "env_secret",
+              "env_token"
+            ],
+            "output": "upload failed: ./notes.txt to s3://acme-audit-reports/notes.txt An error occurred (AccessDenied) when calling the PutObject operation: User: arn:aws:sts::444455556666:assumed-role/AuditReaderRole/audit-lab is not authorized to perform: s3:PutObject on resource: \"arn:aws:s3:::acme-audit-reports/notes.txt\" because no identity-based policy allows the s3:PutObject action"
+          },
+          {
+            "match": "^aws iam list-users\\b",
+            "requires": [
+              "env_key",
+              "env_secret",
+              "env_token"
+            ],
+            "output": "An error occurred (AccessDenied) when calling the ListUsers operation: User: arn:aws:sts::444455556666:assumed-role/AuditReaderRole/audit-lab is not authorized to perform: iam:ListUsers on resource: arn:aws:iam::444455556666:user/ because no identity-based policy allows the iam:ListUsers action"
+          },
+          {
+            "match": "^aws s3 ls\\b",
+            "output": "An error occurred (AccessDenied) when calling the ListObjectsV2 operation: User: arn:aws:iam::111122223333:user/deploy-bot is not authorized to perform: s3:ListBucket on resource: \"arn:aws:s3:::acme-audit-reports\" because no identity-based policy allows the s3:ListBucket action"
+          },
+          {
+            "match": "^aws s3 (cp|mv|sync|rm)\\b",
+            "output": "An error occurred (AccessDenied) when calling the GetObject operation: User: arn:aws:iam::111122223333:user/deploy-bot is not authorized to perform: s3:GetObject on resource: \"arn:aws:s3:::acme-audit-reports/q3-findings.txt\" because no identity-based policy allows the s3:GetObject action"
+          },
+          {
+            "match": "^aws iam list-users\\b",
+            "output": "An error occurred (AccessDenied) when calling the ListUsers operation: User: arn:aws:iam::111122223333:user/deploy-bot is not authorized to perform: iam:ListUsers on resource: arn:aws:iam::111122223333:user/ because no identity-based policy allows the iam:ListUsers action"
+          }
+        ],
+        "fallback": "Nothing scripted for that command. Type 'help' for the commands this shell understands."
+      },
+      "solution": [
+        "aws sts get-caller-identity",
+        "aws s3 ls s3://acme-audit-reports",
+        "aws sts assume-role --role-arn arn:aws:iam::444455556666:role/AuditReaderRole --role-session-name audit-lab --external-id tz-audit-7f3c",
+        "export AWS_ACCESS_KEY_ID=ASIAIOSFODNN7EXAMPLE",
+        "export AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+        "export AWS_SESSION_TOKEN=IQoJb3JpZ2luX2VjEXAMPLE",
+        "aws sts get-caller-identity",
+        "aws s3 cp s3://acme-audit-reports/q3-findings.txt -"
+      ],
+      "tasks": [
+        {
+          "id": "t1",
+          "kind": "choice",
+          "prompt": "AssumeRole returns a set of temporary credentials. To make the AWS CLI act as the role, which values must you export?",
+          "options": [
+            "Only AccessKeyId, like a normal IAM user key",
+            "AccessKeyId and SecretAccessKey, the SessionToken is optional",
+            "AccessKeyId, SecretAccessKey and SessionToken",
+            "Only the SessionToken, it replaces the key pair"
+          ],
+          "correct": [
+            2
+          ],
+          "explanation": "Temporary credentials are a triple. The SessionToken is what proves the key pair is a live STS session, and requests signed with just the key and secret are rejected (InvalidClientTokenId). Forgetting AWS_SESSION_TOKEN is the most common reason an assumed role 'does not work'."
+        },
+        {
+          "id": "t2",
+          "kind": "answer",
+          "prompt": "Run the round trip in the terminal. After exporting the temporary credentials, `aws sts get-caller-identity` shows a different identity. What is the full Arn it returns?",
+          "accept": [
+            "arn:aws:sts::444455556666:assumed-role/auditreaderrole/audit-lab",
+            "assumed-role/auditreaderrole/audit-lab"
+          ],
+          "explanation": "The caller is no longer the user deploy-bot but an assumed-role session: arn:aws:sts::<role account>:assumed-role/<role>/<session name>. The account is the ROLE's account (444455556666), and the session name you chose is what appears in CloudTrail, so a descriptive name makes later investigations much easier."
+        },
+        {
+          "id": "t3",
+          "kind": "flag",
+          "prompt": "Using the assumed-role credentials, read s3://acme-audit-reports/q3-findings.txt (print it with `aws s3 cp ... -`). Paste the flag from the report.",
+          "flag": "FLAG{assumerole_ext_id_3b71}",
+          "explanation": "As deploy-bot the bucket was AccessDenied: that user holds no S3 permission at all. After AssumeRole the CLI acts as AuditReaderRole, whose permission policy allows reading the bucket. The trust policy decided who could become the role; the permission policy decided what the role can do."
+        },
+        {
+          "id": "t4",
+          "kind": "choice",
+          "prompt": "While using the temporary credentials you try `aws s3 rm` on the report and get AccessDenied. What is the best explanation?",
+          "options": [
+            "The temporary credentials have already expired, so every call is rejected",
+            "An assumed-role session has only the role's permissions (here read-only); deploy-bot's own permissions no longer apply",
+            "S3 never allows deletes from the CLI",
+            "The ExternalId must be passed again on every call"
+          ],
+          "correct": [
+            1
+          ],
+          "explanation": "When you assume a role you give up your original permissions and get exactly the role's, nothing more. AuditReaderRole's policy grants only s3:GetObject and s3:ListBucket, so a delete is denied and the failure message names the assumed-role ARN as the caller. This is least privilege working as intended."
+        },
+        {
+          "id": "t5",
+          "kind": "answer",
+          "prompt": "If you do not pass --duration-seconds, how long (in seconds) are the temporary credentials from sts:AssumeRole valid by default?",
+          "accept": [
+            "3600",
+            "3600 seconds",
+            "1 hour",
+            "one hour",
+            "60 minutes",
+            "an hour"
+          ],
+          "explanation": "The AssumeRole default is 3600 seconds (one hour). The valid range runs from 900 seconds up to the role's configured maximum (1 to 12 hours). Short lifetimes are a major advantage of roles over long-term keys: a stolen session simply stops working."
+        },
+        {
+          "id": "t6",
+          "kind": "policy",
+          "mode": "resource",
+          "prompt": "Wear Northwind's hat. Harden the trust policy of the new ComplianceExportRole (draft in ComplianceExportRole-trust-draft.json). Only IAM user arn:aws:iam::111122223333:user/deploy-bot may assume it, and only when it presents ExternalId tz-export-91ac. Callers' own identity policies already allow sts:AssumeRole (fixed), and the request is cross-account.",
+          "starter": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"VendorAssume\",\n      \"Effect\": \"Allow\",\n      \"Principal\": {\n        \"AWS\": \"*\"\n      },\n      \"Action\": \"sts:AssumeRole\"\n    }\n  ]\n}",
+          "solution": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"VendorAssume\",\n      \"Effect\": \"Allow\",\n      \"Principal\": {\n        \"AWS\": \"arn:aws:iam::111122223333:user/deploy-bot\"\n      },\n      \"Action\": \"sts:AssumeRole\",\n      \"Condition\": {\n        \"StringEquals\": {\n          \"sts:ExternalId\": \"tz-export-91ac\"\n        }\n      }\n    }\n  ]\n}",
+          "fixed": {
+            "identity": [
+              "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Effect\": \"Allow\",\n      \"Action\": \"sts:AssumeRole\",\n      \"Resource\": \"*\"\n    }\n  ]\n}"
+            ],
+            "crossAccount": true
+          },
+          "tests": [
+            {
+              "name": "deploy-bot can assume the role with the correct ExternalId",
+              "action": "sts:AssumeRole",
+              "principal": "arn:aws:iam::111122223333:user/deploy-bot",
+              "context": {
+                "sts:ExternalId": "tz-export-91ac"
+              },
+              "expect": "allow"
+            },
+            {
+              "name": "deploy-bot cannot assume the role without any ExternalId",
+              "action": "sts:AssumeRole",
+              "principal": "arn:aws:iam::111122223333:user/deploy-bot",
+              "expect": "deny"
+            },
+            {
+              "name": "deploy-bot cannot assume the role with a wrong ExternalId",
+              "action": "sts:AssumeRole",
+              "principal": "arn:aws:iam::111122223333:user/deploy-bot",
+              "context": {
+                "sts:ExternalId": "tz-audit-7f3c"
+              },
+              "expect": "deny"
+            },
+            {
+              "name": "A role in an unrelated account cannot assume it, even with the right ExternalId",
+              "action": "sts:AssumeRole",
+              "principal": "arn:aws:iam::999988887777:role/ScannerClone",
+              "context": {
+                "sts:ExternalId": "tz-export-91ac"
+              },
+              "expect": "deny"
+            },
+            {
+              "name": "An anonymous caller cannot assume it",
+              "action": "sts:AssumeRole",
+              "principal": "*",
+              "expect": "deny"
+            }
+          ],
+          "explanation": "Principal * with no condition means any AWS principal in any account that learns the role ARN can assume it. The fix has two parts: name the exact principal, and require sts:ExternalId so a different customer of the same vendor cannot trick the vendor into assuming your role on their behalf (the confused deputy problem)."
+        },
+        {
+          "id": "t7",
+          "kind": "choice",
+          "prompt": "What attack does an ExternalId condition in a role trust policy primarily defend against?",
+          "options": [
+            "Brute-forcing the role's session token",
+            "The confused deputy problem: a third party being tricked into assuming a customer's role for someone else",
+            "Man-in-the-middle attacks on the STS endpoint",
+            "Replay of an expired session after the role is deleted"
+          ],
+          "correct": [
+            1
+          ],
+          "explanation": "A vendor serves many customers from one AWS account. Without a per-customer ExternalId, customer B could give the vendor customer A's role ARN and have the vendor assume it. The ExternalId is a per-customer value that only the real relationship knows, so the trust policy rejects the substituted request. It is not a secret key and does not encrypt anything."
+        }
+      ],
+      "takeaways": [
+        "AssumeRole trades your identity for a time-limited one: export AccessKeyId, SecretAccessKey and SessionToken, and from then on you have only the role's permissions.",
+        "Two documents gate a role: the trust policy decides who may assume it, and the permission policy decides what the session can do. Cross-account assumption needs the caller's identity policy and the trust policy to both allow.",
+        "Never trust Principal * in a trust policy; name the exact principal and add sts:ExternalId for third-party access to prevent confused-deputy abuse."
+      ]
+    }
+  }
+]

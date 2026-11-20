@@ -1,0 +1,709 @@
+[
+  {
+    "labId": "cloud-L01",
+    "objective": "Audit a brand-new AWS sandbox account with real CLI calls, enumerate its baseline gaps from the highest-blast-radius gap down, then write the identity policy that makes sensitive actions require MFA.",
+    "successCriteria": [
+      "You found the root-account gaps (no MFA, an access key on root) and the weak password policy",
+      "You enumerated the CloudTrail, S3 Block Public Access and Budgets gaps in order and earned the gate flag",
+      "You wrote a policy that denies sensitive actions unless the session was authenticated with MFA"
+    ],
+    "hints": [
+      "Start with the identity that can do the most damage: the root user. Which account-wide IAM call summarises root's MFA and key state?",
+      "Work down the list: root summary, password policy, CloudTrail trails, account-level S3 Block Public Access (s3control needs --account-id), then Budgets.",
+      "For the policy: add a Deny statement for the sensitive actions with Condition BoolIfExists on aws:MultiFactorAuthPresent set to false. Use BoolIfExists so long-term access keys (no MFA key at all) are also denied."
+    ],
+    "estimatedHours": 1,
+    "resources": [
+      {
+        "title": "AWS docs: Security best practices in IAM",
+        "url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/best-practices.html",
+        "type": "link"
+      },
+      {
+        "title": "AWS docs: Secure API access with MFA",
+        "url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_mfa_configure-api-require.html",
+        "type": "link"
+      },
+      {
+        "title": "AWS docs: Blocking public access to your Amazon S3 storage",
+        "url": "https://docs.aws.amazon.com/AmazonS3/latest/userguide/access-control-block-public-access.html",
+        "type": "link"
+      }
+    ],
+    "range": {
+      "scenario": "Your team just created a fresh AWS sandbox account (111122223333) that every trainee will share for the next four months. Nobody has hardened it yet: the first person in used the root user to set things up. You hold a sandbox-admin profile and the platform lead wants a baseline review before anyone else is invited. Inspect the account with the CLI, find what is missing at the account level, in the order that reduces risk fastest, and then write the policy that stops a stolen access key from doing damage without MFA.",
+      "artifacts": [
+        {
+          "name": "baseline-checklist.txt",
+          "language": "text",
+          "content": "SANDBOX ACCOUNT BASELINE (account 111122223333, us-east-1)\n\n[ ] 1. Root user: MFA enabled, no access keys\n[ ] 2. IAM password policy: length, reuse prevention\n[ ] 3. CloudTrail: multi-region trail, log file validation, actually logging\n[ ] 4. S3 account-level Block Public Access: all four settings on\n[ ] 5. Budgets: at least one cost budget with an alert\n\nRule: review in this order. Highest blast radius first.",
+          "note": "The team's checklist. The terminal gates the final token on completing these in order."
+        },
+        {
+          "name": "sensitive-actions-policy.json",
+          "language": "json",
+          "content": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"ReadAndSelfServiceMFA\",\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"ec2:Describe*\",\n        \"s3:ListAllMyBuckets\",\n        \"iam:ListMFADevices\",\n        \"iam:CreateVirtualMFADevice\",\n        \"iam:EnableMFADevice\"\n      ],\n      \"Resource\": \"*\"\n    },\n    {\n      \"Sid\": \"SensitiveActions\",\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"ec2:StopInstances\",\n        \"ec2:TerminateInstances\",\n        \"iam:CreateAccessKey\",\n        \"s3:DeleteBucket\"\n      ],\n      \"Resource\": \"*\"\n    }\n  ]\n}",
+          "note": "Current identity policy for the sandbox-admin group: sensitive actions are allowed with no MFA requirement."
+        },
+        {
+          "name": "incident-ticket.txt",
+          "language": "text",
+          "content": "TICKET SEC-114\nA lab-bot access key was pasted into a public chat channel last week.\nCloudTrail shows no activity from it, but the only trail is single-region and was stopped on 2024-05-30.\nRequirement: a leaked long-term key alone must not be able to stop or terminate instances, create access keys or delete buckets.",
+          "note": "Why the policy task exists."
+        }
+      ],
+      "terminal": {
+        "prompt": "auditor@sandbox:~$",
+        "intro": "Profile sandbox-admin, account 111122223333, default region us-east-1. Read-only audit: run the checks, find the gaps.",
+        "help": "Commands you can try (like the AWS CLI):\n  aws sts get-caller-identity\n  aws iam get-account-summary\n  aws iam get-account-password-policy\n  aws iam list-virtual-mfa-devices\n  aws cloudtrail describe-trails\n  aws cloudtrail get-trail-status --name <trail>\n  aws s3control get-public-access-block --account-id <id>\n  aws budgets describe-budgets --account-id <id>\n  aws s3 ls s3://acme-sandbox-baseline/\n  aws s3 cp s3://acme-sandbox-baseline/gate-token.txt -",
+        "rules": [
+          {
+            "match": "^aws iam get-account-summary(?: --(?:region|output|profile) \\S+)*$",
+            "output": "{\n  \"SummaryMap\": {\n    \"GroupPolicySizeQuota\": 5120,\n    \"InstanceProfilesQuota\": 1000,\n    \"Policies\": 1,\n    \"GroupsPerUserQuota\": 10,\n    \"InstanceProfiles\": 0,\n    \"AttachedPoliciesPerUserQuota\": 10,\n    \"Users\": 2,\n    \"PoliciesQuota\": 1500,\n    \"Providers\": 0,\n    \"AccountMFAEnabled\": 0,\n    \"AccessKeysPerUserQuota\": 2,\n    \"AssumeRolePolicySizeQuota\": 2048,\n    \"PolicyVersionsInUse\": 3,\n    \"GlobalEndpointTokenVersion\": 1,\n    \"VersionsPerPolicyQuota\": 5,\n    \"AttachedPoliciesPerGroupQuota\": 10,\n    \"PolicySizeQuota\": 6144,\n    \"Groups\": 1,\n    \"AccountSigningCertificatesPresent\": 0,\n    \"UsersQuota\": 5000,\n    \"ServerCertificatesQuota\": 20,\n    \"MFADevices\": 0,\n    \"UserPolicySizeQuota\": 2048,\n    \"PolicyVersionsInUseQuota\": 10000,\n    \"ServerCertificates\": 0,\n    \"Roles\": 3,\n    \"RolesQuota\": 1000,\n    \"SigningCertificatesPerUserQuota\": 2,\n    \"MFADevicesInUse\": 0,\n    \"RolePolicySizeQuota\": 10240,\n    \"AttachedPoliciesPerRoleQuota\": 10,\n    \"AccountAccessKeysPresent\": 1,\n    \"GroupsQuota\": 300\n  }\n}",
+            "sets": [
+              "root_reviewed"
+            ]
+          },
+          {
+            "match": "^aws iam get-account-password-policy(?: --(?:region|output|profile) \\S+)*$",
+            "output": "{\n  \"PasswordPolicy\": {\n    \"MinimumPasswordLength\": 8,\n    \"RequireSymbols\": false,\n    \"RequireNumbers\": true,\n    \"RequireUppercaseCharacters\": true,\n    \"RequireLowercaseCharacters\": true,\n    \"AllowUsersToChangePassword\": true,\n    \"ExpirePasswords\": false,\n    \"HardExpiry\": false\n  }\n}",
+            "sets": [
+              "pw_reviewed"
+            ],
+            "requires": [
+              "root_reviewed"
+            ]
+          },
+          {
+            "match": "^aws cloudtrail describe-trails(?: --(?:region|output|profile) \\S+)*$",
+            "output": "{\n  \"trailList\": [\n    {\n      \"Name\": \"sandbox-trail\",\n      \"S3BucketName\": \"acme-sandbox-cloudtrail-111122223333\",\n      \"IncludeGlobalServiceEvents\": true,\n      \"IsMultiRegionTrail\": false,\n      \"HomeRegion\": \"us-east-1\",\n      \"TrailARN\": \"arn:aws:cloudtrail:us-east-1:111122223333:trail/sandbox-trail\",\n      \"LogFileValidationEnabled\": false,\n      \"HasCustomEventSelectors\": false,\n      \"HasInsightSelectors\": false,\n      \"IsOrganizationTrail\": false\n    }\n  ]\n}",
+            "sets": [
+              "trail_reviewed"
+            ],
+            "requires": [
+              "pw_reviewed"
+            ]
+          },
+          {
+            "match": "^aws s3control get-public-access-block --account-id 111122223333(?: --(?:region|output|profile) \\S+)*$",
+            "output": "An error occurred (NoSuchPublicAccessBlockConfiguration) when calling the GetPublicAccessBlock operation: The public access block configuration was not found",
+            "sets": [
+              "s3_reviewed"
+            ],
+            "requires": [
+              "trail_reviewed"
+            ]
+          },
+          {
+            "match": "^aws budgets describe-budgets --account-id 111122223333(?: --(?:region|output|profile) \\S+)*$",
+            "output": "{\n  \"Budgets\": []\n}",
+            "sets": [
+              "budgets_reviewed"
+            ],
+            "requires": [
+              "s3_reviewed"
+            ]
+          },
+          {
+            "match": "^aws iam get-account-password-policy(?: --(?:region|output|profile) \\S+)*$",
+            "output": "{\n  \"PasswordPolicy\": {\n    \"MinimumPasswordLength\": 8,\n    \"RequireSymbols\": false,\n    \"RequireNumbers\": true,\n    \"RequireUppercaseCharacters\": true,\n    \"RequireLowercaseCharacters\": true,\n    \"AllowUsersToChangePassword\": true,\n    \"ExpirePasswords\": false,\n    \"HardExpiry\": false\n  }\n}\n[lab] Output shown, but not logged as a finding. The baseline review must go in order: root account, password policy, CloudTrail, S3 account-level Block Public Access, Budgets."
+          },
+          {
+            "match": "^aws cloudtrail describe-trails(?: --(?:region|output|profile) \\S+)*$",
+            "output": "{\n  \"trailList\": [\n    {\n      \"Name\": \"sandbox-trail\",\n      \"S3BucketName\": \"acme-sandbox-cloudtrail-111122223333\",\n      \"IncludeGlobalServiceEvents\": true,\n      \"IsMultiRegionTrail\": false,\n      \"HomeRegion\": \"us-east-1\",\n      \"TrailARN\": \"arn:aws:cloudtrail:us-east-1:111122223333:trail/sandbox-trail\",\n      \"LogFileValidationEnabled\": false,\n      \"HasCustomEventSelectors\": false,\n      \"HasInsightSelectors\": false,\n      \"IsOrganizationTrail\": false\n    }\n  ]\n}\n[lab] Output shown, but not logged as a finding. The baseline review must go in order: root account, password policy, CloudTrail, S3 account-level Block Public Access, Budgets."
+          },
+          {
+            "match": "^aws s3control get-public-access-block --account-id 111122223333(?: --(?:region|output|profile) \\S+)*$",
+            "output": "An error occurred (NoSuchPublicAccessBlockConfiguration) when calling the GetPublicAccessBlock operation: The public access block configuration was not found\n[lab] Output shown, but not logged as a finding. The baseline review must go in order: root account, password policy, CloudTrail, S3 account-level Block Public Access, Budgets."
+          },
+          {
+            "match": "^aws budgets describe-budgets --account-id 111122223333(?: --(?:region|output|profile) \\S+)*$",
+            "output": "{\n  \"Budgets\": []\n}\n[lab] Output shown, but not logged as a finding. The baseline review must go in order: root account, password policy, CloudTrail, S3 account-level Block Public Access, Budgets."
+          },
+          {
+            "match": "^aws sts get-caller-identity(?: --(?:region|output|profile) \\S+)*$",
+            "output": "{\n  \"UserId\": \"AIDAEXAMPLEADMIN0001\",\n  \"Account\": \"111122223333\",\n  \"Arn\": \"arn:aws:iam::111122223333:user/sandbox-admin\"\n}"
+          },
+          {
+            "match": "^aws iam list-virtual-mfa-devices(?: --(?:region|output|profile) \\S+)*$",
+            "output": "{\n  \"VirtualMFADevices\": []\n}"
+          },
+          {
+            "match": "^aws iam list-users(?: --(?:region|output|profile) \\S+)*$",
+            "output": "{\n  \"Users\": [\n    {\n      \"UserName\": \"sandbox-admin\",\n      \"UserId\": \"AIDAEXAMPLEADMIN0001\",\n      \"Arn\": \"arn:aws:iam::111122223333:user/sandbox-admin\"\n    },\n    {\n      \"UserName\": \"lab-bot\",\n      \"UserId\": \"AIDAEXAMPLELABBOT01\",\n      \"Arn\": \"arn:aws:iam::111122223333:user/lab-bot\"\n    }\n  ]\n}"
+          },
+          {
+            "match": "^aws cloudtrail get-trail-status --name (?:sandbox-trail|arn:aws:cloudtrail:\\S+:trail/sandbox-trail)(?: --(?:region|output|profile) \\S+)*$",
+            "output": "{\n  \"IsLogging\": false,\n  \"LatestDeliveryTime\": \"2024-05-30T08:14:02.114000+00:00\",\n  \"StopLoggingTime\": \"2024-05-30T09:41:17.502000+00:00\",\n  \"LatestNotificationAttemptSucceeded\": \"\",\n  \"LatestDeliveryAttemptSucceeded\": \"\",\n  \"TimeLoggingStarted\": \"2024-05-28T10:02:44Z\",\n  \"TimeLoggingStopped\": \"2024-05-30T09:41:17Z\"\n}"
+          },
+          {
+            "match": "^aws s3control get-public-access-block(?: --(?:region|output|profile) \\S+)*$",
+            "output": "usage: aws [options] <command> <subcommand> [<subcommand> ...] [parameters]\nTo see help text, you can run:\n\n  aws help\n  aws <command> help\n  aws <command> <subcommand> help\n\naws: error: the following arguments are required: --account-id"
+          },
+          {
+            "match": "^aws s3control get-public-access-block --account-id \\d+(?: --(?:region|output|profile) \\S+)*$",
+            "output": "An error occurred (AccessDenied) when calling the GetPublicAccessBlock operation: Access Denied. You can only query the account you are signed in to (111122223333)."
+          },
+          {
+            "match": "^aws budgets describe-budgets(?: --(?:region|output|profile) \\S+)*$",
+            "output": "usage: aws [options] <command> <subcommand> [<subcommand> ...] [parameters]\n\naws: error: the following arguments are required: --account-id"
+          },
+          {
+            "match": "^aws s3 cp s3://acme-sandbox-baseline/gate-token\\.txt -$",
+            "requires": [
+              "budgets_reviewed"
+            ],
+            "output": "FLAG{baseline_gaps_root_to_budget}\n# acme sandbox baseline gate: all five account-level checks logged in order"
+          },
+          {
+            "match": "^aws s3 cp s3://acme-sandbox-baseline/gate-token\\.txt -$",
+            "output": "download failed: s3://acme-sandbox-baseline/gate-token.txt to - An error occurred (AccessDenied) when calling the GetObject operation: Access Denied\n[lab] The gate token is released only after all five baseline checks are logged in order."
+          },
+          {
+            "match": "^aws s3 ls s3://acme-sandbox-baseline/?$",
+            "output": "2024-05-28 10:30:11         71 gate-token.txt"
+          },
+          {
+            "match": "^aws iam (?:create-|delete-|attach-|put-|update-)",
+            "output": "[lab] This is an audit session: findings only. Remediation happens after the review, in the policy task."
+          }
+        ],
+        "fallback": "Command not recognised in this lab. Type `help` for the commands available."
+      },
+      "solution": [
+        "aws sts get-caller-identity",
+        "aws iam get-account-summary",
+        "aws iam get-account-password-policy",
+        "aws cloudtrail describe-trails",
+        "aws cloudtrail get-trail-status --name sandbox-trail",
+        "aws s3control get-public-access-block --account-id 111122223333",
+        "aws budgets describe-budgets --account-id 111122223333",
+        "aws s3 cp s3://acme-sandbox-baseline/gate-token.txt -"
+      ],
+      "tasks": [
+        {
+          "id": "t1",
+          "kind": "choice",
+          "prompt": "Run `aws iam get-account-summary`. Which finding is the most urgent in the whole account?",
+          "options": [
+            "Users is 2, which is more than the account needs",
+            "AccountMFAEnabled is 0 while AccountAccessKeysPresent is 1: the root user has no MFA and has an access key",
+            "Policies is 1, so there are too few customer managed policies",
+            "GroupsQuota is 300, which is too high"
+          ],
+          "correct": [
+            1
+          ],
+          "explanation": "The root user cannot be restricted by IAM policies or most SCPs in its own account, so an unprotected root credential is the highest blast radius in the account. AccountMFAEnabled=0 means the root sign-in has no second factor, and AccountAccessKeysPresent=1 means a long-term root key exists that bypasses the console entirely. The fix is to enable MFA on root, delete the root access key, and use an IAM Identity Center or IAM admin identity for daily work."
+        },
+        {
+          "id": "t2",
+          "kind": "answer",
+          "prompt": "How many access keys does the root user have in this account (see AccountAccessKeysPresent)?",
+          "accept": [
+            "1",
+            "one",
+            "a single key",
+            "1 key"
+          ],
+          "explanation": "AccountAccessKeysPresent counts access keys on the root user itself, not on IAM users. Any non-zero value is a finding: AWS recommends no root access keys at all, because a root key grants full account control with no MFA step and cannot be scoped down."
+        },
+        {
+          "id": "t3",
+          "kind": "choice",
+          "prompt": "Run `aws iam get-account-password-policy`. Which are real gaps? Select all that apply.",
+          "options": [
+            "MinimumPasswordLength is 8, below the 14 characters recommended by CIS benchmarks",
+            "No PasswordReusePrevention is configured, so users can cycle back to old passwords",
+            "AllowUsersToChangePassword is true, which should be false",
+            "RequireUppercaseCharacters is true, which is a misconfiguration"
+          ],
+          "correct": [
+            0,
+            1
+          ],
+          "explanation": "A length of 8 is the AWS default and is weak against offline cracking; CIS recommends at least 14. With no PasswordReusePrevention key, users can rotate back to a leaked password. Letting users change their own password is required for self-service MFA and rotation, and requiring uppercase is harmless. Length and reuse are what matter."
+        },
+        {
+          "id": "t4",
+          "kind": "choice",
+          "prompt": "Run `aws cloudtrail describe-trails`. Which settings of sandbox-trail are gaps? Select all that apply.",
+          "options": [
+            "IsMultiRegionTrail is false, so activity in every other region is not recorded",
+            "LogFileValidationEnabled is false, so tampering with delivered logs cannot be detected",
+            "IncludeGlobalServiceEvents is true, which is wrong for a trail",
+            "HomeRegion is us-east-1, which is not allowed"
+          ],
+          "correct": [
+            0,
+            1
+          ],
+          "explanation": "An attacker with a stolen key will often work in a region you never use, so a single-region trail leaves blind spots; make it multi-region. Log file validation produces signed digest files so you can prove logs were not altered. IncludeGlobalServiceEvents=true is what you want (it captures IAM and STS events), and the home region is just where the trail was created."
+        },
+        {
+          "id": "t5",
+          "kind": "answer",
+          "prompt": "Run `aws cloudtrail get-trail-status --name sandbox-trail`. What is the value of IsLogging?",
+          "accept": [
+            "false",
+            "no",
+            "off"
+          ],
+          "explanation": "A trail that exists but is stopped records nothing. StopLoggingTime shows it was stopped on 2024-05-30, which is exactly the window the leaked lab-bot key was exposed. Alert on cloudtrail:StopLogging and restrict who may call it."
+        },
+        {
+          "id": "t6",
+          "kind": "choice",
+          "prompt": "`aws s3control get-public-access-block --account-id 111122223333` returns NoSuchPublicAccessBlockConfiguration. What does that tell you?",
+          "options": [
+            "Account-level Block Public Access is fully enabled and working",
+            "No account-level Block Public Access configuration exists, so nothing stops a bucket from being made public except per-bucket settings",
+            "The account has no S3 buckets",
+            "Your profile lacks permission to read S3 buckets"
+          ],
+          "correct": [
+            1
+          ],
+          "explanation": "That error is the API's way of saying the account-level setting was never created. Enabling all four Block Public Access settings at the account level is a guardrail that overrides any individual bucket ACL or policy that would make data public, so its absence is a finding even when no bucket is public today."
+        },
+        {
+          "id": "t7",
+          "kind": "flag",
+          "prompt": "Complete the review in order: root summary, password policy, CloudTrail, S3 Block Public Access, Budgets. Then read the baseline gate token and paste the flag.",
+          "flag": "FLAG{baseline_gaps_root_to_budget}",
+          "explanation": "Order matters in a real review because risk is not equal: root credentials and sign-in controls first, then detection (CloudTrail), then data exposure, then cost guardrails. Doing the checks out of order produced output but no logged finding, which mirrors how a rushed audit produces a list with no priorities."
+        },
+        {
+          "id": "t8",
+          "kind": "policy",
+          "mode": "identity",
+          "prompt": "Fix the sandbox-admin policy. Reading and enrolling an MFA device must still work without MFA, but stopping or terminating instances, creating access keys and deleting buckets must require an MFA-authenticated session, including when the credentials are plain long-term access keys.",
+          "starter": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"ReadAndSelfServiceMFA\",\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"ec2:Describe*\",\n        \"s3:ListAllMyBuckets\",\n        \"iam:ListMFADevices\",\n        \"iam:CreateVirtualMFADevice\",\n        \"iam:EnableMFADevice\"\n      ],\n      \"Resource\": \"*\"\n    },\n    {\n      \"Sid\": \"SensitiveActions\",\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"ec2:StopInstances\",\n        \"ec2:TerminateInstances\",\n        \"iam:CreateAccessKey\",\n        \"s3:DeleteBucket\"\n      ],\n      \"Resource\": \"*\"\n    }\n  ]\n}",
+          "solution": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"ReadAndSelfServiceMFA\",\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"ec2:Describe*\",\n        \"s3:ListAllMyBuckets\",\n        \"iam:ListMFADevices\",\n        \"iam:CreateVirtualMFADevice\",\n        \"iam:EnableMFADevice\"\n      ],\n      \"Resource\": \"*\"\n    },\n    {\n      \"Sid\": \"SensitiveActions\",\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"ec2:StopInstances\",\n        \"ec2:TerminateInstances\",\n        \"iam:CreateAccessKey\",\n        \"s3:DeleteBucket\"\n      ],\n      \"Resource\": \"*\"\n    },\n    {\n      \"Sid\": \"DenySensitiveWithoutMFA\",\n      \"Effect\": \"Deny\",\n      \"Action\": [\n        \"ec2:StopInstances\",\n        \"ec2:TerminateInstances\",\n        \"iam:CreateAccessKey\",\n        \"s3:DeleteBucket\"\n      ],\n      \"Resource\": \"*\",\n      \"Condition\": {\n        \"BoolIfExists\": {\n          \"aws:MultiFactorAuthPresent\": \"false\"\n        }\n      }\n    }\n  ]\n}",
+          "tests": [
+            {
+              "name": "Can still describe instances without MFA",
+              "action": "ec2:DescribeInstances",
+              "resource": "*",
+              "context": {
+                "aws:MultiFactorAuthPresent": false
+              },
+              "expect": "allow"
+            },
+            {
+              "name": "Can still enrol an MFA device without MFA",
+              "action": "iam:EnableMFADevice",
+              "resource": "arn:aws:iam::111122223333:user/sandbox-admin",
+              "context": {
+                "aws:MultiFactorAuthPresent": false
+              },
+              "expect": "allow"
+            },
+            {
+              "name": "Can terminate instances with an MFA session",
+              "action": "ec2:TerminateInstances",
+              "resource": "arn:aws:ec2:us-east-1:111122223333:instance/i-0abc1234def567890",
+              "context": {
+                "aws:MultiFactorAuthPresent": true
+              },
+              "expect": "allow"
+            },
+            {
+              "name": "Cannot terminate instances without MFA",
+              "action": "ec2:TerminateInstances",
+              "resource": "arn:aws:ec2:us-east-1:111122223333:instance/i-0abc1234def567890",
+              "context": {
+                "aws:MultiFactorAuthPresent": false
+              },
+              "expect": "deny"
+            },
+            {
+              "name": "A long-term access key (no MFA context at all) cannot terminate instances",
+              "action": "ec2:TerminateInstances",
+              "resource": "arn:aws:ec2:us-east-1:111122223333:instance/i-0abc1234def567890",
+              "expect": "deny"
+            },
+            {
+              "name": "Cannot create access keys without MFA",
+              "action": "iam:CreateAccessKey",
+              "resource": "arn:aws:iam::111122223333:user/sandbox-admin",
+              "context": {
+                "aws:MultiFactorAuthPresent": false
+              },
+              "expect": "deny"
+            },
+            {
+              "name": "Cannot delete a bucket without MFA",
+              "action": "s3:DeleteBucket",
+              "resource": "arn:aws:s3:::acme-sandbox-data",
+              "context": {
+                "aws:MultiFactorAuthPresent": false
+              },
+              "expect": "deny"
+            },
+            {
+              "name": "Can delete a bucket with an MFA session",
+              "action": "s3:DeleteBucket",
+              "resource": "arn:aws:s3:::acme-sandbox-data",
+              "context": {
+                "aws:MultiFactorAuthPresent": true
+              },
+              "expect": "allow"
+            }
+          ],
+          "explanation": "An explicit Deny with a condition on aws:MultiFactorAuthPresent beats every Allow. The key is only present in the request context when the session was authenticated with MFA, so a long-term access key has no such key at all. A plain Bool condition would not match a missing key and the deny would silently not apply; BoolIfExists treats a missing key as a match and closes that hole."
+        },
+        {
+          "id": "t9",
+          "kind": "choice",
+          "prompt": "Why does the Deny statement use BoolIfExists instead of Bool for aws:MultiFactorAuthPresent?",
+          "options": [
+            "BoolIfExists is faster to evaluate than Bool",
+            "Requests signed with long-term access keys carry no aws:MultiFactorAuthPresent key, and a plain Bool would not match them, so the Deny would not apply",
+            "Bool is not a valid operator for global condition keys",
+            "BoolIfExists makes the policy apply to the root user as well"
+          ],
+          "correct": [
+            1
+          ],
+          "explanation": "If the key is absent, a Bool condition evaluates to false and the Deny statement is skipped, leaving the earlier Allow in force: exactly the leaked-key case. BoolIfExists says 'if the key exists compare it, otherwise treat the condition as met', so access-key calls are denied too. This policy is not applied to root, which is why root itself needs MFA."
+        }
+      ],
+      "takeaways": [
+        "Harden in order of blast radius: root user MFA and keys first, then password policy, logging, public-access guardrails and cost alerts.",
+        "A CloudTrail trail is only useful if it is multi-region, validated and actually logging: check get-trail-status, not just describe-trails.",
+        "Enforce MFA with an explicit Deny on aws:MultiFactorAuthPresent using BoolIfExists, so long-term access keys without the key are denied too."
+      ]
+    }
+  },
+  {
+    "labId": "cloud-L02",
+    "objective": "Use awslocal against a LocalStack instance to enumerate S3, Lambda, SQS, Secrets Manager and IAM of a pretend estate, find the secret hiding outside the default region, and learn what LocalStack does not enforce.",
+    "successCriteria": [
+      "You mapped the estate (buckets, function, queues, secrets, IAM) with awslocal alone",
+      "You located the signing secret that lives in a non-default region and read it",
+      "You wrote the least-privilege policy for ci-readonly that a real AWS account would enforce and LocalStack does not"
+    ],
+    "hints": [
+      "LocalStack is multi-region like AWS: a list call only shows resources in the region you ask about.",
+      "Read the Lambda configuration and the dead-letter queue message. Both point at the same secret name and tell you where it should be.",
+      "List secrets with --region eu-west-1, then run get-secret-value for acme/dev/webhook-signing with that same --region."
+    ],
+    "estimatedHours": 1,
+    "resources": [
+      {
+        "title": "LocalStack documentation",
+        "url": "https://docs.localstack.cloud/",
+        "type": "link"
+      },
+      {
+        "title": "awscli-local (awslocal) on GitHub",
+        "url": "https://github.com/localstack/awscli-local",
+        "type": "link"
+      },
+      {
+        "title": "AWS docs: Identity and access management for Amazon S3",
+        "url": "https://docs.aws.amazon.com/AmazonS3/latest/userguide/security-iam.html",
+        "type": "link"
+      }
+    ],
+    "range": {
+      "scenario": "A dev team keeps a LocalStack container running on their laptops so they can build against fake AWS without spending money. You have been handed a snapshot of one, running on localhost:4566, and asked to map what the estate looks like before anyone points it at a real account. A webhook signing key is supposed to exist in there, but a teammate says the order pipeline cannot find it. Use awslocal the way you would use the aws CLI, find the key, and note what LocalStack will and will not tell you about security.",
+      "artifacts": [
+        {
+          "name": "docker-compose.yml",
+          "language": "yaml",
+          "content": "services:\n  localstack:\n    image: localstack/localstack\n    ports:\n      - \"127.0.0.1:4566:4566\"\n    environment:\n      - SERVICES=s3,lambda,sqs,secretsmanager,iam,sts\n    volumes:\n      - \"./volume:/var/lib/localstack\"\n",
+          "note": "How the instance is started. One edge port (4566) fronts every emulated service."
+        },
+        {
+          "name": "awslocal-notes.txt",
+          "language": "text",
+          "content": "awslocal is the AWS CLI with --endpoint-url=http://localhost:4566 preset.\nDefault region: us-east-1. Default account id: 000000000000.\nCredentials: any non-empty values work.\nEdition: Community (free).\n\nFree edition: IAM resources can be created and listed, but policies are NOT enforced.\n(IAM enforcement is a paid LocalStack feature, ENFORCE_IAM.)",
+          "note": "What you need to know before trusting a LocalStack result."
+        },
+        {
+          "name": "ci-readonly-policy.json",
+          "language": "json",
+          "content": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"CiAccess\",\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"s3:*\",\n        \"secretsmanager:*\"\n      ],\n      \"Resource\": \"*\"\n    }\n  ]\n}",
+          "note": "The policy attached to the ci-readonly user today."
+        }
+      ],
+      "terminal": {
+        "prompt": "analyst@localstack:~$",
+        "intro": "LocalStack (Community) is listening on localhost:4566. Use awslocal. Default region us-east-1.",
+        "help": "Commands you can try:\n  curl -s http://localhost:4566/_localstack/health\n  awslocal sts get-caller-identity\n  awslocal s3 ls [s3://<bucket>]\n  awslocal s3 cp s3://<bucket>/<key> -\n  awslocal lambda list-functions\n  awslocal lambda get-function-configuration --function-name <name>\n  awslocal sqs list-queues\n  awslocal sqs receive-message --queue-url <url>\n  awslocal secretsmanager list-secrets [--region <r>]\n  awslocal secretsmanager get-secret-value --secret-id <id> [--region <r>]\n  awslocal iam list-users | list-roles\n  awslocal iam list-attached-user-policies --user-name <u>\n  awslocal --profile ci-readonly s3 rm s3://<bucket>/<key>",
+        "rules": [
+          {
+            "match": "^curl (?:-s )?(?:http://)?(?:localhost|127\\.0\\.0\\.1):4566/_localstack/health$",
+            "output": "{\n  \"services\": {\n    \"s3\": \"running\",\n    \"lambda\": \"running\",\n    \"sqs\": \"running\",\n    \"secretsmanager\": \"running\",\n    \"iam\": \"running\",\n    \"sts\": \"running\"\n  },\n  \"edition\": \"community\",\n  \"version\": \"3.8.1\"\n}"
+          },
+          {
+            "match": "^awslocal sts get-caller-identity(?: --(?:region|output|profile) \\S+)*$",
+            "output": "{\n  \"UserId\": \"AKIAIOSFODNN7EXAMPLE\",\n  \"Account\": \"000000000000\",\n  \"Arn\": \"arn:aws:iam::000000000000:root\"\n}"
+          },
+          {
+            "match": "^awslocal s3 ls(?: --(?:region|output|profile) \\S+)*$",
+            "output": "2024-06-03 09:12:41 acme-orders-dev\n2024-06-03 09:12:44 acme-deploy-artifacts"
+          },
+          {
+            "match": "^awslocal s3 ls s3://acme-orders-dev/?(?: --recursive)?(?: --(?:region|output|profile) \\S+)*$",
+            "output": "2024-06-03 09:20:01       1893 orders/orders-2024-06-01.csv\n2024-06-03 09:20:02       2210 orders/orders-2024-06-02.csv"
+          },
+          {
+            "match": "^awslocal s3 ls s3://acme-deploy-artifacts/?(?: --recursive)?(?: --(?:region|output|profile) \\S+)*$",
+            "output": "2024-06-03 09:14:10       4821 lambda/order-processor.zip\n2024-06-03 09:14:12        512 notes/RUNBOOK.txt"
+          },
+          {
+            "match": "^awslocal s3 cp s3://acme-deploy-artifacts/notes/RUNBOOK\\.txt -$",
+            "output": "ORDERS PIPELINE RUNBOOK (dev)\n- order-processor consumes orders-queue; failures land in orders-dlq.\n- During the DR migration some config moved out of the default region.\n- If signing fails, check the function config before touching the queue."
+          },
+          {
+            "match": "^awslocal s3 cp s3://acme-orders-dev/orders/orders-2024-06-0[12]\\.csv -$",
+            "output": "order_id,customer,total\nA-1041,test-customer-01,19.99\nA-1042,test-customer-02,5.00"
+          },
+          {
+            "match": "^awslocal lambda list-functions(?: --(?:region|output|profile) \\S+)*$",
+            "output": "{\n  \"Functions\": [\n    {\n      \"FunctionName\": \"order-processor\",\n      \"FunctionArn\": \"arn:aws:lambda:us-east-1:000000000000:function:order-processor\",\n      \"Runtime\": \"python3.12\",\n      \"Role\": \"arn:aws:iam::000000000000:role/order-processor-role\",\n      \"Handler\": \"app.handler\"\n    }\n  ]\n}"
+          },
+          {
+            "match": "^awslocal lambda get-function-configuration --function-name order-processor(?: --(?:region|output|profile) \\S+)*$",
+            "output": "{\n  \"FunctionName\": \"order-processor\",\n  \"FunctionArn\": \"arn:aws:lambda:us-east-1:000000000000:function:order-processor\",\n  \"Runtime\": \"python3.12\",\n  \"Role\": \"arn:aws:iam::000000000000:role/order-processor-role\",\n  \"Handler\": \"app.handler\",\n  \"Environment\": {\n    \"Variables\": {\n      \"QUEUE_URL\": \"http://sqs.us-east-1.localhost.localstack.cloud:4566/000000000000/orders-queue\",\n      \"SIGNING_SECRET_ID\": \"acme/dev/webhook-signing\",\n      \"SECRETS_REGION\": \"eu-west-1\"\n    }\n  },\n  \"State\": \"Active\"\n}"
+          },
+          {
+            "match": "^awslocal lambda get-function --function-name order-processor(?: --(?:region|output|profile) \\S+)*$",
+            "output": "{\n  \"Configuration\": {\n    \"FunctionName\": \"order-processor\",\n    \"FunctionArn\": \"arn:aws:lambda:us-east-1:000000000000:function:order-processor\",\n    \"Runtime\": \"python3.12\",\n    \"Role\": \"arn:aws:iam::000000000000:role/order-processor-role\",\n    \"Handler\": \"app.handler\",\n    \"Environment\": {\n      \"Variables\": {\n        \"QUEUE_URL\": \"http://sqs.us-east-1.localhost.localstack.cloud:4566/000000000000/orders-queue\",\n        \"SIGNING_SECRET_ID\": \"acme/dev/webhook-signing\",\n        \"SECRETS_REGION\": \"eu-west-1\"\n      }\n    },\n    \"State\": \"Active\"\n  },\n  \"Code\": {\n    \"RepositoryType\": \"S3\",\n    \"Location\": \"http://s3.localhost.localstack.cloud:4566/awslambda-us-east-1-tasks/snapshots/000000000000/order-processor\"\n  }\n}"
+          },
+          {
+            "match": "^awslocal lambda (?:get-function|get-function-configuration|invoke) ",
+            "output": "An error occurred (ResourceNotFoundException) when calling the GetFunction operation: Function not found: arn:aws:lambda:us-east-1:000000000000:function:unknown"
+          },
+          {
+            "match": "^awslocal sqs list-queues(?: --(?:region|output|profile) \\S+)*$",
+            "output": "{\n  \"QueueUrls\": [\n    \"http://sqs.us-east-1.localhost.localstack.cloud:4566/000000000000/orders-queue\",\n    \"http://sqs.us-east-1.localhost.localstack.cloud:4566/000000000000/orders-dlq\"\n  ]\n}"
+          },
+          {
+            "match": "^awslocal sqs receive-message --queue-url \\S*orders-dlq(?: --(?:region|output|profile) \\S+)*$",
+            "output": "{\n  \"Messages\": [\n    {\n      \"MessageId\": \"5f2c1d3e-0a9b-4c77-9d10-EXAMPLE22222\",\n      \"Body\": \"{\\\"order_id\\\":\\\"A-1042\\\",\\\"error\\\":\\\"SecretNotFound: acme/dev/webhook-signing not found in us-east-1\\\"}\"\n    }\n  ]\n}"
+          },
+          {
+            "match": "^awslocal sqs receive-message --queue-url \\S*orders-queue(?: --(?:region|output|profile) \\S+)*$",
+            "output": ""
+          },
+          {
+            "match": "^awslocal (?:--region eu-west-1 secretsmanager list-secrets|secretsmanager list-secrets --region eu-west-1)$",
+            "sets": [
+              "listed_eu"
+            ],
+            "output": "{\n  \"SecretList\": [\n    {\n      \"ARN\": \"arn:aws:secretsmanager:eu-west-1:000000000000:secret:acme/dev/webhook-signing-AbCdEf\",\n      \"Name\": \"acme/dev/webhook-signing\"\n    }\n  ]\n}"
+          },
+          {
+            "match": "^awslocal (?:--region \\S+ secretsmanager list-secrets|secretsmanager list-secrets --region \\S+)$",
+            "output": "{\n  \"SecretList\": []\n}"
+          },
+          {
+            "match": "^awslocal secretsmanager list-secrets$",
+            "output": "{\n  \"SecretList\": [\n    {\n      \"ARN\": \"arn:aws:secretsmanager:us-east-1:000000000000:secret:acme/dev/db-password-GhIjKl\",\n      \"Name\": \"acme/dev/db-password\"\n    },\n    {\n      \"ARN\": \"arn:aws:secretsmanager:us-east-1:000000000000:secret:acme/dev/legacy-sftp-MnOpQr\",\n      \"Name\": \"acme/dev/legacy-sftp\"\n    }\n  ]\n}"
+          },
+          {
+            "match": "^awslocal(?=.* secretsmanager get-secret-value)(?=.* --region eu-west-1)(?=.* --secret-id acme/dev/webhook-signing).*$",
+            "requires": [
+              "listed_eu"
+            ],
+            "output": "{\n  \"ARN\": \"arn:aws:secretsmanager:eu-west-1:000000000000:secret:acme/dev/webhook-signing-AbCdEf\",\n  \"Name\": \"acme/dev/webhook-signing\",\n  \"VersionId\": \"a1b2c3d4-5678-90ab-cdef-EXAMPLE11111\",\n  \"SecretString\": \"{\\\"signing_key\\\":\\\"FLAG{localstack_eu_west_1_signing_key}\\\"}\",\n  \"VersionStages\": [\n    \"AWSCURRENT\"\n  ]\n}"
+          },
+          {
+            "match": "^awslocal(?=.* secretsmanager get-secret-value)(?=.* --region eu-west-1)(?=.* --secret-id acme/dev/webhook-signing).*$",
+            "output": "[lab] Enumerate before you read: list the secrets in that region first (list-secrets) so you read what exists instead of guessing names."
+          },
+          {
+            "match": "^awslocal secretsmanager get-secret-value --secret-id acme/dev/db-password$",
+            "output": "{\n  \"Name\": \"acme/dev/db-password\",\n  \"SecretString\": \"{\\\"username\\\":\\\"app\\\",\\\"password\\\":\\\"localstack-not-a-real-pw\\\"}\"\n}"
+          },
+          {
+            "match": "^awslocal secretsmanager get-secret-value --secret-id acme/dev/legacy-sftp$",
+            "output": "{\n  \"Name\": \"acme/dev/legacy-sftp\",\n  \"SecretString\": \"{\\\"host\\\":\\\"sftp.invalid\\\",\\\"user\\\":\\\"legacy\\\",\\\"password\\\":\\\"decommissioned\\\"}\"\n}"
+          },
+          {
+            "match": "^awslocal secretsmanager get-secret-value",
+            "output": "An error occurred (ResourceNotFoundException) when calling the GetSecretValue operation: Secrets Manager can't find the specified secret."
+          },
+          {
+            "match": "^awslocal iam list-users(?: --(?:region|output|profile) \\S+)*$",
+            "output": "{\n  \"Users\": [\n    {\n      \"UserName\": \"ci-readonly\",\n      \"Arn\": \"arn:aws:iam::000000000000:user/ci-readonly\"\n    },\n    {\n      \"UserName\": \"deployer\",\n      \"Arn\": \"arn:aws:iam::000000000000:user/deployer\"\n    }\n  ]\n}"
+          },
+          {
+            "match": "^awslocal iam list-roles(?: --(?:region|output|profile) \\S+)*$",
+            "output": "{\n  \"Roles\": [\n    {\n      \"RoleName\": \"order-processor-role\",\n      \"Arn\": \"arn:aws:iam::000000000000:role/order-processor-role\"\n    }\n  ]\n}"
+          },
+          {
+            "match": "^awslocal iam list-attached-user-policies --user-name ci-readonly(?: --(?:region|output|profile) \\S+)*$",
+            "output": "{\n  \"AttachedPolicies\": [\n    {\n      \"PolicyName\": \"ReadOnlyAccess\",\n      \"PolicyArn\": \"arn:aws:iam::aws:policy/ReadOnlyAccess\"\n    }\n  ]\n}"
+          },
+          {
+            "match": "^awslocal --profile ci-readonly s3 rm s3://acme-orders-dev/orders/orders-2024-06-01\\.csv$",
+            "sets": [
+              "iam_not_enforced"
+            ],
+            "output": "delete: s3://acme-orders-dev/orders/orders-2024-06-01.csv"
+          }
+        ],
+        "fallback": "Command not recognised in this lab. Type `help` for the commands available."
+      },
+      "solution": [
+        "curl -s http://localhost:4566/_localstack/health",
+        "awslocal sts get-caller-identity",
+        "awslocal s3 ls",
+        "awslocal s3 ls s3://acme-deploy-artifacts",
+        "awslocal lambda list-functions",
+        "awslocal lambda get-function-configuration --function-name order-processor",
+        "awslocal sqs list-queues",
+        "awslocal sqs receive-message --queue-url http://sqs.us-east-1.localhost.localstack.cloud:4566/000000000000/orders-dlq",
+        "awslocal secretsmanager list-secrets",
+        "awslocal secretsmanager list-secrets --region eu-west-1",
+        "awslocal secretsmanager get-secret-value --secret-id acme/dev/webhook-signing --region eu-west-1",
+        "awslocal iam list-attached-user-policies --user-name ci-readonly",
+        "awslocal --profile ci-readonly s3 rm s3://acme-orders-dev/orders/orders-2024-06-01.csv"
+      ],
+      "tasks": [
+        {
+          "id": "t1",
+          "kind": "choice",
+          "prompt": "Run the health check. What best describes what LocalStack is?",
+          "options": [
+            "A real AWS region running inside Docker, billed at a lower rate",
+            "A local emulator of AWS service APIs, good for development and offline recon, but not the real services",
+            "A proxy that forwards your requests to AWS and caches the answers",
+            "A vulnerability scanner for AWS accounts"
+          ],
+          "correct": [
+            1
+          ],
+          "explanation": "LocalStack re-implements AWS APIs behind a single local endpoint, so the AWS CLI and SDKs work unchanged. That makes it free and safe for learning and testing automation, but behaviour (especially security behaviour) can differ from real AWS. Never treat a LocalStack result as proof of how production will behave."
+        },
+        {
+          "id": "t2",
+          "kind": "answer",
+          "prompt": "Which TCP port is the single edge port that fronts every LocalStack service?",
+          "accept": [
+            "4566",
+            "localhost:4566",
+            "http://localhost:4566",
+            "127.0.0.1:4566"
+          ],
+          "explanation": "All emulated services share the edge port 4566, so awslocal just sets --endpoint-url=http://localhost:4566. If a tool cannot reach it, check the port mapping in docker-compose before suspecting the service."
+        },
+        {
+          "id": "t3",
+          "kind": "answer",
+          "prompt": "Run `awslocal sts get-caller-identity`. What account id does LocalStack report by default?",
+          "accept": [
+            "000000000000",
+            "0"
+          ],
+          "explanation": "LocalStack answers as account 000000000000 and accepts any credentials. A call that works here tells you nothing about whether a real credential would be allowed; this is the account id to expect when you build ARNs for local tests."
+        },
+        {
+          "id": "t4",
+          "kind": "answer",
+          "prompt": "Read the order-processor Lambda configuration. In which AWS region does it expect its signing secret to live?",
+          "accept": [
+            "eu-west-1",
+            "eu west 1",
+            "ireland"
+          ],
+          "explanation": "The function's environment variable SECRETS_REGION points at eu-west-1 and the dead-letter queue message confirms the secret was 'not found in us-east-1'. Environment variables and failed-message queues are two of the best offline sources for pointers to other resources."
+        },
+        {
+          "id": "t5",
+          "kind": "choice",
+          "prompt": "Why did `awslocal secretsmanager list-secrets` not show acme/dev/webhook-signing?",
+          "options": [
+            "Secrets Manager hides secrets whose names end in 'signing'",
+            "Secrets are regional, and the default-region listing only shows us-east-1 secrets",
+            "LocalStack does not support listing secrets",
+            "The secret was deleted when the Lambda was created"
+          ],
+          "correct": [
+            1
+          ],
+          "explanation": "Most AWS resources, including Secrets Manager secrets and Lambda functions, belong to one region, and a list call only covers the region you queried. Recon that stops at the default region misses everything else, which is a common blind spot on real estates too: always enumerate the regions the account uses."
+        },
+        {
+          "id": "t6",
+          "kind": "flag",
+          "prompt": "Find the webhook signing secret and read it. Paste the flag found in its value.",
+          "flag": "FLAG{localstack_eu_west_1_signing_key}",
+          "explanation": "The path was: map the buckets and runbook, read the Lambda config, confirm with the DLQ message, then list secrets in the right region and read the value. Offline recon is mostly connecting small clues across services, not a single clever command."
+        },
+        {
+          "id": "t7",
+          "kind": "choice",
+          "prompt": "As ci-readonly (which has only ReadOnlyAccess), your s3 rm succeeded. What does that prove about LocalStack Community?",
+          "options": [
+            "ReadOnlyAccess includes s3:DeleteObject",
+            "IAM policies are stored and listed but not enforced in the free edition, so a policy test here proves nothing",
+            "The ci-readonly profile is secretly an administrator in the real account",
+            "S3 deletes never need permissions"
+          ],
+          "correct": [
+            1
+          ],
+          "explanation": "LocalStack Community creates and lists IAM resources but does not evaluate them: every request is allowed. Policy testing needs LocalStack's paid IAM enforcement, or better the IAM policy simulator and a real sandbox account. This is why least-privilege work must be verified against real AWS semantics."
+        },
+        {
+          "id": "t8",
+          "kind": "policy",
+          "mode": "identity",
+          "prompt": "Write the policy ci-readonly should really have, since LocalStack will not enforce it: list and read objects in the acme-orders-dev bucket only. No writes or deletes, no other buckets, no Secrets Manager.",
+          "starter": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"CiAccess\",\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"s3:*\",\n        \"secretsmanager:*\"\n      ],\n      \"Resource\": \"*\"\n    }\n  ]\n}",
+          "solution": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Effect\": \"Allow\",\n      \"Action\": \"s3:ListBucket\",\n      \"Resource\": \"arn:aws:s3:::acme-orders-dev\"\n    },\n    {\n      \"Effect\": \"Allow\",\n      \"Action\": \"s3:GetObject\",\n      \"Resource\": \"arn:aws:s3:::acme-orders-dev/*\"\n    }\n  ]\n}",
+          "tests": [
+            {
+              "name": "Can list the orders bucket",
+              "action": "s3:ListBucket",
+              "resource": "arn:aws:s3:::acme-orders-dev",
+              "expect": "allow"
+            },
+            {
+              "name": "Can read an order file",
+              "action": "s3:GetObject",
+              "resource": "arn:aws:s3:::acme-orders-dev/orders/orders-2024-06-01.csv",
+              "expect": "allow"
+            },
+            {
+              "name": "Cannot delete an order file",
+              "action": "s3:DeleteObject",
+              "resource": "arn:aws:s3:::acme-orders-dev/orders/orders-2024-06-01.csv",
+              "expect": "deny"
+            },
+            {
+              "name": "Cannot upload an order file",
+              "action": "s3:PutObject",
+              "resource": "arn:aws:s3:::acme-orders-dev/orders/orders-2024-06-01.csv",
+              "expect": "deny"
+            },
+            {
+              "name": "Cannot read the deploy artifacts bucket",
+              "action": "s3:GetObject",
+              "resource": "arn:aws:s3:::acme-deploy-artifacts/notes/RUNBOOK.txt",
+              "expect": "deny"
+            },
+            {
+              "name": "Cannot read secrets",
+              "action": "secretsmanager:GetSecretValue",
+              "resource": "arn:aws:secretsmanager:eu-west-1:000000000000:secret:acme/dev/webhook-signing-AbCdEf",
+              "expect": "deny"
+            }
+          ],
+          "explanation": "ListBucket applies to the bucket ARN and GetObject to the object ARNs under it, so those are separate statements with separate resources. Anything not allowed is denied by default, so you do not need Deny statements. The starter gave s3:* and secretsmanager:* on every resource, which LocalStack would never have complained about."
+        }
+      ],
+      "takeaways": [
+        "LocalStack is an API emulator: great for offline recon practice and testing automation, not proof of real AWS behaviour.",
+        "The free edition does not enforce IAM, so every permission check passes. Verify policies in a real sandbox or with the IAM policy simulator.",
+        "Resources are regional: enumerate every region in use, and follow pointers in Lambda environment variables, queues and runbooks."
+      ]
+    }
+  }
+]

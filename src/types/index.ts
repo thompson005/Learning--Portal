@@ -243,12 +243,101 @@ export interface Lab {
   containerPort?: number
   /** For labs with no published image: a Git URL Docker can `docker build` directly (repo root has the Dockerfile), e.g. "https://github.com/org/repo.git#main". Built once on the host, then run like any other lab. */
   buildContext?: string
+  /** In-browser, auto-graded cloud range (replaces manual self-marking). */
+  range?: CloudRange
   /** Force the container platform, e.g. "linux/amd64" for an image with no ARM build (runs under emulation on the ARM DGX — needs the one-time qemu/binfmt setup). */
   imagePlatform?: string
   /** Slideshow walkthrough — one diagram-backed slide per real step. Falls back to `instructions` when absent. */
   slides?: LabSlide[]
   /** Progressive hints, gentlest first — revealed one at a time on request, never all at once. */
   hints?: string[]
+}
+
+// ---------------------------------------------------------------------------
+// Cloud Range — a self-contained, auto-graded cloud lab that runs entirely in
+// the browser (no real cloud account, no Docker). A lab has a scenario, a set of
+// artifacts to inspect (policies, logs, configs), an optional scripted CLI
+// terminal, and tasks the portal grades automatically.
+// ---------------------------------------------------------------------------
+
+export interface CloudArtifact {
+  name: string
+  language: "json" | "text" | "bash" | "yaml"
+  content: string
+  /** One line telling the learner what they are looking at. */
+  note?: string
+}
+
+/** One scripted CLI behaviour. `match` is a regex source tested (case-insensitive)
+ *  against the normalised command; `$1..$9` in `output` are its capture groups.
+ *  `requires` are state keys that must already be set; `sets` are added on match. */
+export interface TerminalRule {
+  match: string
+  output: string
+  requires?: string[]
+  sets?: string[]
+}
+
+export interface CloudTerminal {
+  prompt: string
+  intro?: string
+  help?: string
+  rules: TerminalRule[]
+  fallback?: string
+}
+
+export interface PolicyTest {
+  name: string
+  action: string
+  resource?: string
+  principal?: string
+  context?: Record<string, string | number | boolean | string[]>
+  expect: "allow" | "deny"
+}
+
+/** Fixed policies evaluated together with the learner's edited one. */
+export interface PolicyFixed {
+  identity?: string[]
+  resource?: string
+  boundary?: string
+  scp?: string[]
+  crossAccount?: boolean
+}
+
+export type CloudTask =
+  | { id: string; kind: "answer"; prompt: string; accept: string[]; explanation: string }
+  | {
+      id: string
+      kind: "choice"
+      prompt: string
+      options: string[]
+      correct: number[]
+      explanation: string
+    }
+  | { id: string; kind: "flag"; prompt: string; flag: string; explanation: string }
+  | {
+      id: string
+      kind: "policy"
+      prompt: string
+      /** Which slot the learner's policy occupies in the evaluation. */
+      mode: "identity" | "resource" | "boundary" | "scp"
+      starter: string
+      /** A passing policy — used by the automated QA, never shown to learners. */
+      solution: string
+      fixed?: PolicyFixed
+      tests: PolicyTest[]
+      explanation: string
+    }
+
+export interface CloudRange {
+  scenario: string
+  artifacts: CloudArtifact[]
+  terminal?: CloudTerminal
+  tasks: CloudTask[]
+  /** Terminal commands that reach every flag — replayed by the automated QA. */
+  solution?: string[]
+  /** Key takeaways shown once the range is complete. */
+  takeaways: string[]
 }
 
 export interface GlossaryTerm {

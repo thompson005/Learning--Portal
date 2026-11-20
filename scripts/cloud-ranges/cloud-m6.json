@@ -1,0 +1,747 @@
+[
+  {
+    "labId": "cloud-L13",
+    "objective": "Hunt leaked secrets across four cloud surfaces — Lambda environment variables, SSM Parameter Store, EC2 user-data and CI/Git artifacts — learn which permission each one needs, then lock the app down to read only its own secret from Secrets Manager.",
+    "successCriteria": [
+      "You pulled plaintext secrets from a Lambda configuration, a decrypted SecureString and EC2 user-data",
+      "You identified why one SSM path stayed locked (the missing KMS permission) and where the Git and CI leaks live",
+      "You wrote an identity policy that lets the app read only its own secret and decrypt only via Secrets Manager"
+    ],
+    "hints": [
+      "Every surface has its own 'who can read it?' rule. Read audit-contractor-policy.json first so you know which calls can work for you.",
+      "Lambda config, SSM SecureStrings and instance user-data are all reachable with describe/get calls. Ask which of them also needs kms:Decrypt.",
+      "Try: aws lambda get-function-configuration --function-name orders-api, then aws ssm get-parameters-by-path --path /orders/prod --with-decryption, then read the user-data attribute of the orders worker instance and base64-decode it."
+    ],
+    "estimatedHours": 2,
+    "resources": [
+      {
+        "title": "AWS Secrets Manager User Guide: What is Secrets Manager?",
+        "url": "https://docs.aws.amazon.com/secretsmanager/latest/userguide/intro.html",
+        "type": "link"
+      },
+      {
+        "title": "AWS Secrets Manager: Rotate secrets",
+        "url": "https://docs.aws.amazon.com/secretsmanager/latest/userguide/rotating-secrets.html",
+        "type": "link"
+      },
+      {
+        "title": "AWS Systems Manager Parameter Store",
+        "url": "https://docs.aws.amazon.com/systems-manager/latest/userguide/systems-manager-parameter-store.html",
+        "type": "link"
+      },
+      {
+        "title": "trufflehog: find leaked credentials in Git history",
+        "url": "https://github.com/trufflesecurity/trufflehog",
+        "type": "link"
+      }
+    ],
+    "range": {
+      "scenario": "OrdersCo hired you for a credential-hygiene review of AWS account 111122223333. You have a deliberately limited IAM user, `audit-contractor`, plus two exports the dev team handed over: a Git history excerpt for the orders repo and a CodeBuild log. The team is convinced 'nothing sensitive is lying around'. Prove otherwise: sweep the Lambda functions, Parameter Store, EC2 user-data, the Git history and the CI log for secrets, work out which permission gated each find, and then design the fix — the orders app should read exactly one secret from Secrets Manager and nothing else.",
+      "artifacts": [
+        {
+          "name": "audit-contractor-policy.json",
+          "language": "json",
+          "content": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"LambdaMetadataRead\",\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"lambda:ListFunctions\",\n        \"lambda:GetFunctionConfiguration\"\n      ],\n      \"Resource\": \"*\"\n    },\n    {\n      \"Sid\": \"ParameterStoreRead\",\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"ssm:DescribeParameters\",\n        \"ssm:GetParameter\",\n        \"ssm:GetParameters\",\n        \"ssm:GetParametersByPath\"\n      ],\n      \"Resource\": \"*\"\n    },\n    {\n      \"Sid\": \"DecryptOrdersKeyOnly\",\n      \"Effect\": \"Allow\",\n      \"Action\": \"kms:Decrypt\",\n      \"Resource\": \"arn:aws:kms:us-east-1:111122223333:key/1111aaaa-22bb-33cc-44dd-5555eeee6666\"\n    },\n    {\n      \"Sid\": \"Ec2Inventory\",\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"ec2:DescribeInstances\",\n        \"ec2:DescribeInstanceAttribute\"\n      ],\n      \"Resource\": \"*\"\n    },\n    {\n      \"Sid\": \"SecretsMetadataOnly\",\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"secretsmanager:ListSecrets\",\n        \"secretsmanager:DescribeSecret\"\n      ],\n      \"Resource\": \"*\"\n    }\n  ]\n}",
+          "note": "What your audit user is allowed to do. Note which calls are open and which key it can decrypt with."
+        },
+        {
+          "name": "git-history-excerpt.txt",
+          "language": "text",
+          "content": "$ git log --oneline --all -- .env\ne91c04d (HEAD -> main) chore: remove .env from repo\nb41d9c7 add local env for staging deploy script\n\n$ git show b41d9c7 -- .env\ncommit b41d9c70e5a3f2d814c6b97a0f1e2d3c4b5a6978\nAuthor: Dev <dev@orders-co.example>\nDate:   Tue Feb 4 16:41:09 2025 +0000\n\n    add local env for staging deploy script\n\ndiff --git a/.env b/.env\nnew file mode 100644\n--- /dev/null\n+++ b/.env\n@@ -0,0 +1,3 @@\n+AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE\n+AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY\n+DB_PASSWORD=Spring2025!\n\n$ git show e91c04d --stat\ncommit e91c04d3a7b1c2d3e4f5061728394a5b6c7d8e9f\nDate:   Fri Feb 7 10:12:55 2025 +0000\n\n    chore: remove .env from repo\n\n .env | 3 ---\n 1 file changed, 3 deletions(-)",
+          "note": "Output from trufflehog-style review of the repo. The file is gone from the working tree, but is it gone?"
+        },
+        {
+          "name": "codebuild-build-log.txt",
+          "language": "text",
+          "content": "[Container] 2026/11/12 09:14:02.410 Phase is BUILD\n[Container] 2026/11/12 09:14:02.411 Running command set -x\n\n[Container] 2026/11/12 09:14:02.419 Running command echo \"building as $(whoami)\"\n+ whoami\nbuilding as root\n\n[Container] 2026/11/12 09:14:02.431 Running command npm config set //registry.orders-co.example/:_authToken \"$REGISTRY_TOKEN\"\n+ npm config set //registry.orders-co.example/:_authToken reg_EXAMPLE0a1b2c3d4e5f607182930\n\n[Container] 2026/11/12 09:14:03.002 Running command npm ci && npm run build\nadded 412 packages in 14s\n\n[Container] 2026/11/12 09:14:21.880 Phase complete: BUILD State: SUCCEEDED",
+          "note": "A CodeBuild log from a recent build of the orders service (exported for you, since your user cannot read CloudWatch Logs)."
+        },
+        {
+          "name": "orders-api-role-policy.json",
+          "language": "json",
+          "content": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"AppSecrets\",\n      \"Effect\": \"Allow\",\n      \"Action\": \"secretsmanager:*\",\n      \"Resource\": \"*\"\n    },\n    {\n      \"Sid\": \"Decrypt\",\n      \"Effect\": \"Allow\",\n      \"Action\": \"kms:Decrypt\",\n      \"Resource\": \"*\"\n    }\n  ]\n}",
+          "note": "The inline policy currently attached to orders-api-role, the role the orders Lambda runs as."
+        }
+      ],
+      "terminal": {
+        "prompt": "audit@sandbox:~$",
+        "intro": "Configured as IAM user audit-contractor in account 111122223333. Region: us-east-1.",
+        "help": "Commands you can try (like the AWS CLI):\n  aws sts get-caller-identity\n  aws lambda list-functions\n  aws lambda get-function-configuration --function-name <name>\n  aws ssm describe-parameters\n  aws ssm get-parameters-by-path --path <path> [--with-decryption]\n  aws secretsmanager list-secrets\n  aws secretsmanager get-secret-value --secret-id <id>\n  aws ec2 describe-instances\n  aws ec2 describe-instance-attribute --instance-id <id> --attribute userData\n  echo <base64> | base64 -d",
+        "rules": [
+          {
+            "match": "^aws sts get-caller-identity$",
+            "output": "{\n  \"UserId\": \"AIDAEXAMPLEAUDIT00001\",\n  \"Account\": \"111122223333\",\n  \"Arn\": \"arn:aws:iam::111122223333:user/audit-contractor\"\n}"
+          },
+          {
+            "match": "^aws lambda list-functions\\b.*$",
+            "output": "{\n  \"Functions\": [\n    {\n      \"FunctionName\": \"orders-api\",\n      \"Runtime\": \"python3.12\",\n      \"Role\": \"arn:aws:iam::111122223333:role/orders-api-role\",\n      \"Handler\": \"app.handler\"\n    },\n    {\n      \"FunctionName\": \"report-gen\",\n      \"Runtime\": \"python3.12\",\n      \"Role\": \"arn:aws:iam::111122223333:role/report-gen-role\",\n      \"Handler\": \"report.handler\"\n    }\n  ]\n}"
+          },
+          {
+            "match": "^aws lambda get-function-configuration\\b(?=.*--function-name orders-api\\b).*$",
+            "sets": [
+              "lambda_read"
+            ],
+            "output": "{\n  \"FunctionName\": \"orders-api\",\n  \"FunctionArn\": \"arn:aws:lambda:us-east-1:111122223333:function:orders-api\",\n  \"Runtime\": \"python3.12\",\n  \"Role\": \"arn:aws:iam::111122223333:role/orders-api-role\",\n  \"Handler\": \"app.handler\",\n  \"Environment\": {\n    \"Variables\": {\n      \"DB_HOST\": \"orders-db.cluster-cx1example.us-east-1.rds.amazonaws.com\",\n      \"DB_USER\": \"orders_app\",\n      \"DB_PASSWORD\": \"FLAG{lambda_env_vars_are_plaintext_3c1d}\",\n      \"LOG_LEVEL\": \"INFO\"\n    }\n  },\n  \"State\": \"Active\"\n}"
+          },
+          {
+            "match": "^aws lambda get-function-configuration\\b(?=.*--function-name report-gen\\b).*$",
+            "output": "{\n  \"FunctionName\": \"report-gen\",\n  \"Runtime\": \"python3.12\",\n  \"Role\": \"arn:aws:iam::111122223333:role/report-gen-role\",\n  \"Environment\": {\n    \"Variables\": {\n      \"REPORT_BUCKET\": \"orders-co-reports\",\n      \"LOG_LEVEL\": \"INFO\"\n    }\n  },\n  \"State\": \"Active\"\n}"
+          },
+          {
+            "match": "^aws lambda get-function-configuration\\b.*--function-name (\\S+)",
+            "output": "An error occurred (ResourceNotFoundException) when calling the GetFunctionConfiguration operation: Function not found: arn:aws:lambda:us-east-1:111122223333:function:$1"
+          },
+          {
+            "match": "^aws ssm describe-parameters\\b.*$",
+            "sets": [
+              "ssm_listed"
+            ],
+            "output": "{\n  \"Parameters\": [\n    {\n      \"Name\": \"/orders/prod/log-level\",\n      \"Type\": \"String\",\n      \"Version\": 1\n    },\n    {\n      \"Name\": \"/orders/prod/payment-gateway-key\",\n      \"Type\": \"SecureString\",\n      \"KeyId\": \"alias/orders-key\",\n      \"Version\": 3\n    },\n    {\n      \"Name\": \"/payments/prod/signing-key\",\n      \"Type\": \"SecureString\",\n      \"KeyId\": \"alias/payments-key\",\n      \"Version\": 7\n    }\n  ]\n}"
+          },
+          {
+            "match": "^aws ssm get-parameters-by-path\\b(?=.*--path /orders(/prod)?/?(\\s|$))(?=.*--with-decryption).*$",
+            "sets": [
+              "ssm_decrypted"
+            ],
+            "output": "{\n  \"Parameters\": [\n    {\n      \"Name\": \"/orders/prod/log-level\",\n      \"Type\": \"String\",\n      \"Value\": \"INFO\",\n      \"Version\": 1,\n      \"ARN\": \"arn:aws:ssm:us-east-1:111122223333:parameter/orders/prod/log-level\"\n    },\n    {\n      \"Name\": \"/orders/prod/payment-gateway-key\",\n      \"Type\": \"SecureString\",\n      \"Value\": \"FLAG{ssm_securestring_decrypted_b94e}\",\n      \"Version\": 3,\n      \"ARN\": \"arn:aws:ssm:us-east-1:111122223333:parameter/orders/prod/payment-gateway-key\"\n    }\n  ]\n}"
+          },
+          {
+            "match": "^aws ssm get-parameter\\b(?=.*--name /orders/prod/payment-gateway-key)(?=.*--with-decryption).*$",
+            "sets": [
+              "ssm_decrypted"
+            ],
+            "output": "{\n  \"Parameter\": {\n    \"Name\": \"/orders/prod/payment-gateway-key\",\n    \"Type\": \"SecureString\",\n    \"Value\": \"FLAG{ssm_securestring_decrypted_b94e}\",\n    \"Version\": 3,\n    \"ARN\": \"arn:aws:ssm:us-east-1:111122223333:parameter/orders/prod/payment-gateway-key\"\n  }\n}"
+          },
+          {
+            "match": "^aws ssm get-parameters-by-path\\b(?=.*--path /payments)(?=.*--with-decryption).*$",
+            "sets": [
+              "kms_denied"
+            ],
+            "output": "An error occurred (AccessDeniedException) when calling the GetParametersByPath operation: User: arn:aws:iam::111122223333:user/audit-contractor is not authorized to perform: kms:Decrypt on resource: arn:aws:kms:us-east-1:111122223333:key/9999ffff-88ee-77dd-66cc-5555bbbb4444 because no identity-based policy allows the kms:Decrypt action"
+          },
+          {
+            "match": "^aws ssm get-parameter\\b(?=.*--name /payments/)(?=.*--with-decryption).*$",
+            "sets": [
+              "kms_denied"
+            ],
+            "output": "An error occurred (AccessDeniedException) when calling the GetParameter operation: User: arn:aws:iam::111122223333:user/audit-contractor is not authorized to perform: kms:Decrypt on resource: arn:aws:kms:us-east-1:111122223333:key/9999ffff-88ee-77dd-66cc-5555bbbb4444 because no identity-based policy allows the kms:Decrypt action"
+          },
+          {
+            "match": "^aws ssm get-parameters-by-path\\b(?=.*--path /(orders|payments))",
+            "output": "{\n  \"Parameters\": [\n    {\n      \"Name\": \"/orders/prod/payment-gateway-key\",\n      \"Type\": \"SecureString\",\n      \"Value\": \"AQICAHhEXAMPLEciphertextblobNOTplaintextXq8w1+3vN0kZ7mJdE2yTgA9pHcRfUoLbS4iVxWzK6==\",\n      \"Version\": 3\n    }\n  ]\n}"
+          },
+          {
+            "match": "^aws secretsmanager list-secrets\\b.*$",
+            "output": "{\n  \"SecretList\": [\n    {\n      \"Name\": \"orders/prod/db\",\n      \"ARN\": \"arn:aws:secretsmanager:us-east-1:111122223333:secret:orders/prod/db-a1B2c3\",\n      \"RotationEnabled\": false\n    },\n    {\n      \"Name\": \"payments/prod/stripe\",\n      \"ARN\": \"arn:aws:secretsmanager:us-east-1:111122223333:secret:payments/prod/stripe-x9Y8z7\",\n      \"RotationEnabled\": true\n    }\n  ]\n}"
+          },
+          {
+            "match": "^aws secretsmanager get-secret-value\\b.*--secret-id (\\S+)",
+            "output": "An error occurred (AccessDeniedException) when calling the GetSecretValue operation: User: arn:aws:iam::111122223333:user/audit-contractor is not authorized to perform: secretsmanager:GetSecretValue on resource: $1 because no identity-based policy allows the secretsmanager:GetSecretValue action"
+          },
+          {
+            "match": "^aws ec2 describe-instances\\b.*$",
+            "sets": [
+              "found_instance"
+            ],
+            "output": "{\n  \"Reservations\": [\n    {\n      \"Instances\": [\n        {\n          \"InstanceId\": \"i-0a1b2c3d4e5f60718\",\n          \"InstanceType\": \"t3.small\",\n          \"State\": {\n            \"Name\": \"running\"\n          },\n          \"Tags\": [\n            {\n              \"Key\": \"Name\",\n              \"Value\": \"orders-worker\"\n            }\n          ],\n          \"IamInstanceProfile\": {\n            \"Arn\": \"arn:aws:iam::111122223333:instance-profile/orders-worker\"\n          }\n        },\n        {\n          \"InstanceId\": \"i-0f9e8d7c6b5a43210\",\n          \"InstanceType\": \"t3.micro\",\n          \"State\": {\n            \"Name\": \"running\"\n          },\n          \"Tags\": [\n            {\n              \"Key\": \"Name\",\n              \"Value\": \"bastion\"\n            }\n          ]\n        }\n      ]\n    }\n  ]\n}"
+          },
+          {
+            "match": "^aws ec2 describe-instance-attribute\\b(?=.*--instance-id i-0a1b2c3d4e5f60718)(?=.*--attribute userdata).*$",
+            "requires": [
+              "found_instance"
+            ],
+            "sets": [
+              "userdata_seen"
+            ],
+            "output": "{\n  \"InstanceId\": \"i-0a1b2c3d4e5f60718\",\n  \"UserData\": {\n    \"Value\": \"IyEvYmluL2Jhc2gKIyBib290c3RyYXAgb3JkZXJzLXdvcmtlcgpzZXQgLWUKeXVtIGluc3RhbGwgLXkgZG9ja2VyCnN5c3RlbWN0bCBlbmFibGUgLS1ub3cgZG9ja2VyCmV4cG9ydCBEQl9IT1NUPW9yZGVycy1kYi5jbHVzdGVyLWN4MWV4YW1wbGUudXMtZWFzdC0xLnJkcy5hbWF6b25hd3MuY29tCmV4cG9ydCBERVBMT1lfVE9LRU49IkZMQUd7dXNlcmRhdGFfaXNfbm90X3ByaXZhdGVfNThkMH0iCmRvY2tlciBsb2dpbiAtdSBkZXBsb3kgLXAgIiRERVBMT1lfVE9LRU4iIHJlZ2lzdHJ5Lm9yZGVycy1jby5leGFtcGxlCmRvY2tlciBydW4gLWQgLS1yZXN0YXJ0IGFsd2F5cyByZWdpc3RyeS5vcmRlcnMtY28uZXhhbXBsZS9vcmRlcnMtd29ya2VyOmxhdGVzdAo=\"\n  }\n}"
+          },
+          {
+            "match": "^aws ec2 describe-instance-attribute\\b(?=.*--instance-id i-0f9e8d7c6b5a43210)(?=.*--attribute userdata).*$",
+            "output": "{\n  \"InstanceId\": \"i-0f9e8d7c6b5a43210\",\n  \"UserData\": {}\n}"
+          },
+          {
+            "match": "^aws ec2 describe-instance-attribute\\b.*--instance-id (\\S+)",
+            "output": "An error occurred (InvalidInstanceID.NotFound) when calling the DescribeInstanceAttribute operation: The instance ID '$1' does not exist"
+          },
+          {
+            "match": "^echo [\"']?IyEvYmluL2Jhc2g[^ ]* \\| base64 (-d|--decode)$",
+            "requires": [
+              "userdata_seen"
+            ],
+            "sets": [
+              "userdata_decoded"
+            ],
+            "output": "#!/bin/bash\n# bootstrap orders-worker\nset -e\nyum install -y docker\nsystemctl enable --now docker\nexport DB_HOST=orders-db.cluster-cx1example.us-east-1.rds.amazonaws.com\nexport DEPLOY_TOKEN=\"FLAG{userdata_is_not_private_58d0}\"\ndocker login -u deploy -p \"$DEPLOY_TOKEN\" registry.orders-co.example\ndocker run -d --restart always registry.orders-co.example/orders-worker:latest"
+          },
+          {
+            "match": "^echo \\S+ \\| base64\\b",
+            "output": "base64: invalid input"
+          },
+          {
+            "match": "^aws logs\\b",
+            "output": "An error occurred (AccessDeniedException) when calling the FilterLogEvents operation: User: arn:aws:iam::111122223333:user/audit-contractor is not authorized to perform: logs:FilterLogEvents on resource: arn:aws:logs:us-east-1:111122223333:log-group:/aws/codebuild/orders-build:* because no identity-based policy allows the logs:FilterLogEvents action\n(The build log was exported for you as codebuild-build-log.txt.)"
+          }
+        ]
+      },
+      "solution": [
+        "aws sts get-caller-identity",
+        "aws lambda list-functions",
+        "aws lambda get-function-configuration --function-name orders-api",
+        "aws ssm describe-parameters",
+        "aws ssm get-parameters-by-path --path /orders/prod --with-decryption",
+        "aws ec2 describe-instances",
+        "aws ec2 describe-instance-attribute --instance-id i-0a1b2c3d4e5f60718 --attribute userData",
+        "echo IyEvYmluL2Jhc2gKIyBib290c3RyYXAgb3JkZXJzLXdvcmtlcgpzZXQgLWUKeXVtIGluc3RhbGwgLXkgZG9ja2VyCnN5c3RlbWN0bCBlbmFibGUgLS1ub3cgZG9ja2VyCmV4cG9ydCBEQl9IT1NUPW9yZGVycy1kYi5jbHVzdGVyLWN4MWV4YW1wbGUudXMtZWFzdC0xLnJkcy5hbWF6b25hd3MuY29tCmV4cG9ydCBERVBMT1lfVE9LRU49IkZMQUd7dXNlcmRhdGFfaXNfbm90X3ByaXZhdGVfNThkMH0iCmRvY2tlciBsb2dpbiAtdSBkZXBsb3kgLXAgIiRERVBMT1lfVE9LRU4iIHJlZ2lzdHJ5Lm9yZGVycy1jby5leGFtcGxlCmRvY2tlciBydW4gLWQgLS1yZXN0YXJ0IGFsd2F5cyByZWdpc3RyeS5vcmRlcnMtY28uZXhhbXBsZS9vcmRlcnMtd29ya2VyOmxhdGVzdAo= | base64 -d"
+      ],
+      "tasks": [
+        {
+          "id": "t1",
+          "kind": "flag",
+          "prompt": "Read the configuration of the orders Lambda function. Its database password was never put in a secret store. Paste the flag.",
+          "flag": "FLAG{lambda_env_vars_are_plaintext_3c1d}",
+          "explanation": "Lambda environment variables are returned in plaintext by lambda:GetFunctionConfiguration. Encryption at rest with a KMS key protects the stored copy, but anyone with that read permission still sees the value. Environment variables are configuration, not a secret store."
+        },
+        {
+          "id": "t2",
+          "kind": "flag",
+          "prompt": "Decrypt the SecureString parameters under /orders/prod with Parameter Store and paste the flag.",
+          "flag": "FLAG{ssm_securestring_decrypted_b94e}",
+          "explanation": "A SecureString is encrypted with KMS, so reading its plaintext needs the SSM read permission AND kms:Decrypt on the key — your user holds both for the orders key. Without --with-decryption you only get ciphertext, which is why you must pass the flag."
+        },
+        {
+          "id": "t3",
+          "kind": "answer",
+          "prompt": "Your attempt to decrypt /payments/prod failed. Which IAM action (service:Action) was missing for the payments KMS key?",
+          "accept": [
+            "kms:decrypt",
+            "kms decrypt",
+            "decrypt"
+          ],
+          "explanation": "Parameter Store and Secrets Manager protect values with two gates: the service permission (ssm:GetParameter*, secretsmanager:GetSecretValue) and kms:Decrypt on the backing key. Scoping kms:Decrypt per key is what kept the payments signing key safe from this audit user even though it could read the parameter metadata."
+        },
+        {
+          "id": "t4",
+          "kind": "flag",
+          "prompt": "Find the orders worker instance, read its user-data attribute and decode it. Paste the flag that was baked into the boot script.",
+          "flag": "FLAG{userdata_is_not_private_58d0}",
+          "explanation": "EC2 user-data is stored base64-encoded, not encrypted, and is readable via ec2:DescribeInstanceAttribute and from the instance metadata service by anything running on the box. It is no place for tokens; pull secrets at runtime from Secrets Manager using the instance role instead."
+        },
+        {
+          "id": "t5",
+          "kind": "answer",
+          "prompt": "In git-history-excerpt.txt, which commit (7-character hash) first added the .env file containing the AWS key and DB password?",
+          "accept": [
+            "b41d9c7",
+            "b41d9c70e5a3f2d814c6b97a0f1e2d3c4b5a6978"
+          ],
+          "explanation": "Commit b41d9c7 introduced the file; e91c04d only deleted it from the current tree. Git keeps every earlier version forever, so scanners like trufflehog find the secret in history and so do attackers who clone the repo."
+        },
+        {
+          "id": "t6",
+          "kind": "answer",
+          "prompt": "In codebuild-build-log.txt, which shell option (e.g. set -x) caused the registry token to be printed in the CI log?",
+          "accept": [
+            "set -x",
+            "-x",
+            "xtrace",
+            "set -o xtrace"
+          ],
+          "explanation": "With set -x the shell prints every command after variable expansion, so the token landed in the log. CI systems mask only values they know are secrets (such as variables from Secrets Manager or Parameter Store); a plaintext environment variable is not masked."
+        },
+        {
+          "id": "t7",
+          "kind": "choice",
+          "prompt": "The Git history leaks a live AWS access key and a DB password. What must happen FIRST?",
+          "options": [
+            "Force-push a rewritten history and consider it handled",
+            "Deactivate and rotate the exposed credentials, then clean up the history",
+            "Delete the repository and recreate it",
+            "Add .env to .gitignore"
+          ],
+          "correct": [
+            1
+          ],
+          "explanation": "Once a secret has been committed assume it is compromised: forks, clones and caches may already hold it. Revoking and rotating makes the leaked value useless; history rewriting and .gitignore only reduce future exposure and cannot recall copies that already exist."
+        },
+        {
+          "id": "t8",
+          "kind": "choice",
+          "prompt": "Which design best fixes the root cause across all of these leak surfaces?",
+          "options": [
+            "Move secrets to Secrets Manager with a customer managed KMS key and rotation; give the app role access to only its own secret",
+            "Encrypt the Lambda environment variables with a different KMS key and keep the rest as is",
+            "Base64-encode the secrets in user-data and in the Git repo",
+            "Share one admin-level secret-reader role among all applications to simplify auditing"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "A real secret store gives you per-secret access control, audit trail in CloudTrail and automatic rotation, so a leaked value ages out. Pairing it with a per-app policy removes the blast radius of any single compromised workload, and the customer managed key adds a second, separately auditable gate."
+        },
+        {
+          "id": "t9",
+          "kind": "policy",
+          "mode": "identity",
+          "prompt": "Fix orders-api-role-policy.json. The orders app must read ONLY its own secret `orders/prod/db` (any version suffix) from Secrets Manager and decrypt it with the orders key, only when KMS is called through Secrets Manager. It must not read other secrets, write secrets or list them.",
+          "starter": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"AppSecrets\",\n      \"Effect\": \"Allow\",\n      \"Action\": \"secretsmanager:*\",\n      \"Resource\": \"*\"\n    },\n    {\n      \"Sid\": \"Decrypt\",\n      \"Effect\": \"Allow\",\n      \"Action\": \"kms:Decrypt\",\n      \"Resource\": \"*\"\n    }\n  ]\n}",
+          "solution": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"secretsmanager:GetSecretValue\",\n        \"secretsmanager:DescribeSecret\"\n      ],\n      \"Resource\": \"arn:aws:secretsmanager:us-east-1:111122223333:secret:orders/prod/db-*\"\n    },\n    {\n      \"Effect\": \"Allow\",\n      \"Action\": \"kms:Decrypt\",\n      \"Resource\": \"arn:aws:kms:us-east-1:111122223333:key/1111aaaa-22bb-33cc-44dd-5555eeee6666\",\n      \"Condition\": {\n        \"StringEquals\": {\n          \"kms:ViaService\": \"secretsmanager.us-east-1.amazonaws.com\"\n        }\n      }\n    }\n  ]\n}",
+          "tests": [
+            {
+              "name": "Can read its own database secret",
+              "action": "secretsmanager:GetSecretValue",
+              "resource": "arn:aws:secretsmanager:us-east-1:111122223333:secret:orders/prod/db-a1B2c3",
+              "expect": "allow"
+            },
+            {
+              "name": "Cannot read the payments secret",
+              "action": "secretsmanager:GetSecretValue",
+              "resource": "arn:aws:secretsmanager:us-east-1:111122223333:secret:payments/prod/stripe-x9Y8z7",
+              "expect": "deny"
+            },
+            {
+              "name": "Cannot read a sibling secret under the same prefix",
+              "action": "secretsmanager:GetSecretValue",
+              "resource": "arn:aws:secretsmanager:us-east-1:111122223333:secret:orders/prod/analytics-k4L5m6",
+              "expect": "deny"
+            },
+            {
+              "name": "Can decrypt with the orders key when called via Secrets Manager",
+              "action": "kms:Decrypt",
+              "resource": "arn:aws:kms:us-east-1:111122223333:key/1111aaaa-22bb-33cc-44dd-5555eeee6666",
+              "context": {
+                "kms:ViaService": "secretsmanager.us-east-1.amazonaws.com"
+              },
+              "expect": "allow"
+            },
+            {
+              "name": "Cannot decrypt with the orders key directly",
+              "action": "kms:Decrypt",
+              "resource": "arn:aws:kms:us-east-1:111122223333:key/1111aaaa-22bb-33cc-44dd-5555eeee6666",
+              "expect": "deny"
+            },
+            {
+              "name": "Cannot decrypt with the payments key",
+              "action": "kms:Decrypt",
+              "resource": "arn:aws:kms:us-east-1:111122223333:key/9999ffff-88ee-77dd-66cc-5555bbbb4444",
+              "context": {
+                "kms:ViaService": "secretsmanager.us-east-1.amazonaws.com"
+              },
+              "expect": "deny"
+            },
+            {
+              "name": "Cannot overwrite its own secret",
+              "action": "secretsmanager:PutSecretValue",
+              "resource": "arn:aws:secretsmanager:us-east-1:111122223333:secret:orders/prod/db-a1B2c3",
+              "expect": "deny"
+            },
+            {
+              "name": "Cannot list every secret in the account",
+              "action": "secretsmanager:ListSecrets",
+              "resource": "*",
+              "expect": "deny"
+            }
+          ],
+          "explanation": "Two gates, both pinned. GetSecretValue is limited to the single secret (the -* matches the random 6-character suffix Secrets Manager appends to every secret ARN, without matching sibling names), and kms:Decrypt is limited to one key plus the kms:ViaService condition, so the key cannot be used directly for anything else."
+        }
+      ],
+      "takeaways": [
+        "Ask 'who can read this?' for every surface: Lambda env vars, user-data and Git history are readable by far more identities than a secret store would be.",
+        "Reading an encrypted secret takes two permissions: the service action and kms:Decrypt on the key. Scope both per application.",
+        "A committed secret is a compromised secret: rotate first, clean history second, and stop CI from printing it (no set -x with secrets, use masked variables)."
+      ]
+    }
+  },
+  {
+    "labId": "cloud-L14",
+    "objective": "Replace the long-lived AWS access key stored in a GitHub repo's secrets with GitHub Actions OIDC federation: find the static key, exploit the over-broad CI role trust policy from a different repo, then rewrite the trust so only the intended workflow can assume the role.",
+    "successCriteria": [
+      "You located the static access key still stored for the CI deployer and the role's current trust policy",
+      "You proved that a token from an unrelated repo in the org can assume the deploy role",
+      "You rewrote the trust policy so only payments-api on main (with the right audience) can assume it, and a tag-only release role"
+    ],
+    "hints": [
+      "An OIDC trust decision is made on claims inside the token. Which claim names the repository and the branch or tag?",
+      "Read the role with aws iam get-role. Does anything stop a different repository in the same organisation from satisfying that condition?",
+      "Pin the audience with StringEquals on :aud = sts.amazonaws.com, and pin the :sub claim to the exact repo and ref, e.g. repo:acme-corp/payments-api:ref:refs/heads/main. For tags use refs/tags/v*."
+    ],
+    "estimatedHours": 2,
+    "resources": [
+      {
+        "title": "GitHub Docs: Configuring OpenID Connect in Amazon Web Services",
+        "url": "https://docs.github.com/en/actions/how-tos/secure-your-work/security-harden-deployments/oidc-in-aws",
+        "type": "link"
+      },
+      {
+        "title": "AWS IAM: Create a role for OpenID Connect federation",
+        "url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_create_for-idp_oidc.html",
+        "type": "link"
+      },
+      {
+        "title": "AWS IAM: Identity providers and federation",
+        "url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers.html",
+        "type": "link"
+      }
+    ],
+    "range": {
+      "scenario": "AcmeCorp's payments-api repo deploys to AWS from GitHub Actions using an IAM user's static access key kept in repo secrets. A teammate started migrating to OIDC federation and created the role `github-deploy-role`, but nobody reviewed its trust policy, and the old key is still active. You are on the security team with a read-only audit role. Find the static key, read the role's trust policy, and prove whether a throwaway workflow in a different low-trust repo (acme-corp/docs-site, which any contributor can push to) can mint a token that AWS accepts. Then fix the trust policies and retire the key.",
+      "artifacts": [
+        {
+          "name": "deploy.yml",
+          "language": "yaml",
+          "content": "# .github/workflows/deploy.yml  (acme-corp/payments-api)\nname: deploy\non:\n  push:\n    branches: [main]\npermissions:\n  contents: read\njobs:\n  deploy:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - name: Configure AWS credentials\n        env:\n          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}\n          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}\n          AWS_DEFAULT_REGION: us-east-1\n        run: aws sts get-caller-identity\n      - name: Deploy\n        run: ./scripts/deploy.sh   # runs as IAM user ci-deployer",
+          "note": "The current pipeline: long-lived keys in repo secrets, no OIDC token requested."
+        },
+        {
+          "name": "docs-site-oidc-claims.json",
+          "language": "json",
+          "content": "{\n  \"iss\": \"https://token.actions.githubusercontent.com\",\n  \"aud\": \"sts.amazonaws.com\",\n  \"sub\": \"repo:acme-corp/docs-site:ref:refs/heads/feature/new-theme\",\n  \"repository\": \"acme-corp/docs-site\",\n  \"repository_owner\": \"acme-corp\",\n  \"ref\": \"refs/heads/feature/new-theme\",\n  \"workflow\": \"preview\",\n  \"event_name\": \"push\"\n}",
+          "note": "Decoded claims of docs-site-oidc.jwt, the token your throwaway workflow in acme-corp/docs-site obtained from GitHub."
+        },
+        {
+          "name": "github-oidc-provider.json",
+          "language": "json",
+          "content": "{\n  \"Url\": \"token.actions.githubusercontent.com\",\n  \"ClientIDList\": [\n    \"sts.amazonaws.com\"\n  ],\n  \"ThumbprintList\": [\n    \"6938fd4d98bab03faadb97b34396831e3780aea1\"\n  ],\n  \"CreateDate\": \"2026-09-01T08:30:00+00:00\"\n}",
+          "note": "The IAM OIDC identity provider registered for GitHub in account 111122223333."
+        }
+      ],
+      "terminal": {
+        "prompt": "secops@sandbox:~$",
+        "intro": "Authenticated as assumed role SecurityAuditRole in account 111122223333. The token from your docs-site workflow is saved as docs-site-oidc.jwt. Credentials returned by an assume call are used automatically by later commands in this shell.",
+        "help": "Commands you can try (like the AWS CLI):\n  aws sts get-caller-identity\n  aws iam list-users\n  aws iam list-access-keys --user-name <user>\n  aws iam get-access-key-last-used --access-key-id <id>\n  aws iam list-user-tags --user-name <user>\n  aws iam list-roles\n  aws iam get-role --role-name <name>\n  aws iam list-attached-role-policies --role-name <name>\n  aws sts assume-role-with-web-identity --role-arn <arn> --role-session-name <n> --web-identity-token file://docs-site-oidc.jwt\n  aws s3 ls s3://<bucket>/   |   aws s3 cp s3://<bucket>/<key> -",
+        "rules": [
+          {
+            "match": "^aws sts get-caller-identity$",
+            "requires": [
+              "assumed_ci"
+            ],
+            "output": "{\n  \"UserId\": \"AROAEXAMPLEDEPLOY0001:poc\",\n  \"Account\": \"111122223333\",\n  \"Arn\": \"arn:aws:sts::111122223333:assumed-role/github-deploy-role/poc\"\n}"
+          },
+          {
+            "match": "^aws sts get-caller-identity$",
+            "output": "{\n  \"UserId\": \"AROAEXAMPLEAUDIT0001:session\",\n  \"Account\": \"111122223333\",\n  \"Arn\": \"arn:aws:sts::111122223333:assumed-role/SecurityAuditRole/session\"\n}"
+          },
+          {
+            "match": "^aws iam list-users\\b.*$",
+            "output": "{\n  \"Users\": [\n    {\n      \"UserName\": \"alice\",\n      \"Arn\": \"arn:aws:iam::111122223333:user/alice\"\n    },\n    {\n      \"UserName\": \"ci-deployer\",\n      \"Arn\": \"arn:aws:iam::111122223333:user/ci-deployer\"\n    }\n  ]\n}"
+          },
+          {
+            "match": "^aws iam list-access-keys --user-name ci-deployer$",
+            "sets": [
+              "key_found"
+            ],
+            "output": "{\n  \"AccessKeyMetadata\": [\n    {\n      \"UserName\": \"ci-deployer\",\n      \"AccessKeyId\": \"AKIAIOSFODNN7EXAMPLE\",\n      \"Status\": \"Active\",\n      \"CreateDate\": \"2023-04-11T09:02:17+00:00\"\n    }\n  ]\n}"
+          },
+          {
+            "match": "^aws iam list-access-keys$",
+            "output": "{\n  \"AccessKeyMetadata\": []\n}"
+          },
+          {
+            "match": "^aws iam get-access-key-last-used --access-key-id AKIAIOSFODNN7EXAMPLE$",
+            "requires": [
+              "key_found"
+            ],
+            "output": "{\n  \"UserName\": \"ci-deployer\",\n  \"AccessKeyLastUsed\": {\n    \"LastUsedDate\": \"2026-11-19T14:02:11+00:00\",\n    \"ServiceName\": \"s3\",\n    \"Region\": \"us-east-1\"\n  }\n}"
+          },
+          {
+            "match": "^aws iam get-access-key-last-used\\b",
+            "output": "An error occurred (AccessDenied) when calling the GetAccessKeyLastUsed operation: Enumerate the user's access keys first (aws iam list-access-keys --user-name <user>)."
+          },
+          {
+            "match": "^aws iam list-user-tags --user-name ci-deployer$",
+            "output": "{\n  \"Tags\": [\n    {\n      \"Key\": \"owner\",\n      \"Value\": \"platform-team\"\n    },\n    {\n      \"Key\": \"purpose\",\n      \"Value\": \"github-actions-deploy\"\n    },\n    {\n      \"Key\": \"audit-ref\",\n      \"Value\": \"FLAG{static_key_still_active_in_ci_41ab}\"\n    }\n  ]\n}"
+          },
+          {
+            "match": "^aws iam list-user-tags --user-name (\\S+)$",
+            "output": "An error occurred (NoSuchEntity) when calling the ListUserTags operation: The user with name $1 cannot be found."
+          },
+          {
+            "match": "^aws iam list-roles\\b.*$",
+            "output": "{\n  \"Roles\": [\n    {\n      \"RoleName\": \"SecurityAuditRole\",\n      \"Arn\": \"arn:aws:iam::111122223333:role/SecurityAuditRole\"\n    },\n    {\n      \"RoleName\": \"github-deploy-role\",\n      \"Arn\": \"arn:aws:iam::111122223333:role/github-deploy-role\"\n    },\n    {\n      \"RoleName\": \"github-release-role\",\n      \"Arn\": \"arn:aws:iam::111122223333:role/github-release-role\"\n    }\n  ]\n}"
+          },
+          {
+            "match": "^aws iam get-role --role-name github-deploy-role$",
+            "sets": [
+              "trust_read"
+            ],
+            "output": "{\n  \"Role\": {\n    \"RoleName\": \"github-deploy-role\",\n    \"Arn\": \"arn:aws:iam::111122223333:role/github-deploy-role\",\n    \"Description\": \"Deploy role for GitHub Actions (OIDC migration, ticket SEC-2210)\",\n    \"AssumeRolePolicyDocument\": {\n      \"Version\": \"2012-10-17\",\n      \"Statement\": [\n        {\n          \"Effect\": \"Allow\",\n          \"Principal\": {\n            \"Federated\": \"arn:aws:iam::111122223333:oidc-provider/token.actions.githubusercontent.com\"\n          },\n          \"Action\": \"sts:AssumeRoleWithWebIdentity\",\n          \"Condition\": {\n            \"StringLike\": {\n              \"token.actions.githubusercontent.com:sub\": \"repo:acme-corp/*\"\n            }\n          }\n        }\n      ]\n    }\n  }\n}"
+          },
+          {
+            "match": "^aws iam get-role --role-name github-release-role$",
+            "output": "{\n  \"Role\": {\n    \"RoleName\": \"github-release-role\",\n    \"Arn\": \"arn:aws:iam::111122223333:role/github-release-role\",\n    \"Description\": \"Publishes tagged releases of payments-api\",\n    \"AssumeRolePolicyDocument\": {\n      \"Version\": \"2012-10-17\",\n      \"Statement\": [\n        {\n          \"Effect\": \"Allow\",\n          \"Principal\": {\n            \"Federated\": \"arn:aws:iam::111122223333:oidc-provider/token.actions.githubusercontent.com\"\n          },\n          \"Action\": \"sts:AssumeRoleWithWebIdentity\",\n          \"Condition\": {\n            \"StringEquals\": {\n              \"token.actions.githubusercontent.com:aud\": \"sts.amazonaws.com\"\n            },\n            \"StringLike\": {\n              \"token.actions.githubusercontent.com:sub\": \"repo:acme-corp/payments-api:*\"\n            }\n          }\n        }\n      ]\n    }\n  }\n}"
+          },
+          {
+            "match": "^aws iam get-role --role-name (\\S+)$",
+            "output": "An error occurred (NoSuchEntity) when calling the GetRole operation: The role with name $1 cannot be found."
+          },
+          {
+            "match": "^aws iam list-attached-role-policies --role-name github-deploy-role$",
+            "output": "{\n  \"AttachedPolicies\": [\n    {\n      \"PolicyName\": \"AcmeProdDeploy\",\n      \"PolicyArn\": \"arn:aws:iam::111122223333:policy/AcmeProdDeploy\"\n    }\n  ]\n}"
+          },
+          {
+            "match": "^aws sts assume-role-with-web-identity\\b(?=.*--role-arn arn:aws:iam::111122223333:role/github-deploy-role)(?=.*--role-session-name \\S+)(?=.*--web-identity-token file://\\S+).*$",
+            "sets": [
+              "assumed_ci"
+            ],
+            "output": "{\n  \"Credentials\": {\n    \"AccessKeyId\": \"ASIAIOSFODNN7EXAMPLE\",\n    \"SecretAccessKey\": \"wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY\",\n    \"SessionToken\": \"IQoJb3JpZ2luX2VjEXAMPLEsessiontokenNOTreal//////////wEXAMPLE==\",\n    \"Expiration\": \"2026-11-20T10:12:44+00:00\"\n  },\n  \"SubjectFromWebIdentityToken\": \"repo:acme-corp/docs-site:ref:refs/heads/feature/new-theme\",\n  \"AssumedRoleUser\": {\n    \"AssumedRoleId\": \"AROAEXAMPLEDEPLOY0001:poc\",\n    \"Arn\": \"arn:aws:sts::111122223333:assumed-role/github-deploy-role/poc\"\n  },\n  \"Provider\": \"arn:aws:iam::111122223333:oidc-provider/token.actions.githubusercontent.com\",\n  \"Audience\": \"sts.amazonaws.com\"\n}"
+          },
+          {
+            "match": "^aws sts assume-role-with-web-identity\\b",
+            "output": "An error occurred (AccessDenied) when calling the AssumeRoleWithWebIdentity operation: Not authorized to perform sts:AssumeRoleWithWebIdentity\n(Check the --role-arn, --role-session-name and --web-identity-token file://docs-site-oidc.jwt arguments.)"
+          },
+          {
+            "match": "^aws s3 cp s3://acme-prod-releases/deploy-manifest\\.txt -$",
+            "requires": [
+              "assumed_ci"
+            ],
+            "output": "acme-corp payments-api release manifest\nbuild: 2026.11.19-rc3\nsigning-key-id: prod-signing-01\nnote: FLAG{any_repo_in_the_org_can_deploy_to_prod_a7f1}"
+          },
+          {
+            "match": "^aws s3 ls s3://acme-prod-releases/?$",
+            "requires": [
+              "assumed_ci"
+            ],
+            "output": "2026-11-19 14:02:30        214 deploy-manifest.txt\n2026-11-18 09:40:02   48211904 payments-api-2026.11.18.tar.gz"
+          },
+          {
+            "match": "^aws s3 (ls|cp)\\b",
+            "output": "An error occurred (AccessDenied) when calling the ListObjectsV2 operation: User: arn:aws:sts::111122223333:assumed-role/SecurityAuditRole/session is not authorized to perform: s3:ListBucket on resource: \"arn:aws:s3:::acme-prod-releases\" because no identity-based policy allows the s3:ListBucket action"
+          }
+        ]
+      },
+      "solution": [
+        "aws iam list-users",
+        "aws iam list-access-keys --user-name ci-deployer",
+        "aws iam get-access-key-last-used --access-key-id AKIAIOSFODNN7EXAMPLE",
+        "aws iam list-user-tags --user-name ci-deployer",
+        "aws iam list-roles",
+        "aws iam get-role --role-name github-deploy-role",
+        "aws sts assume-role-with-web-identity --role-arn arn:aws:iam::111122223333:role/github-deploy-role --role-session-name poc --web-identity-token file://docs-site-oidc.jwt",
+        "aws s3 cp s3://acme-prod-releases/deploy-manifest.txt -"
+      ],
+      "tasks": [
+        {
+          "id": "t1",
+          "kind": "flag",
+          "prompt": "Find the IAM user behind the pipeline and its static access key (still Active), then read the user's tags. Paste the audit flag.",
+          "flag": "FLAG{static_key_still_active_in_ci_41ab}",
+          "explanation": "The pipeline authenticates as IAM user ci-deployer with a key created in 2023 that never expires and works from any IP. Any leak of the repo secrets, a log, or a compromised maintainer account hands an attacker standing access, which is exactly the class of credential OIDC federation eliminates."
+        },
+        {
+          "id": "t2",
+          "kind": "answer",
+          "prompt": "In an OIDC web-identity trust policy, which token claim (the last segment of the condition key, e.g. token.actions.githubusercontent.com:<claim>) identifies the repository and ref that is calling?",
+          "accept": [
+            "sub",
+            "token.actions.githubusercontent.com:sub",
+            "subject"
+          ],
+          "explanation": "The sub (subject) claim carries repo:<org>/<repo>:ref:<ref> (or :pull_request, :environment:<name>), and it is the only thing that tells AWS WHICH workflow is asking. The aud claim says who the token is meant for. Conditions on both are needed for a trustworthy trust policy."
+        },
+        {
+          "id": "t3",
+          "kind": "choice",
+          "prompt": "The current trust policy conditions only on `sub` StringLike `repo:acme-corp/*` and has no `aud` condition. Which statements about the risk are true?",
+          "options": [
+            "Any repo in the org can assume the role, including low-trust ones like docs-site",
+            "Workflows triggered from pull requests and feature branches of any repo also satisfy the wildcard",
+            "The condition is safe because the repository must belong to acme-corp, which GitHub enforces",
+            "Not checking aud means tokens minted for other audiences are accepted by this trust statement"
+          ],
+          "correct": [
+            0,
+            1,
+            3
+          ],
+          "explanation": "A wildcard on the repo segment trusts every repository and every ref in the org, including pull-request tokens. GitHub proves only that the token is genuine; deciding which repo is trusted is the trust policy's job. Without an aud condition the statement also accepts tokens issued for other audiences."
+        },
+        {
+          "id": "t4",
+          "kind": "flag",
+          "prompt": "Prove the impact: use the token from the low-trust docs-site repo to assume the deploy role, then read s3://acme-prod-releases/deploy-manifest.txt. Paste the flag.",
+          "flag": "FLAG{any_repo_in_the_org_can_deploy_to_prod_a7f1}",
+          "explanation": "The token's sub (repo:acme-corp/docs-site:ref:refs/heads/feature/new-theme) matched repo:acme-corp/*, so STS issued production deploy credentials to a feature branch of an unrelated repo. Anyone who can push a workflow to any repo in the org could do the same."
+        },
+        {
+          "id": "t5",
+          "kind": "policy",
+          "mode": "resource",
+          "prompt": "Fix the trust policy of github-deploy-role. Only the payments-api repo, on the main branch, with audience sts.amazonaws.com, may assume it via AssumeRoleWithWebIdentity. Everything else (other repos, other orgs, pull requests, other branches, other audiences, IAM users) must be denied.",
+          "starter": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Effect\": \"Allow\",\n      \"Principal\": {\n        \"Federated\": \"arn:aws:iam::111122223333:oidc-provider/token.actions.githubusercontent.com\"\n      },\n      \"Action\": \"sts:AssumeRoleWithWebIdentity\",\n      \"Condition\": {\n        \"StringLike\": {\n          \"token.actions.githubusercontent.com:sub\": \"repo:acme-corp/*\"\n        }\n      }\n    }\n  ]\n}",
+          "solution": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Effect\": \"Allow\",\n      \"Principal\": {\n        \"Federated\": \"arn:aws:iam::111122223333:oidc-provider/token.actions.githubusercontent.com\"\n      },\n      \"Action\": \"sts:AssumeRoleWithWebIdentity\",\n      \"Condition\": {\n        \"StringEquals\": {\n          \"token.actions.githubusercontent.com:aud\": \"sts.amazonaws.com\"\n        },\n        \"StringLike\": {\n          \"token.actions.githubusercontent.com:sub\": \"repo:acme-corp/payments-api:ref:refs/heads/main\"\n        }\n      }\n    }\n  ]\n}",
+          "tests": [
+            {
+              "name": "payments-api on main can assume the role",
+              "action": "sts:AssumeRoleWithWebIdentity",
+              "principal": "arn:aws:iam::111122223333:oidc-provider/token.actions.githubusercontent.com",
+              "context": {
+                "token.actions.githubusercontent.com:sub": "repo:acme-corp/payments-api:ref:refs/heads/main",
+                "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
+              },
+              "expect": "allow"
+            },
+            {
+              "name": "Another repo in the org cannot assume the role",
+              "action": "sts:AssumeRoleWithWebIdentity",
+              "principal": "arn:aws:iam::111122223333:oidc-provider/token.actions.githubusercontent.com",
+              "context": {
+                "token.actions.githubusercontent.com:sub": "repo:acme-corp/docs-site:ref:refs/heads/main",
+                "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
+              },
+              "expect": "deny"
+            },
+            {
+              "name": "A same-named repo in another org cannot assume the role",
+              "action": "sts:AssumeRoleWithWebIdentity",
+              "principal": "arn:aws:iam::111122223333:oidc-provider/token.actions.githubusercontent.com",
+              "context": {
+                "token.actions.githubusercontent.com:sub": "repo:attacker-org/payments-api:ref:refs/heads/main",
+                "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
+              },
+              "expect": "deny"
+            },
+            {
+              "name": "A pull request workflow cannot assume the role",
+              "action": "sts:AssumeRoleWithWebIdentity",
+              "principal": "arn:aws:iam::111122223333:oidc-provider/token.actions.githubusercontent.com",
+              "context": {
+                "token.actions.githubusercontent.com:sub": "repo:acme-corp/payments-api:pull_request",
+                "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
+              },
+              "expect": "deny"
+            },
+            {
+              "name": "A feature branch cannot assume the role",
+              "action": "sts:AssumeRoleWithWebIdentity",
+              "principal": "arn:aws:iam::111122223333:oidc-provider/token.actions.githubusercontent.com",
+              "context": {
+                "token.actions.githubusercontent.com:sub": "repo:acme-corp/payments-api:ref:refs/heads/feature/x",
+                "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
+              },
+              "expect": "deny"
+            },
+            {
+              "name": "A token with the wrong audience is rejected",
+              "action": "sts:AssumeRoleWithWebIdentity",
+              "principal": "arn:aws:iam::111122223333:oidc-provider/token.actions.githubusercontent.com",
+              "context": {
+                "token.actions.githubusercontent.com:sub": "repo:acme-corp/payments-api:ref:refs/heads/main",
+                "token.actions.githubusercontent.com:aud": "sts.example.com"
+              },
+              "expect": "deny"
+            },
+            {
+              "name": "The static IAM user cannot assume the role",
+              "action": "sts:AssumeRole",
+              "principal": "arn:aws:iam::111122223333:user/ci-deployer",
+              "expect": "deny"
+            }
+          ],
+          "explanation": "Pin BOTH claims: StringEquals on aud = sts.amazonaws.com and a sub that names the exact repo and ref. Using StringEquals/StringLike with the full repo:org/repo:ref:refs/heads/main string removes every wildcard that let unrelated repos and pull requests in. The action stays sts:AssumeRoleWithWebIdentity so IAM principals cannot use the role."
+        },
+        {
+          "id": "t6",
+          "kind": "policy",
+          "mode": "resource",
+          "prompt": "github-release-role publishes releases. Its trust policy accepts any ref of payments-api. Restrict it so only workflows running on release tags whose name starts with `v` (refs/tags/v...) of acme-corp/payments-api, with audience sts.amazonaws.com, can assume it.",
+          "starter": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Effect\": \"Allow\",\n      \"Principal\": {\n        \"Federated\": \"arn:aws:iam::111122223333:oidc-provider/token.actions.githubusercontent.com\"\n      },\n      \"Action\": \"sts:AssumeRoleWithWebIdentity\",\n      \"Condition\": {\n        \"StringEquals\": {\n          \"token.actions.githubusercontent.com:aud\": \"sts.amazonaws.com\"\n        },\n        \"StringLike\": {\n          \"token.actions.githubusercontent.com:sub\": \"repo:acme-corp/payments-api:*\"\n        }\n      }\n    }\n  ]\n}",
+          "solution": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Effect\": \"Allow\",\n      \"Principal\": {\n        \"Federated\": \"arn:aws:iam::111122223333:oidc-provider/token.actions.githubusercontent.com\"\n      },\n      \"Action\": \"sts:AssumeRoleWithWebIdentity\",\n      \"Condition\": {\n        \"StringEquals\": {\n          \"token.actions.githubusercontent.com:aud\": \"sts.amazonaws.com\"\n        },\n        \"StringLike\": {\n          \"token.actions.githubusercontent.com:sub\": \"repo:acme-corp/payments-api:ref:refs/tags/v*\"\n        }\n      }\n    }\n  ]\n}",
+          "tests": [
+            {
+              "name": "A v-tag of payments-api can assume the role",
+              "action": "sts:AssumeRoleWithWebIdentity",
+              "principal": "arn:aws:iam::111122223333:oidc-provider/token.actions.githubusercontent.com",
+              "context": {
+                "token.actions.githubusercontent.com:sub": "repo:acme-corp/payments-api:ref:refs/tags/v1.4.0",
+                "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
+              },
+              "expect": "allow"
+            },
+            {
+              "name": "The main branch cannot assume the release role",
+              "action": "sts:AssumeRoleWithWebIdentity",
+              "principal": "arn:aws:iam::111122223333:oidc-provider/token.actions.githubusercontent.com",
+              "context": {
+                "token.actions.githubusercontent.com:sub": "repo:acme-corp/payments-api:ref:refs/heads/main",
+                "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
+              },
+              "expect": "deny"
+            },
+            {
+              "name": "A pull request cannot assume the release role",
+              "action": "sts:AssumeRoleWithWebIdentity",
+              "principal": "arn:aws:iam::111122223333:oidc-provider/token.actions.githubusercontent.com",
+              "context": {
+                "token.actions.githubusercontent.com:sub": "repo:acme-corp/payments-api:pull_request",
+                "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
+              },
+              "expect": "deny"
+            },
+            {
+              "name": "A non-release tag cannot assume the role",
+              "action": "sts:AssumeRoleWithWebIdentity",
+              "principal": "arn:aws:iam::111122223333:oidc-provider/token.actions.githubusercontent.com",
+              "context": {
+                "token.actions.githubusercontent.com:sub": "repo:acme-corp/payments-api:ref:refs/tags/nightly",
+                "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
+              },
+              "expect": "deny"
+            },
+            {
+              "name": "A v-tag of another repo cannot assume the role",
+              "action": "sts:AssumeRoleWithWebIdentity",
+              "principal": "arn:aws:iam::111122223333:oidc-provider/token.actions.githubusercontent.com",
+              "context": {
+                "token.actions.githubusercontent.com:sub": "repo:acme-corp/docs-site:ref:refs/tags/v1.0.0",
+                "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
+              },
+              "expect": "deny"
+            },
+            {
+              "name": "A token with the wrong audience is rejected",
+              "action": "sts:AssumeRoleWithWebIdentity",
+              "principal": "arn:aws:iam::111122223333:oidc-provider/token.actions.githubusercontent.com",
+              "context": {
+                "token.actions.githubusercontent.com:sub": "repo:acme-corp/payments-api:ref:refs/tags/v1.4.0",
+                "token.actions.githubusercontent.com:aud": "sts.example.com"
+              },
+              "expect": "deny"
+            }
+          ],
+          "explanation": "Different environments deserve different roles with different sub claims. A wildcard is fine when it covers only the part you intend to trust (refs/tags/v*), but a trailing * after the repo name trusts every ref, including pull requests from forks of a public repo."
+        },
+        {
+          "id": "t7",
+          "kind": "answer",
+          "prompt": "Which workflow-level permission (written key: value) must the job request in deploy.yml so GitHub issues it an OIDC token for AWS?",
+          "accept": [
+            "id-token: write",
+            "id-token:write",
+            "id-token write",
+            "id-token"
+          ],
+          "explanation": "Without permissions: id-token: write the job cannot request an OIDC token at all. With it, the aws-actions/configure-aws-credentials action exchanges the token for short-lived STS credentials for the role named in role-to-assume."
+        },
+        {
+          "id": "t8",
+          "kind": "choice",
+          "prompt": "After the OIDC workflow is deployed and working, what is the correct way to retire the static key?",
+          "options": [
+            "Leave the key active as a fallback but stop referencing it in the workflow",
+            "Deactivate the key, watch get-access-key-last-used and the pipeline for breakage, then delete the key and the repo secrets",
+            "Rotate the key monthly and keep both GitHub secrets",
+            "Delete the IAM user first, then see what breaks"
+          ],
+          "correct": [
+            1
+          ],
+          "explanation": "Deactivating is reversible, so you can confirm nothing else depends on the key (last-used data and a green pipeline) before deleting it. Then remove the GitHub secrets too: the goal is that no long-lived credential exists anywhere, not just that it is unused."
+        }
+      ],
+      "takeaways": [
+        "With OIDC federation there is no stored key: GitHub vouches for the workflow and AWS issues short-lived credentials.",
+        "The trust policy is the security boundary: condition on both aud (sts.amazonaws.com) and an exact sub (repo and ref), and avoid wildcards on the repo.",
+        "Use separate roles per purpose (deploy from main, release from tags) and retire the static key by deactivating, verifying, then deleting."
+      ]
+    }
+  }
+]

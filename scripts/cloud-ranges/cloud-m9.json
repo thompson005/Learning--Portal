@@ -1,0 +1,1108 @@
+[
+  {
+    "labId": "cloud-L20",
+    "objective": "Audit a payments Deployment and its Dockerfile for container-runtime risk (privileged mode, docker.sock mount, added capabilities, root user, writable root filesystem, no resource limits), apply a hardened configuration, enforce Pod Security Standards, and confirm with a clean scan.",
+    "successCriteria": [
+      "You identified every risky runtime setting in the Deployment and Dockerfile and can explain why each is dangerous",
+      "You applied the hardened manifest, rebuilt the image from the hardened Dockerfile and enforced the restricted Pod Security Standard on the namespace",
+      "A re-run of the configuration scan reports no failures"
+    ],
+    "hints": [
+      "Start read-only: look at the live Deployment, the Dockerfile and what the runtime reports. Ask of each setting: what does a compromised app process gain from it?",
+      "Two settings hand the container control over the node itself: privileged mode and a hostPath mount of the container runtime socket. Root, extra capabilities, a writable root filesystem and missing limits widen the blast radius.",
+      "Adopt the prepared files (cp deploy/deployment.hardened.yaml deploy/deployment.yaml, same for the Dockerfile), kubectl apply, docker build, label the prod namespace pod-security.kubernetes.io/enforce=restricted, then run trivy config deploy/ again."
+    ],
+    "estimatedHours": 2,
+    "resources": [
+      {
+        "title": "Kubernetes docs: Configure a Security Context for a Pod or Container",
+        "url": "https://kubernetes.io/docs/tasks/configure-pod-container/security-context/",
+        "type": "link"
+      },
+      {
+        "title": "Kubernetes docs: Pod Security Standards",
+        "url": "https://kubernetes.io/docs/concepts/security/pod-security-standards/",
+        "type": "link"
+      },
+      {
+        "title": "Docker docs: Building best practices",
+        "url": "https://docs.docker.com/build/building/best-practices/",
+        "type": "link"
+      }
+    ],
+    "range": {
+      "scenario": "You are the platform engineer for the payments team. A pre-production review flagged the `payments-api` Deployment in namespace `prod` and the Dockerfile it is built from, but nobody has written down what is actually wrong. Your job is to audit both with read-only commands and a baseline `trivy config` scan, work out why each risky setting matters in defender terms, then apply the hardened configuration the team prepared, enforce Pod Security Standards on the namespace, and re-scan until the findings are gone. Everything here is simulated: no real cluster is touched.",
+      "artifacts": [
+        {
+          "name": "deploy/deployment.yaml",
+          "language": "yaml",
+          "content": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: payments-api\n  namespace: prod\nspec:\n  replicas: 2\n  selector:\n    matchLabels:\n      app: payments-api\n  template:\n    metadata:\n      labels:\n        app: payments-api\n    spec:\n      containers:\n        - name: api\n          image: registry.example.internal/payments-api:1.4.1\n          ports:\n            - containerPort: 8080\n          securityContext:\n            privileged: true\n            runAsUser: 0\n            capabilities:\n              add: [\"SYS_ADMIN\", \"NET_ADMIN\"]\n          volumeMounts:\n            - name: docker-sock\n              mountPath: /var/run/docker.sock\n            - name: app-data\n              mountPath: /data\n      volumes:\n        - name: docker-sock\n          hostPath:\n            path: /var/run/docker.sock\n        - name: app-data\n          emptyDir: {}\n",
+          "note": "The Deployment as it is in the repository and running in the prod namespace."
+        },
+        {
+          "name": "deploy/Dockerfile",
+          "language": "text",
+          "content": "FROM python:latest\nWORKDIR /app\nCOPY . /app\nRUN pip install -r requirements.txt && chmod -R 777 /app\nEXPOSE 8080\nCMD [\"python\", \"server.py\"]\n",
+          "note": "The Dockerfile the image is built from."
+        },
+        {
+          "name": "deploy/deployment.hardened.yaml",
+          "language": "yaml",
+          "content": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: payments-api\n  namespace: prod\nspec:\n  replicas: 2\n  selector:\n    matchLabels:\n      app: payments-api\n  template:\n    metadata:\n      labels:\n        app: payments-api\n    spec:\n      automountServiceAccountToken: false\n      securityContext:\n        runAsNonRoot: true\n        runAsUser: 10001\n        runAsGroup: 10001\n        seccompProfile:\n          type: RuntimeDefault\n      containers:\n        - name: api\n          image: registry.example.internal/payments-api:1.4.2\n          ports:\n            - containerPort: 8080\n          securityContext:\n            privileged: false\n            allowPrivilegeEscalation: false\n            readOnlyRootFilesystem: true\n            capabilities:\n              drop: [\"ALL\"]\n          resources:\n            requests:\n              cpu: 250m\n              memory: 256Mi\n            limits:\n              cpu: 500m\n              memory: 512Mi\n          volumeMounts:\n            - name: tmp\n              mountPath: /tmp\n      volumes:\n        - name: tmp\n          emptyDir: {}\n",
+          "note": "Change proposed by the security team. Review every line before adopting it."
+        },
+        {
+          "name": "deploy/Dockerfile.hardened",
+          "language": "text",
+          "content": "FROM python:3.12-slim\nRUN groupadd --system --gid 10001 app && useradd --system --uid 10001 --gid app app\nWORKDIR /app\nCOPY --chown=app:app . /app\nRUN pip install --no-cache-dir -r requirements.txt\nUSER 10001\nHEALTHCHECK CMD python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/healthz')\"\nEXPOSE 8080\nCMD [\"python\", \"server.py\"]\n",
+          "note": "Proposed Dockerfile: pinned base, non-root user, healthcheck."
+        }
+      ],
+      "terminal": {
+        "prompt": "platform@bastion:~/payments$",
+        "intro": "kubectl context: prod-cluster (namespace prod). The working directory holds deploy/ with the current files and the proposed *.hardened versions. trivy is installed.",
+        "help": "Commands you can try:\n  kubectl get pods -n prod\n  kubectl get deploy payments-api -n prod -o yaml\n  cat deploy/Dockerfile\n  docker ps\n  docker inspect <container>\n  trivy config deploy/\n  cp deploy/deployment.hardened.yaml deploy/deployment.yaml\n  cp deploy/Dockerfile.hardened deploy/Dockerfile\n  kubectl apply -f deploy/deployment.yaml\n  docker build -t payments-api:1.4.2 deploy/\n  kubectl label namespace prod pod-security.kubernetes.io/enforce=restricted\n  kubectl apply --dry-run=server -f deploy/deployment.yaml\n  kubectl get ns prod --show-labels",
+        "rules": [
+          {
+            "match": "^kubectl get pods?(?: -n prod| --namespace[= ]prod)?(?: -o wide)?$",
+            "output": "NAME                            READY   STATUS    RESTARTS   AGE\npayments-api-6c7d9f5b8-x2kqp    1/1     Running   0          3d\npayments-api-6c7d9f5b8-m8w4t    1/1     Running   0          3d"
+          },
+          {
+            "match": "^kubectl (?:-n prod )?get deploy(?:ment)?(?:/| )payments-api\\b.*-o ya?ml\\b",
+            "requires": [
+              "hardened_applied"
+            ],
+            "output": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: payments-api\n  namespace: prod\nspec:\n  replicas: 2\n  selector:\n    matchLabels:\n      app: payments-api\n  template:\n    metadata:\n      labels:\n        app: payments-api\n    spec:\n      automountServiceAccountToken: false\n      securityContext:\n        runAsNonRoot: true\n        runAsUser: 10001\n        runAsGroup: 10001\n        seccompProfile:\n          type: RuntimeDefault\n      containers:\n        - name: api\n          image: registry.example.internal/payments-api:1.4.2\n          ports:\n            - containerPort: 8080\n          securityContext:\n            privileged: false\n            allowPrivilegeEscalation: false\n            readOnlyRootFilesystem: true\n            capabilities:\n              drop: [\"ALL\"]\n          resources:\n            requests:\n              cpu: 250m\n              memory: 256Mi\n            limits:\n              cpu: 500m\n              memory: 512Mi\n          volumeMounts:\n            - name: tmp\n              mountPath: /tmp\n      volumes:\n        - name: tmp\n          emptyDir: {}"
+          },
+          {
+            "match": "^kubectl (?:-n prod )?get deploy(?:ment)?(?:/| )payments-api\\b.*-o ya?ml\\b",
+            "output": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: payments-api\n  namespace: prod\nspec:\n  replicas: 2\n  selector:\n    matchLabels:\n      app: payments-api\n  template:\n    metadata:\n      labels:\n        app: payments-api\n    spec:\n      containers:\n        - name: api\n          image: registry.example.internal/payments-api:1.4.1\n          ports:\n            - containerPort: 8080\n          securityContext:\n            privileged: true\n            runAsUser: 0\n            capabilities:\n              add: [\"SYS_ADMIN\", \"NET_ADMIN\"]\n          volumeMounts:\n            - name: docker-sock\n              mountPath: /var/run/docker.sock\n            - name: app-data\n              mountPath: /data\n      volumes:\n        - name: docker-sock\n          hostPath:\n            path: /var/run/docker.sock\n        - name: app-data\n          emptyDir: {}"
+          },
+          {
+            "match": "^(?:cat|less) (?:\\./)?(?:deploy/)?Dockerfile$",
+            "output": "FROM python:latest\nWORKDIR /app\nCOPY . /app\nRUN pip install -r requirements.txt && chmod -R 777 /app\nEXPOSE 8080\nCMD [\"python\", \"server.py\"]"
+          },
+          {
+            "match": "^docker ps$",
+            "output": "CONTAINER ID   IMAGE                                          COMMAND            CREATED      STATUS      NAMES\n3f9a1c2d7b40   registry.example.internal/payments-api:1.4.1   \"python server.py\"   3 days ago   Up 3 days   k8s_api_payments-api-6c7d9f5b8-x2kqp_prod_0"
+          },
+          {
+            "match": "^docker inspect .+$",
+            "output": "[\n    {\n        \"Name\": \"/k8s_api_payments-api-6c7d9f5b8-x2kqp_prod_0\",\n        \"Config\": { \"User\": \"0\" },\n        \"HostConfig\": {\n            \"Privileged\": true,\n            \"CapAdd\": [\"SYS_ADMIN\", \"NET_ADMIN\"],\n            \"Binds\": [\"/var/run/docker.sock:/var/run/docker.sock\"],\n            \"ReadonlyRootfs\": false,\n            \"Memory\": 0,\n            \"NanoCpus\": 0,\n            \"SecurityOpt\": null\n        }\n    }\n]"
+          },
+          {
+            "match": "^trivy config(?: -{1,2}\\S+(?: [A-Z,0-9]+)?)* (?:\\./)?deploy/?$",
+            "requires": [
+              "manifest_fixed",
+              "dockerfile_fixed",
+              "hardened_applied",
+              "image_rebuilt",
+              "pss_restricted"
+            ],
+            "output": "deploy/Dockerfile (dockerfile)\n=============================\nFailures: 0 (LOW: 0, MEDIUM: 0, HIGH: 0)\n\ndeploy/deployment.yaml (kubernetes)\n===================================\nFailures: 0 (LOW: 0, MEDIUM: 0, HIGH: 0)\n\nCompliance gate: manifest applied, image rebuilt from hardened Dockerfile, namespace prod enforces restricted.\nAttestation: FLAG{container_hardened_clean_scan}"
+          },
+          {
+            "match": "^trivy config(?: -{1,2}\\S+(?: [A-Z,0-9]+)?)* (?:\\./)?deploy/?$",
+            "requires": [
+              "manifest_fixed",
+              "dockerfile_fixed"
+            ],
+            "output": "deploy/Dockerfile (dockerfile)\n=============================\nFailures: 0 (LOW: 0, MEDIUM: 0, HIGH: 0)\n\ndeploy/deployment.yaml (kubernetes)\n===================================\nFailures: 0 (LOW: 0, MEDIUM: 0, HIGH: 0)\n\nThe files are clean, but the compliance gate is not satisfied yet. The attestation is issued only when the hardened manifest is applied to the cluster, the image is rebuilt from the hardened Dockerfile, and namespace prod enforces the restricted Pod Security Standard."
+          },
+          {
+            "match": "^trivy config(?: -{1,2}\\S+(?: [A-Z,0-9]+)?)* (?:\\./)?deploy/?$",
+            "requires": [
+              "manifest_fixed"
+            ],
+            "output": "deploy/Dockerfile (dockerfile)\n=============================\nFailures: 3 (LOW: 1, MEDIUM: 1, HIGH: 1)\n\nHIGH    DS002   Image user should not be 'root': add a 'USER <non-root>' instruction\nMEDIUM  DS001   ':latest' tag used: pin a specific version of the base image\nLOW     DS026   No HEALTHCHECK defined\n\ndeploy/deployment.yaml (kubernetes)\n===================================\nFailures: 0 (LOW: 0, MEDIUM: 0, HIGH: 0)"
+          },
+          {
+            "match": "^trivy config(?: -{1,2}\\S+(?: [A-Z,0-9]+)?)* (?:\\./)?deploy/?$",
+            "requires": [
+              "dockerfile_fixed"
+            ],
+            "output": "deploy/Dockerfile (dockerfile)\n=============================\nFailures: 0 (LOW: 0, MEDIUM: 0, HIGH: 0)\n\ndeploy/deployment.yaml (kubernetes)\n===================================\nFailures: 9 (LOW: 2, MEDIUM: 4, HIGH: 3)\n\nHIGH    KSV017  Privileged container: container 'api' of Deployment 'payments-api' sets securityContext.privileged to true\nHIGH    KSV006  docker.sock is mounted into container 'api' of Deployment 'payments-api'\nHIGH    KSV014  Root file system is not read-only: container 'api' should set securityContext.readOnlyRootFilesystem to true\nMEDIUM  KSV022  Non-default capabilities added: container 'api' adds SYS_ADMIN, NET_ADMIN\nMEDIUM  KSV023  hostPath volume 'docker-sock' is mounted\nMEDIUM  KSV012  Runs as root user: container 'api' should set securityContext.runAsNonRoot to true\nMEDIUM  KSV001  Process can elevate its own privileges: container 'api' should set allowPrivilegeEscalation to false\nLOW     KSV011  CPU not limited: container 'api' should set resources.limits.cpu\nLOW     KSV018  Memory not limited: container 'api' should set resources.limits.memory"
+          },
+          {
+            "match": "^trivy config(?: -{1,2}\\S+(?: [A-Z,0-9]+)?)* (?:\\./)?deploy/?$",
+            "output": "deploy/Dockerfile (dockerfile)\n=============================\nFailures: 3 (LOW: 1, MEDIUM: 1, HIGH: 1)\n\nHIGH    DS002   Image user should not be 'root': add a 'USER <non-root>' instruction\nMEDIUM  DS001   ':latest' tag used: pin a specific version of the base image\nLOW     DS026   No HEALTHCHECK defined\n\ndeploy/deployment.yaml (kubernetes)\n===================================\nFailures: 9 (LOW: 2, MEDIUM: 4, HIGH: 3)\n\nHIGH    KSV017  Privileged container: container 'api' of Deployment 'payments-api' sets securityContext.privileged to true\nHIGH    KSV006  docker.sock is mounted into container 'api' of Deployment 'payments-api'\nHIGH    KSV014  Root file system is not read-only: container 'api' should set securityContext.readOnlyRootFilesystem to true\nMEDIUM  KSV022  Non-default capabilities added: container 'api' adds SYS_ADMIN, NET_ADMIN\nMEDIUM  KSV023  hostPath volume 'docker-sock' is mounted\nMEDIUM  KSV012  Runs as root user: container 'api' should set securityContext.runAsNonRoot to true\nMEDIUM  KSV001  Process can elevate its own privileges: container 'api' should set allowPrivilegeEscalation to false\nLOW     KSV011  CPU not limited: container 'api' should set resources.limits.cpu\nLOW     KSV018  Memory not limited: container 'api' should set resources.limits.memory"
+          },
+          {
+            "match": "^(?:cp|mv) (?:-f )?(?:\\./)?deploy/deployment\\.hardened\\.ya?ml (?:\\./)?deploy/deployment\\.ya?ml$",
+            "sets": [
+              "manifest_fixed"
+            ],
+            "output": ""
+          },
+          {
+            "match": "^(?:cp|mv) (?:-f )?(?:\\./)?deploy/Dockerfile\\.hardened (?:\\./)?deploy/Dockerfile$",
+            "sets": [
+              "dockerfile_fixed"
+            ],
+            "output": ""
+          },
+          {
+            "match": "^kubectl label (?:ns|namespace) prod pod-security\\.kubernetes\\.io/enforce=restricted(?: --overwrite)?$",
+            "requires": [
+              "hardened_applied"
+            ],
+            "sets": [
+              "pss_restricted"
+            ],
+            "output": "namespace/prod labeled"
+          },
+          {
+            "match": "^kubectl label (?:ns|namespace) prod pod-security\\.kubernetes\\.io/enforce=restricted(?: --overwrite)?$",
+            "sets": [
+              "pss_restricted"
+            ],
+            "output": "Warning: existing pods in namespace \"prod\" violate the new PodSecurity enforce level \"restricted:latest\"\nWarning: payments-api-6c7d9f5b8-x2kqp: privileged, allowPrivilegeEscalation != false, unrestricted capabilities, restricted volume types, runAsNonRoot != true, seccompProfile\nWarning: payments-api-6c7d9f5b8-m8w4t: privileged, allowPrivilegeEscalation != false, unrestricted capabilities, restricted volume types, runAsNonRoot != true, seccompProfile\nnamespace/prod labeled"
+          },
+          {
+            "match": "^kubectl label (?:ns|namespace) prod pod-security\\.kubernetes\\.io/enforce=baseline(?: --overwrite)?$",
+            "output": "Warning: existing pods in namespace \"prod\" violate the new PodSecurity enforce level \"baseline:latest\"\nWarning: payments-api-6c7d9f5b8-x2kqp: privileged, non-default capabilities, hostPath volumes\nnamespace/prod labeled\n(note: baseline does not require non-root, a read-only filesystem, dropped capabilities or seccomp. Pick the level that matches the target.)"
+          },
+          {
+            "match": "^kubectl get (?:ns|namespace) prod --show-labels$",
+            "requires": [
+              "pss_restricted"
+            ],
+            "output": "NAME   STATUS   AGE    LABELS\nprod   Active   412d   kubernetes.io/metadata.name=prod,pod-security.kubernetes.io/enforce=restricted"
+          },
+          {
+            "match": "^kubectl get (?:ns|namespace) prod --show-labels$",
+            "output": "NAME   STATUS   AGE    LABELS\nprod   Active   412d   kubernetes.io/metadata.name=prod"
+          },
+          {
+            "match": "^kubectl apply --dry-run=server -f (?:\\./)?deploy/deployment\\.ya?ml(?: -n prod)?$",
+            "requires": [
+              "pss_restricted",
+              "manifest_fixed"
+            ],
+            "output": "deployment.apps/payments-api configured (server dry run)"
+          },
+          {
+            "match": "^kubectl apply --dry-run=server -f (?:\\./)?deploy/deployment\\.ya?ml(?: -n prod)?$",
+            "requires": [
+              "pss_restricted"
+            ],
+            "output": "Warning: would violate PodSecurity \"restricted:latest\": privileged (container \"api\" must not set securityContext.privileged=true), allowPrivilegeEscalation != false (container \"api\" must set securityContext.allowPrivilegeEscalation=false), unrestricted capabilities (container \"api\" must set securityContext.capabilities.drop=[\"ALL\"]; container \"api\" must not include \"SYS_ADMIN\", \"NET_ADMIN\" in securityContext.capabilities.add), restricted volume types (volume \"docker-sock\" uses restricted volume type \"hostPath\"), runAsNonRoot != true (pod or container \"api\" must set securityContext.runAsNonRoot=true), seccompProfile (pod or container \"api\" must set securityContext.seccompProfile.type to \"RuntimeDefault\" or \"Localhost\")\ndeployment.apps/payments-api configured (server dry run)"
+          },
+          {
+            "match": "^kubectl apply --dry-run=server -f (?:\\./)?deploy/deployment\\.ya?ml(?: -n prod)?$",
+            "output": "deployment.apps/payments-api unchanged (server dry run)"
+          },
+          {
+            "match": "^kubectl apply -f (?:\\./)?deploy/deployment\\.ya?ml(?: -n prod)?$",
+            "requires": [
+              "manifest_fixed"
+            ],
+            "sets": [
+              "hardened_applied"
+            ],
+            "output": "deployment.apps/payments-api configured"
+          },
+          {
+            "match": "^kubectl apply -f (?:\\./)?deploy/deployment\\.ya?ml(?: -n prod)?$",
+            "output": "deployment.apps/payments-api unchanged"
+          },
+          {
+            "match": "^kubectl apply -f (?:\\./)?deploy/deployment\\.hardened\\.ya?ml",
+            "output": "deployment.apps/payments-api configured\n(note: applied straight from the .hardened file, but the repository copy deploy/deployment.yaml still carries the old settings, so the next sync from git would revert this. Adopt the file in the repo first.)"
+          },
+          {
+            "match": "^docker build(?=.*-t \\S+)(?=.*(?:\\./)?deploy/?$).*$",
+            "requires": [
+              "dockerfile_fixed"
+            ],
+            "sets": [
+              "image_rebuilt"
+            ],
+            "output": "[+] Building 14.2s (9/9) FINISHED\n => [1/5] FROM docker.io/library/python:3.12-slim\n => [2/5] RUN groupadd --system --gid 10001 app && useradd --system --uid 10001 --gid app app\n => [4/5] COPY --chown=app:app . /app\n => [5/5] RUN pip install --no-cache-dir -r requirements.txt\n => exporting to image\nSuccessfully built payments-api:1.4.2 (USER 10001, HEALTHCHECK present)"
+          },
+          {
+            "match": "^docker build(?=.*-t \\S+)(?=.*(?:\\./)?deploy/?$).*$",
+            "output": "[+] Building 11.8s (7/7) FINISHED\n => [1/4] FROM docker.io/library/python:latest\n => [4/4] RUN pip install -r requirements.txt && chmod -R 777 /app\nSuccessfully built an image that still uses the unpinned base image and runs as root (the Dockerfile has not been hardened yet)."
+          }
+        ]
+      },
+      "solution": [
+        "kubectl get deploy payments-api -n prod -o yaml",
+        "cat deploy/Dockerfile",
+        "trivy config deploy/",
+        "cp deploy/deployment.hardened.yaml deploy/deployment.yaml",
+        "cp deploy/Dockerfile.hardened deploy/Dockerfile",
+        "kubectl apply -f deploy/deployment.yaml",
+        "docker build -t payments-api:1.4.2 deploy/",
+        "kubectl label namespace prod pod-security.kubernetes.io/enforce=restricted --overwrite",
+        "trivy config deploy/"
+      ],
+      "tasks": [
+        {
+          "id": "t1",
+          "kind": "choice",
+          "prompt": "Which TWO settings in deploy/deployment.yaml give a compromised container the most control over the underlying node?",
+          "options": [
+            "securityContext.privileged: true",
+            "A hostPath volume that mounts /var/run/docker.sock into the container",
+            "replicas: 2",
+            "The image being pulled from an internal registry"
+          ],
+          "correct": [
+            0,
+            1
+          ],
+          "explanation": "A privileged container is given nearly all host devices and capabilities and most kernel confinement is lifted, so the container boundary is largely gone. A mounted container-runtime socket lets whatever runs in the pod create and control other containers on that node, which is effectively root on the host. Replica count and registry choice are not node-level exposure."
+        },
+        {
+          "id": "t2",
+          "kind": "answer",
+          "prompt": "Inspect the live Deployment and the runtime. Which securityContext field is set to true and removes most of the isolation between the container and the node?",
+          "accept": [
+            "privileged",
+            "privileged: true",
+            "privileged=true",
+            "securitycontext.privileged"
+          ],
+          "explanation": "securityContext.privileged: true (HostConfig.Privileged in docker inspect) is the single most dangerous container setting. It is rarely needed by an application like a payments API; if a workload genuinely needs one kernel capability, grant that capability alone instead."
+        },
+        {
+          "id": "t3",
+          "kind": "answer",
+          "prompt": "Which host path is mounted into the container and gives it a handle on the node's container runtime?",
+          "accept": [
+            "/var/run/docker.sock",
+            "var/run/docker.sock",
+            "/run/docker.sock",
+            "docker.sock"
+          ],
+          "explanation": "The Docker socket is the runtime's control API. Anything that can talk to it can start containers with arbitrary mounts and privileges, so mounting it is equivalent to handing out node root. Workloads that build images should use a rootless/daemonless builder or a dedicated build service instead."
+        },
+        {
+          "id": "t4",
+          "kind": "choice",
+          "prompt": "The container runs as UID 0, adds SYS_ADMIN and NET_ADMIN, and has a writable root filesystem. What is the defender's concern?",
+          "options": [
+            "Root only matters on the host; inside a container UID 0 is harmless",
+            "Added capabilities only change network throughput",
+            "If the application is ever compromised, root plus extra capabilities plus a writable filesystem enlarge the blast radius: the process can reconfigure kernel-facing settings, tamper with binaries and persist changes",
+            "A writable filesystem only costs extra disk space"
+          ],
+          "correct": [
+            2
+          ],
+          "explanation": "Container UID 0 is the same UID as host root unless user namespaces are used, and SYS_ADMIN is a very broad capability. A read-only root filesystem, a non-root user and dropped capabilities each remove an option from an attacker who has already found an application bug, which is the point of defence in depth."
+        },
+        {
+          "id": "t5",
+          "kind": "choice",
+          "prompt": "The scan reports KSV011 and KSV018 (no CPU or memory limits). Why is that a security finding and not only a cost issue?",
+          "options": [
+            "Limits encrypt the container's memory",
+            "A runaway or abused pod can starve the node and its neighbours (noisy-neighbour denial of service), and quotas and admission policy depend on limits being set",
+            "Limits are what make a container run as non-root",
+            "It is not a security issue at all; limits only affect billing"
+          ],
+          "correct": [
+            1
+          ],
+          "explanation": "Without limits one compromised or buggy workload can exhaust node CPU or memory, evicting or slowing other tenants. Setting requests and limits also lets ResourceQuota and LimitRange govern the namespace."
+        },
+        {
+          "id": "t6",
+          "kind": "choice",
+          "prompt": "Select ALL statements that are true about seccomp, AppArmor and read-only root filesystems.",
+          "options": [
+            "seccomp with the RuntimeDefault profile filters which system calls the container may make, shrinking kernel attack surface",
+            "AppArmor applies a mandatory-access-control profile that confines a container's file, network and capability access",
+            "readOnlyRootFilesystem stops the process modifying its own image contents; paths that must be writable go on emptyDir mounts",
+            "These controls are unnecessary once the container runs as a non-root user",
+            "Setting privileged: true is fine as long as a seccomp profile is configured"
+          ],
+          "correct": [
+            0,
+            1,
+            2
+          ],
+          "explanation": "The three controls are complementary layers: syscall filtering, mandatory access control and an immutable filesystem. Non-root does not replace them, and privileged mode removes much of the confinement they provide, so a profile does not make a privileged pod safe."
+        },
+        {
+          "id": "t7",
+          "kind": "flag",
+          "prompt": "Apply the hardened configuration (adopt both hardened files, apply the manifest, rebuild the image, enforce the restricted Pod Security Standard on prod) and re-run the scan. Paste the attestation flag from the clean scan.",
+          "flag": "FLAG{container_hardened_clean_scan}",
+          "explanation": "The clean scan proves the files no longer carry the findings; the compliance gate additionally checks that the change reached the cluster, that the image was rebuilt from the hardened Dockerfile, and that the namespace now rejects pods that would regress. Verifying after the fix is what separates hardening from hoping."
+        },
+        {
+          "id": "t8",
+          "kind": "answer",
+          "prompt": "Which Pod Security Standards level, applied to the namespace with the pod-security.kubernetes.io/enforce label, requires non-root, dropped capabilities, no privilege escalation and a seccomp profile?",
+          "accept": [
+            "restricted",
+            "restricted:latest",
+            "the restricted profile"
+          ],
+          "explanation": "Privileged is unrestricted, baseline blocks the known-dangerous settings (privileged, hostPath, extra capabilities) but still allows root, and restricted follows current hardening best practice. Pod Security Admission enforces the level at admission time, so a future manifest that regresses is rejected instead of silently running."
+        }
+      ],
+      "takeaways": [
+        "Privileged mode and a mounted runtime socket remove the container boundary; treat either as a finding that blocks release.",
+        "Run as non-root, drop ALL capabilities, disable privilege escalation, use RuntimeDefault seccomp and a read-only root filesystem, and set resource limits.",
+        "Fix the source (manifest and Dockerfile in git), then enforce with Pod Security Admission so regressions are rejected, and verify with a re-scan."
+      ]
+    }
+  },
+  {
+    "labId": "cloud-L21",
+    "objective": "Review the RBAC of a shop cluster with read-only kubectl queries, find the over-privileged service accounts and wildcard cluster-wide bindings, replace them with least-privilege namespaced access, and verify the result with kubectl auth can-i.",
+    "successCriteria": [
+      "You identified the service accounts bound to cluster-admin and to cluster-wide secret access",
+      "You removed the excessive ClusterRoleBindings and gave the CI service account only what its pipeline needs, in one namespace",
+      "kubectl auth can-i confirms the excess is gone and the legitimate access still works"
+    ],
+    "hints": [
+      "List the ClusterRoleBindings with -o wide and ask of each subject: does a workload really need this role, and does it need it cluster-wide?",
+      "Use kubectl auth can-i --list --as=system:serviceaccount:<ns>:<sa> to see the effective permissions of a suspicious service account. A wildcard in Resources and Verbs means cluster-admin.",
+      "Delete the offending ClusterRoleBinding, create a Role in the shop namespace limited to deployments (get, list, watch, patch), bind it with a RoleBinding, then verify with can-i."
+    ],
+    "estimatedHours": 2,
+    "resources": [
+      {
+        "title": "Kubernetes docs: Using RBAC Authorization",
+        "url": "https://kubernetes.io/docs/reference/access-authn-authz/rbac/",
+        "type": "link"
+      },
+      {
+        "title": "Kubernetes docs: Role Based Access Control Good Practices",
+        "url": "https://kubernetes.io/docs/concepts/security/rbac-good-practices/",
+        "type": "link"
+      }
+    ],
+    "range": {
+      "scenario": "You have been asked to review RBAC on the `shop` cluster before a compliance audit. Three workloads talk to the Kubernetes API: the `ci-runner` service account (namespace `build`) deploys new versions of the shop, the `web` service account (namespace `shop`) reads its own configuration, and `prometheus` (namespace `monitoring`) scrapes metrics. Over the years bindings were added whenever something failed with `Forbidden`. Use read-only kubectl queries to find out what each identity can really do, decide which bindings are excessive, replace them with least privilege, and verify the result. The platform's audit controller records its verdict in a ConfigMap once the effective permissions are correct.",
+      "artifacts": [
+        {
+          "name": "workload-access-needs.txt",
+          "language": "text",
+          "content": "WORKLOAD ACCESS NEEDS (from the owning teams)\n\nbuild/ci-runner\n  Pipeline step: kubectl set image deployment/shop-web ... -n shop ; kubectl rollout status deployment/shop-web -n shop\n  Needs: get, list, watch, patch on deployments (apps) in namespace shop ONLY.\n  Does not need: any other namespace, secrets, RBAC objects, nodes.\n\nshop/web\n  Needs: read the ConfigMap shop-config in its own namespace.\n  Does not need: secrets, other namespaces.\n\nmonitoring/prometheus\n  Needs: read-only cluster-wide (pods, nodes, endpoints, services) for scraping. Bound to the built-in view role.\n",
+          "note": "What each identity legitimately needs. Compare this with what it can actually do."
+        },
+        {
+          "name": "change-guardrails.txt",
+          "language": "text",
+          "content": "PLATFORM RBAC GUARDRAILS\n\n1. Workload service accounts must not be bound to cluster-admin.\n2. No '*' in verbs or resources of any Role or ClusterRole created for a workload.\n3. Prefer RoleBinding (namespaced) over ClusterRoleBinding. A RoleBinding that references a ClusterRole grants its rules only inside the RoleBinding's namespace.\n4. Before removing or changing a binding, attach the effective permissions (kubectl auth can-i --list --as=...) to the change record.\n5. Verify least privilege after the change; do not assume.\n",
+          "note": "The team's written rules for RBAC changes."
+        }
+      ],
+      "terminal": {
+        "prompt": "reviewer@bastion:~$",
+        "intro": "kubectl context: shop-cluster, using your read-only reviewer identity plus RBAC-edit rights granted for this change window.",
+        "help": "Commands you can try:\n  kubectl get clusterrolebindings -o wide\n  kubectl describe clusterrolebinding <name>\n  kubectl get clusterrole <name> -o yaml\n  kubectl auth can-i --list --as=system:serviceaccount:<ns>:<sa>\n  kubectl auth can-i <verb> <resource> [-n <ns>] --as=system:serviceaccount:<ns>:<sa>\n  kubectl delete clusterrolebinding <name>\n  kubectl create role <name> --verb=... --resource=... -n <ns>\n  kubectl create rolebinding <name> --role=<role> --serviceaccount=<ns>:<sa> -n <ns>\n  kubectl get configmap rbac-attestation -n kube-system -o jsonpath='{.data.status}'",
+        "rules": [
+          {
+            "match": "^kubectl get clusterrolebindings? -o wide$",
+            "sets": [
+              "listed_crb"
+            ],
+            "output": "NAME                            ROLE                                AGE    USERS   GROUPS            SERVICEACCOUNTS\ncluster-admin                   ClusterRole/cluster-admin           412d           system:masters\nci-runner-admin                 ClusterRole/cluster-admin           96d                              build/ci-runner\nmonitoring-view                 ClusterRole/view                    240d                             monitoring/prometheus\nshop-web-secrets                ClusterRole/secret-reader           31d                              shop/web\nsystem:basic-user               ClusterRole/system:basic-user       412d           system:authenticated\nsystem:public-info-viewer       ClusterRole/system:public-info-viewer  412d        system:authenticated, system:unauthenticated"
+          },
+          {
+            "match": "^kubectl get clusterrolebindings?$",
+            "sets": [
+              "listed_crb"
+            ],
+            "output": "NAME                            ROLE                                AGE\ncluster-admin                   ClusterRole/cluster-admin           412d\nci-runner-admin                 ClusterRole/cluster-admin           96d\nmonitoring-view                 ClusterRole/view                    240d\nshop-web-secrets                ClusterRole/secret-reader           31d\nsystem:basic-user               ClusterRole/system:basic-user       412d\nsystem:public-info-viewer       ClusterRole/system:public-info-viewer  412d"
+          },
+          {
+            "match": "^kubectl describe clusterrolebinding ci-runner-admin$",
+            "output": "Name:         ci-runner-admin\nLabels:       <none>\nAnnotations:  note=temporary, added to unblock release 2.3\nRole:\n  Kind:  ClusterRole\n  Name:  cluster-admin\nSubjects:\n  Kind            Name       Namespace\n  ----            ----       ---------\n  ServiceAccount  ci-runner  build"
+          },
+          {
+            "match": "^kubectl describe clusterrolebinding shop-web-secrets$",
+            "output": "Name:         shop-web-secrets\nLabels:       <none>\nAnnotations:  note=web could not read its config secret\nRole:\n  Kind:  ClusterRole\n  Name:  secret-reader\nSubjects:\n  Kind            Name  Namespace\n  ----            ----  ---------\n  ServiceAccount  web   shop"
+          },
+          {
+            "match": "^kubectl describe clusterrolebinding monitoring-view$",
+            "output": "Name:         monitoring-view\nLabels:       <none>\nAnnotations:  <none>\nRole:\n  Kind:  ClusterRole\n  Name:  view\nSubjects:\n  Kind            Name        Namespace\n  ----            ----        ---------\n  ServiceAccount  prometheus  monitoring"
+          },
+          {
+            "match": "^kubectl describe clusterrolebinding (\\S+)$",
+            "output": "Error from server (NotFound): clusterrolebindings.rbac.authorization.k8s.io \"$1\" not found"
+          },
+          {
+            "match": "^kubectl get clusterrole secret-reader -o ya?ml$",
+            "output": "apiVersion: rbac.authorization.k8s.io/v1\nkind: ClusterRole\nmetadata:\n  name: secret-reader\nrules:\n- apiGroups: [\"\"]\n  resources: [\"secrets\"]\n  verbs: [\"get\", \"list\", \"watch\"]"
+          },
+          {
+            "match": "^kubectl get clusterrole cluster-admin -o ya?ml$",
+            "output": "apiVersion: rbac.authorization.k8s.io/v1\nkind: ClusterRole\nmetadata:\n  name: cluster-admin\nrules:\n- apiGroups: [\"*\"]\n  resources: [\"*\"]\n  verbs: [\"*\"]\n- nonResourceURLs: [\"*\"]\n  verbs: [\"*\"]"
+          },
+          {
+            "match": "^kubectl get (?:sa|serviceaccounts?) (?:-A|--all-namespaces)$",
+            "output": "NAMESPACE     NAME          SECRETS   AGE\nbuild         ci-runner     0         96d\nbuild         default       0         412d\nmonitoring    prometheus    0         240d\nshop          default       0         412d\nshop          web           0         398d"
+          },
+          {
+            "match": "^kubectl auth can-i --list(?: (?:-n|--namespace)[= ]shop)? --as[= ]system:serviceaccount:build:ci-runner(?: (?:-n|--namespace)[= ]shop)?$",
+            "requires": [
+              "ci_crb_deleted",
+              "rb_created"
+            ],
+            "output": "Resources                                       Non-Resource URLs   Resource Names   Verbs\nselfsubjectaccessreviews.authorization.k8s.io   []                  []               [create]\nselfsubjectrulesreviews.authorization.k8s.io    []                  []               [create]\ndeployments.apps                                []                  []               [get list watch patch]\n                                                [/api/*]            []               [get]\n                                                [/healthz]          []               [get]\n                                                [/version]          []               [get]"
+          },
+          {
+            "match": "^kubectl auth can-i --list(?: (?:-n|--namespace)[= ]shop)? --as[= ]system:serviceaccount:build:ci-runner(?: (?:-n|--namespace)[= ]shop)?$",
+            "requires": [
+              "ci_crb_deleted"
+            ],
+            "output": "Resources                                       Non-Resource URLs   Resource Names   Verbs\nselfsubjectaccessreviews.authorization.k8s.io   []                  []               [create]\nselfsubjectrulesreviews.authorization.k8s.io    []                  []               [create]\n                                                [/api/*]            []               [get]\n                                                [/healthz]          []               [get]\n                                                [/version]          []               [get]"
+          },
+          {
+            "match": "^kubectl auth can-i --list(?: (?:-n|--namespace)[= ]shop)? --as[= ]system:serviceaccount:build:ci-runner(?: (?:-n|--namespace)[= ]shop)?$",
+            "sets": [
+              "saw_wildcard"
+            ],
+            "output": "Resources                                       Non-Resource URLs   Resource Names   Verbs\n*.*                                             []                  []               [*]\n                                                [*]                 []               [*]"
+          },
+          {
+            "match": "^kubectl auth can-i --list(?: (?:-n|--namespace)[= ]shop)? --as[= ]system:serviceaccount:shop:web(?: (?:-n|--namespace)[= ]shop)?$",
+            "requires": [
+              "web_crb_deleted"
+            ],
+            "output": "Resources                                       Non-Resource URLs   Resource Names   Verbs\nselfsubjectaccessreviews.authorization.k8s.io   []                  []               [create]\nselfsubjectrulesreviews.authorization.k8s.io    []                  []               [create]\n                                                [/api/*]            []               [get]\n                                                [/healthz]          []               [get]\n                                                [/version]          []               [get]"
+          },
+          {
+            "match": "^kubectl auth can-i --list(?: (?:-n|--namespace)[= ]shop)? --as[= ]system:serviceaccount:shop:web(?: (?:-n|--namespace)[= ]shop)?$",
+            "sets": [
+              "saw_web_secrets"
+            ],
+            "output": "Resources                                       Non-Resource URLs   Resource Names   Verbs\nselfsubjectaccessreviews.authorization.k8s.io   []                  []               [create]\nselfsubjectrulesreviews.authorization.k8s.io    []                  []               [create]\nsecrets                                         []                  []               [get list watch]\n                                                [/api/*]            []               [get]\n                                                [/healthz]          []               [get]\n                                                [/version]          []               [get]"
+          },
+          {
+            "match": "^kubectl auth can-i --list(?: (?:-n|--namespace)[= ]shop)? --as[= ]system:serviceaccount:monitoring:prometheus(?: (?:-n|--namespace)[= ]shop)?$",
+            "output": "Resources                                       Non-Resource URLs   Resource Names   Verbs\nselfsubjectaccessreviews.authorization.k8s.io   []                  []               [create]\nselfsubjectrulesreviews.authorization.k8s.io    []                  []               [create]\npods                                            []                  []               [get list watch]\nnodes                                           []                  []               [get list watch]\nendpoints                                       []                  []               [get list watch]\nservices                                        []                  []               [get list watch]\n                                                [/api/*]            []               [get]\n                                                [/healthz]          []               [get]\n                                                [/version]          []               [get]"
+          },
+          {
+            "match": "^kubectl auth can-i delete clusterrolebindings?(?:\\.rbac\\.authorization\\.k8s\\.io)? --as[= ]system:serviceaccount:build:ci-runner$",
+            "requires": [
+              "ci_crb_deleted"
+            ],
+            "sets": [
+              "verified_ci_denied"
+            ],
+            "output": "no"
+          },
+          {
+            "match": "^kubectl auth can-i delete clusterrolebindings?(?:\\.rbac\\.authorization\\.k8s\\.io)? --as[= ]system:serviceaccount:build:ci-runner$",
+            "output": "yes"
+          },
+          {
+            "match": "^kubectl auth can-i (?:patch|update) deploy(?:ment)?s?(?:\\.apps)?(?: (?:-n|--namespace)[= ]shop)? --as[= ]system:serviceaccount:build:ci-runner(?: (?:-n|--namespace)[= ]shop)?$",
+            "requires": [
+              "ci_crb_deleted",
+              "rb_created"
+            ],
+            "sets": [
+              "verified_ci_allowed"
+            ],
+            "output": "yes"
+          },
+          {
+            "match": "^kubectl auth can-i (?:patch|update) deploy(?:ment)?s?(?:\\.apps)?(?: (?:-n|--namespace)[= ]shop)? --as[= ]system:serviceaccount:build:ci-runner(?: (?:-n|--namespace)[= ]shop)?$",
+            "requires": [
+              "ci_crb_deleted"
+            ],
+            "output": "no\n(the cluster-wide grant is gone, but ci-runner has no namespaced access yet: the pipeline would now fail with Forbidden)"
+          },
+          {
+            "match": "^kubectl auth can-i (?:patch|update) deploy(?:ment)?s?(?:\\.apps)?(?: (?:-n|--namespace)[= ]shop)? --as[= ]system:serviceaccount:build:ci-runner(?: (?:-n|--namespace)[= ]shop)?$",
+            "output": "yes"
+          },
+          {
+            "match": "^kubectl auth can-i (?:get|list) secrets (?:-A|--all-namespaces) --as[= ]system:serviceaccount:shop:web$",
+            "requires": [
+              "web_crb_deleted"
+            ],
+            "sets": [
+              "verified_web"
+            ],
+            "output": "no"
+          },
+          {
+            "match": "^kubectl auth can-i (?:get|list) secrets (?:-A|--all-namespaces) --as[= ]system:serviceaccount:shop:web$",
+            "output": "yes"
+          },
+          {
+            "match": "^kubectl auth can-i \\S+ \\S+.*--as[= ]system:serviceaccount:\\S+$",
+            "output": "no"
+          },
+          {
+            "match": "^kubectl delete clusterrolebindings?(?:\\.rbac\\.authorization\\.k8s\\.io)? ci-runner-admin$",
+            "requires": [
+              "saw_wildcard"
+            ],
+            "sets": [
+              "ci_crb_deleted"
+            ],
+            "output": "clusterrolebinding.rbac.authorization.k8s.io \"ci-runner-admin\" deleted"
+          },
+          {
+            "match": "^kubectl delete clusterrolebindings?(?:\\.rbac\\.authorization\\.k8s\\.io)? ci-runner-admin$",
+            "output": "Error from server (Forbidden): admission webhook \"rbac-change-review.platform.example\" denied the request: attach the effective permissions of the subject (kubectl auth can-i --list --as=<sa>) to the change before removing a binding"
+          },
+          {
+            "match": "^kubectl delete clusterrolebindings?(?:\\.rbac\\.authorization\\.k8s\\.io)? shop-web-secrets$",
+            "requires": [
+              "listed_crb"
+            ],
+            "sets": [
+              "web_crb_deleted"
+            ],
+            "output": "clusterrolebinding.rbac.authorization.k8s.io \"shop-web-secrets\" deleted"
+          },
+          {
+            "match": "^kubectl delete clusterrolebindings?(?:\\.rbac\\.authorization\\.k8s\\.io)? shop-web-secrets$",
+            "output": "Error from server (Forbidden): admission webhook \"rbac-change-review.platform.example\" denied the request: list the current bindings (kubectl get clusterrolebindings -o wide) and record them in the change before removing one"
+          },
+          {
+            "match": "^kubectl delete (?:sa|serviceaccounts?) ci-runner(?: -n build| --namespace[= ]build)$",
+            "output": "serviceaccount \"ci-runner\" deleted\n(the pipeline now fails to authenticate, and the ClusterRoleBinding ci-runner-admin still exists pointing at a name that can be re-created: the grant was not removed)"
+          },
+          {
+            "match": "^kubectl create role \\S+.*--(?:verb|resource)[= ]\\S*\\*",
+            "output": "Error from server (Forbidden): admission webhook \"rbac-wildcard-guard.platform.example\" denied the request: Role rules must not use '*' for verbs or resources (guardrail 2)"
+          },
+          {
+            "match": "^kubectl create role (\\S+)(?=.*--verb[= ]\\S+)(?=.*--resource[= ]deployments(?:\\.apps)?\\b)(?=.*(?:-n|--namespace)[= ]shop\\b).*$",
+            "sets": [
+              "role_created"
+            ],
+            "output": "role.rbac.authorization.k8s.io/$1 created"
+          },
+          {
+            "match": "^kubectl create role (\\S+)",
+            "output": "role.rbac.authorization.k8s.io/$1 created\n(note: no matching rule was recorded for namespace shop, so this Role does not give ci-runner what the pipeline needs. Roles are namespaced: it was created in the current namespace.)"
+          },
+          {
+            "match": "^kubectl create (?:cluster)?rolebinding \\S+.*--clusterrole[= ]cluster-admin",
+            "output": "Error from server (Forbidden): admission webhook \"rbac-wildcard-guard.platform.example\" denied the request: binding workload service accounts to cluster-admin is not permitted (guardrail 1)"
+          },
+          {
+            "match": "^kubectl create rolebinding (\\S+)(?=.*--role[= ]\\S+)(?=.*--serviceaccount[= ]build:ci-runner)(?=.*(?:-n|--namespace)[= ]shop\\b).*$",
+            "requires": [
+              "role_created"
+            ],
+            "sets": [
+              "rb_created"
+            ],
+            "output": "rolebinding.rbac.authorization.k8s.io/$1 created"
+          },
+          {
+            "match": "^kubectl create rolebinding (\\S+)(?=.*--role[= ](\\S+))(?=.*--serviceaccount[= ]build:ci-runner)(?=.*(?:-n|--namespace)[= ]shop\\b).*$",
+            "output": "Error from server (NotFound): roles.rbac.authorization.k8s.io \"$2\" not found"
+          },
+          {
+            "match": "^kubectl create rolebinding (\\S+)",
+            "output": "rolebinding.rbac.authorization.k8s.io/$1 created\n(note: this binding is not for build/ci-runner in namespace shop, so it does not change what the pipeline can do)"
+          },
+          {
+            "match": "^kubectl get (?:configmap|cm) rbac-attestation(?: -n kube-system| --namespace[= ]kube-system)(?: -o (?:ya?ml|jsonpath=\\S+))?$",
+            "requires": [
+              "verified_ci_denied",
+              "verified_ci_allowed",
+              "verified_web"
+            ],
+            "output": "PASS: no workload service account holds cluster-admin or cluster-wide secret access; build/ci-runner limited to deployments in shop.\nFLAG{rbac_least_privilege_verified}"
+          },
+          {
+            "match": "^kubectl get (?:configmap|cm) rbac-attestation(?: -n kube-system| --namespace[= ]kube-system)(?: -o (?:ya?ml|jsonpath=\\S+))?$",
+            "output": "PENDING: the audit controller has not yet observed a fully verified least-privilege state. Re-check the effective permissions of build/ci-runner and shop/web with kubectl auth can-i (the excess must be denied, the legitimate access must still be allowed)."
+          }
+        ]
+      },
+      "solution": [
+        "kubectl get clusterrolebindings -o wide",
+        "kubectl describe clusterrolebinding ci-runner-admin",
+        "kubectl auth can-i --list --as=system:serviceaccount:build:ci-runner",
+        "kubectl auth can-i --list --as=system:serviceaccount:shop:web",
+        "kubectl delete clusterrolebinding ci-runner-admin",
+        "kubectl create role deployer --verb=get,list,watch,patch --resource=deployments.apps -n shop",
+        "kubectl create rolebinding ci-runner-deployer --role=deployer --serviceaccount=build:ci-runner -n shop",
+        "kubectl delete clusterrolebinding shop-web-secrets",
+        "kubectl auth can-i delete clusterrolebindings --as=system:serviceaccount:build:ci-runner",
+        "kubectl auth can-i patch deployments -n shop --as=system:serviceaccount:build:ci-runner",
+        "kubectl auth can-i get secrets --all-namespaces --as=system:serviceaccount:shop:web",
+        "kubectl get configmap rbac-attestation -n kube-system -o jsonpath='{.data.status}'"
+      ],
+      "tasks": [
+        {
+          "id": "t1",
+          "kind": "choice",
+          "prompt": "List the ClusterRoleBindings and compare them with workload-access-needs.txt. Which bindings are excessive for the workloads they serve? Select all that apply.",
+          "options": [
+            "ci-runner-admin: the CI service account is bound to cluster-admin",
+            "shop-web-secrets: the web service account can read secrets in every namespace",
+            "monitoring-view: Prometheus is bound to the built-in view role",
+            "system:basic-user: the default binding for authenticated users"
+          ],
+          "correct": [
+            0,
+            1
+          ],
+          "explanation": "cluster-admin for a pipeline that only patches one Deployment, and cluster-wide secret read for a web app that needs one ConfigMap, are both far beyond need. The view role is the built-in read-only role and excludes secrets, which matches what Prometheus needs, and system:basic-user is a Kubernetes default."
+        },
+        {
+          "id": "t2",
+          "kind": "answer",
+          "prompt": "Run kubectl auth can-i --list for each service account. Which service account (name only) shows a wildcard on every resource and every verb?",
+          "accept": [
+            "ci-runner",
+            "build/ci-runner",
+            "build:ci-runner",
+            "system:serviceaccount:build:ci-runner"
+          ],
+          "explanation": "A row of *.* with verb [*] is cluster-admin in effect. kubectl auth can-i --list --as=... is the quickest way to see effective permissions regardless of how many bindings and roles combine to produce them."
+        },
+        {
+          "id": "t3",
+          "kind": "choice",
+          "prompt": "What does a RoleBinding that references a ClusterRole (for example view) grant, compared with a ClusterRoleBinding to the same ClusterRole?",
+          "options": [
+            "The same cluster-wide access; the kind of binding makes no difference",
+            "Access only to the cluster-scoped objects such as nodes and namespaces",
+            "The ClusterRole's rules but only inside the RoleBinding's namespace",
+            "Nothing at all; a RoleBinding cannot reference a ClusterRole"
+          ],
+          "correct": [
+            2
+          ],
+          "explanation": "A RoleBinding scopes whatever it references to its own namespace, which is why reusable ClusterRoles bound with RoleBindings are a common least-privilege pattern. A ClusterRoleBinding grants the rules in every namespace and for cluster-scoped resources."
+        },
+        {
+          "id": "t4",
+          "kind": "choice",
+          "prompt": "During an RBAC review, which of these permissions deserve extra scrutiny because they let a subject expand its own or others' access? Select all that apply.",
+          "options": [
+            "create or patch on clusterrolebindings and rolebindings",
+            "the bind and escalate verbs on roles and clusterroles",
+            "the impersonate verb on users, groups or serviceaccounts",
+            "get on a ConfigMap in the subject's own namespace"
+          ],
+          "correct": [
+            0,
+            1,
+            2
+          ],
+          "explanation": "Each of the first three can raise privilege beyond what the subject was explicitly granted: Kubernetes normally prevents granting permissions you do not hold, but bind, escalate and impersonate (and the ability to edit bindings) are the controlled exceptions, so they should be rare and reviewed. Reading one ConfigMap in your own namespace is ordinary least-privilege access."
+        },
+        {
+          "id": "t5",
+          "kind": "choice",
+          "prompt": "The web service account only needs to read the ConfigMap shop-config in namespace shop. What is the right fix for its binding shop-web-secrets?",
+          "options": [
+            "Delete the web service account so it cannot be misused",
+            "Keep the binding but rename the ClusterRole to something less alarming",
+            "Remove the binding and, if the app still needs API access, grant a namespaced Role limited to get on that ConfigMap",
+            "Bind web to the cluster-admin ClusterRole so it never hits Forbidden again"
+          ],
+          "correct": [
+            2
+          ],
+          "explanation": "Remove the cluster-wide secret access and give back only what the owning team documented, scoped to the namespace and, where possible, the resource name. Deleting the service account breaks the app without fixing the policy, and widening access to stop Forbidden errors is how the problem arose."
+        },
+        {
+          "id": "t6",
+          "kind": "flag",
+          "prompt": "Apply the least-privilege fix: remove ci-runner-admin and shop-web-secrets, give ci-runner a namespaced Role (deployments only, no wildcards) bound in shop, then verify with kubectl auth can-i (ci-runner cannot delete clusterrolebindings, can still patch deployments in shop, and web cannot read secrets across namespaces). Read the platform's attestation and paste the flag.",
+          "flag": "FLAG{rbac_least_privilege_verified}",
+          "explanation": "The audit controller only passes once all three verifications hold: the excess is denied and the legitimate access still works. Testing both directions matters, because a fix that removes access the pipeline needs just gets rolled back to cluster-admin at the next outage."
+        },
+        {
+          "id": "t7",
+          "kind": "answer",
+          "prompt": "Which kubectl subcommand tests whether a user or service account is allowed to perform an action, including with --as impersonation?",
+          "accept": [
+            "kubectl auth can-i",
+            "auth can-i",
+            "can-i",
+            "can-i --list",
+            "kubectl auth can-i --list"
+          ],
+          "explanation": "kubectl auth can-i asks the API server's authorizer directly, so it reflects effective permissions after all roles and bindings are combined. Run it before and after a change, ideally in CI, to catch permission drift."
+        },
+        {
+          "id": "t8",
+          "kind": "choice",
+          "prompt": "Besides tightening roles and bindings, which additional hardening steps reduce the exposure of workload service accounts? Select all that apply.",
+          "options": [
+            "Set automountServiceAccountToken: false on pods that never call the Kubernetes API",
+            "Use a dedicated service account per workload instead of the namespace's default one",
+            "Review periodically with kubectl auth can-i --list and remove stale bindings",
+            "Put wildcards in the Role's verbs so rules are shorter and easier to audit"
+          ],
+          "correct": [
+            0,
+            1,
+            2
+          ],
+          "explanation": "Not mounting a token where it is not needed, giving each workload its own identity and reviewing regularly all shrink what a compromised pod could do. Wildcards make rules shorter but silently grant verbs added in the future, and they are forbidden by the team guardrails."
+        }
+      ],
+      "takeaways": [
+        "Review effective permissions (kubectl auth can-i --list --as=...), not just role names: that is where wildcards and stacked bindings show up.",
+        "Workloads get namespaced Roles with explicit verbs and resources; cluster-admin and cluster-wide secret access are exceptions that need a written reason.",
+        "Verify both directions after the fix: the excess must be denied and the legitimate access must still work."
+      ]
+    }
+  },
+  {
+    "labId": "cloud-L22",
+    "objective": "Replace broad node-role credentials with a correctly scoped IRSA trust policy for one Kubernetes service account, then audit and harden the worker node's instance metadata options (IMDSv2 required, hop limit 1) and verify the result.",
+    "successCriteria": [
+      "You wrote an IRSA trust policy that only the billing/invoice-sa service account (with the sts.amazonaws.com audience) can use",
+      "You found the node's metadata options were weak and applied http-tokens required with a hop limit of 1",
+      "The compliance evaluation for the node reports COMPLIANT after your change"
+    ],
+    "hints": [
+      "Pods can inherit the worker node's instance role through the metadata service. IRSA gives each service account its own role instead. Ask what the node role can do and who can reach it.",
+      "A trust policy for web-identity federation names the cluster's OIDC provider as the Federated principal and must pin the sub (namespace and service account) and aud claims with StringEquals, not a wildcard.",
+      "For the node: describe-instances shows HttpTokens and HttpPutResponseHopLimit. Fix them with aws ec2 modify-instance-metadata-options --http-tokens required --http-put-response-hop-limit 1, then ask AWS Config to re-evaluate and read the result."
+    ],
+    "estimatedHours": 2,
+    "resources": [
+      {
+        "title": "Amazon EKS docs: IAM roles for service accounts",
+        "url": "https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html",
+        "type": "link"
+      },
+      {
+        "title": "Amazon EC2 docs: Configure the instance metadata service",
+        "url": "https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/configuring-instance-metadata-service.html",
+        "type": "link"
+      }
+    ],
+    "range": {
+      "scenario": "You run the platform for an EKS cluster `prod-eks` in account 111122223333. The billing service (service account `invoice-sa` in namespace `billing`) needs to read invoices from S3, and today it gets that access by inheriting the worker node's instance role, which carries a broad S3 policy and is reachable by every pod on the node. Your job: review how the node and the role are configured, write a least-privilege IRSA trust policy so only `invoice-sa` can use its own role, and harden the node's instance metadata options so pods can no longer reach the node's credentials. Use the terminal to audit and fix; the artifacts show the current configuration. Everything is simulated.",
+      "artifacts": [
+        {
+          "name": "invoice-irsa-role-trust.json",
+          "language": "json",
+          "content": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Effect\": \"Allow\",\n      \"Principal\": {\n        \"Federated\": \"arn:aws:iam::111122223333:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/EXAMPLED539D4633E53DE1B71EXAMPLE\"\n      },\n      \"Action\": \"sts:AssumeRoleWithWebIdentity\",\n      \"Condition\": {\n        \"StringLike\": {\n          \"oidc.eks.us-east-1.amazonaws.com/id/EXAMPLED539D4633E53DE1B71EXAMPLE:sub\": \"system:serviceaccount:*:*\"\n        }\n      }\n    }\n  ]\n}",
+          "note": "Current trust policy of role invoice-irsa-role. Cluster OIDC provider: arn:aws:iam::111122223333:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/EXAMPLED539D4633E53DE1B71EXAMPLE"
+        },
+        {
+          "name": "invoice-sa.yaml",
+          "language": "yaml",
+          "content": "apiVersion: v1\nkind: ServiceAccount\nmetadata:\n  name: invoice-sa\n  namespace: billing\n  annotations:\n    eks.amazonaws.com/role-arn: arn:aws:iam::111122223333:role/invoice-irsa-role\n",
+          "note": "The service account the billing pods run as, annotated with the role it should use via IRSA."
+        },
+        {
+          "name": "node-s3-policy.json",
+          "language": "json",
+          "content": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"BillingS3\",\n      \"Effect\": \"Allow\",\n      \"Action\": \"s3:*\",\n      \"Resource\": \"*\"\n    }\n  ]\n}",
+          "note": "Customer-managed policy NodeS3Access, currently attached to the worker node instance role prod-eks-node-role."
+        },
+        {
+          "name": "nodegroup-launch-template.json",
+          "language": "json",
+          "content": "{\n  \"LaunchTemplateName\": \"prod-eks-ng-1\",\n  \"LaunchTemplateData\": {\n    \"InstanceType\": \"m5.large\",\n    \"MetadataOptions\": {\n      \"HttpEndpoint\": \"enabled\",\n      \"HttpTokens\": \"optional\",\n      \"HttpPutResponseHopLimit\": 2\n    }\n  }\n}",
+          "note": "Launch template of the managed node group. New and replaced nodes are built from this."
+        }
+      ],
+      "terminal": {
+        "prompt": "platform@bastion:~$",
+        "intro": "AWS profile: platform-admin, region us-east-1, account 111122223333. kubectl context: prod-eks.",
+        "help": "Commands you can try:\n  aws eks describe-cluster --name prod-eks --query cluster.identity.oidc.issuer --output text\n  aws iam list-open-id-connect-providers\n  aws iam get-role --role-name invoice-irsa-role\n  aws iam list-attached-role-policies --role-name prod-eks-node-role\n  kubectl get sa invoice-sa -n billing -o yaml\n  aws ec2 describe-instances --instance-ids i-0a1b2c3d4e5f60718 --query Reservations[].Instances[].MetadataOptions\n  aws ec2 modify-instance-metadata-options --instance-id i-0a1b2c3d4e5f60718 --http-tokens required --http-put-response-hop-limit 1\n  aws configservice start-config-rules-evaluation --config-rule-names eks-node-imds-hardened\n  aws configservice get-compliance-details-by-config-rule --config-rule-name eks-node-imds-hardened",
+        "rules": [
+          {
+            "match": "^aws eks describe-cluster --name prod-eks --query \\S*cluster\\.identity\\.oidc\\.issuer\\S*(?: --region us-east-1)? --output text(?: --region us-east-1)?$",
+            "output": "https://oidc.eks.us-east-1.amazonaws.com/id/EXAMPLED539D4633E53DE1B71EXAMPLE"
+          },
+          {
+            "match": "^aws eks describe-cluster --name prod-eks --query \\S*cluster\\.identity\\.oidc\\.issuer\\S*(?: --region us-east-1)?$",
+            "output": "\"https://oidc.eks.us-east-1.amazonaws.com/id/EXAMPLED539D4633E53DE1B71EXAMPLE\""
+          },
+          {
+            "match": "^aws eks describe-cluster --name prod-eks(?: --region us-east-1)?$",
+            "output": "{\n    \"cluster\": {\n        \"name\": \"prod-eks\",\n        \"status\": \"ACTIVE\",\n        \"version\": \"1.31\",\n        \"identity\": {\n            \"oidc\": {\n                \"issuer\": \"https://oidc.eks.us-east-1.amazonaws.com/id/EXAMPLED539D4633E53DE1B71EXAMPLE\"\n            }\n        }\n    }\n}"
+          },
+          {
+            "match": "^aws iam list-open-id-connect-providers$",
+            "output": "{\n    \"OpenIDConnectProviderList\": [\n        {\n            \"Arn\": \"arn:aws:iam::111122223333:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/EXAMPLED539D4633E53DE1B71EXAMPLE\"\n        }\n    ]\n}"
+          },
+          {
+            "match": "^aws iam get-role --role-name invoice-irsa-role$",
+            "output": "{\n    \"Role\": {\n        \"Path\": \"/\",\n        \"RoleName\": \"invoice-irsa-role\",\n        \"Arn\": \"arn:aws:iam::111122223333:role/invoice-irsa-role\",\n        \"AssumeRolePolicyDocument\": {\n            \"Version\": \"2012-10-17\",\n            \"Statement\": [\n                {\n                    \"Effect\": \"Allow\",\n                    \"Principal\": { \"Federated\": \"arn:aws:iam::111122223333:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/EXAMPLED539D4633E53DE1B71EXAMPLE\" },\n                    \"Action\": \"sts:AssumeRoleWithWebIdentity\",\n                    \"Condition\": {\n                        \"StringLike\": { \"oidc.eks.us-east-1.amazonaws.com/id/EXAMPLED539D4633E53DE1B71EXAMPLE:sub\": \"system:serviceaccount:*:*\" }\n                    }\n                }\n            ]\n        },\n        \"MaxSessionDuration\": 3600\n    }\n}"
+          },
+          {
+            "match": "^kubectl get (?:sa|serviceaccounts?) invoice-sa(?: -n billing| --namespace[= ]billing) -o ya?ml$",
+            "output": "apiVersion: v1\nkind: ServiceAccount\nmetadata:\n  annotations:\n    eks.amazonaws.com/role-arn: arn:aws:iam::111122223333:role/invoice-irsa-role\n  name: invoice-sa\n  namespace: billing"
+          },
+          {
+            "match": "^aws iam list-attached-role-policies --role-name prod-eks-node-role$",
+            "output": "{\n    \"AttachedPolicies\": [\n        { \"PolicyName\": \"AmazonEKSWorkerNodePolicy\", \"PolicyArn\": \"arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy\" },\n        { \"PolicyName\": \"AmazonEKS_CNI_Policy\", \"PolicyArn\": \"arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy\" },\n        { \"PolicyName\": \"AmazonEC2ContainerRegistryReadOnly\", \"PolicyArn\": \"arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly\" },\n        { \"PolicyName\": \"NodeS3Access\", \"PolicyArn\": \"arn:aws:iam::111122223333:policy/NodeS3Access\" }\n    ]\n}"
+          },
+          {
+            "match": "^aws ec2 describe-instances --instance-ids i-0a1b2c3d4e5f60718(?: --query .*)?(?: --region us-east-1)?$",
+            "requires": [
+              "imds_tokens",
+              "imds_hop"
+            ],
+            "output": "[\n    {\n        \"State\": \"applied\",\n        \"HttpTokens\": \"required\",\n        \"HttpPutResponseHopLimit\": 1,\n        \"HttpEndpoint\": \"enabled\",\n        \"HttpProtocolIpv6\": \"disabled\",\n        \"InstanceMetadataTags\": \"disabled\"\n    }\n]"
+          },
+          {
+            "match": "^aws ec2 describe-instances --instance-ids i-0a1b2c3d4e5f60718(?: --query .*)?(?: --region us-east-1)?$",
+            "requires": [
+              "imds_tokens"
+            ],
+            "output": "[\n    {\n        \"State\": \"applied\",\n        \"HttpTokens\": \"required\",\n        \"HttpPutResponseHopLimit\": 2,\n        \"HttpEndpoint\": \"enabled\",\n        \"HttpProtocolIpv6\": \"disabled\",\n        \"InstanceMetadataTags\": \"disabled\"\n    }\n]"
+          },
+          {
+            "match": "^aws ec2 describe-instances --instance-ids i-0a1b2c3d4e5f60718(?: --query .*)?(?: --region us-east-1)?$",
+            "requires": [
+              "imds_hop"
+            ],
+            "output": "[\n    {\n        \"State\": \"applied\",\n        \"HttpTokens\": \"optional\",\n        \"HttpPutResponseHopLimit\": 1,\n        \"HttpEndpoint\": \"enabled\",\n        \"HttpProtocolIpv6\": \"disabled\",\n        \"InstanceMetadataTags\": \"disabled\"\n    }\n]"
+          },
+          {
+            "match": "^aws ec2 describe-instances --instance-ids i-0a1b2c3d4e5f60718(?: --query .*)?(?: --region us-east-1)?$",
+            "output": "[\n    {\n        \"State\": \"applied\",\n        \"HttpTokens\": \"optional\",\n        \"HttpPutResponseHopLimit\": 2,\n        \"HttpEndpoint\": \"enabled\",\n        \"HttpProtocolIpv6\": \"disabled\",\n        \"InstanceMetadataTags\": \"disabled\"\n    }\n]"
+          },
+          {
+            "match": "^aws ec2 modify-instance-metadata-options(?=.*--instance-id i-0a1b2c3d4e5f60718\\b)(?=.*--http-endpoint disabled)",
+            "output": "{\n    \"InstanceId\": \"i-0a1b2c3d4e5f60718\",\n    \"InstanceMetadataOptions\": {\n        \"State\": \"pending\",\n        \"HttpTokens\": \"optional\",\n        \"HttpPutResponseHopLimit\": 2,\n        \"HttpEndpoint\": \"disabled\",\n        \"HttpProtocolIpv6\": \"disabled\",\n        \"InstanceMetadataTags\": \"disabled\"\n    }\n}\n(note: with the endpoint disabled nothing on the node can use instance metadata, including components that rely on it. This removes the exposure but is not the intended fix: keep the endpoint enabled and require IMDSv2 with hop limit 1.)"
+          },
+          {
+            "match": "^aws ec2 modify-instance-metadata-options(?=.*--instance-id i-0a1b2c3d4e5f60718\\b)(?=.*--http-tokens required)(?=.*--http-put-response-hop-limit 1\\b)",
+            "sets": [
+              "imds_tokens",
+              "imds_hop"
+            ],
+            "output": "{\n    \"InstanceId\": \"i-0a1b2c3d4e5f60718\",\n    \"InstanceMetadataOptions\": {\n        \"State\": \"pending\",\n        \"HttpTokens\": \"required\",\n        \"HttpPutResponseHopLimit\": 1,\n        \"HttpEndpoint\": \"enabled\",\n        \"HttpProtocolIpv6\": \"disabled\",\n        \"InstanceMetadataTags\": \"disabled\"\n    }\n}"
+          },
+          {
+            "match": "^aws ec2 modify-instance-metadata-options(?=.*--instance-id i-0a1b2c3d4e5f60718\\b)(?=.*--http-tokens required)",
+            "sets": [
+              "imds_tokens"
+            ],
+            "output": "{\n    \"InstanceId\": \"i-0a1b2c3d4e5f60718\",\n    \"InstanceMetadataOptions\": {\n        \"State\": \"pending\",\n        \"HttpTokens\": \"required\",\n        \"HttpPutResponseHopLimit\": 2,\n        \"HttpEndpoint\": \"enabled\",\n        \"HttpProtocolIpv6\": \"disabled\",\n        \"InstanceMetadataTags\": \"disabled\"\n    }\n}"
+          },
+          {
+            "match": "^aws ec2 modify-instance-metadata-options(?=.*--instance-id i-0a1b2c3d4e5f60718\\b)(?=.*--http-put-response-hop-limit 1\\b)",
+            "sets": [
+              "imds_hop"
+            ],
+            "output": "{\n    \"InstanceId\": \"i-0a1b2c3d4e5f60718\",\n    \"InstanceMetadataOptions\": {\n        \"State\": \"pending\",\n        \"HttpTokens\": \"optional\",\n        \"HttpPutResponseHopLimit\": 1,\n        \"HttpEndpoint\": \"enabled\",\n        \"HttpProtocolIpv6\": \"disabled\",\n        \"InstanceMetadataTags\": \"disabled\"\n    }\n}"
+          },
+          {
+            "match": "^aws ec2 modify-instance-metadata-options",
+            "output": "usage: aws ec2 modify-instance-metadata-options --instance-id <id> [--http-tokens optional|required] [--http-put-response-hop-limit <1-64>] [--http-endpoint enabled|disabled]\nNo recognised change for instance i-0a1b2c3d4e5f60718 (check the instance id and the options)."
+          },
+          {
+            "match": "^aws (?:configservice|config) start-config-rules-evaluation --config-rule-names eks-node-imds-hardened$",
+            "sets": [
+              "reeval"
+            ],
+            "output": "(evaluation started; the CLI returns no output)"
+          },
+          {
+            "match": "^aws (?:configservice|config) get-compliance-details-by-config-rule --config-rule-name eks-node-imds-hardened(?: --compliance-types \\S+)*$",
+            "requires": [
+              "imds_tokens",
+              "imds_hop",
+              "reeval"
+            ],
+            "output": "{\n    \"EvaluationResults\": [\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"eks-node-imds-hardened\",\n                    \"ResourceType\": \"AWS::EC2::Instance\",\n                    \"ResourceId\": \"i-0a1b2c3d4e5f60718\"\n                },\n                \"OrderingTimestamp\": \"2026-11-20T09:14:02+00:00\"\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"ResultRecordedTime\": \"2026-11-20T09:14:30+00:00\",\n            \"ConfigRuleInvokedTime\": \"2026-11-20T09:14:29+00:00\",\n            \"Annotation\": \"FLAG{imds_v2_hop1_irsa_enforced}\"\n        }\n    ]\n}"
+          },
+          {
+            "match": "^aws (?:configservice|config) get-compliance-details-by-config-rule --config-rule-name eks-node-imds-hardened(?: --compliance-types \\S+)*$",
+            "output": "{\n    \"EvaluationResults\": [\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"eks-node-imds-hardened\",\n                    \"ResourceType\": \"AWS::EC2::Instance\",\n                    \"ResourceId\": \"i-0a1b2c3d4e5f60718\"\n                },\n                \"OrderingTimestamp\": \"2026-11-20T09:14:02+00:00\"\n            },\n            \"ComplianceType\": \"NON_COMPLIANT\",\n            \"ResultRecordedTime\": \"2026-11-20T09:14:30+00:00\",\n            \"ConfigRuleInvokedTime\": \"2026-11-20T09:14:29+00:00\",\n            \"Annotation\": \"HttpTokens must be required and HttpPutResponseHopLimit must be 1 (last evaluated state: tokens optional, hop limit 2)\"\n        }\n    ]\n}"
+          }
+        ]
+      },
+      "solution": [
+        "aws eks describe-cluster --name prod-eks --query cluster.identity.oidc.issuer --output text",
+        "aws iam list-open-id-connect-providers",
+        "aws iam get-role --role-name invoice-irsa-role",
+        "aws iam list-attached-role-policies --role-name prod-eks-node-role",
+        "aws ec2 describe-instances --instance-ids i-0a1b2c3d4e5f60718 --query Reservations[].Instances[].MetadataOptions",
+        "aws ec2 modify-instance-metadata-options --instance-id i-0a1b2c3d4e5f60718 --http-tokens required --http-put-response-hop-limit 1 --http-endpoint enabled",
+        "aws ec2 describe-instances --instance-ids i-0a1b2c3d4e5f60718 --query Reservations[].Instances[].MetadataOptions",
+        "aws configservice start-config-rules-evaluation --config-rule-names eks-node-imds-hardened",
+        "aws configservice get-compliance-details-by-config-rule --config-rule-name eks-node-imds-hardened"
+      ],
+      "tasks": [
+        {
+          "id": "t1",
+          "kind": "choice",
+          "prompt": "Compare giving the billing pods S3 access through the worker node's instance role with using IRSA. Which statement best explains why IRSA is the better design?",
+          "options": [
+            "IRSA is faster because it avoids calling AWS STS",
+            "The node role is shared by every pod on the node, so any pod inherits its permissions; IRSA gives each service account its own role and short-lived credentials via a projected token",
+            "IRSA removes the need for IAM policies altogether",
+            "The node role cannot be restricted to S3, so IRSA is the only way to use S3"
+          ],
+          "correct": [
+            1
+          ],
+          "explanation": "Node-role credentials belong to the instance, so every pod that can reach the metadata service shares them and the permissions must cover the union of all pods' needs. IRSA ties a role to one service account via the cluster's OIDC provider, so each workload gets only its own permissions and the node role can shrink to what the node itself needs."
+        },
+        {
+          "id": "t2",
+          "kind": "answer",
+          "prompt": "Audit the node with describe-instances. What is the current value of HttpTokens in the instance's metadata options?",
+          "accept": [
+            "optional",
+            "httptokens optional",
+            "httptokens: optional"
+          ],
+          "explanation": "HttpTokens: optional means the older IMDSv1 style of simple requests is still accepted. Requiring IMDSv2 forces a session token obtained with a PUT request, which blocks the simple request patterns that commonly turn a server-side request forgery bug into credential exposure."
+        },
+        {
+          "id": "t3",
+          "kind": "choice",
+          "prompt": "Why does setting HttpPutResponseHopLimit to 1 on the worker node protect the node role from pods that are not on the host network?",
+          "options": [
+            "It limits how many credentials the metadata service will return",
+            "It encrypts the metadata response so pods cannot read it",
+            "The IMDSv2 token response has a network hop limit; a pod in its own network namespace adds a hop, so with a limit of 1 the response never reaches it",
+            "It makes the pod's request wait one second longer"
+          ],
+          "correct": [
+            2
+          ],
+          "explanation": "The PUT response that carries the IMDSv2 token is sent with an IP TTL equal to the hop limit. Traffic from a pod crosses an extra network hop through the node's networking, so with limit 1 only processes on the host itself get a token. With IRSA the pods no longer need node credentials, so the hop limit can safely be 1."
+        },
+        {
+          "id": "t4",
+          "kind": "policy",
+          "mode": "resource",
+          "prompt": "Fix the trust policy of invoice-irsa-role (the policy you would pass to aws iam update-assume-role-policy). Only the service account billing/invoice-sa, presenting a token with the sts.amazonaws.com audience, may assume the role through the cluster's OIDC provider. Other service accounts, other namespaces, other audiences, other clusters and the node role must be denied.",
+          "starter": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Effect\": \"Allow\",\n      \"Principal\": {\n        \"Federated\": \"arn:aws:iam::111122223333:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/EXAMPLED539D4633E53DE1B71EXAMPLE\"\n      },\n      \"Action\": \"sts:AssumeRoleWithWebIdentity\",\n      \"Condition\": {\n        \"StringLike\": {\n          \"oidc.eks.us-east-1.amazonaws.com/id/EXAMPLED539D4633E53DE1B71EXAMPLE:sub\": \"system:serviceaccount:*:*\"\n        }\n      }\n    }\n  ]\n}",
+          "solution": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Effect\": \"Allow\",\n      \"Principal\": {\n        \"Federated\": \"arn:aws:iam::111122223333:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/EXAMPLED539D4633E53DE1B71EXAMPLE\"\n      },\n      \"Action\": \"sts:AssumeRoleWithWebIdentity\",\n      \"Condition\": {\n        \"StringEquals\": {\n          \"oidc.eks.us-east-1.amazonaws.com/id/EXAMPLED539D4633E53DE1B71EXAMPLE:sub\": \"system:serviceaccount:billing:invoice-sa\",\n          \"oidc.eks.us-east-1.amazonaws.com/id/EXAMPLED539D4633E53DE1B71EXAMPLE:aud\": \"sts.amazonaws.com\"\n        }\n      }\n    }\n  ]\n}",
+          "tests": [
+            {
+              "name": "invoice-sa in namespace billing can assume the role",
+              "action": "sts:AssumeRoleWithWebIdentity",
+              "principal": "arn:aws:iam::111122223333:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/EXAMPLED539D4633E53DE1B71EXAMPLE",
+              "context": {
+                "oidc.eks.us-east-1.amazonaws.com/id/EXAMPLED539D4633E53DE1B71EXAMPLE:sub": "system:serviceaccount:billing:invoice-sa",
+                "oidc.eks.us-east-1.amazonaws.com/id/EXAMPLED539D4633E53DE1B71EXAMPLE:aud": "sts.amazonaws.com"
+              },
+              "expect": "allow"
+            },
+            {
+              "name": "A different service account in the billing namespace is denied",
+              "action": "sts:AssumeRoleWithWebIdentity",
+              "principal": "arn:aws:iam::111122223333:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/EXAMPLED539D4633E53DE1B71EXAMPLE",
+              "context": {
+                "oidc.eks.us-east-1.amazonaws.com/id/EXAMPLED539D4633E53DE1B71EXAMPLE:sub": "system:serviceaccount:billing:default",
+                "oidc.eks.us-east-1.amazonaws.com/id/EXAMPLED539D4633E53DE1B71EXAMPLE:aud": "sts.amazonaws.com"
+              },
+              "expect": "deny"
+            },
+            {
+              "name": "A service account with the same name in another namespace is denied",
+              "action": "sts:AssumeRoleWithWebIdentity",
+              "principal": "arn:aws:iam::111122223333:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/EXAMPLED539D4633E53DE1B71EXAMPLE",
+              "context": {
+                "oidc.eks.us-east-1.amazonaws.com/id/EXAMPLED539D4633E53DE1B71EXAMPLE:sub": "system:serviceaccount:staging:invoice-sa",
+                "oidc.eks.us-east-1.amazonaws.com/id/EXAMPLED539D4633E53DE1B71EXAMPLE:aud": "sts.amazonaws.com"
+              },
+              "expect": "deny"
+            },
+            {
+              "name": "A token for the wrong audience is denied",
+              "action": "sts:AssumeRoleWithWebIdentity",
+              "principal": "arn:aws:iam::111122223333:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/EXAMPLED539D4633E53DE1B71EXAMPLE",
+              "context": {
+                "oidc.eks.us-east-1.amazonaws.com/id/EXAMPLED539D4633E53DE1B71EXAMPLE:sub": "system:serviceaccount:billing:invoice-sa",
+                "oidc.eks.us-east-1.amazonaws.com/id/EXAMPLED539D4633E53DE1B71EXAMPLE:aud": "https://kubernetes.default.svc"
+              },
+              "expect": "deny"
+            },
+            {
+              "name": "A token without a subject claim is denied",
+              "action": "sts:AssumeRoleWithWebIdentity",
+              "principal": "arn:aws:iam::111122223333:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/EXAMPLED539D4633E53DE1B71EXAMPLE",
+              "context": {
+                "oidc.eks.us-east-1.amazonaws.com/id/EXAMPLED539D4633E53DE1B71EXAMPLE:aud": "sts.amazonaws.com"
+              },
+              "expect": "deny"
+            },
+            {
+              "name": "A different cluster's OIDC provider is denied",
+              "action": "sts:AssumeRoleWithWebIdentity",
+              "principal": "arn:aws:iam::111122223333:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/EXAMPLE0000000000OTHERCLUSTER",
+              "context": {
+                "oidc.eks.us-east-1.amazonaws.com/id/EXAMPLED539D4633E53DE1B71EXAMPLE:sub": "system:serviceaccount:billing:invoice-sa",
+                "oidc.eks.us-east-1.amazonaws.com/id/EXAMPLED539D4633E53DE1B71EXAMPLE:aud": "sts.amazonaws.com"
+              },
+              "expect": "deny"
+            },
+            {
+              "name": "The worker node role cannot assume this role",
+              "action": "sts:AssumeRole",
+              "principal": "arn:aws:iam::111122223333:role/prod-eks-node-role",
+              "expect": "deny"
+            }
+          ],
+          "explanation": "The Federated principal pins the cluster's OIDC provider; the sub condition pins the exact namespace and service account; the aud condition ensures the token was minted for STS. A StringLike with wildcards on sub lets every service account in the cluster assume the role, and omitting aud accepts tokens issued for other audiences. Use StringEquals for both."
+        },
+        {
+          "id": "t5",
+          "kind": "choice",
+          "prompt": "Which control actually stops pods from obtaining the node role's credentials from the instance metadata service? Select all that help.",
+          "options": [
+            "Require IMDSv2 (HttpTokens required)",
+            "Set the metadata hop limit to 1 on the worker nodes",
+            "Move pod AWS access to IRSA so the node role can be minimised",
+            "Rename the node role so it is harder to guess"
+          ],
+          "correct": [
+            0,
+            1,
+            2
+          ],
+          "explanation": "IMDSv2 and a hop limit of 1 limit who can obtain node credentials, and IRSA removes the reason pods ever needed them so the node role can be cut down to what the kubelet, CNI and image pulls require. Renaming a role is not a control: names are not secrets."
+        },
+        {
+          "id": "t6",
+          "kind": "flag",
+          "prompt": "Audit the node's metadata options, apply http-tokens required with a hop limit of 1 (keep the endpoint enabled), ask AWS Config to re-evaluate the rule eks-node-imds-hardened, and read the compliance result. Paste the flag from the compliant evaluation.",
+          "flag": "FLAG{imds_v2_hop1_irsa_enforced}",
+          "explanation": "Verification is part of the change: the instance reports the new options and the Config rule re-evaluates to COMPLIANT. Changing only one of the two settings leaves the node non-compliant, and disabling the endpoint outright can break components on the node that legitimately use metadata."
+        },
+        {
+          "id": "t7",
+          "kind": "answer",
+          "prompt": "In the IRSA trust policy, which value must the :aud condition key match for tokens that are to be exchanged with AWS STS?",
+          "accept": [
+            "sts.amazonaws.com",
+            "sts.amazonaws.com audience"
+          ],
+          "explanation": "The EKS pod identity webhook configures the projected service account token with the audience sts.amazonaws.com. Checking it in the trust policy rejects tokens minted for any other audience, such as the Kubernetes API server's own."
+        },
+        {
+          "id": "t8",
+          "kind": "choice",
+          "prompt": "You fixed the running instance with modify-instance-metadata-options. For a managed node group, what makes the fix durable?",
+          "options": [
+            "Nothing more is needed: instance-level settings survive node replacement",
+            "Set MetadataOptions (HttpTokens required, HttpPutResponseHopLimit 1) in the node group's launch template so replacement and new nodes are created hardened",
+            "Disable auto scaling so nodes are never replaced",
+            "Attach an additional policy to the node role"
+          ],
+          "correct": [
+            1
+          ],
+          "explanation": "Nodes are replaced during scale-out, rolling upgrades and AMI updates, and replacements are built from the launch template, not from the hand-edited instance. Update the template (see nodegroup-launch-template.json, which still shows optional and hop limit 2) and roll the node group, then keep the Config rule to detect drift."
+        }
+      ],
+      "takeaways": [
+        "Give each workload its own role through IRSA; pin the OIDC provider, the exact sub (namespace and service account) and the aud with StringEquals.",
+        "Require IMDSv2 and use a hop limit of 1 on worker nodes, set in the launch template so replacements are hardened too.",
+        "Shrink the node role to what the node itself needs and verify with a re-evaluation rather than assuming the change worked."
+      ]
+    }
+  }
+]

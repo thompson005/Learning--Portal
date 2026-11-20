@@ -1,0 +1,1162 @@
+[
+  {
+    "labId": "cloud-L31",
+    "title": "Audit Azure Managed Identities",
+    "objective": "Audit which identities can reach a production Key Vault in your own subscription, replace an over-broad role assignment with a least-privilege one at vault scope, close public network access, and verify the result.",
+    "successCriteria": [
+      "You identified the identity that holds an over-broad role (Owner at subscription scope) and the one holding Key Vault Secrets Officer where read access is enough",
+      "You replaced both with Key Vault Secrets User scoped to kv-payments-prod only",
+      "You disabled public network access on the vault and verified the identities and network posture are clean"
+    ],
+    "hints": [
+      "Start from the vault, then widen: who is assigned at vault scope, and who is assigned higher up that is inherited down to it? One flag on `az role assignment list` shows inherited assignments.",
+      "Match principal ids to names with `az identity list`. Compare each identity's role with what app-config.yaml says it actually needs. Only a role that can READ secret values is required.",
+      "Delete the Owner assignment (subscription scope) and the Key Vault Secrets Officer assignment, create Key Vault Secrets User for each identity at the vault scope, run `az keyvault update --name kv-payments-prod --public-network-access Disabled`, then re-run the listings and `az policy state list --resource <vault id>`."
+    ],
+    "estimatedHours": 2,
+    "resources": [
+      {
+        "title": "Microsoft Learn: What are managed identities for Azure resources?",
+        "url": "https://learn.microsoft.com/en-us/entra/identity/managed-identities-azure-resources/overview",
+        "type": "link"
+      },
+      {
+        "title": "Microsoft Learn: Provide access to Key Vault secrets using Azure RBAC",
+        "url": "https://learn.microsoft.com/en-us/azure/key-vault/general/rbac-guide",
+        "type": "link"
+      },
+      {
+        "title": "Microsoft Learn: Understand scope for Azure RBAC",
+        "url": "https://learn.microsoft.com/en-us/azure/role-based-access-control/scope-overview",
+        "type": "link"
+      },
+      {
+        "title": "Microsoft Learn: Network security for Azure Key Vault",
+        "url": "https://learn.microsoft.com/en-us/azure/key-vault/general/network-security",
+        "type": "link"
+      }
+    ],
+    "range": {
+      "scenario": "You are the cloud security engineer for Contoso's own Azure subscription `contoso-prod`. A quarterly access review flagged the payments platform: the app `payments-api` runs on VM `vm-payments-01` and reads a database connection string from the Key Vault `kv-payments-prod` using a user-assigned managed identity, and a nightly `reports-job` reads the same vault. The review ticket says the app identities 'seem to have more access than a secret reader needs' and that the vault is reachable from the internet. Audit who can actually reach the vault (including assignments inherited from higher scopes), replace over-broad assignments with least privilege at the vault scope, close the public endpoint, and verify. Everything here is your own simulated tenant and the terminal is a safe emulation.",
+      "artifacts": [
+        {
+          "name": "app-config.yaml",
+          "language": "yaml",
+          "content": "# payments-api deployment settings (excerpt)\napp: payments-api\nhost: vm-payments-01\nidentity:\n  type: user-assigned\n  name: id-payments-api\n  client_id_env: AZURE_CLIENT_ID      # picked up by DefaultAzureCredential\nsecrets:\n  vault: kv-payments-prod\n  names:\n    - payments-db-conn                 # read at start-up and on rotation\noperations_needed:\n  - read secret value                  # never create, delete, purge or change access\n---\n# reports-job (nightly) reads payments-db-conn the same way\napp: reports-job\nidentity:\n  type: user-assigned\n  name: id-reports-job\nsecrets:\n  vault: kv-payments-prod\n  names:\n    - payments-db-conn\noperations_needed:\n  - read secret value\n",
+          "note": "What the two workloads actually need from the vault."
+        },
+        {
+          "name": "inventory.txt",
+          "language": "text",
+          "content": "Tenant:        d1e2f3a4-6b7c-4d8e-9f01-a2b3c4d5e6f7\nSubscription:  contoso-prod (7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55)\nResource group: rg-payments\n\nVM:            vm-payments-01  (system-assigned identity ON, id-payments-api attached)\nKey Vault:     kv-payments-prod\nUser-assigned managed identities in rg-payments:\n  - id-payments-api\n  - id-reports-job\nGroups: sg-platform-admins (vault admins), sg-auditors (read-only)\n\nVault scope string:\n/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\n",
+          "note": "Names and scopes for the commands you will run."
+        },
+        {
+          "name": "access-review-ticket.txt",
+          "language": "text",
+          "content": "SEC-4417  Quarterly access review - payments platform\nFindings reported by the reviewer (not yet triaged):\n  1. Some app identity may hold a role at SUBSCRIPTION scope, i.e. inherited by every resource including the vault.\n  2. A background job identity may hold an administrative Key Vault data role although it only reads.\n  3. kv-payments-prod publicNetworkAccess may be Enabled although a private endpoint exists.\nAcceptance: least privilege at vault scope, no public endpoint, evidence from the CLI.\n",
+          "note": "The reviewer's claims - verify each one yourself."
+        }
+      ],
+      "terminal": {
+        "prompt": "auditor@cloudshell:~$",
+        "intro": "Signed in to your own tenant as sec-auditor@contoso.example (Security Reader + User Access Administrator on rg-payments). Subscription: contoso-prod.",
+        "help": "Commands you can try (Azure CLI):\n  az account show\n  az vm identity show --name vm-payments-01 --resource-group rg-payments\n  az identity list --resource-group rg-payments\n  az keyvault show --name kv-payments-prod\n  az role assignment list --scope <scope> [--include-inherited]\n  az role assignment list --assignee <principal-id> --all\n  az role assignment delete --assignee <id> --role <role> --scope <scope>\n  az role assignment create --assignee <id> --role <role> --scope <scope>\n  az keyvault update --name kv-payments-prod --public-network-access Disabled\n  az policy state list --resource <resource-id>",
+        "rules": [
+          {
+            "match": "^az account show$",
+            "output": "{\n    \"environmentName\": \"AzureCloud\",\n    \"id\": \"7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55\",\n    \"name\": \"contoso-prod\",\n    \"state\": \"Enabled\",\n    \"tenantId\": \"d1e2f3a4-6b7c-4d8e-9f01-a2b3c4d5e6f7\",\n    \"user\": {\n        \"name\": \"sec-auditor@contoso.example\",\n        \"type\": \"user\"\n    }\n}"
+          },
+          {
+            "match": "^az vm identity show(?=.*(?:--name|-n)[ =]vm-payments-01).*$",
+            "output": "{\n    \"principalId\": \"c90d4a7e-5f31-4b82-a6c9-3e1b8d0f2a07\",\n    \"tenantId\": \"d1e2f3a4-6b7c-4d8e-9f01-a2b3c4d5e6f7\",\n    \"type\": \"SystemAssigned, UserAssigned\",\n    \"userAssignedIdentities\": {\n        \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.ManagedIdentity/userAssignedIdentities/id-payments-api\": {\n            \"clientId\": \"9a0e3c57-1b42-4f8d-a6d3-5e7c2b9f4a02\",\n            \"principalId\": \"4c1f6e2a-7d3b-4a59-9c10-2b8e5f3a1d01\"\n        }\n    }\n}"
+          },
+          {
+            "match": "^az identity list\\b.*$",
+            "output": "[\n    {\n        \"clientId\": \"9a0e3c57-1b42-4f8d-a6d3-5e7c2b9f4a02\",\n        \"id\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.ManagedIdentity/userAssignedIdentities/id-payments-api\",\n        \"location\": \"centralindia\",\n        \"name\": \"id-payments-api\",\n        \"principalId\": \"4c1f6e2a-7d3b-4a59-9c10-2b8e5f3a1d01\",\n        \"resourceGroup\": \"rg-payments\",\n        \"tenantId\": \"d1e2f3a4-6b7c-4d8e-9f01-a2b3c4d5e6f7\",\n        \"type\": \"Microsoft.ManagedIdentity/userAssignedIdentities\"\n    },\n    {\n        \"clientId\": \"2f7d9c41-8e5a-4b36-9d1c-6a3b0e8f7c04\",\n        \"id\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.ManagedIdentity/userAssignedIdentities/id-reports-job\",\n        \"location\": \"centralindia\",\n        \"name\": \"id-reports-job\",\n        \"principalId\": \"e83b5d19-6a0c-4c7e-b2f4-1d9a7c3e5b03\",\n        \"resourceGroup\": \"rg-payments\",\n        \"tenantId\": \"d1e2f3a4-6b7c-4d8e-9f01-a2b3c4d5e6f7\",\n        \"type\": \"Microsoft.ManagedIdentity/userAssignedIdentities\"\n    }\n]"
+          },
+          {
+            "match": "^az keyvault show(?=.*(?:--name|-n)[ =]kv-payments-prod).*$",
+            "requires": [
+              "public_disabled"
+            ],
+            "sets": [
+              "verified_kv"
+            ],
+            "output": "{\n    \"id\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\",\n    \"location\": \"centralindia\",\n    \"name\": \"kv-payments-prod\",\n    \"properties\": {\n        \"enablePurgeProtection\": true,\n        \"enableRbacAuthorization\": true,\n        \"enableSoftDelete\": true,\n        \"networkAcls\": {\n            \"bypass\": \"AzureServices\",\n            \"defaultAction\": \"Allow\",\n            \"ipRules\": [],\n            \"virtualNetworkRules\": []\n        },\n        \"privateEndpointConnections\": [\n            {\n                \"name\": \"pe-kv-payments-prod\",\n                \"properties\": {\n                    \"privateLinkServiceConnectionState\": {\n                        \"status\": \"Approved\"\n                    }\n                }\n            }\n        ],\n        \"publicNetworkAccess\": \"Disabled\",\n        \"sku\": {\n            \"family\": \"A\",\n            \"name\": \"standard\"\n        },\n        \"tenantId\": \"d1e2f3a4-6b7c-4d8e-9f01-a2b3c4d5e6f7\",\n        \"vaultUri\": \"https://kv-payments-prod.vault.azure.net/\"\n    },\n    \"resourceGroup\": \"rg-payments\",\n    \"type\": \"Microsoft.KeyVault/vaults\"\n}"
+          },
+          {
+            "match": "^az keyvault show(?=.*(?:--name|-n)[ =]kv-payments-prod).*$",
+            "output": "{\n    \"id\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\",\n    \"location\": \"centralindia\",\n    \"name\": \"kv-payments-prod\",\n    \"properties\": {\n        \"enablePurgeProtection\": true,\n        \"enableRbacAuthorization\": true,\n        \"enableSoftDelete\": true,\n        \"networkAcls\": {\n            \"bypass\": \"AzureServices\",\n            \"defaultAction\": \"Allow\",\n            \"ipRules\": [],\n            \"virtualNetworkRules\": []\n        },\n        \"privateEndpointConnections\": [\n            {\n                \"name\": \"pe-kv-payments-prod\",\n                \"properties\": {\n                    \"privateLinkServiceConnectionState\": {\n                        \"status\": \"Approved\"\n                    }\n                }\n            }\n        ],\n        \"publicNetworkAccess\": \"Enabled\",\n        \"sku\": {\n            \"family\": \"A\",\n            \"name\": \"standard\"\n        },\n        \"tenantId\": \"d1e2f3a4-6b7c-4d8e-9f01-a2b3c4d5e6f7\",\n        \"vaultUri\": \"https://kv-payments-prod.vault.azure.net/\"\n    },\n    \"resourceGroup\": \"rg-payments\",\n    \"type\": \"Microsoft.KeyVault/vaults\"\n}"
+          },
+          {
+            "match": "^az keyvault show\\b",
+            "output": "(VaultNotFound) The Vault 'unknown' was not found in resource group 'rg-payments'. Hint: the production vault in this subscription is kv-payments-prod."
+          },
+          {
+            "match": "^az role assignment list(?=.*--scope[ =][\"']?/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft\\.KeyVault/vaults/kv-payments-prod[\"']?(?:\\s|$))(?=.*--include-inherited).*$",
+            "output": "[\n    {\n        \"principalId\": \"5d9a1c33-0b6e-4f27-8a41-7c3e9b2d6f05\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Key Vault Administrator\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"4c1f6e2a-7d3b-4a59-9c10-2b8e5f3a1d01\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Key Vault Secrets User\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"e83b5d19-6a0c-4c7e-b2f4-1d9a7c3e5b03\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Key Vault Secrets User\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"b7e2f480-3c19-4d5a-9e86-0a1d4c7b2e06\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Reader\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55\"\n    }\n]",
+            "requires": [
+              "owner_removed",
+              "payments_user",
+              "officer_removed",
+              "reports_user"
+            ],
+            "sets": [
+              "verified_roles"
+            ]
+          },
+          {
+            "match": "^az role assignment list(?=.*--scope[ =][\"']?/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft\\.KeyVault/vaults/kv-payments-prod[\"']?(?:\\s|$))(?=.*--include-inherited).*$",
+            "output": "[\n    {\n        \"principalId\": \"5d9a1c33-0b6e-4f27-8a41-7c3e9b2d6f05\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Key Vault Administrator\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"4c1f6e2a-7d3b-4a59-9c10-2b8e5f3a1d01\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Key Vault Secrets User\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"b7e2f480-3c19-4d5a-9e86-0a1d4c7b2e06\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Reader\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55\"\n    }\n]",
+            "requires": [
+              "owner_removed",
+              "payments_user",
+              "officer_removed"
+            ]
+          },
+          {
+            "match": "^az role assignment list(?=.*--scope[ =][\"']?/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft\\.KeyVault/vaults/kv-payments-prod[\"']?(?:\\s|$))(?=.*--include-inherited).*$",
+            "output": "[\n    {\n        \"principalId\": \"5d9a1c33-0b6e-4f27-8a41-7c3e9b2d6f05\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Key Vault Administrator\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"e83b5d19-6a0c-4c7e-b2f4-1d9a7c3e5b03\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Key Vault Secrets Officer\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"4c1f6e2a-7d3b-4a59-9c10-2b8e5f3a1d01\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Key Vault Secrets User\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"e83b5d19-6a0c-4c7e-b2f4-1d9a7c3e5b03\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Key Vault Secrets User\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"b7e2f480-3c19-4d5a-9e86-0a1d4c7b2e06\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Reader\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55\"\n    }\n]",
+            "requires": [
+              "owner_removed",
+              "payments_user",
+              "reports_user"
+            ]
+          },
+          {
+            "match": "^az role assignment list(?=.*--scope[ =][\"']?/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft\\.KeyVault/vaults/kv-payments-prod[\"']?(?:\\s|$))(?=.*--include-inherited).*$",
+            "output": "[\n    {\n        \"principalId\": \"5d9a1c33-0b6e-4f27-8a41-7c3e9b2d6f05\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Key Vault Administrator\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"e83b5d19-6a0c-4c7e-b2f4-1d9a7c3e5b03\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Key Vault Secrets User\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"b7e2f480-3c19-4d5a-9e86-0a1d4c7b2e06\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Reader\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55\"\n    }\n]",
+            "requires": [
+              "owner_removed",
+              "officer_removed",
+              "reports_user"
+            ]
+          },
+          {
+            "match": "^az role assignment list(?=.*--scope[ =][\"']?/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft\\.KeyVault/vaults/kv-payments-prod[\"']?(?:\\s|$))(?=.*--include-inherited).*$",
+            "output": "[\n    {\n        \"principalId\": \"5d9a1c33-0b6e-4f27-8a41-7c3e9b2d6f05\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Key Vault Administrator\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"4c1f6e2a-7d3b-4a59-9c10-2b8e5f3a1d01\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Key Vault Secrets User\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"e83b5d19-6a0c-4c7e-b2f4-1d9a7c3e5b03\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Key Vault Secrets User\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"4c1f6e2a-7d3b-4a59-9c10-2b8e5f3a1d01\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Owner\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55\"\n    },\n    {\n        \"principalId\": \"b7e2f480-3c19-4d5a-9e86-0a1d4c7b2e06\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Reader\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55\"\n    }\n]",
+            "requires": [
+              "payments_user",
+              "officer_removed",
+              "reports_user"
+            ]
+          },
+          {
+            "match": "^az role assignment list(?=.*--scope[ =][\"']?/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft\\.KeyVault/vaults/kv-payments-prod[\"']?(?:\\s|$))(?=.*--include-inherited).*$",
+            "output": "[\n    {\n        \"principalId\": \"5d9a1c33-0b6e-4f27-8a41-7c3e9b2d6f05\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Key Vault Administrator\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"e83b5d19-6a0c-4c7e-b2f4-1d9a7c3e5b03\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Key Vault Secrets Officer\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"4c1f6e2a-7d3b-4a59-9c10-2b8e5f3a1d01\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Key Vault Secrets User\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"b7e2f480-3c19-4d5a-9e86-0a1d4c7b2e06\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Reader\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55\"\n    }\n]",
+            "requires": [
+              "owner_removed",
+              "payments_user"
+            ]
+          },
+          {
+            "match": "^az role assignment list(?=.*--scope[ =][\"']?/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft\\.KeyVault/vaults/kv-payments-prod[\"']?(?:\\s|$))(?=.*--include-inherited).*$",
+            "output": "[\n    {\n        \"principalId\": \"5d9a1c33-0b6e-4f27-8a41-7c3e9b2d6f05\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Key Vault Administrator\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"b7e2f480-3c19-4d5a-9e86-0a1d4c7b2e06\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Reader\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55\"\n    }\n]",
+            "requires": [
+              "owner_removed",
+              "officer_removed"
+            ]
+          },
+          {
+            "match": "^az role assignment list(?=.*--scope[ =][\"']?/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft\\.KeyVault/vaults/kv-payments-prod[\"']?(?:\\s|$))(?=.*--include-inherited).*$",
+            "output": "[\n    {\n        \"principalId\": \"5d9a1c33-0b6e-4f27-8a41-7c3e9b2d6f05\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Key Vault Administrator\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"4c1f6e2a-7d3b-4a59-9c10-2b8e5f3a1d01\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Key Vault Secrets User\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"4c1f6e2a-7d3b-4a59-9c10-2b8e5f3a1d01\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Owner\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55\"\n    },\n    {\n        \"principalId\": \"b7e2f480-3c19-4d5a-9e86-0a1d4c7b2e06\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Reader\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55\"\n    }\n]",
+            "requires": [
+              "payments_user",
+              "officer_removed"
+            ]
+          },
+          {
+            "match": "^az role assignment list(?=.*--scope[ =][\"']?/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft\\.KeyVault/vaults/kv-payments-prod[\"']?(?:\\s|$))(?=.*--include-inherited).*$",
+            "output": "[\n    {\n        \"principalId\": \"5d9a1c33-0b6e-4f27-8a41-7c3e9b2d6f05\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Key Vault Administrator\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"e83b5d19-6a0c-4c7e-b2f4-1d9a7c3e5b03\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Key Vault Secrets Officer\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"e83b5d19-6a0c-4c7e-b2f4-1d9a7c3e5b03\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Key Vault Secrets User\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"b7e2f480-3c19-4d5a-9e86-0a1d4c7b2e06\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Reader\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55\"\n    }\n]",
+            "requires": [
+              "owner_removed",
+              "reports_user"
+            ]
+          },
+          {
+            "match": "^az role assignment list(?=.*--scope[ =][\"']?/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft\\.KeyVault/vaults/kv-payments-prod[\"']?(?:\\s|$))(?=.*--include-inherited).*$",
+            "output": "[\n    {\n        \"principalId\": \"5d9a1c33-0b6e-4f27-8a41-7c3e9b2d6f05\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Key Vault Administrator\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"e83b5d19-6a0c-4c7e-b2f4-1d9a7c3e5b03\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Key Vault Secrets Officer\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"4c1f6e2a-7d3b-4a59-9c10-2b8e5f3a1d01\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Key Vault Secrets User\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"e83b5d19-6a0c-4c7e-b2f4-1d9a7c3e5b03\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Key Vault Secrets User\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"4c1f6e2a-7d3b-4a59-9c10-2b8e5f3a1d01\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Owner\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55\"\n    },\n    {\n        \"principalId\": \"b7e2f480-3c19-4d5a-9e86-0a1d4c7b2e06\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Reader\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55\"\n    }\n]",
+            "requires": [
+              "payments_user",
+              "reports_user"
+            ]
+          },
+          {
+            "match": "^az role assignment list(?=.*--scope[ =][\"']?/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft\\.KeyVault/vaults/kv-payments-prod[\"']?(?:\\s|$))(?=.*--include-inherited).*$",
+            "output": "[\n    {\n        \"principalId\": \"5d9a1c33-0b6e-4f27-8a41-7c3e9b2d6f05\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Key Vault Administrator\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"e83b5d19-6a0c-4c7e-b2f4-1d9a7c3e5b03\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Key Vault Secrets User\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"4c1f6e2a-7d3b-4a59-9c10-2b8e5f3a1d01\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Owner\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55\"\n    },\n    {\n        \"principalId\": \"b7e2f480-3c19-4d5a-9e86-0a1d4c7b2e06\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Reader\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55\"\n    }\n]",
+            "requires": [
+              "officer_removed",
+              "reports_user"
+            ]
+          },
+          {
+            "match": "^az role assignment list(?=.*--scope[ =][\"']?/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft\\.KeyVault/vaults/kv-payments-prod[\"']?(?:\\s|$))(?=.*--include-inherited).*$",
+            "output": "[\n    {\n        \"principalId\": \"5d9a1c33-0b6e-4f27-8a41-7c3e9b2d6f05\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Key Vault Administrator\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"e83b5d19-6a0c-4c7e-b2f4-1d9a7c3e5b03\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Key Vault Secrets Officer\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"b7e2f480-3c19-4d5a-9e86-0a1d4c7b2e06\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Reader\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55\"\n    }\n]",
+            "requires": [
+              "owner_removed"
+            ]
+          },
+          {
+            "match": "^az role assignment list(?=.*--scope[ =][\"']?/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft\\.KeyVault/vaults/kv-payments-prod[\"']?(?:\\s|$))(?=.*--include-inherited).*$",
+            "output": "[\n    {\n        \"principalId\": \"5d9a1c33-0b6e-4f27-8a41-7c3e9b2d6f05\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Key Vault Administrator\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"e83b5d19-6a0c-4c7e-b2f4-1d9a7c3e5b03\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Key Vault Secrets Officer\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"4c1f6e2a-7d3b-4a59-9c10-2b8e5f3a1d01\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Key Vault Secrets User\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"4c1f6e2a-7d3b-4a59-9c10-2b8e5f3a1d01\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Owner\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55\"\n    },\n    {\n        \"principalId\": \"b7e2f480-3c19-4d5a-9e86-0a1d4c7b2e06\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Reader\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55\"\n    }\n]",
+            "requires": [
+              "payments_user"
+            ]
+          },
+          {
+            "match": "^az role assignment list(?=.*--scope[ =][\"']?/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft\\.KeyVault/vaults/kv-payments-prod[\"']?(?:\\s|$))(?=.*--include-inherited).*$",
+            "output": "[\n    {\n        \"principalId\": \"5d9a1c33-0b6e-4f27-8a41-7c3e9b2d6f05\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Key Vault Administrator\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"4c1f6e2a-7d3b-4a59-9c10-2b8e5f3a1d01\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Owner\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55\"\n    },\n    {\n        \"principalId\": \"b7e2f480-3c19-4d5a-9e86-0a1d4c7b2e06\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Reader\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55\"\n    }\n]",
+            "requires": [
+              "officer_removed"
+            ]
+          },
+          {
+            "match": "^az role assignment list(?=.*--scope[ =][\"']?/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft\\.KeyVault/vaults/kv-payments-prod[\"']?(?:\\s|$))(?=.*--include-inherited).*$",
+            "output": "[\n    {\n        \"principalId\": \"5d9a1c33-0b6e-4f27-8a41-7c3e9b2d6f05\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Key Vault Administrator\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"e83b5d19-6a0c-4c7e-b2f4-1d9a7c3e5b03\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Key Vault Secrets Officer\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"e83b5d19-6a0c-4c7e-b2f4-1d9a7c3e5b03\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Key Vault Secrets User\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"4c1f6e2a-7d3b-4a59-9c10-2b8e5f3a1d01\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Owner\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55\"\n    },\n    {\n        \"principalId\": \"b7e2f480-3c19-4d5a-9e86-0a1d4c7b2e06\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Reader\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55\"\n    }\n]",
+            "requires": [
+              "reports_user"
+            ]
+          },
+          {
+            "match": "^az role assignment list(?=.*--scope[ =][\"']?/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft\\.KeyVault/vaults/kv-payments-prod[\"']?(?:\\s|$))(?=.*--include-inherited).*$",
+            "output": "[\n    {\n        \"principalId\": \"5d9a1c33-0b6e-4f27-8a41-7c3e9b2d6f05\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Key Vault Administrator\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"e83b5d19-6a0c-4c7e-b2f4-1d9a7c3e5b03\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Key Vault Secrets Officer\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"4c1f6e2a-7d3b-4a59-9c10-2b8e5f3a1d01\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Owner\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55\"\n    },\n    {\n        \"principalId\": \"b7e2f480-3c19-4d5a-9e86-0a1d4c7b2e06\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Reader\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55\"\n    }\n]"
+          },
+          {
+            "match": "^az role assignment list(?=.*--scope[ =][\"']?/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft\\.KeyVault/vaults/kv-payments-prod[\"']?(?:\\s|$)).*$",
+            "output": "[\n    {\n        \"principalId\": \"5d9a1c33-0b6e-4f27-8a41-7c3e9b2d6f05\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Key Vault Administrator\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"4c1f6e2a-7d3b-4a59-9c10-2b8e5f3a1d01\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Key Vault Secrets User\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"e83b5d19-6a0c-4c7e-b2f4-1d9a7c3e5b03\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Key Vault Secrets User\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    }\n]",
+            "requires": [
+              "owner_removed",
+              "payments_user",
+              "officer_removed",
+              "reports_user"
+            ]
+          },
+          {
+            "match": "^az role assignment list(?=.*--scope[ =][\"']?/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft\\.KeyVault/vaults/kv-payments-prod[\"']?(?:\\s|$)).*$",
+            "output": "[\n    {\n        \"principalId\": \"5d9a1c33-0b6e-4f27-8a41-7c3e9b2d6f05\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Key Vault Administrator\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"4c1f6e2a-7d3b-4a59-9c10-2b8e5f3a1d01\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Key Vault Secrets User\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    }\n]",
+            "requires": [
+              "owner_removed",
+              "payments_user",
+              "officer_removed"
+            ]
+          },
+          {
+            "match": "^az role assignment list(?=.*--scope[ =][\"']?/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft\\.KeyVault/vaults/kv-payments-prod[\"']?(?:\\s|$)).*$",
+            "output": "[\n    {\n        \"principalId\": \"5d9a1c33-0b6e-4f27-8a41-7c3e9b2d6f05\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Key Vault Administrator\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"e83b5d19-6a0c-4c7e-b2f4-1d9a7c3e5b03\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Key Vault Secrets Officer\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"4c1f6e2a-7d3b-4a59-9c10-2b8e5f3a1d01\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Key Vault Secrets User\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"e83b5d19-6a0c-4c7e-b2f4-1d9a7c3e5b03\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Key Vault Secrets User\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    }\n]",
+            "requires": [
+              "owner_removed",
+              "payments_user",
+              "reports_user"
+            ]
+          },
+          {
+            "match": "^az role assignment list(?=.*--scope[ =][\"']?/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft\\.KeyVault/vaults/kv-payments-prod[\"']?(?:\\s|$)).*$",
+            "output": "[\n    {\n        \"principalId\": \"5d9a1c33-0b6e-4f27-8a41-7c3e9b2d6f05\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Key Vault Administrator\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"e83b5d19-6a0c-4c7e-b2f4-1d9a7c3e5b03\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Key Vault Secrets User\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    }\n]",
+            "requires": [
+              "owner_removed",
+              "officer_removed",
+              "reports_user"
+            ]
+          },
+          {
+            "match": "^az role assignment list(?=.*--scope[ =][\"']?/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft\\.KeyVault/vaults/kv-payments-prod[\"']?(?:\\s|$)).*$",
+            "output": "[\n    {\n        \"principalId\": \"5d9a1c33-0b6e-4f27-8a41-7c3e9b2d6f05\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Key Vault Administrator\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"4c1f6e2a-7d3b-4a59-9c10-2b8e5f3a1d01\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Key Vault Secrets User\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"e83b5d19-6a0c-4c7e-b2f4-1d9a7c3e5b03\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Key Vault Secrets User\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    }\n]",
+            "requires": [
+              "payments_user",
+              "officer_removed",
+              "reports_user"
+            ]
+          },
+          {
+            "match": "^az role assignment list(?=.*--scope[ =][\"']?/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft\\.KeyVault/vaults/kv-payments-prod[\"']?(?:\\s|$)).*$",
+            "output": "[\n    {\n        \"principalId\": \"5d9a1c33-0b6e-4f27-8a41-7c3e9b2d6f05\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Key Vault Administrator\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"e83b5d19-6a0c-4c7e-b2f4-1d9a7c3e5b03\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Key Vault Secrets Officer\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"4c1f6e2a-7d3b-4a59-9c10-2b8e5f3a1d01\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Key Vault Secrets User\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    }\n]",
+            "requires": [
+              "owner_removed",
+              "payments_user"
+            ]
+          },
+          {
+            "match": "^az role assignment list(?=.*--scope[ =][\"']?/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft\\.KeyVault/vaults/kv-payments-prod[\"']?(?:\\s|$)).*$",
+            "output": "[\n    {\n        \"principalId\": \"5d9a1c33-0b6e-4f27-8a41-7c3e9b2d6f05\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Key Vault Administrator\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    }\n]",
+            "requires": [
+              "owner_removed",
+              "officer_removed"
+            ]
+          },
+          {
+            "match": "^az role assignment list(?=.*--scope[ =][\"']?/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft\\.KeyVault/vaults/kv-payments-prod[\"']?(?:\\s|$)).*$",
+            "output": "[\n    {\n        \"principalId\": \"5d9a1c33-0b6e-4f27-8a41-7c3e9b2d6f05\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Key Vault Administrator\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"4c1f6e2a-7d3b-4a59-9c10-2b8e5f3a1d01\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Key Vault Secrets User\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    }\n]",
+            "requires": [
+              "payments_user",
+              "officer_removed"
+            ]
+          },
+          {
+            "match": "^az role assignment list(?=.*--scope[ =][\"']?/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft\\.KeyVault/vaults/kv-payments-prod[\"']?(?:\\s|$)).*$",
+            "output": "[\n    {\n        \"principalId\": \"5d9a1c33-0b6e-4f27-8a41-7c3e9b2d6f05\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Key Vault Administrator\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"e83b5d19-6a0c-4c7e-b2f4-1d9a7c3e5b03\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Key Vault Secrets Officer\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"e83b5d19-6a0c-4c7e-b2f4-1d9a7c3e5b03\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Key Vault Secrets User\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    }\n]",
+            "requires": [
+              "owner_removed",
+              "reports_user"
+            ]
+          },
+          {
+            "match": "^az role assignment list(?=.*--scope[ =][\"']?/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft\\.KeyVault/vaults/kv-payments-prod[\"']?(?:\\s|$)).*$",
+            "output": "[\n    {\n        \"principalId\": \"5d9a1c33-0b6e-4f27-8a41-7c3e9b2d6f05\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Key Vault Administrator\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"e83b5d19-6a0c-4c7e-b2f4-1d9a7c3e5b03\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Key Vault Secrets Officer\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"4c1f6e2a-7d3b-4a59-9c10-2b8e5f3a1d01\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Key Vault Secrets User\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"e83b5d19-6a0c-4c7e-b2f4-1d9a7c3e5b03\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Key Vault Secrets User\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    }\n]",
+            "requires": [
+              "payments_user",
+              "reports_user"
+            ]
+          },
+          {
+            "match": "^az role assignment list(?=.*--scope[ =][\"']?/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft\\.KeyVault/vaults/kv-payments-prod[\"']?(?:\\s|$)).*$",
+            "output": "[\n    {\n        \"principalId\": \"5d9a1c33-0b6e-4f27-8a41-7c3e9b2d6f05\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Key Vault Administrator\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"e83b5d19-6a0c-4c7e-b2f4-1d9a7c3e5b03\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Key Vault Secrets User\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    }\n]",
+            "requires": [
+              "officer_removed",
+              "reports_user"
+            ]
+          },
+          {
+            "match": "^az role assignment list(?=.*--scope[ =][\"']?/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft\\.KeyVault/vaults/kv-payments-prod[\"']?(?:\\s|$)).*$",
+            "output": "[\n    {\n        \"principalId\": \"5d9a1c33-0b6e-4f27-8a41-7c3e9b2d6f05\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Key Vault Administrator\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"e83b5d19-6a0c-4c7e-b2f4-1d9a7c3e5b03\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Key Vault Secrets Officer\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    }\n]",
+            "requires": [
+              "owner_removed"
+            ]
+          },
+          {
+            "match": "^az role assignment list(?=.*--scope[ =][\"']?/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft\\.KeyVault/vaults/kv-payments-prod[\"']?(?:\\s|$)).*$",
+            "output": "[\n    {\n        \"principalId\": \"5d9a1c33-0b6e-4f27-8a41-7c3e9b2d6f05\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Key Vault Administrator\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"e83b5d19-6a0c-4c7e-b2f4-1d9a7c3e5b03\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Key Vault Secrets Officer\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"4c1f6e2a-7d3b-4a59-9c10-2b8e5f3a1d01\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Key Vault Secrets User\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    }\n]",
+            "requires": [
+              "payments_user"
+            ]
+          },
+          {
+            "match": "^az role assignment list(?=.*--scope[ =][\"']?/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft\\.KeyVault/vaults/kv-payments-prod[\"']?(?:\\s|$)).*$",
+            "output": "[\n    {\n        \"principalId\": \"5d9a1c33-0b6e-4f27-8a41-7c3e9b2d6f05\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Key Vault Administrator\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    }\n]",
+            "requires": [
+              "officer_removed"
+            ]
+          },
+          {
+            "match": "^az role assignment list(?=.*--scope[ =][\"']?/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft\\.KeyVault/vaults/kv-payments-prod[\"']?(?:\\s|$)).*$",
+            "output": "[\n    {\n        \"principalId\": \"5d9a1c33-0b6e-4f27-8a41-7c3e9b2d6f05\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Key Vault Administrator\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"e83b5d19-6a0c-4c7e-b2f4-1d9a7c3e5b03\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Key Vault Secrets Officer\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"e83b5d19-6a0c-4c7e-b2f4-1d9a7c3e5b03\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Key Vault Secrets User\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    }\n]",
+            "requires": [
+              "reports_user"
+            ]
+          },
+          {
+            "match": "^az role assignment list(?=.*--scope[ =][\"']?/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft\\.KeyVault/vaults/kv-payments-prod[\"']?(?:\\s|$)).*$",
+            "output": "[\n    {\n        \"principalId\": \"5d9a1c33-0b6e-4f27-8a41-7c3e9b2d6f05\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Key Vault Administrator\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"e83b5d19-6a0c-4c7e-b2f4-1d9a7c3e5b03\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Key Vault Secrets Officer\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    }\n]"
+          },
+          {
+            "match": "^az role assignment list(?=.*--assignee(?:-object-id)?[ =][\"']?(?:4c1f6e2a-7d3b-4a59-9c10-2b8e5f3a1d01|9a0e3c57-1b42-4f8d-a6d3-5e7c2b9f4a02)[\"']?(?:\\s|$)).*$",
+            "output": "[\n    {\n        \"principalId\": \"4c1f6e2a-7d3b-4a59-9c10-2b8e5f3a1d01\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Key Vault Secrets User\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    }\n]",
+            "requires": [
+              "owner_removed",
+              "payments_user"
+            ]
+          },
+          {
+            "match": "^az role assignment list(?=.*--assignee(?:-object-id)?[ =][\"']?(?:4c1f6e2a-7d3b-4a59-9c10-2b8e5f3a1d01|9a0e3c57-1b42-4f8d-a6d3-5e7c2b9f4a02)[\"']?(?:\\s|$)).*$",
+            "output": "[]",
+            "requires": [
+              "owner_removed"
+            ]
+          },
+          {
+            "match": "^az role assignment list(?=.*--assignee(?:-object-id)?[ =][\"']?(?:4c1f6e2a-7d3b-4a59-9c10-2b8e5f3a1d01|9a0e3c57-1b42-4f8d-a6d3-5e7c2b9f4a02)[\"']?(?:\\s|$)).*$",
+            "output": "[\n    {\n        \"principalId\": \"4c1f6e2a-7d3b-4a59-9c10-2b8e5f3a1d01\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Owner\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55\"\n    },\n    {\n        \"principalId\": \"4c1f6e2a-7d3b-4a59-9c10-2b8e5f3a1d01\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Key Vault Secrets User\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    }\n]",
+            "requires": [
+              "payments_user"
+            ]
+          },
+          {
+            "match": "^az role assignment list(?=.*--assignee(?:-object-id)?[ =][\"']?(?:4c1f6e2a-7d3b-4a59-9c10-2b8e5f3a1d01|9a0e3c57-1b42-4f8d-a6d3-5e7c2b9f4a02)[\"']?(?:\\s|$)).*$",
+            "output": "[\n    {\n        \"principalId\": \"4c1f6e2a-7d3b-4a59-9c10-2b8e5f3a1d01\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Owner\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55\"\n    }\n]"
+          },
+          {
+            "match": "^az role assignment list(?=.*--assignee(?:-object-id)?[ =][\"']?(?:e83b5d19-6a0c-4c7e-b2f4-1d9a7c3e5b03|2f7d9c41-8e5a-4b36-9d1c-6a3b0e8f7c04)[\"']?(?:\\s|$)).*$",
+            "output": "[\n    {\n        \"principalId\": \"e83b5d19-6a0c-4c7e-b2f4-1d9a7c3e5b03\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Key Vault Secrets User\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    }\n]",
+            "requires": [
+              "officer_removed",
+              "reports_user"
+            ]
+          },
+          {
+            "match": "^az role assignment list(?=.*--assignee(?:-object-id)?[ =][\"']?(?:e83b5d19-6a0c-4c7e-b2f4-1d9a7c3e5b03|2f7d9c41-8e5a-4b36-9d1c-6a3b0e8f7c04)[\"']?(?:\\s|$)).*$",
+            "output": "[]",
+            "requires": [
+              "officer_removed"
+            ]
+          },
+          {
+            "match": "^az role assignment list(?=.*--assignee(?:-object-id)?[ =][\"']?(?:e83b5d19-6a0c-4c7e-b2f4-1d9a7c3e5b03|2f7d9c41-8e5a-4b36-9d1c-6a3b0e8f7c04)[\"']?(?:\\s|$)).*$",
+            "output": "[\n    {\n        \"principalId\": \"e83b5d19-6a0c-4c7e-b2f4-1d9a7c3e5b03\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Key Vault Secrets Officer\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"e83b5d19-6a0c-4c7e-b2f4-1d9a7c3e5b03\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Key Vault Secrets User\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    }\n]",
+            "requires": [
+              "reports_user"
+            ]
+          },
+          {
+            "match": "^az role assignment list(?=.*--assignee(?:-object-id)?[ =][\"']?(?:e83b5d19-6a0c-4c7e-b2f4-1d9a7c3e5b03|2f7d9c41-8e5a-4b36-9d1c-6a3b0e8f7c04)[\"']?(?:\\s|$)).*$",
+            "output": "[\n    {\n        \"principalId\": \"e83b5d19-6a0c-4c7e-b2f4-1d9a7c3e5b03\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Key Vault Secrets Officer\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    }\n]"
+          },
+          {
+            "match": "^az role assignment list(?=.*--scope[ =][\"']?/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55[\"']?(?:\\s|$)).*$",
+            "output": "[\n    {\n        \"principalId\": \"b7e2f480-3c19-4d5a-9e86-0a1d4c7b2e06\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Reader\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55\"\n    }\n]",
+            "requires": [
+              "owner_removed"
+            ]
+          },
+          {
+            "match": "^az role assignment list(?=.*--scope[ =][\"']?/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55[\"']?(?:\\s|$)).*$",
+            "output": "[\n    {\n        \"principalId\": \"4c1f6e2a-7d3b-4a59-9c10-2b8e5f3a1d01\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Owner\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55\"\n    },\n    {\n        \"principalId\": \"b7e2f480-3c19-4d5a-9e86-0a1d4c7b2e06\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Reader\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55\"\n    }\n]"
+          },
+          {
+            "match": "^az role assignment list(?=.*--all).*$",
+            "output": "[\n    {\n        \"principalId\": \"b7e2f480-3c19-4d5a-9e86-0a1d4c7b2e06\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Reader\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55\"\n    },\n    {\n        \"principalId\": \"5d9a1c33-0b6e-4f27-8a41-7c3e9b2d6f05\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Key Vault Administrator\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"4c1f6e2a-7d3b-4a59-9c10-2b8e5f3a1d01\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Key Vault Secrets User\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"e83b5d19-6a0c-4c7e-b2f4-1d9a7c3e5b03\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Key Vault Secrets User\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    }\n]",
+            "requires": [
+              "owner_removed",
+              "payments_user",
+              "officer_removed",
+              "reports_user"
+            ]
+          },
+          {
+            "match": "^az role assignment list(?=.*--all).*$",
+            "output": "[\n    {\n        \"principalId\": \"b7e2f480-3c19-4d5a-9e86-0a1d4c7b2e06\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Reader\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55\"\n    },\n    {\n        \"principalId\": \"5d9a1c33-0b6e-4f27-8a41-7c3e9b2d6f05\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Key Vault Administrator\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"4c1f6e2a-7d3b-4a59-9c10-2b8e5f3a1d01\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Key Vault Secrets User\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    }\n]",
+            "requires": [
+              "owner_removed",
+              "payments_user",
+              "officer_removed"
+            ]
+          },
+          {
+            "match": "^az role assignment list(?=.*--all).*$",
+            "output": "[\n    {\n        \"principalId\": \"b7e2f480-3c19-4d5a-9e86-0a1d4c7b2e06\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Reader\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55\"\n    },\n    {\n        \"principalId\": \"5d9a1c33-0b6e-4f27-8a41-7c3e9b2d6f05\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Key Vault Administrator\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"e83b5d19-6a0c-4c7e-b2f4-1d9a7c3e5b03\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Key Vault Secrets Officer\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"4c1f6e2a-7d3b-4a59-9c10-2b8e5f3a1d01\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Key Vault Secrets User\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"e83b5d19-6a0c-4c7e-b2f4-1d9a7c3e5b03\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Key Vault Secrets User\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    }\n]",
+            "requires": [
+              "owner_removed",
+              "payments_user",
+              "reports_user"
+            ]
+          },
+          {
+            "match": "^az role assignment list(?=.*--all).*$",
+            "output": "[\n    {\n        \"principalId\": \"b7e2f480-3c19-4d5a-9e86-0a1d4c7b2e06\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Reader\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55\"\n    },\n    {\n        \"principalId\": \"5d9a1c33-0b6e-4f27-8a41-7c3e9b2d6f05\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Key Vault Administrator\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"e83b5d19-6a0c-4c7e-b2f4-1d9a7c3e5b03\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Key Vault Secrets User\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    }\n]",
+            "requires": [
+              "owner_removed",
+              "officer_removed",
+              "reports_user"
+            ]
+          },
+          {
+            "match": "^az role assignment list(?=.*--all).*$",
+            "output": "[\n    {\n        \"principalId\": \"4c1f6e2a-7d3b-4a59-9c10-2b8e5f3a1d01\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Owner\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55\"\n    },\n    {\n        \"principalId\": \"b7e2f480-3c19-4d5a-9e86-0a1d4c7b2e06\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Reader\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55\"\n    },\n    {\n        \"principalId\": \"5d9a1c33-0b6e-4f27-8a41-7c3e9b2d6f05\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Key Vault Administrator\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"4c1f6e2a-7d3b-4a59-9c10-2b8e5f3a1d01\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Key Vault Secrets User\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"e83b5d19-6a0c-4c7e-b2f4-1d9a7c3e5b03\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Key Vault Secrets User\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    }\n]",
+            "requires": [
+              "payments_user",
+              "officer_removed",
+              "reports_user"
+            ]
+          },
+          {
+            "match": "^az role assignment list(?=.*--all).*$",
+            "output": "[\n    {\n        \"principalId\": \"b7e2f480-3c19-4d5a-9e86-0a1d4c7b2e06\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Reader\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55\"\n    },\n    {\n        \"principalId\": \"5d9a1c33-0b6e-4f27-8a41-7c3e9b2d6f05\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Key Vault Administrator\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"e83b5d19-6a0c-4c7e-b2f4-1d9a7c3e5b03\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Key Vault Secrets Officer\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"4c1f6e2a-7d3b-4a59-9c10-2b8e5f3a1d01\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Key Vault Secrets User\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    }\n]",
+            "requires": [
+              "owner_removed",
+              "payments_user"
+            ]
+          },
+          {
+            "match": "^az role assignment list(?=.*--all).*$",
+            "output": "[\n    {\n        \"principalId\": \"b7e2f480-3c19-4d5a-9e86-0a1d4c7b2e06\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Reader\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55\"\n    },\n    {\n        \"principalId\": \"5d9a1c33-0b6e-4f27-8a41-7c3e9b2d6f05\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Key Vault Administrator\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    }\n]",
+            "requires": [
+              "owner_removed",
+              "officer_removed"
+            ]
+          },
+          {
+            "match": "^az role assignment list(?=.*--all).*$",
+            "output": "[\n    {\n        \"principalId\": \"4c1f6e2a-7d3b-4a59-9c10-2b8e5f3a1d01\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Owner\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55\"\n    },\n    {\n        \"principalId\": \"b7e2f480-3c19-4d5a-9e86-0a1d4c7b2e06\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Reader\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55\"\n    },\n    {\n        \"principalId\": \"5d9a1c33-0b6e-4f27-8a41-7c3e9b2d6f05\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Key Vault Administrator\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"4c1f6e2a-7d3b-4a59-9c10-2b8e5f3a1d01\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Key Vault Secrets User\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    }\n]",
+            "requires": [
+              "payments_user",
+              "officer_removed"
+            ]
+          },
+          {
+            "match": "^az role assignment list(?=.*--all).*$",
+            "output": "[\n    {\n        \"principalId\": \"b7e2f480-3c19-4d5a-9e86-0a1d4c7b2e06\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Reader\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55\"\n    },\n    {\n        \"principalId\": \"5d9a1c33-0b6e-4f27-8a41-7c3e9b2d6f05\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Key Vault Administrator\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"e83b5d19-6a0c-4c7e-b2f4-1d9a7c3e5b03\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Key Vault Secrets Officer\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"e83b5d19-6a0c-4c7e-b2f4-1d9a7c3e5b03\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Key Vault Secrets User\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    }\n]",
+            "requires": [
+              "owner_removed",
+              "reports_user"
+            ]
+          },
+          {
+            "match": "^az role assignment list(?=.*--all).*$",
+            "output": "[\n    {\n        \"principalId\": \"4c1f6e2a-7d3b-4a59-9c10-2b8e5f3a1d01\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Owner\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55\"\n    },\n    {\n        \"principalId\": \"b7e2f480-3c19-4d5a-9e86-0a1d4c7b2e06\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Reader\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55\"\n    },\n    {\n        \"principalId\": \"5d9a1c33-0b6e-4f27-8a41-7c3e9b2d6f05\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Key Vault Administrator\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"e83b5d19-6a0c-4c7e-b2f4-1d9a7c3e5b03\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Key Vault Secrets Officer\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"4c1f6e2a-7d3b-4a59-9c10-2b8e5f3a1d01\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Key Vault Secrets User\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"e83b5d19-6a0c-4c7e-b2f4-1d9a7c3e5b03\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Key Vault Secrets User\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    }\n]",
+            "requires": [
+              "payments_user",
+              "reports_user"
+            ]
+          },
+          {
+            "match": "^az role assignment list(?=.*--all).*$",
+            "output": "[\n    {\n        \"principalId\": \"4c1f6e2a-7d3b-4a59-9c10-2b8e5f3a1d01\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Owner\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55\"\n    },\n    {\n        \"principalId\": \"b7e2f480-3c19-4d5a-9e86-0a1d4c7b2e06\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Reader\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55\"\n    },\n    {\n        \"principalId\": \"5d9a1c33-0b6e-4f27-8a41-7c3e9b2d6f05\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Key Vault Administrator\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"e83b5d19-6a0c-4c7e-b2f4-1d9a7c3e5b03\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Key Vault Secrets User\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    }\n]",
+            "requires": [
+              "officer_removed",
+              "reports_user"
+            ]
+          },
+          {
+            "match": "^az role assignment list(?=.*--all).*$",
+            "output": "[\n    {\n        \"principalId\": \"b7e2f480-3c19-4d5a-9e86-0a1d4c7b2e06\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Reader\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55\"\n    },\n    {\n        \"principalId\": \"5d9a1c33-0b6e-4f27-8a41-7c3e9b2d6f05\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Key Vault Administrator\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"e83b5d19-6a0c-4c7e-b2f4-1d9a7c3e5b03\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Key Vault Secrets Officer\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    }\n]",
+            "requires": [
+              "owner_removed"
+            ]
+          },
+          {
+            "match": "^az role assignment list(?=.*--all).*$",
+            "output": "[\n    {\n        \"principalId\": \"4c1f6e2a-7d3b-4a59-9c10-2b8e5f3a1d01\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Owner\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55\"\n    },\n    {\n        \"principalId\": \"b7e2f480-3c19-4d5a-9e86-0a1d4c7b2e06\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Reader\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55\"\n    },\n    {\n        \"principalId\": \"5d9a1c33-0b6e-4f27-8a41-7c3e9b2d6f05\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Key Vault Administrator\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"e83b5d19-6a0c-4c7e-b2f4-1d9a7c3e5b03\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Key Vault Secrets Officer\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"4c1f6e2a-7d3b-4a59-9c10-2b8e5f3a1d01\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Key Vault Secrets User\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    }\n]",
+            "requires": [
+              "payments_user"
+            ]
+          },
+          {
+            "match": "^az role assignment list(?=.*--all).*$",
+            "output": "[\n    {\n        \"principalId\": \"4c1f6e2a-7d3b-4a59-9c10-2b8e5f3a1d01\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Owner\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55\"\n    },\n    {\n        \"principalId\": \"b7e2f480-3c19-4d5a-9e86-0a1d4c7b2e06\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Reader\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55\"\n    },\n    {\n        \"principalId\": \"5d9a1c33-0b6e-4f27-8a41-7c3e9b2d6f05\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Key Vault Administrator\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    }\n]",
+            "requires": [
+              "officer_removed"
+            ]
+          },
+          {
+            "match": "^az role assignment list(?=.*--all).*$",
+            "output": "[\n    {\n        \"principalId\": \"4c1f6e2a-7d3b-4a59-9c10-2b8e5f3a1d01\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Owner\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55\"\n    },\n    {\n        \"principalId\": \"b7e2f480-3c19-4d5a-9e86-0a1d4c7b2e06\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Reader\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55\"\n    },\n    {\n        \"principalId\": \"5d9a1c33-0b6e-4f27-8a41-7c3e9b2d6f05\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Key Vault Administrator\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"e83b5d19-6a0c-4c7e-b2f4-1d9a7c3e5b03\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Key Vault Secrets Officer\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"e83b5d19-6a0c-4c7e-b2f4-1d9a7c3e5b03\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Key Vault Secrets User\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    }\n]",
+            "requires": [
+              "reports_user"
+            ]
+          },
+          {
+            "match": "^az role assignment list(?=.*--all).*$",
+            "output": "[\n    {\n        \"principalId\": \"4c1f6e2a-7d3b-4a59-9c10-2b8e5f3a1d01\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Owner\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55\"\n    },\n    {\n        \"principalId\": \"b7e2f480-3c19-4d5a-9e86-0a1d4c7b2e06\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Reader\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55\"\n    },\n    {\n        \"principalId\": \"5d9a1c33-0b6e-4f27-8a41-7c3e9b2d6f05\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Key Vault Administrator\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"principalId\": \"e83b5d19-6a0c-4c7e-b2f4-1d9a7c3e5b03\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Key Vault Secrets Officer\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    }\n]"
+          },
+          {
+            "match": "^az role assignment list\\b.*$",
+            "output": "[\n    {\n        \"principalId\": \"b7e2f480-3c19-4d5a-9e86-0a1d4c7b2e06\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Reader\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55\"\n    }\n]",
+            "requires": [
+              "owner_removed"
+            ]
+          },
+          {
+            "match": "^az role assignment list\\b.*$",
+            "output": "[\n    {\n        \"principalId\": \"4c1f6e2a-7d3b-4a59-9c10-2b8e5f3a1d01\",\n        \"principalType\": \"ServicePrincipal\",\n        \"roleDefinitionName\": \"Owner\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55\"\n    },\n    {\n        \"principalId\": \"b7e2f480-3c19-4d5a-9e86-0a1d4c7b2e06\",\n        \"principalType\": \"Group\",\n        \"roleDefinitionName\": \"Reader\",\n        \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55\"\n    }\n]"
+          },
+          {
+            "match": "^az role assignment delete(?=.*--assignee(?:-object-id)?[ =][\"']?(?:4c1f6e2a-7d3b-4a59-9c10-2b8e5f3a1d01|9a0e3c57-1b42-4f8d-a6d3-5e7c2b9f4a02)[\"']?(?:\\s|$))(?=.*--role[ =][\"']?owner[\"']?(?:\\s|$)).*$",
+            "requires": [
+              "owner_removed"
+            ],
+            "output": "No matched assignments were found to delete"
+          },
+          {
+            "match": "^az role assignment delete(?=.*--assignee(?:-object-id)?[ =][\"']?(?:4c1f6e2a-7d3b-4a59-9c10-2b8e5f3a1d01|9a0e3c57-1b42-4f8d-a6d3-5e7c2b9f4a02)[\"']?(?:\\s|$))(?=.*--role[ =][\"']?owner[\"']?(?:\\s|$)).*$",
+            "sets": [
+              "owner_removed"
+            ],
+            "output": "(no output - the Owner assignment for the identity was deleted)"
+          },
+          {
+            "match": "^az role assignment delete(?=.*--assignee(?:-object-id)?[ =][\"']?(?:e83b5d19-6a0c-4c7e-b2f4-1d9a7c3e5b03|2f7d9c41-8e5a-4b36-9d1c-6a3b0e8f7c04)[\"']?(?:\\s|$))(?=.*--role[ =][\"']?key vault secrets officer[\"']?(?:\\s|$)).*$",
+            "requires": [
+              "officer_removed"
+            ],
+            "output": "No matched assignments were found to delete"
+          },
+          {
+            "match": "^az role assignment delete(?=.*--assignee(?:-object-id)?[ =][\"']?(?:e83b5d19-6a0c-4c7e-b2f4-1d9a7c3e5b03|2f7d9c41-8e5a-4b36-9d1c-6a3b0e8f7c04)[\"']?(?:\\s|$))(?=.*--role[ =][\"']?key vault secrets officer[\"']?(?:\\s|$)).*$",
+            "sets": [
+              "officer_removed"
+            ],
+            "output": "(no output - the Key Vault Secrets Officer assignment for the identity was deleted)"
+          },
+          {
+            "match": "^az role assignment delete\\b",
+            "output": "No matched assignments were found to delete"
+          },
+          {
+            "match": "^az role assignment create(?=.*--assignee(?:-object-id)?[ =][\"']?(?:4c1f6e2a-7d3b-4a59-9c10-2b8e5f3a1d01|9a0e3c57-1b42-4f8d-a6d3-5e7c2b9f4a02)[\"']?(?:\\s|$))(?=.*--role[ =][\"']?key vault secrets user[\"']?(?:\\s|$))(?=.*--scope[ =][\"']?/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft\\.KeyVault/vaults/kv-payments-prod[\"']?(?:\\s|$)).*$",
+            "requires": [
+              "payments_user"
+            ],
+            "output": "(RoleAssignmentExists) The role assignment already exists."
+          },
+          {
+            "match": "^az role assignment create(?=.*--assignee(?:-object-id)?[ =][\"']?(?:4c1f6e2a-7d3b-4a59-9c10-2b8e5f3a1d01|9a0e3c57-1b42-4f8d-a6d3-5e7c2b9f4a02)[\"']?(?:\\s|$))(?=.*--role[ =][\"']?key vault secrets user[\"']?(?:\\s|$))(?=.*--scope[ =][\"']?/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft\\.KeyVault/vaults/kv-payments-prod[\"']?(?:\\s|$)).*$",
+            "sets": [
+              "payments_user"
+            ],
+            "output": "{\n    \"principalId\": \"4c1f6e2a-7d3b-4a59-9c10-2b8e5f3a1d01\",\n    \"principalType\": \"ServicePrincipal\",\n    \"roleDefinitionName\": \"Key Vault Secrets User\",\n    \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\",\n    \"type\": \"Microsoft.Authorization/roleAssignments\"\n}"
+          },
+          {
+            "match": "^az role assignment create(?=.*--assignee(?:-object-id)?[ =][\"']?(?:e83b5d19-6a0c-4c7e-b2f4-1d9a7c3e5b03|2f7d9c41-8e5a-4b36-9d1c-6a3b0e8f7c04)[\"']?(?:\\s|$))(?=.*--role[ =][\"']?key vault secrets user[\"']?(?:\\s|$))(?=.*--scope[ =][\"']?/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft\\.KeyVault/vaults/kv-payments-prod[\"']?(?:\\s|$)).*$",
+            "requires": [
+              "reports_user"
+            ],
+            "output": "(RoleAssignmentExists) The role assignment already exists."
+          },
+          {
+            "match": "^az role assignment create(?=.*--assignee(?:-object-id)?[ =][\"']?(?:e83b5d19-6a0c-4c7e-b2f4-1d9a7c3e5b03|2f7d9c41-8e5a-4b36-9d1c-6a3b0e8f7c04)[\"']?(?:\\s|$))(?=.*--role[ =][\"']?key vault secrets user[\"']?(?:\\s|$))(?=.*--scope[ =][\"']?/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft\\.KeyVault/vaults/kv-payments-prod[\"']?(?:\\s|$)).*$",
+            "sets": [
+              "reports_user"
+            ],
+            "output": "{\n    \"principalId\": \"e83b5d19-6a0c-4c7e-b2f4-1d9a7c3e5b03\",\n    \"principalType\": \"ServicePrincipal\",\n    \"roleDefinitionName\": \"Key Vault Secrets User\",\n    \"scope\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\",\n    \"type\": \"Microsoft.Authorization/roleAssignments\"\n}"
+          },
+          {
+            "match": "^az role assignment create\\b",
+            "output": "(RequestDisallowedByPolicy) Resource 'kv-payments-prod' was disallowed by policy. Policy identifiers: '[{\"policyAssignment\":{\"name\":\"lab-least-privilege-secrets\"}}]'.\nCode: RequestDisallowedByPolicy\nMessage: Lab guardrail: workload identities may only be granted 'Key Vault Secrets User', and only at the vault scope /subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod."
+          },
+          {
+            "match": "^az keyvault update(?=.*(?:--name|-n)[ =]kv-payments-prod)(?=.*--public-network-access[ =]disabled).*$",
+            "sets": [
+              "public_disabled"
+            ],
+            "output": "{\n    \"id\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\",\n    \"location\": \"centralindia\",\n    \"name\": \"kv-payments-prod\",\n    \"properties\": {\n        \"enablePurgeProtection\": true,\n        \"enableRbacAuthorization\": true,\n        \"enableSoftDelete\": true,\n        \"networkAcls\": {\n            \"bypass\": \"AzureServices\",\n            \"defaultAction\": \"Allow\",\n            \"ipRules\": [],\n            \"virtualNetworkRules\": []\n        },\n        \"privateEndpointConnections\": [\n            {\n                \"name\": \"pe-kv-payments-prod\",\n                \"properties\": {\n                    \"privateLinkServiceConnectionState\": {\n                        \"status\": \"Approved\"\n                    }\n                }\n            }\n        ],\n        \"publicNetworkAccess\": \"Disabled\",\n        \"sku\": {\n            \"family\": \"A\",\n            \"name\": \"standard\"\n        },\n        \"tenantId\": \"d1e2f3a4-6b7c-4d8e-9f01-a2b3c4d5e6f7\",\n        \"vaultUri\": \"https://kv-payments-prod.vault.azure.net/\"\n    },\n    \"resourceGroup\": \"rg-payments\",\n    \"type\": \"Microsoft.KeyVault/vaults\"\n}"
+          },
+          {
+            "match": "^az keyvault update\\b",
+            "output": "usage: az keyvault update --name NAME [--resource-group RG] [--public-network-access {Disabled, Enabled}]\nThe vault name must be kv-payments-prod and the setting must change the public network access."
+          },
+          {
+            "match": "^az policy state list(?=.*--resource[ =][\"']?/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft\\.KeyVault/vaults/kv-payments-prod[\"']?(?:\\s|$)).*$",
+            "requires": [
+              "verified_roles",
+              "verified_kv"
+            ],
+            "output": "[\n    {\n        \"complianceState\": \"Compliant\",\n        \"policyAssignmentName\": \"kv-baseline-identity-hygiene\",\n        \"policyDefinitionName\": \"Azure Key Vault should disable public network access\",\n        \"resourceId\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    },\n    {\n        \"complianceState\": \"Compliant\",\n        \"policyAssignmentName\": \"kv-baseline-identity-hygiene\",\n        \"policyDefinitionName\": \"Azure Key Vaults should use role-based access control (RBAC) permission model\",\n        \"resourceId\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    }\n]\n(lab) Access review attestation for kv-payments-prod: FLAG{kv_identity_least_priv_5c2e}"
+          },
+          {
+            "match": "^az policy state list(?=.*--resource[ =][\"']?/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft\\.KeyVault/vaults/kv-payments-prod[\"']?(?:\\s|$)).*$",
+            "requires": [
+              "verified_kv"
+            ],
+            "output": "[\n    {\n        \"complianceState\": \"Compliant\",\n        \"policyDefinitionName\": \"Azure Key Vault should disable public network access\",\n        \"resourceId\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    }\n]\n(lab) This policy covers the network setting only; role assignments are not evaluated by it. Re-list the vault scope with --include-inherited to confirm the identities are clean."
+          },
+          {
+            "match": "^az policy state list(?=.*--resource[ =][\"']?/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft\\.KeyVault/vaults/kv-payments-prod[\"']?(?:\\s|$)).*$",
+            "output": "[\n    {\n        \"complianceState\": \"NonCompliant\",\n        \"policyAssignmentName\": \"kv-baseline-identity-hygiene\",\n        \"policyDefinitionName\": \"Azure Key Vault should disable public network access\",\n        \"resourceId\": \"/subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod\"\n    }\n]\n(lab) Still NonCompliant. Re-run `az keyvault show` to see what remains, and confirm the role assignments with --include-inherited."
+          }
+        ],
+        "fallback": "That command is not simulated in this range. Type 'help' for the commands you can use."
+      },
+      "solution": [
+        "az account show",
+        "az identity list --resource-group rg-payments",
+        "az keyvault show --name kv-payments-prod",
+        "az role assignment list --scope /subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod --include-inherited",
+        "az role assignment delete --assignee 4c1f6e2a-7d3b-4a59-9c10-2b8e5f3a1d01 --role Owner --scope /subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55",
+        "az role assignment create --assignee 4c1f6e2a-7d3b-4a59-9c10-2b8e5f3a1d01 --role \"Key Vault Secrets User\" --scope /subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod",
+        "az role assignment delete --assignee e83b5d19-6a0c-4c7e-b2f4-1d9a7c3e5b03 --role \"Key Vault Secrets Officer\" --scope /subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod",
+        "az role assignment create --assignee e83b5d19-6a0c-4c7e-b2f4-1d9a7c3e5b03 --role \"Key Vault Secrets User\" --scope /subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod",
+        "az keyvault update --name kv-payments-prod --public-network-access Disabled",
+        "az keyvault show --name kv-payments-prod",
+        "az role assignment list --scope /subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod --include-inherited",
+        "az policy state list --resource /subscriptions/7f3c2a10-5b4d-4e8a-9c61-0d2e8f1a3b55/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments-prod"
+      ],
+      "tasks": [
+        {
+          "id": "t1",
+          "kind": "choice",
+          "prompt": "The VM `vm-payments-01` has a system-assigned identity AND the user-assigned identity `id-payments-api` attached. Which statement about the two types is correct?",
+          "options": [
+            "A system-assigned identity is a standalone resource that can be shared across many VMs",
+            "A user-assigned identity is a standalone resource with its own lifecycle that can be attached to several resources, while a system-assigned identity is tied to one resource and deleted with it",
+            "User-assigned identities cannot be granted Azure RBAC roles; only system-assigned ones can",
+            "System-assigned identities need a client secret that must be rotated every 90 days"
+          ],
+          "correct": [
+            1
+          ],
+          "explanation": "A system-assigned identity is created with, owned by, and deleted with a single resource. A user-assigned identity is its own Azure resource: you create it once, attach it to one or many resources, and role assignments survive when a VM is rebuilt. Both can receive RBAC roles, and neither involves a secret you manage."
+        },
+        {
+          "id": "t2",
+          "kind": "choice",
+          "prompt": "An Owner role is assigned to an identity at SUBSCRIPTION scope. Which resources does that assignment apply to?",
+          "options": [
+            "Only the subscription object itself, not the resources inside it",
+            "Only resource groups, but not individual resources such as a Key Vault",
+            "Every resource group and every resource under the subscription, including kv-payments-prod, because assignments are inherited down the hierarchy",
+            "Only resources that carry a matching tag"
+          ],
+          "correct": [
+            2
+          ],
+          "explanation": "Azure RBAC scopes form a hierarchy (management group, subscription, resource group, resource) and assignments are inherited downward. That is why `az role assignment list --scope <vault>` alone is not enough: you must also check inherited assignments with --include-inherited, and why least privilege means assigning at the narrowest scope that works."
+        },
+        {
+          "id": "t3",
+          "kind": "answer",
+          "prompt": "Use the terminal to find the over-broad assignment. What is the NAME of the managed identity that holds the Owner role at subscription scope? (Map the principal id from the role listing to a name with `az identity list`.)",
+          "accept": [
+            "id-payments-api",
+            "payments-api identity",
+            "id payments api"
+          ],
+          "explanation": "id-payments-api (principal 4c1f6e2a-...) holds Owner on the whole subscription. Owner includes Microsoft.Authorization write, so this identity could grant itself any role, including Key Vault Administrator. The app only ever reads a secret; Owner at subscription scope turns a compromise of that one app into control of everything in the subscription."
+        },
+        {
+          "id": "t4",
+          "kind": "choice",
+          "prompt": "`az keyvault show` reports `enableRbacAuthorization: true`. What does that tell you about how access to secret VALUES is controlled on this vault?",
+          "options": [
+            "Legacy vault access policies decide who can read secrets; RBAC only controls the management plane",
+            "Access is granted by Azure RBAC role assignments (data actions such as Key Vault Secrets User); access policies on the vault are ignored",
+            "Anyone in the tenant can read secrets until a firewall rule is added",
+            "Only the vault creator can read secrets"
+          ],
+          "correct": [
+            1
+          ],
+          "explanation": "With the RBAC permission model, data-plane access is controlled entirely by role assignments, and any access policies on the vault are ignored. That also means assignments inherited from the subscription matter. In the older access-policy model, a plain Contributor could edit the vault's access policies and grant itself data access, which is why RBAC is the recommended model."
+        },
+        {
+          "id": "t5",
+          "kind": "flag",
+          "prompt": "Fix and verify. Replace the Owner (id-payments-api) and Key Vault Secrets Officer (id-reports-job) assignments with Key Vault Secrets User at the vault scope, disable public network access, then re-run the listings and `az policy state list --resource <vault id>`. Paste the attestation flag.",
+          "flag": "FLAG{kv_identity_least_priv_5c2e}",
+          "explanation": "The final listing shows each workload identity holding only Key Vault Secrets User on kv-payments-prod, nothing inherited from the subscription, and the vault no longer reachable from the public internet (the private endpoint is Approved, so the app keeps working over the private path). Verification means re-reading the live state, not trusting the command that changed it."
+        },
+        {
+          "id": "t6",
+          "kind": "choice",
+          "prompt": "Why is a managed identity a better way for payments-api to authenticate to Key Vault than an app registration with a client secret?",
+          "options": [
+            "Managed identity tokens never expire, so the app never needs to re-authenticate",
+            "Managed identities bypass Azure RBAC, so no role assignments are needed",
+            "There is no credential for you to store, rotate, or leak: Azure holds the credential and the resource requests short-lived tokens from Microsoft Entra ID automatically",
+            "A client secret is encrypted at rest and a managed identity is not, so managed identities are faster"
+          ],
+          "correct": [
+            2
+          ],
+          "explanation": "With a client secret, someone has to put that secret in config or a pipeline, rotate it, and hope it never appears in a repo or log. A managed identity has no secret in your hands; the platform issues short-lived tokens to the attached resource. It still needs correctly scoped RBAC, which is exactly what this audit was about."
+        },
+        {
+          "id": "t7",
+          "kind": "answer",
+          "prompt": "Which built-in role lets a workload read secret VALUES in a vault but not create, change or delete them? (Role name.)",
+          "accept": [
+            "key vault secrets user",
+            "secrets user",
+            "keyvault secrets user"
+          ],
+          "explanation": "Key Vault Secrets User grants read access to secret contents. Key Vault Secrets Officer can also create, update and delete secrets, and Key Vault Administrator can manage everything in the data plane. Picking the narrowest role that covers the job, at the narrowest scope, is the whole point of the fix."
+        }
+      ],
+      "takeaways": [
+        "Audit access from the resource upward: list assignments at the vault AND inherited from resource group, subscription and management group (--include-inherited).",
+        "Give managed identities the narrowest role at the narrowest scope: Key Vault Secrets User at vault scope for an app that only reads secrets, never Owner or Contributor at subscription scope.",
+        "Prefer the RBAC permission model on Key Vault, disable public network access when a private endpoint exists, and always verify by re-reading live state."
+      ]
+    }
+  },
+  {
+    "labId": "cloud-L32",
+    "title": "Audit GCP Service-Account Impersonation",
+    "objective": "Audit service-account impersonation grants in your own GCP project, find the over-broad TokenCreator binding that lets a low-privilege service account reach a powerful one, remove it, grant only the narrow access that is needed with an expiry, and verify the path is closed.",
+    "successCriteria": [
+      "You found the project-level roles/iam.serviceAccountTokenCreator binding and confirmed with the Policy Troubleshooter that it exposes deploy-admin",
+      "You removed the broad binding and granted report-bot TokenCreator on report-reader only, with an expiry condition",
+      "You re-ran the troubleshooter and the Cloud Asset search and verified the impersonation path is closed"
+    ],
+    "hints": [
+      "A service account's OWN policy only shows bindings made on that service account. Bindings made higher up (the project) apply to every service account below it, so check there too.",
+      "Run `gcloud projects get-iam-policy fin-analytics-prod` and look for roles/iam.serviceAccountTokenCreator. Then use `gcloud policy-troubleshoot iam` to confirm whether report-bot holds iam.serviceAccounts.getAccessToken on deploy-admin.",
+      "Remove the project-level binding with `gcloud projects remove-iam-policy-binding`, add TokenCreator for report-bot on report-reader only using --condition with an expiry (request.time < timestamp(\"...\")), then re-run the troubleshooter and `gcloud asset search-all-iam-policies --scope=projects/fin-analytics-prod --query='policy:roles/iam.serviceAccountTokenCreator'`."
+    ],
+    "estimatedHours": 2,
+    "resources": [
+      {
+        "title": "Google Cloud: Service account impersonation",
+        "url": "https://cloud.google.com/iam/docs/service-account-impersonation",
+        "type": "link"
+      },
+      {
+        "title": "Google Cloud: Service account permissions (actAs and TokenCreator)",
+        "url": "https://cloud.google.com/iam/docs/service-account-permissions",
+        "type": "link"
+      },
+      {
+        "title": "Google Cloud: IAM Conditions overview",
+        "url": "https://cloud.google.com/iam/docs/conditions-overview",
+        "type": "link"
+      },
+      {
+        "title": "Google Cloud: Policy Troubleshooter",
+        "url": "https://cloud.google.com/policy-intelligence/docs/troubleshoot-access",
+        "type": "link"
+      }
+    ],
+    "range": {
+      "scenario": "You are the platform security engineer for your own GCP project `fin-analytics-prod`. The project has four service accounts: `deploy-admin` (Owner, used by the infrastructure pipeline), `pipeline-runner` (the CI service account that deploys things), `report-bot` (a small reporting job) and `report-reader` (reads BigQuery tables). A detection rule flagged a GenerateAccessToken call where the low-privilege `report-bot` minted a token for `deploy-admin`, which the design says should never happen. Your job is to audit who can impersonate whom, find the grant that makes this possible, close it without breaking the intended `report-bot` to `report-reader` flow, and verify. Everything here is your own simulated project; the terminal is a safe emulation and you only read and fix IAM policy.",
+      "artifacts": [
+        {
+          "name": "audit-log-entry.json",
+          "language": "json",
+          "content": "{\n  \"protoPayload\": {\n    \"@type\": \"type.googleapis.com/google.cloud.audit.AuditLog\",\n    \"serviceName\": \"iamcredentials.googleapis.com\",\n    \"methodName\": \"GenerateAccessToken\",\n    \"resourceName\": \"projects/-/serviceAccounts/108234567890123456789\",\n    \"authenticationInfo\": {\n      \"principalEmail\": \"report-bot@fin-analytics-prod.iam.gserviceaccount.com\"\n    },\n    \"authorizationInfo\": [\n      {\n        \"permission\": \"iam.serviceAccounts.getAccessToken\",\n        \"granted\": true,\n        \"resource\": \"projects/-/serviceAccounts/108234567890123456789\"\n      }\n    ],\n    \"request\": {\n      \"name\": \"projects/-/serviceAccounts/deploy-admin@fin-analytics-prod.iam.gserviceaccount.com\",\n      \"scope\": [\n        \"https://www.googleapis.com/auth/cloud-platform\"\n      ],\n      \"lifetime\": \"3600s\"\n    }\n  },\n  \"resource\": {\n    \"type\": \"service_account\",\n    \"labels\": {\n      \"email_id\": \"deploy-admin@fin-analytics-prod.iam.gserviceaccount.com\",\n      \"project_id\": \"fin-analytics-prod\"\n    }\n  },\n  \"timestamp\": \"2026-11-19T03:14:09.221Z\",\n  \"severity\": \"INFO\"\n}",
+          "note": "The Data Access audit log entry that triggered the review (a defender's evidence, not something to replay)."
+        },
+        {
+          "name": "design-intent.md",
+          "language": "text",
+          "content": "fin-analytics-prod - intended identity flows\n\n1. report-bot (reporting job, roles/bigquery.jobUser)\n   -> needs short-lived tokens for report-reader ONLY, to read BigQuery tables.\n   -> must NOT be able to obtain tokens for, or run as, any other service account.\n2. pipeline-runner (CI)\n   -> needs iam.serviceAccounts.actAs on deploy-admin so it can deploy services that run as deploy-admin.\n   -> does not need to mint deploy-admin tokens directly.\n3. deploy-admin (roles/owner, used only by the pipeline)\n   -> must not be reachable by any other principal.\n\nService account emails:\n  deploy-admin@fin-analytics-prod.iam.gserviceaccount.com\n  pipeline-runner@fin-analytics-prod.iam.gserviceaccount.com\n  report-bot@fin-analytics-prod.iam.gserviceaccount.com\n  report-reader@fin-analytics-prod.iam.gserviceaccount.com\n",
+          "note": "Who should be able to reach what."
+        },
+        {
+          "name": "iam-permission-cheatsheet.txt",
+          "language": "text",
+          "content": "roles/iam.serviceAccountTokenCreator\n  includes iam.serviceAccounts.getAccessToken (mint a short-lived access token for the SA),\n  iam.serviceAccounts.signBlob / signJwt / getOpenIdToken, iam.serviceAccounts.implicitDelegation\nroles/iam.serviceAccountUser\n  includes iam.serviceAccounts.actAs (attach the SA to a resource such as a Cloud Run service or VM so workloads run as it)\n\nBindings can be set on: organization -> folder -> project -> service account.\nA binding on a higher node is inherited by every service account beneath it.\n",
+          "note": "Reference for the two impersonation-related roles."
+        }
+      ],
+      "terminal": {
+        "prompt": "auditor@cloudshell:~$",
+        "intro": "Authenticated as your own platform-security account with IAM Security Reviewer and permission to edit IAM policy on fin-analytics-prod. Project: fin-analytics-prod.",
+        "help": "Commands you can try (gcloud):\n  gcloud iam service-accounts list\n  gcloud projects get-iam-policy fin-analytics-prod\n  gcloud iam service-accounts get-iam-policy <sa-email>\n  gcloud policy-troubleshoot iam //iam.googleapis.com/projects/<p>/serviceAccounts/<sa-email> --principal-email=<email> --permission=<permission>\n  gcloud projects remove-iam-policy-binding <project> --member=<member> --role=<role>\n  gcloud iam service-accounts add-iam-policy-binding <sa-email> --member=<member> --role=<role> [--condition=...]\n  gcloud asset search-all-iam-policies --scope=projects/<p> --query='policy:<role>'",
+        "rules": [
+          {
+            "match": "^gcloud config get-value project$",
+            "output": "fin-analytics-prod"
+          },
+          {
+            "match": "^gcloud iam service-accounts list\\b.*$",
+            "output": "DISPLAY NAME     EMAIL                                                      DISABLED\ndeploy-admin     deploy-admin@fin-analytics-prod.iam.gserviceaccount.com     False\npipeline-runner  pipeline-runner@fin-analytics-prod.iam.gserviceaccount.com  False\nreport-bot       report-bot@fin-analytics-prod.iam.gserviceaccount.com       False\nreport-reader    report-reader@fin-analytics-prod.iam.gserviceaccount.com    False"
+          },
+          {
+            "match": "^gcloud projects get-iam-policy fin-analytics-prod\\b.*$",
+            "output": "bindings:\n- members:\n  - group:sec-audit@example-corp.com\n  role: roles/iam.securityReviewer\n- members:\n  - serviceAccount:report-bot@fin-analytics-prod.iam.gserviceaccount.com\n  role: roles/bigquery.jobUser\n- members:\n  - serviceAccount:report-reader@fin-analytics-prod.iam.gserviceaccount.com\n  role: roles/bigquery.dataViewer\n- members:\n  - serviceAccount:deploy-admin@fin-analytics-prod.iam.gserviceaccount.com\n  role: roles/owner\netag: BwZk2mR9aXs=\nversion: 1",
+            "requires": [
+              "project_grant_removed"
+            ]
+          },
+          {
+            "match": "^gcloud projects get-iam-policy fin-analytics-prod\\b.*$",
+            "output": "bindings:\n- members:\n  - group:sec-audit@example-corp.com\n  role: roles/iam.securityReviewer\n- members:\n  - serviceAccount:report-bot@fin-analytics-prod.iam.gserviceaccount.com\n  role: roles/bigquery.jobUser\n- members:\n  - serviceAccount:report-reader@fin-analytics-prod.iam.gserviceaccount.com\n  role: roles/bigquery.dataViewer\n- members:\n  - serviceAccount:deploy-admin@fin-analytics-prod.iam.gserviceaccount.com\n  role: roles/owner\n- members:\n  - serviceAccount:report-bot@fin-analytics-prod.iam.gserviceaccount.com\n  role: roles/iam.serviceAccountTokenCreator\netag: BwZk2mQ1xEo=\nversion: 1",
+            "sets": [
+              "found_project_grant"
+            ]
+          },
+          {
+            "match": "^gcloud iam service-accounts get-iam-policy deploy-admin@fin-analytics-prod\\.iam\\.gserviceaccount\\.com\\b.*$",
+            "output": "bindings:\n- members:\n  - serviceAccount:pipeline-runner@fin-analytics-prod.iam.gserviceaccount.com\n  role: roles/iam.serviceAccountUser\netag: BwZk2mQ7rYo=\nversion: 1"
+          },
+          {
+            "match": "^gcloud iam service-accounts get-iam-policy (?:pipeline-runner@fin-analytics-prod\\.iam\\.gserviceaccount\\.com|report-bot@fin-analytics-prod\\.iam\\.gserviceaccount\\.com)\\b.*$",
+            "output": "etag: ACAB"
+          },
+          {
+            "match": "^gcloud iam service-accounts get-iam-policy report-reader@fin-analytics-prod\\.iam\\.gserviceaccount\\.com\\b.*$",
+            "output": "bindings:\n- condition:\n    expression: request.time < timestamp(\"2026-12-31T00:00:00Z\")\n    title: expires-2026-12-31\n  members:\n  - serviceAccount:report-bot@fin-analytics-prod.iam.gserviceaccount.com\n  role: roles/iam.serviceAccountTokenCreator\n- members:\n  - serviceAccount:report-bot@fin-analytics-prod.iam.gserviceaccount.com\n  role: roles/iam.serviceAccountTokenCreator\netag: BwZk2mS4tLw=\nversion: 3",
+            "requires": [
+              "scoped_binding",
+              "unconditional_binding"
+            ]
+          },
+          {
+            "match": "^gcloud iam service-accounts get-iam-policy report-reader@fin-analytics-prod\\.iam\\.gserviceaccount\\.com\\b.*$",
+            "output": "bindings:\n- condition:\n    expression: request.time < timestamp(\"2026-12-31T00:00:00Z\")\n    title: expires-2026-12-31\n  members:\n  - serviceAccount:report-bot@fin-analytics-prod.iam.gserviceaccount.com\n  role: roles/iam.serviceAccountTokenCreator\netag: BwZk2mS4tLw=\nversion: 3",
+            "requires": [
+              "scoped_binding"
+            ]
+          },
+          {
+            "match": "^gcloud iam service-accounts get-iam-policy report-reader@fin-analytics-prod\\.iam\\.gserviceaccount\\.com\\b.*$",
+            "output": "bindings:\n- members:\n  - serviceAccount:report-bot@fin-analytics-prod.iam.gserviceaccount.com\n  role: roles/iam.serviceAccountTokenCreator\netag: BwZk2mS4tLw=\nversion: 1",
+            "requires": [
+              "unconditional_binding"
+            ]
+          },
+          {
+            "match": "^gcloud iam service-accounts get-iam-policy report-reader@fin-analytics-prod\\.iam\\.gserviceaccount\\.com\\b.*$",
+            "output": "etag: ACAB"
+          },
+          {
+            "match": "^gcloud iam service-accounts get-iam-policy\\b",
+            "output": "ERROR: (gcloud.iam.service-accounts.get-iam-policy) NOT_FOUND: Unknown service account"
+          },
+          {
+            "match": "^gcloud asset search-all-iam-policies(?=.*--scope[ =]projects/fin-analytics-prod)(?=.*iam\\.serviceAccountTokenCreator).*$",
+            "requires": [
+              "project_grant_removed",
+              "scoped_binding",
+              "verified_closed"
+            ],
+            "output": "---\nassetType: iam.googleapis.com/ServiceAccount\npolicy:\n  bindings:\n  - condition:\n      expression: request.time < timestamp(\"2026-12-31T00:00:00Z\")\n      title: expires-2026-12-31\n    members:\n    - serviceAccount:report-bot@fin-analytics-prod.iam.gserviceaccount.com\n    role: roles/iam.serviceAccountTokenCreator\nproject: projects/418203775512\nresource: //iam.googleapis.com/projects/fin-analytics-prod/serviceAccounts/report-reader@fin-analytics-prod.iam.gserviceaccount.com\n(lab) Impersonation audit attestation for fin-analytics-prod: FLAG{sa_impersonation_closed_7b4d}"
+          },
+          {
+            "match": "^gcloud asset search-all-iam-policies(?=.*--scope[ =]projects/fin-analytics-prod)(?=.*iam\\.serviceAccountTokenCreator).*$",
+            "output": "---\nassetType: iam.googleapis.com/ServiceAccount\npolicy:\n  bindings:\n  - condition:\n      expression: request.time < timestamp(\"2026-12-31T00:00:00Z\")\n      title: expires-2026-12-31\n    members:\n    - serviceAccount:report-bot@fin-analytics-prod.iam.gserviceaccount.com\n    role: roles/iam.serviceAccountTokenCreator\n  - members:\n    - serviceAccount:report-bot@fin-analytics-prod.iam.gserviceaccount.com\n    role: roles/iam.serviceAccountTokenCreator\nproject: projects/418203775512\nresource: //iam.googleapis.com/projects/fin-analytics-prod/serviceAccounts/report-reader@fin-analytics-prod.iam.gserviceaccount.com\n(lab review) A TokenCreator binding without an IAM condition (no expiry) exists on report-reader. Scope it with a time condition.\n(lab) No broad grant remains. Confirm with the policy troubleshooter that report-bot can no longer get a token for deploy-admin, then run this search again to attest.",
+            "requires": [
+              "project_grant_removed",
+              "scoped_binding",
+              "unconditional_binding"
+            ]
+          },
+          {
+            "match": "^gcloud asset search-all-iam-policies(?=.*--scope[ =]projects/fin-analytics-prod)(?=.*iam\\.serviceAccountTokenCreator).*$",
+            "output": "---\nassetType: iam.googleapis.com/ServiceAccount\npolicy:\n  bindings:\n  - condition:\n      expression: request.time < timestamp(\"2026-12-31T00:00:00Z\")\n      title: expires-2026-12-31\n    members:\n    - serviceAccount:report-bot@fin-analytics-prod.iam.gserviceaccount.com\n    role: roles/iam.serviceAccountTokenCreator\nproject: projects/418203775512\nresource: //iam.googleapis.com/projects/fin-analytics-prod/serviceAccounts/report-reader@fin-analytics-prod.iam.gserviceaccount.com\n(lab) No broad grant remains. Confirm with the policy troubleshooter that report-bot can no longer get a token for deploy-admin, then run this search again to attest.",
+            "requires": [
+              "project_grant_removed",
+              "scoped_binding"
+            ]
+          },
+          {
+            "match": "^gcloud asset search-all-iam-policies(?=.*--scope[ =]projects/fin-analytics-prod)(?=.*iam\\.serviceAccountTokenCreator).*$",
+            "output": "---\nassetType: iam.googleapis.com/ServiceAccount\npolicy:\n  bindings:\n  - members:\n    - serviceAccount:report-bot@fin-analytics-prod.iam.gserviceaccount.com\n    role: roles/iam.serviceAccountTokenCreator\nproject: projects/418203775512\nresource: //iam.googleapis.com/projects/fin-analytics-prod/serviceAccounts/report-reader@fin-analytics-prod.iam.gserviceaccount.com\n(lab review) A TokenCreator binding without an IAM condition (no expiry) exists on report-reader. Scope it with a time condition.",
+            "requires": [
+              "project_grant_removed",
+              "unconditional_binding"
+            ]
+          },
+          {
+            "match": "^gcloud asset search-all-iam-policies(?=.*--scope[ =]projects/fin-analytics-prod)(?=.*iam\\.serviceAccountTokenCreator).*$",
+            "output": "---\nassetType: cloudresourcemanager.googleapis.com/Project\npolicy:\n  bindings:\n  - members:\n    - serviceAccount:report-bot@fin-analytics-prod.iam.gserviceaccount.com\n    role: roles/iam.serviceAccountTokenCreator\nproject: projects/418203775512\nresource: //cloudresourcemanager.googleapis.com/projects/fin-analytics-prod\n---\nassetType: iam.googleapis.com/ServiceAccount\npolicy:\n  bindings:\n  - condition:\n      expression: request.time < timestamp(\"2026-12-31T00:00:00Z\")\n      title: expires-2026-12-31\n    members:\n    - serviceAccount:report-bot@fin-analytics-prod.iam.gserviceaccount.com\n    role: roles/iam.serviceAccountTokenCreator\n  - members:\n    - serviceAccount:report-bot@fin-analytics-prod.iam.gserviceaccount.com\n    role: roles/iam.serviceAccountTokenCreator\nproject: projects/418203775512\nresource: //iam.googleapis.com/projects/fin-analytics-prod/serviceAccounts/report-reader@fin-analytics-prod.iam.gserviceaccount.com\n(lab review) A TokenCreator binding without an IAM condition (no expiry) exists on report-reader. Scope it with a time condition.",
+            "requires": [
+              "scoped_binding",
+              "unconditional_binding"
+            ]
+          },
+          {
+            "match": "^gcloud asset search-all-iam-policies(?=.*--scope[ =]projects/fin-analytics-prod)(?=.*iam\\.serviceAccountTokenCreator).*$",
+            "output": "Listed 0 items.",
+            "requires": [
+              "project_grant_removed"
+            ]
+          },
+          {
+            "match": "^gcloud asset search-all-iam-policies(?=.*--scope[ =]projects/fin-analytics-prod)(?=.*iam\\.serviceAccountTokenCreator).*$",
+            "output": "---\nassetType: cloudresourcemanager.googleapis.com/Project\npolicy:\n  bindings:\n  - members:\n    - serviceAccount:report-bot@fin-analytics-prod.iam.gserviceaccount.com\n    role: roles/iam.serviceAccountTokenCreator\nproject: projects/418203775512\nresource: //cloudresourcemanager.googleapis.com/projects/fin-analytics-prod\n---\nassetType: iam.googleapis.com/ServiceAccount\npolicy:\n  bindings:\n  - condition:\n      expression: request.time < timestamp(\"2026-12-31T00:00:00Z\")\n      title: expires-2026-12-31\n    members:\n    - serviceAccount:report-bot@fin-analytics-prod.iam.gserviceaccount.com\n    role: roles/iam.serviceAccountTokenCreator\nproject: projects/418203775512\nresource: //iam.googleapis.com/projects/fin-analytics-prod/serviceAccounts/report-reader@fin-analytics-prod.iam.gserviceaccount.com",
+            "requires": [
+              "scoped_binding"
+            ]
+          },
+          {
+            "match": "^gcloud asset search-all-iam-policies(?=.*--scope[ =]projects/fin-analytics-prod)(?=.*iam\\.serviceAccountTokenCreator).*$",
+            "output": "---\nassetType: cloudresourcemanager.googleapis.com/Project\npolicy:\n  bindings:\n  - members:\n    - serviceAccount:report-bot@fin-analytics-prod.iam.gserviceaccount.com\n    role: roles/iam.serviceAccountTokenCreator\nproject: projects/418203775512\nresource: //cloudresourcemanager.googleapis.com/projects/fin-analytics-prod\n---\nassetType: iam.googleapis.com/ServiceAccount\npolicy:\n  bindings:\n  - members:\n    - serviceAccount:report-bot@fin-analytics-prod.iam.gserviceaccount.com\n    role: roles/iam.serviceAccountTokenCreator\nproject: projects/418203775512\nresource: //iam.googleapis.com/projects/fin-analytics-prod/serviceAccounts/report-reader@fin-analytics-prod.iam.gserviceaccount.com\n(lab review) A TokenCreator binding without an IAM condition (no expiry) exists on report-reader. Scope it with a time condition.",
+            "requires": [
+              "unconditional_binding"
+            ]
+          },
+          {
+            "match": "^gcloud asset search-all-iam-policies(?=.*--scope[ =]projects/fin-analytics-prod)(?=.*iam\\.serviceAccountTokenCreator).*$",
+            "output": "---\nassetType: cloudresourcemanager.googleapis.com/Project\npolicy:\n  bindings:\n  - members:\n    - serviceAccount:report-bot@fin-analytics-prod.iam.gserviceaccount.com\n    role: roles/iam.serviceAccountTokenCreator\nproject: projects/418203775512\nresource: //cloudresourcemanager.googleapis.com/projects/fin-analytics-prod",
+            "sets": [
+              "found_project_grant"
+            ]
+          },
+          {
+            "match": "^gcloud policy-troubleshoot iam(?=.*//iam\\.googleapis\\.com/projects/fin-analytics-prod/serviceAccounts/deploy-admin@fin-analytics-prod\\.iam\\.gserviceaccount\\.com(?:\\s|$))(?=.*--principal-email[ =]report-bot@fin-analytics-prod\\.iam\\.gserviceaccount\\.com(?:\\s|$))(?=.*--permission[ =]iam\\.serviceAccounts\\.getAccessToken(?:\\s|$)).*$",
+            "requires": [
+              "project_grant_removed"
+            ],
+            "sets": [
+              "verified_closed"
+            ],
+            "output": "access: NOT_GRANTED\nexplainedPolicies:\n- access: NOT_GRANTED\n  fullResourceName: //cloudresourcemanager.googleapis.com/projects/fin-analytics-prod\n  bindingExplanations: []\n- access: NOT_GRANTED\n  fullResourceName: //iam.googleapis.com/projects/fin-analytics-prod/serviceAccounts/deploy-admin@fin-analytics-prod.iam.gserviceaccount.com\n  bindingExplanations:\n  - access: NOT_GRANTED\n    role: roles/iam.serviceAccountUser\n    rolePermission: ROLE_PERMISSION_NOT_INCLUDED\n    memberships:\n      serviceAccount:pipeline-runner@fin-analytics-prod.iam.gserviceaccount.com: MEMBERSHIP_NOT_MATCHED"
+          },
+          {
+            "match": "^gcloud policy-troubleshoot iam(?=.*//iam\\.googleapis\\.com/projects/fin-analytics-prod/serviceAccounts/deploy-admin@fin-analytics-prod\\.iam\\.gserviceaccount\\.com(?:\\s|$))(?=.*--principal-email[ =]report-bot@fin-analytics-prod\\.iam\\.gserviceaccount\\.com(?:\\s|$))(?=.*--permission[ =]iam\\.serviceAccounts\\.getAccessToken(?:\\s|$)).*$",
+            "sets": [
+              "confirmed_path"
+            ],
+            "output": "access: GRANTED\nexplainedPolicies:\n- access: GRANTED\n  fullResourceName: //cloudresourcemanager.googleapis.com/projects/fin-analytics-prod\n  bindingExplanations:\n  - access: GRANTED\n    role: roles/iam.serviceAccountTokenCreator\n    rolePermission: ROLE_PERMISSION_INCLUDED\n    memberships:\n      serviceAccount:report-bot@fin-analytics-prod.iam.gserviceaccount.com: MEMBERSHIP_MATCHED\n  # inherited by every service account in the project (project-level binding for report-bot@fin-analytics-prod.iam.gserviceaccount.com)"
+          },
+          {
+            "match": "^gcloud policy-troubleshoot iam(?=.*//iam\\.googleapis\\.com/projects/fin-analytics-prod/serviceAccounts/deploy-admin@fin-analytics-prod\\.iam\\.gserviceaccount\\.com(?:\\s|$))(?=.*--principal-email[ =]report-bot@fin-analytics-prod\\.iam\\.gserviceaccount\\.com(?:\\s|$))(?=.*--permission[ =]iam\\.serviceAccounts\\.actAs(?:\\s|$)).*$",
+            "output": "access: NOT_GRANTED\nexplainedPolicies:\n- access: NOT_GRANTED\n  fullResourceName: //cloudresourcemanager.googleapis.com/projects/fin-analytics-prod\n  bindingExplanations: []\n- access: NOT_GRANTED\n  fullResourceName: //iam.googleapis.com/projects/fin-analytics-prod/serviceAccounts/deploy-admin@fin-analytics-prod.iam.gserviceaccount.com\n  bindingExplanations:\n  - access: NOT_GRANTED\n    role: roles/iam.serviceAccountUser\n    rolePermission: ROLE_PERMISSION_NOT_INCLUDED\n    memberships:\n      serviceAccount:pipeline-runner@fin-analytics-prod.iam.gserviceaccount.com: MEMBERSHIP_NOT_MATCHED"
+          },
+          {
+            "match": "^gcloud policy-troubleshoot iam(?=.*//iam\\.googleapis\\.com/projects/fin-analytics-prod/serviceAccounts/report-reader@fin-analytics-prod\\.iam\\.gserviceaccount\\.com(?:\\s|$))(?=.*--principal-email[ =]report-bot@fin-analytics-prod\\.iam\\.gserviceaccount\\.com(?:\\s|$))(?=.*--permission[ =]iam\\.serviceAccounts\\.getAccessToken(?:\\s|$)).*$",
+            "requires": [
+              "project_grant_removed",
+              "scoped_binding"
+            ],
+            "output": "access: GRANTED\nexplainedPolicies:\n- access: GRANTED\n  fullResourceName: //iam.googleapis.com/projects/fin-analytics-prod/serviceAccounts/report-reader@fin-analytics-prod.iam.gserviceaccount.com\n  bindingExplanations:\n  - access: GRANTED\n    role: roles/iam.serviceAccountTokenCreator\n    condition:\n      expression: request.time < timestamp(\"2026-12-31T00:00:00Z\")\n    conditionExplanation: CONDITION_TRUE"
+          },
+          {
+            "match": "^gcloud policy-troubleshoot iam(?=.*//iam\\.googleapis\\.com/projects/fin-analytics-prod/serviceAccounts/report-reader@fin-analytics-prod\\.iam\\.gserviceaccount\\.com(?:\\s|$))(?=.*--principal-email[ =]report-bot@fin-analytics-prod\\.iam\\.gserviceaccount\\.com(?:\\s|$))(?=.*--permission[ =]iam\\.serviceAccounts\\.getAccessToken(?:\\s|$)).*$",
+            "requires": [
+              "project_grant_removed"
+            ],
+            "output": "access: NOT_GRANTED\nexplainedPolicies:\n- access: NOT_GRANTED\n  fullResourceName: //cloudresourcemanager.googleapis.com/projects/fin-analytics-prod\n  bindingExplanations: []\n- access: NOT_GRANTED\n  fullResourceName: //iam.googleapis.com/projects/fin-analytics-prod/serviceAccounts/deploy-admin@fin-analytics-prod.iam.gserviceaccount.com\n  bindingExplanations:\n  - access: NOT_GRANTED\n    role: roles/iam.serviceAccountUser\n    rolePermission: ROLE_PERMISSION_NOT_INCLUDED\n    memberships:\n      serviceAccount:pipeline-runner@fin-analytics-prod.iam.gserviceaccount.com: MEMBERSHIP_NOT_MATCHED"
+          },
+          {
+            "match": "^gcloud policy-troubleshoot iam(?=.*//iam\\.googleapis\\.com/projects/fin-analytics-prod/serviceAccounts/report-reader@fin-analytics-prod\\.iam\\.gserviceaccount\\.com(?:\\s|$))(?=.*--principal-email[ =]report-bot@fin-analytics-prod\\.iam\\.gserviceaccount\\.com(?:\\s|$))(?=.*--permission[ =]iam\\.serviceAccounts\\.getAccessToken(?:\\s|$)).*$",
+            "output": "access: GRANTED\nexplainedPolicies:\n- access: GRANTED\n  fullResourceName: //cloudresourcemanager.googleapis.com/projects/fin-analytics-prod\n  bindingExplanations:\n  - access: GRANTED\n    role: roles/iam.serviceAccountTokenCreator\n    rolePermission: ROLE_PERMISSION_INCLUDED\n    memberships:\n      serviceAccount:report-bot@fin-analytics-prod.iam.gserviceaccount.com: MEMBERSHIP_MATCHED\n  # inherited by every service account in the project (project-level binding for report-bot@fin-analytics-prod.iam.gserviceaccount.com)"
+          },
+          {
+            "match": "^gcloud policy-troubleshoot iam\\b",
+            "output": "ERROR: (gcloud.policy-troubleshoot.iam) INVALID_ARGUMENT: check the full resource name (//iam.googleapis.com/projects/fin-analytics-prod/serviceAccounts/<email>), --principal-email and --permission."
+          },
+          {
+            "match": "^gcloud projects remove-iam-policy-binding fin-analytics-prod(?=.*--member[ =][\"']?(?:serviceAccount:)?report-bot@fin-analytics-prod\\.iam\\.gserviceaccount\\.com[\"']?(?:\\s|$))(?=.*--role[ =][\"']?roles/iam\\.serviceAccountTokenCreator[\"']?(?:\\s|$)).*$",
+            "requires": [
+              "project_grant_removed"
+            ],
+            "output": "ERROR: (gcloud.projects.remove-iam-policy-binding) Policy binding with the specified principal and role not found!"
+          },
+          {
+            "match": "^gcloud projects remove-iam-policy-binding fin-analytics-prod(?=.*--member[ =][\"']?(?:serviceAccount:)?report-bot@fin-analytics-prod\\.iam\\.gserviceaccount\\.com[\"']?(?:\\s|$))(?=.*--role[ =][\"']?roles/iam\\.serviceAccountTokenCreator[\"']?(?:\\s|$)).*$",
+            "sets": [
+              "project_grant_removed"
+            ],
+            "output": "Updated IAM policy for project [fin-analytics-prod].\nbindings:\n- members:\n  - group:sec-audit@example-corp.com\n  role: roles/iam.securityReviewer\n- members:\n  - serviceAccount:report-bot@fin-analytics-prod.iam.gserviceaccount.com\n  role: roles/bigquery.jobUser\n- members:\n  - serviceAccount:report-reader@fin-analytics-prod.iam.gserviceaccount.com\n  role: roles/bigquery.dataViewer\n- members:\n  - serviceAccount:deploy-admin@fin-analytics-prod.iam.gserviceaccount.com\n  role: roles/owner\netag: BwZk2mR9aXs=\nversion: 1"
+          },
+          {
+            "match": "^gcloud projects remove-iam-policy-binding\\b",
+            "output": "ERROR: (gcloud.projects.remove-iam-policy-binding) Policy binding with the specified principal and role not found!"
+          },
+          {
+            "match": "^gcloud iam service-accounts add-iam-policy-binding report-reader@fin-analytics-prod\\.iam\\.gserviceaccount\\.com(?=.*--member[ =][\"']?(?:serviceAccount:)?report-bot@fin-analytics-prod\\.iam\\.gserviceaccount\\.com[\"']?(?:\\s|$))(?=.*--role[ =][\"']?roles/iam\\.serviceAccountTokenCreator[\"']?(?:\\s|$))(?=.*--condition[ =].*request\\.time).*$",
+            "sets": [
+              "scoped_binding"
+            ],
+            "output": "Updated IAM policy for serviceAccount [report-reader@fin-analytics-prod.iam.gserviceaccount.com].\nbindings:\n- condition:\n    expression: request.time < timestamp(\"2026-12-31T00:00:00Z\")\n    title: expires-2026-12-31\n  members:\n  - serviceAccount:report-bot@fin-analytics-prod.iam.gserviceaccount.com\n  role: roles/iam.serviceAccountTokenCreator\netag: BwZk2mS4tLw=\nversion: 3"
+          },
+          {
+            "match": "^gcloud iam service-accounts add-iam-policy-binding report-reader@fin-analytics-prod\\.iam\\.gserviceaccount\\.com(?=.*--member[ =][\"']?(?:serviceAccount:)?report-bot@fin-analytics-prod\\.iam\\.gserviceaccount\\.com[\"']?(?:\\s|$))(?=.*--role[ =][\"']?roles/iam\\.serviceAccountTokenCreator[\"']?(?:\\s|$)).*$",
+            "sets": [
+              "unconditional_binding"
+            ],
+            "output": "Updated IAM policy for serviceAccount [report-reader@fin-analytics-prod.iam.gserviceaccount.com].\nbindings:\n- members:\n  - serviceAccount:report-bot@fin-analytics-prod.iam.gserviceaccount.com\n  role: roles/iam.serviceAccountTokenCreator\netag: BwZk2mS4tLw=\nversion: 1"
+          },
+          {
+            "match": "^gcloud iam service-accounts add-iam-policy-binding\\b",
+            "output": "ERROR: (gcloud.iam.service-accounts.add-iam-policy-binding) PERMISSION_DENIED: Permission 'iam.serviceAccounts.setIamPolicy' denied on resource (or it may not exist).\nHint: report-bot only needs to mint tokens for report-reader, so that is the only service account to grant it on."
+          }
+        ],
+        "fallback": "That command is not simulated in this range. Type 'help' for the commands you can use."
+      },
+      "solution": [
+        "gcloud iam service-accounts list",
+        "gcloud projects get-iam-policy fin-analytics-prod",
+        "gcloud iam service-accounts get-iam-policy deploy-admin@fin-analytics-prod.iam.gserviceaccount.com",
+        "gcloud policy-troubleshoot iam //iam.googleapis.com/projects/fin-analytics-prod/serviceAccounts/deploy-admin@fin-analytics-prod.iam.gserviceaccount.com --principal-email=report-bot@fin-analytics-prod.iam.gserviceaccount.com --permission=iam.serviceAccounts.getAccessToken",
+        "gcloud projects remove-iam-policy-binding fin-analytics-prod --member=serviceAccount:report-bot@fin-analytics-prod.iam.gserviceaccount.com --role=roles/iam.serviceAccountTokenCreator",
+        "gcloud iam service-accounts add-iam-policy-binding report-reader@fin-analytics-prod.iam.gserviceaccount.com --member=serviceAccount:report-bot@fin-analytics-prod.iam.gserviceaccount.com --role=roles/iam.serviceAccountTokenCreator --condition='expression=request.time < timestamp(\"2026-12-31T00:00:00Z\"),title=expires-2026-12-31'",
+        "gcloud policy-troubleshoot iam //iam.googleapis.com/projects/fin-analytics-prod/serviceAccounts/deploy-admin@fin-analytics-prod.iam.gserviceaccount.com --principal-email=report-bot@fin-analytics-prod.iam.gserviceaccount.com --permission=iam.serviceAccounts.getAccessToken",
+        "gcloud asset search-all-iam-policies --scope=projects/fin-analytics-prod --query='policy:roles/iam.serviceAccountTokenCreator'"
+      ],
+      "tasks": [
+        {
+          "id": "t1",
+          "kind": "choice",
+          "prompt": "Which statement correctly distinguishes `iam.serviceAccounts.getAccessToken` from `iam.serviceAccounts.actAs`?",
+          "options": [
+            "They are two names for the same permission and both are included in roles/viewer",
+            "getAccessToken (in roles/iam.serviceAccountTokenCreator) lets a caller directly mint a short-lived access token for the service account; actAs (in roles/iam.serviceAccountUser) lets a caller attach the service account to a resource so a workload runs as it",
+            "actAs lets you mint tokens, while getAccessToken only lets you read the service account's metadata",
+            "Both only apply to user-managed keys and have no effect on keyless service accounts"
+          ],
+          "correct": [
+            1
+          ],
+          "explanation": "These are two different edges. getAccessToken (via roles/iam.serviceAccountTokenCreator) is direct impersonation through the IAM Credentials API. actAs (via roles/iam.serviceAccountUser) is the right to attach the service account to a compute resource, which then runs with its permissions. Both can hand a low-privilege principal a powerful service account's power, so both need auditing."
+        },
+        {
+          "id": "t2",
+          "kind": "answer",
+          "prompt": "Audit the project IAM policy. What is the email (or short name) of the service account that holds roles/iam.serviceAccountTokenCreator at PROJECT level?",
+          "accept": [
+            "report-bot",
+            "report-bot@fin-analytics-prod.iam.gserviceaccount.com",
+            "serviceaccount:report-bot@fin-analytics-prod.iam.gserviceaccount.com"
+          ],
+          "explanation": "report-bot holds TokenCreator on the whole project, so it applies to every service account in fin-analytics-prod. The design only needs it to mint tokens for report-reader. A project-level grant was an easy shortcut that silently over-delivered."
+        },
+        {
+          "id": "t3",
+          "kind": "choice",
+          "prompt": "deploy-admin's own IAM policy shows no TokenCreator binding for report-bot, yet report-bot can mint tokens for it. Why was that easy to miss?",
+          "options": [
+            "Service-account policies are cached for 24 hours so new bindings are invisible",
+            "The binding lives on the project, which is a parent of the service account; policy is inherited downward, so `get-iam-policy` on the service account does not show it",
+            "TokenCreator is a deny-style role that is evaluated before allow policies",
+            "gcloud hides bindings that reference other service accounts"
+          ],
+          "correct": [
+            1
+          ],
+          "explanation": "IAM policy is inherited from organization to folder to project to resource. `gcloud iam service-accounts get-iam-policy` shows only bindings attached to that one service account, so a reviewer who stops there misses the inherited grant. That is why you check parent policies and use the Policy Troubleshooter or Cloud Asset search, which compute the effective result."
+        },
+        {
+          "id": "t4",
+          "kind": "choice",
+          "prompt": "In design-intent.md and the policies, which of these is the EDGE that lets report-bot reach deploy-admin (as opposed to the powerful target itself or a legitimate, intended grant)?",
+          "options": [
+            "pipeline-runner holding roles/iam.serviceAccountUser on deploy-admin",
+            "report-bot holding roles/iam.serviceAccountTokenCreator at project level",
+            "report-bot holding roles/bigquery.jobUser at project level",
+            "deploy-admin holding roles/owner at project level"
+          ],
+          "correct": [
+            1
+          ],
+          "explanation": "The pipeline-runner actAs binding is intended for CI and not on report-bot's path. jobUser is harmless to this question, and deploy-admin's Owner is the powerful target, not the edge. The risky edge is the project-level TokenCreator for report-bot, which makes the low-privilege account effectively as powerful as deploy-admin."
+        },
+        {
+          "id": "t5",
+          "kind": "flag",
+          "prompt": "Fix and verify. Remove the project-level TokenCreator binding for report-bot, grant it TokenCreator on report-reader ONLY with an expiry condition, confirm with the Policy Troubleshooter that deploy-admin is no longer reachable, then run the Cloud Asset search for roles/iam.serviceAccountTokenCreator. Paste the attestation flag.",
+          "flag": "FLAG{sa_impersonation_closed_7b4d}",
+          "explanation": "The fix removes the broad edge, keeps the one intended edge (report-bot to report-reader) scoped to a single service account, and adds an IAM condition so the grant expires. The troubleshooter then returns NOT_GRANTED for deploy-admin, and the asset search shows only the narrow conditional binding. Verification evaluates effective access without ever using the identities."
+        },
+        {
+          "id": "t6",
+          "kind": "choice",
+          "prompt": "Why are service-account impersonation chains (A can impersonate B, B can impersonate C) risky?",
+          "options": [
+            "Each hop doubles the token lifetime, so tokens never expire",
+            "Effective access is transitive: A inherits everything C can do, and reviewing each service account's own roles separately will not show that",
+            "Impersonation is only logged for the first service account in the chain",
+            "Chains are blocked by default, so they only cause false-positive alerts"
+          ],
+          "correct": [
+            1
+          ],
+          "explanation": "Impersonation makes privileges transitive. A low-privilege principal at the start of a chain can end up with the permissions of the most powerful service account at the end, and a per-account role review will not reveal it. You have to map who can impersonate whom (for example with IAM policy searches) and keep the powerful accounts reachable by as few principals as possible."
+        },
+        {
+          "id": "t7",
+          "kind": "choice",
+          "prompt": "Impersonated access tokens last 1 hour by default. Which organization-policy constraint controls whether that lifetime may be extended (up to 12 hours) for specific service accounts?",
+          "options": [
+            "constraints/iam.disableServiceAccountKeyCreation",
+            "constraints/iam.allowServiceAccountCredentialLifetimeExtension",
+            "constraints/iam.disableCrossProjectServiceAccountUsage",
+            "constraints/compute.requireOsLogin"
+          ],
+          "correct": [
+            1
+          ],
+          "explanation": "constraints/iam.allowServiceAccountCredentialLifetimeExtension names the service accounts allowed to request tokens longer than one hour. Leaving it unset keeps impersonation tokens short-lived. Related guardrails: iam.disableServiceAccountKeyCreation stops user-managed keys, and iam.disableCrossProjectServiceAccountUsage stops attaching service accounts from other projects."
+        },
+        {
+          "id": "t8",
+          "kind": "answer",
+          "prompt": "Which Google Cloud tool answers 'can principal X use permission Y on resource Z, and which binding grants it?' without actually using the identity? (Give the tool name or gcloud command group.)",
+          "accept": [
+            "policy troubleshooter",
+            "iam policy troubleshooter",
+            "policy-troubleshoot",
+            "gcloud policy-troubleshoot iam",
+            "gcloud policy-troubleshoot"
+          ],
+          "explanation": "The Policy Troubleshooter evaluates the effective IAM policy (including inherited bindings and conditions) and explains why access is GRANTED or NOT_GRANTED. It lets a defender verify an impersonation path exists, and later that it is closed, without minting a token or acting as the service account."
+        }
+      ],
+      "takeaways": [
+        "Impersonation is controlled by two edges: TokenCreator (getAccessToken, direct tokens) and ServiceAccountUser (actAs, attach to resources). Audit both, and check bindings inherited from the project, folder and organization.",
+        "Grant impersonation on the specific target service account, never at project scope, and add an IAM condition with an expiry where access is temporary.",
+        "Verify with effective-access tools (Policy Troubleshooter, Cloud Asset search) rather than by using the identity, and use org policies to shorten token lifetimes and block risky service-account patterns."
+      ]
+    }
+  }
+]

@@ -1,0 +1,1100 @@
+[
+  {
+    "labId": "cloud-L25",
+    "title": "Reconstruct the Kill Chain",
+    "objective": "Reconstruct a past intrusion from CloudTrail, stage by stage (initial access, discovery, privilege escalation, persistence, data access), map each stage to the control that would have stopped or detected it, and fix the identity policy that allowed the escalation.",
+    "successCriteria": [
+      "You walked the incident in order with lookup-events and recorded the pivotal event for each of four stages",
+      "You identified the control that would have prevented or detected each stage",
+      "You rewrote ci-deploy's policy so it can no longer change managed policies, while the pipeline still deploys"
+    ],
+    "hints": [
+      "Start with the full timeline of the leaked key, then pull it back in time windows so you read the activity in order.",
+      "The stage boundaries are visible in the timeline: look for pauses between bursts of activity, and for the call that changed what the identity could do.",
+      "The persistence stage hands you a second identity. Its access key id is in the response of one of the IAM write calls. Pivot on it to find the data access."
+    ],
+    "estimatedHours": 2,
+    "resources": [
+      {
+        "title": "AWS docs: Viewing CloudTrail events (event history)",
+        "url": "https://docs.aws.amazon.com/awscloudtrail/latest/userguide/view-cloudtrail-events.html",
+        "type": "link"
+      },
+      {
+        "title": "AWS docs: Security best practices in IAM",
+        "url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/best-practices.html",
+        "type": "link"
+      },
+      {
+        "title": "Rhino Security Labs: AWS IAM Privilege Escalation - Methods and Mitigation",
+        "url": "https://rhinosecuritylabs.com/aws/aws-privilege-escalation-methods-mitigation/",
+        "type": "link"
+      }
+    ],
+    "range": {
+      "scenario": "You are the on-call cloud responder for account 111122223333. The long-lived access key of the CI user ci-deploy was found in a public repository, and GuardDuty raised an anomaly finding for it. The activity is over; what remains is a recorded incident in CloudTrail. Your job is to reconstruct what happened in the order it happened, record the pivotal event of each stage in the case tool, work out which control would have stopped or detected each stage, and fix the identity policy that made the escalation possible. Everything here is a simulated, fictional estate: you only read logs and configuration and apply fixes.",
+      "artifacts": [
+        {
+          "name": "guardduty-finding.json",
+          "language": "json",
+          "content": "{\n  \"id\": \"2cb7e1f0aa11EXAMPLE\",\n  \"type\": \"PrivilegeEscalation:IAMUser/AnomalousBehavior\",\n  \"severity\": 8,\n  \"accountId\": \"111122223333\",\n  \"createdAt\": \"2026-03-14T03:31:44Z\",\n  \"resource\": {\n    \"accessKeyDetails\": {\n      \"accessKeyId\": \"AKIAIOSFODNN7EXAMPLE\",\n      \"userName\": \"ci-deploy\",\n      \"userType\": \"IAMUser\"\n    }\n  },\n  \"service\": {\n    \"count\": 3,\n    \"additionalInfo\": {\n      \"note\": \"API calls observed from an address that has not been used with this key in the learned baseline.\"\n    }\n  },\n  \"baseline\": {\n    \"usualSourceIp\": \"198.51.100.10\",\n    \"usualUse\": \"CloudFormation deploys from the CI NAT gateway\"\n  }\n}",
+          "note": "The alert that started the investigation. It tells you which key to follow, nothing more."
+        },
+        {
+          "name": "cloudtrail-excerpt.json",
+          "language": "json",
+          "content": "{\n  \"Records\": [\n    {\n      \"eventTime\": \"2026-03-14T02:03:11Z\",\n      \"eventSource\": \"sts.amazonaws.com\",\n      \"eventName\": \"GetCallerIdentity\",\n      \"userIdentity\": {\n        \"type\": \"IAMUser\",\n        \"userName\": \"ci-deploy\",\n        \"accessKeyId\": \"AKIAIOSFODNN7EXAMPLE\"\n      },\n      \"sourceIPAddress\": \"203.0.113.50\",\n      \"userAgent\": \"aws-cli/2.15.17 Python/3.11.6 Linux/6.5.0 exe/x86_64\"\n    },\n    {\n      \"eventTime\": \"2026-03-14T02:09:02Z\",\n      \"eventSource\": \"secretsmanager.amazonaws.com\",\n      \"eventName\": \"ListSecrets\",\n      \"errorCode\": \"AccessDenied\",\n      \"userIdentity\": {\n        \"type\": \"IAMUser\",\n        \"userName\": \"ci-deploy\",\n        \"accessKeyId\": \"AKIAIOSFODNN7EXAMPLE\"\n      },\n      \"sourceIPAddress\": \"203.0.113.50\"\n    },\n    {\n      \"eventTime\": \"2026-03-14T02:26:02Z\",\n      \"eventSource\": \"iam.amazonaws.com\",\n      \"eventName\": \"CreatePolicyVersion\",\n      \"userIdentity\": {\n        \"type\": \"IAMUser\",\n        \"userName\": \"ci-deploy\",\n        \"accessKeyId\": \"AKIAIOSFODNN7EXAMPLE\"\n      },\n      \"sourceIPAddress\": \"203.0.113.50\",\n      \"requestParameters\": {\n        \"policyArn\": \"arn:aws:iam::111122223333:policy/ci-deploy-policy\",\n        \"setAsDefault\": true\n      }\n    },\n    {\n      \"eventTime\": \"2026-03-14T02:42:10Z\",\n      \"eventSource\": \"iam.amazonaws.com\",\n      \"eventName\": \"CreateAccessKey\",\n      \"userIdentity\": {\n        \"type\": \"IAMUser\",\n        \"userName\": \"ci-deploy\",\n        \"accessKeyId\": \"AKIAIOSFODNN7EXAMPLE\"\n      },\n      \"sourceIPAddress\": \"203.0.113.50\",\n      \"requestParameters\": {\n        \"userName\": \"support-sync\"\n      },\n      \"responseElements\": {\n        \"accessKey\": {\n          \"accessKeyId\": \"AKIAJEXAMPLEKEY00001\",\n          \"secretAccessKey\": \"HIDDEN_DUE_TO_SECURITY_REASONS\"\n        }\n      }\n    },\n    {\n      \"eventTime\": \"2026-03-14T03:05:40Z\",\n      \"eventSource\": \"secretsmanager.amazonaws.com\",\n      \"eventName\": \"GetSecretValue\",\n      \"userIdentity\": {\n        \"type\": \"IAMUser\",\n        \"userName\": \"support-sync\",\n        \"accessKeyId\": \"AKIAJEXAMPLEKEY00001\"\n      },\n      \"sourceIPAddress\": \"192.0.2.44\",\n      \"requestParameters\": {\n        \"secretId\": \"prod/customer-db-creds\"\n      }\n    }\n  ]\n}",
+          "note": "A trimmed export of a few records. eventID fields were stripped: pull the full records (with their EventId) from the terminal."
+        },
+        {
+          "name": "ci-deploy-policy.json",
+          "language": "json",
+          "content": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"ArtifactBucket\",\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"s3:PutObject\",\n        \"s3:GetObject\"\n      ],\n      \"Resource\": \"arn:aws:s3:::acme-ci-artifacts/builds/*\"\n    },\n    {\n      \"Sid\": \"ArtifactBucketList\",\n      \"Effect\": \"Allow\",\n      \"Action\": \"s3:ListBucket\",\n      \"Resource\": \"arn:aws:s3:::acme-ci-artifacts\"\n    },\n    {\n      \"Sid\": \"DeployStacks\",\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"cloudformation:CreateStack\",\n        \"cloudformation:UpdateStack\",\n        \"cloudformation:DescribeStacks\"\n      ],\n      \"Resource\": \"*\"\n    },\n    {\n      \"Sid\": \"SelfServicePolicy\",\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"iam:CreatePolicyVersion\",\n        \"iam:SetDefaultPolicyVersion\",\n        \"iam:GetPolicy\",\n        \"iam:GetPolicyVersion\",\n        \"iam:ListPolicyVersions\"\n      ],\n      \"Resource\": \"*\"\n    }\n  ]\n}",
+          "note": "The customer-managed policy attached to ci-deploy at the time of the incident."
+        }
+      ],
+      "terminal": {
+        "prompt": "responder@dfir-workstation:~$",
+        "intro": "Assumed IncidentResponderRole in account 111122223333 (read-only on CloudTrail and IAM). Region: us-east-1. Case tool: ir-case.",
+        "help": "Commands you can try:\n  aws cloudtrail lookup-events --lookup-attributes AttributeKey=<Username|AccessKeyId|EventName>,AttributeValue=<v> [--start-time <ts>] [--end-time <ts>]\n  aws iam list-attached-user-policies --user-name <u>\n  aws iam list-policy-versions --policy-arn <arn>\n  aws iam get-policy-version --policy-arn <arn> --version-id <v>\n  ir-case record --stage <initial-access|privilege-escalation|persistence|data-access> --event-id <EventId>\nTimestamps look like 2026-03-14T02:00:00Z.",
+        "rules": [
+          {
+            "match": "^aws sts get-caller-identity$",
+            "output": "{\n    \"UserId\": \"AIDAEXAMPLERESPONDER01\",\n    \"Account\": \"111122223333\",\n    \"Arn\": \"arn:aws:sts::111122223333:assumed-role/IncidentResponderRole/dfir-session\"\n}"
+          },
+          {
+            "match": "^aws cloudtrail lookup-events .*AttributeKey=EventName,AttributeValue=ConsoleLogin",
+            "output": "{\n    \"Events\": []\n}\n# note: no console sign-ins. The key was used through the API only, so console MFA would not have mattered."
+          },
+          {
+            "match": "^aws cloudtrail lookup-events .*AttributeKey=EventName,AttributeValue=(GetObject|PutObject|DeleteObject)\\b",
+            "output": "{\n    \"Events\": []\n}\n# note: S3 object-level calls are DATA events. lookup-events only returns management events; object-level activity lives in the trail's S3 log bucket (query it with Athena or CloudTrail Lake)."
+          },
+          {
+            "match": "^(?!.*--start-time)(?=.*AttributeKey=(?:AccessKeyId,AttributeValue=AKIAIOSFODNN7EXAMPLE|Username,AttributeValue=ci-deploy)(?:\\s|$))aws cloudtrail lookup-events\\b",
+            "sets": [
+              "timeline"
+            ],
+            "output": "EventTime (UTC)       Username      AccessKeyId           EventName                    SourceIP\n2026-03-14 02:03:11   ci-deploy     AKIAIOSFODNN7EXAMPLE  GetCallerIdentity            203.0.113.50\n2026-03-14 02:03:52   ci-deploy     AKIAIOSFODNN7EXAMPLE  GetCallerIdentity            203.0.113.50\n2026-03-14 02:06:20   ci-deploy     AKIAIOSFODNN7EXAMPLE  ListUsers                    203.0.113.50\n2026-03-14 02:06:41   ci-deploy     AKIAIOSFODNN7EXAMPLE  ListRoles                    203.0.113.50\n2026-03-14 02:07:05   ci-deploy     AKIAIOSFODNN7EXAMPLE  ListAttachedUserPolicies     203.0.113.50\n2026-03-14 02:07:30   ci-deploy     AKIAIOSFODNN7EXAMPLE  ListPolicies                 203.0.113.50\n2026-03-14 02:08:10   ci-deploy     AKIAIOSFODNN7EXAMPLE  ListBuckets                  203.0.113.50\n2026-03-14 02:09:02   ci-deploy     AKIAIOSFODNN7EXAMPLE  ListSecrets                  203.0.113.50\n2026-03-14 02:24:15   ci-deploy     AKIAIOSFODNN7EXAMPLE  GetPolicy                    203.0.113.50\n2026-03-14 02:24:30   ci-deploy     AKIAIOSFODNN7EXAMPLE  ListPolicyVersions           203.0.113.50\n2026-03-14 02:26:02   ci-deploy     AKIAIOSFODNN7EXAMPLE  CreatePolicyVersion          203.0.113.50\n2026-03-14 02:27:10   ci-deploy     AKIAIOSFODNN7EXAMPLE  ListSecrets                  203.0.113.50\n2026-03-14 02:41:05   ci-deploy     AKIAIOSFODNN7EXAMPLE  CreateUser                   203.0.113.50\n2026-03-14 02:41:33   ci-deploy     AKIAIOSFODNN7EXAMPLE  AttachUserPolicy             203.0.113.50\n2026-03-14 02:42:10   ci-deploy     AKIAIOSFODNN7EXAMPLE  CreateAccessKey              203.0.113.50\n\n15 events for AKIAIOSFODNN7EXAMPLE (baseline for this key: 198.51.100.10, CI NAT gateway).\nOnly summary columns shown. Narrow the window with --start-time/--end-time for full records. Activity by OTHER principals is not shown."
+          },
+          {
+            "match": "^(?=.*AttributeKey=(?:AccessKeyId,AttributeValue=AKIAIOSFODNN7EXAMPLE|Username,AttributeValue=ci-deploy)(?:\\s|$))(?=.*--start-time 2026-03-14T02:0[0-4])aws cloudtrail lookup-events\\b",
+            "requires": [
+              "timeline"
+            ],
+            "sets": [
+              "s1"
+            ],
+            "output": "{\n    \"Events\": [\n        {\n            \"EventId\": \"6f1d2a10-3b7c-4e51-9a01-c0ffee000001\",\n            \"EventName\": \"GetCallerIdentity\",\n            \"ReadOnly\": \"true\",\n            \"AccessKeyId\": \"AKIAIOSFODNN7EXAMPLE\",\n            \"EventTime\": \"2026-03-14T02:03:11+00:00\",\n            \"EventSource\": \"sts.amazonaws.com\",\n            \"Username\": \"ci-deploy\",\n            \"Resources\": [],\n            \"CloudTrailEvent\": {\n                \"sourceIPAddress\": \"203.0.113.50\",\n                \"userAgent\": \"aws-cli/2.15.17 Python/3.11.6 Linux/6.5.0 exe/x86_64\"\n            }\n        },\n        {\n            \"EventId\": \"6f1d2a10-3b7c-4e51-9a02-c0ffee000002\",\n            \"EventName\": \"GetCallerIdentity\",\n            \"ReadOnly\": \"true\",\n            \"AccessKeyId\": \"AKIAIOSFODNN7EXAMPLE\",\n            \"EventTime\": \"2026-03-14T02:03:52+00:00\",\n            \"EventSource\": \"sts.amazonaws.com\",\n            \"Username\": \"ci-deploy\",\n            \"Resources\": [],\n            \"CloudTrailEvent\": {\n                \"sourceIPAddress\": \"203.0.113.50\",\n                \"userAgent\": \"Boto3/1.34.46 md/Botocore#1.34.46 ua/2.0 os/linux#6.5.0 lang/python#3.11.6\"\n            }\n        }\n    ]\n}\n# stage window 1: first use of the key from 203.0.113.50, an address never seen for this key (baseline 198.51.100.10)."
+          },
+          {
+            "match": "^(?=.*AttributeKey=(?:AccessKeyId,AttributeValue=AKIAIOSFODNN7EXAMPLE|Username,AttributeValue=ci-deploy)(?:\\s|$))(?=.*--start-time 2026-03-14T02:0[0-4])aws cloudtrail lookup-events\\b",
+            "output": "Narrow the window first. Run the lookup without a time window to see the shape of the activity, then walk the timeline in order: start at the first use of the key."
+          },
+          {
+            "match": "^(?=.*AttributeKey=(?:AccessKeyId,AttributeValue=AKIAIOSFODNN7EXAMPLE|Username,AttributeValue=ci-deploy)(?:\\s|$))(?=.*--start-time 2026-03-14T02:(?:0[5-9]|1[0-9]))aws cloudtrail lookup-events\\b",
+            "requires": [
+              "s1"
+            ],
+            "sets": [
+              "s2"
+            ],
+            "output": "{\n    \"Events\": [\n        {\n            \"EventId\": \"6f1d2a10-3b7c-4e51-9a03-c0ffee000003\",\n            \"EventName\": \"ListUsers\",\n            \"ReadOnly\": \"true\",\n            \"AccessKeyId\": \"AKIAIOSFODNN7EXAMPLE\",\n            \"EventTime\": \"2026-03-14T02:06:20+00:00\",\n            \"EventSource\": \"iam.amazonaws.com\",\n            \"Username\": \"ci-deploy\",\n            \"Resources\": [],\n            \"CloudTrailEvent\": {\n                \"sourceIPAddress\": \"203.0.113.50\",\n                \"userAgent\": \"Boto3/1.34.46 md/Botocore#1.34.46 ua/2.0 os/linux#6.5.0 lang/python#3.11.6\"\n            }\n        },\n        {\n            \"EventId\": \"6f1d2a10-3b7c-4e51-9a04-c0ffee000004\",\n            \"EventName\": \"ListRoles\",\n            \"ReadOnly\": \"true\",\n            \"AccessKeyId\": \"AKIAIOSFODNN7EXAMPLE\",\n            \"EventTime\": \"2026-03-14T02:06:41+00:00\",\n            \"EventSource\": \"iam.amazonaws.com\",\n            \"Username\": \"ci-deploy\",\n            \"Resources\": [],\n            \"CloudTrailEvent\": {\n                \"sourceIPAddress\": \"203.0.113.50\",\n                \"userAgent\": \"Boto3/1.34.46 md/Botocore#1.34.46 ua/2.0 os/linux#6.5.0 lang/python#3.11.6\"\n            }\n        },\n        {\n            \"EventId\": \"6f1d2a10-3b7c-4e51-9a05-c0ffee000005\",\n            \"EventName\": \"ListAttachedUserPolicies\",\n            \"ReadOnly\": \"true\",\n            \"AccessKeyId\": \"AKIAIOSFODNN7EXAMPLE\",\n            \"EventTime\": \"2026-03-14T02:07:05+00:00\",\n            \"EventSource\": \"iam.amazonaws.com\",\n            \"Username\": \"ci-deploy\",\n            \"Resources\": [\n                {\n                    \"ResourceType\": \"AWS::IAM::User\",\n                    \"ResourceName\": \"ci-deploy\"\n                }\n            ],\n            \"CloudTrailEvent\": {\n                \"sourceIPAddress\": \"203.0.113.50\",\n                \"userAgent\": \"Boto3/1.34.46 md/Botocore#1.34.46 ua/2.0 os/linux#6.5.0 lang/python#3.11.6\",\n                \"requestParameters\": {\n                    \"userName\": \"ci-deploy\"\n                }\n            }\n        },\n        {\n            \"EventId\": \"6f1d2a10-3b7c-4e51-9a06-c0ffee000006\",\n            \"EventName\": \"ListPolicies\",\n            \"ReadOnly\": \"true\",\n            \"AccessKeyId\": \"AKIAIOSFODNN7EXAMPLE\",\n            \"EventTime\": \"2026-03-14T02:07:30+00:00\",\n            \"EventSource\": \"iam.amazonaws.com\",\n            \"Username\": \"ci-deploy\",\n            \"Resources\": [],\n            \"CloudTrailEvent\": {\n                \"sourceIPAddress\": \"203.0.113.50\",\n                \"userAgent\": \"Boto3/1.34.46 md/Botocore#1.34.46 ua/2.0 os/linux#6.5.0 lang/python#3.11.6\",\n                \"requestParameters\": {\n                    \"scope\": \"Local\",\n                    \"onlyAttached\": true\n                }\n            }\n        },\n        {\n            \"EventId\": \"6f1d2a10-3b7c-4e51-9a07-c0ffee000007\",\n            \"EventName\": \"ListBuckets\",\n            \"ReadOnly\": \"true\",\n            \"AccessKeyId\": \"AKIAIOSFODNN7EXAMPLE\",\n            \"EventTime\": \"2026-03-14T02:08:10+00:00\",\n            \"EventSource\": \"s3.amazonaws.com\",\n            \"Username\": \"ci-deploy\",\n            \"Resources\": [],\n            \"CloudTrailEvent\": {\n                \"sourceIPAddress\": \"203.0.113.50\",\n                \"userAgent\": \"Boto3/1.34.46 md/Botocore#1.34.46 ua/2.0 os/linux#6.5.0 lang/python#3.11.6\"\n            }\n        },\n        {\n            \"EventId\": \"6f1d2a10-3b7c-4e51-9a08-c0ffee000008\",\n            \"EventName\": \"ListSecrets\",\n            \"ReadOnly\": \"true\",\n            \"AccessKeyId\": \"AKIAIOSFODNN7EXAMPLE\",\n            \"EventTime\": \"2026-03-14T02:09:02+00:00\",\n            \"EventSource\": \"secretsmanager.amazonaws.com\",\n            \"Username\": \"ci-deploy\",\n            \"Resources\": [],\n            \"CloudTrailEvent\": {\n                \"sourceIPAddress\": \"203.0.113.50\",\n                \"userAgent\": \"Boto3/1.34.46 md/Botocore#1.34.46 ua/2.0 os/linux#6.5.0 lang/python#3.11.6\",\n                \"errorCode\": \"AccessDenied\",\n                \"errorMessage\": \"User: arn:aws:iam::111122223333:user/ci-deploy is not authorized to perform: secretsmanager:ListSecrets because no identity-based policy allows the secretsmanager:ListSecrets action\"\n            }\n        }\n    ]\n}\n# stage window 2: a burst of read-only List*/Get* calls across IAM, S3 and Secrets Manager. The last one was denied."
+          },
+          {
+            "match": "^(?=.*AttributeKey=(?:AccessKeyId,AttributeValue=AKIAIOSFODNN7EXAMPLE|Username,AttributeValue=ci-deploy)(?:\\s|$))(?=.*--start-time 2026-03-14T02:(?:0[5-9]|1[0-9]))aws cloudtrail lookup-events\\b",
+            "output": "Results for this window are withheld: work the incident in order. Review the earlier stage first (and record it with `ir-case record`)."
+          },
+          {
+            "match": "^(?=.*AttributeKey=(?:AccessKeyId,AttributeValue=AKIAIOSFODNN7EXAMPLE|Username,AttributeValue=ci-deploy)(?:\\s|$))(?=.*--start-time 2026-03-14T02:[23][0-9])aws cloudtrail lookup-events\\b",
+            "requires": [
+              "s2"
+            ],
+            "sets": [
+              "s3"
+            ],
+            "output": "{\n    \"Events\": [\n        {\n            \"EventId\": \"6f1d2a10-3b7c-4e51-9a09-c0ffee000009\",\n            \"EventName\": \"GetPolicy\",\n            \"ReadOnly\": \"true\",\n            \"AccessKeyId\": \"AKIAIOSFODNN7EXAMPLE\",\n            \"EventTime\": \"2026-03-14T02:24:15+00:00\",\n            \"EventSource\": \"iam.amazonaws.com\",\n            \"Username\": \"ci-deploy\",\n            \"Resources\": [\n                {\n                    \"ResourceType\": \"AWS::IAM::Policy\",\n                    \"ResourceName\": \"arn:aws:iam::111122223333:policy/ci-deploy-policy\"\n                }\n            ],\n            \"CloudTrailEvent\": {\n                \"sourceIPAddress\": \"203.0.113.50\",\n                \"userAgent\": \"Boto3/1.34.46 md/Botocore#1.34.46 ua/2.0 os/linux#6.5.0 lang/python#3.11.6\",\n                \"requestParameters\": {\n                    \"policyArn\": \"arn:aws:iam::111122223333:policy/ci-deploy-policy\"\n                }\n            }\n        },\n        {\n            \"EventId\": \"6f1d2a10-3b7c-4e51-9a10-c0ffee000010\",\n            \"EventName\": \"ListPolicyVersions\",\n            \"ReadOnly\": \"true\",\n            \"AccessKeyId\": \"AKIAIOSFODNN7EXAMPLE\",\n            \"EventTime\": \"2026-03-14T02:24:30+00:00\",\n            \"EventSource\": \"iam.amazonaws.com\",\n            \"Username\": \"ci-deploy\",\n            \"Resources\": [\n                {\n                    \"ResourceType\": \"AWS::IAM::Policy\",\n                    \"ResourceName\": \"arn:aws:iam::111122223333:policy/ci-deploy-policy\"\n                }\n            ],\n            \"CloudTrailEvent\": {\n                \"sourceIPAddress\": \"203.0.113.50\",\n                \"userAgent\": \"Boto3/1.34.46 md/Botocore#1.34.46 ua/2.0 os/linux#6.5.0 lang/python#3.11.6\",\n                \"requestParameters\": {\n                    \"policyArn\": \"arn:aws:iam::111122223333:policy/ci-deploy-policy\"\n                }\n            }\n        },\n        {\n            \"EventId\": \"6f1d2a10-3b7c-4e51-9a11-c0ffee000011\",\n            \"EventName\": \"CreatePolicyVersion\",\n            \"ReadOnly\": \"false\",\n            \"AccessKeyId\": \"AKIAIOSFODNN7EXAMPLE\",\n            \"EventTime\": \"2026-03-14T02:26:02+00:00\",\n            \"EventSource\": \"iam.amazonaws.com\",\n            \"Username\": \"ci-deploy\",\n            \"Resources\": [\n                {\n                    \"ResourceType\": \"AWS::IAM::Policy\",\n                    \"ResourceName\": \"arn:aws:iam::111122223333:policy/ci-deploy-policy\"\n                }\n            ],\n            \"CloudTrailEvent\": {\n                \"sourceIPAddress\": \"203.0.113.50\",\n                \"userAgent\": \"Boto3/1.34.46 md/Botocore#1.34.46 ua/2.0 os/linux#6.5.0 lang/python#3.11.6\",\n                \"requestParameters\": {\n                    \"policyArn\": \"arn:aws:iam::111122223333:policy/ci-deploy-policy\",\n                    \"policyDocument\": \"{\\\"Version\\\":\\\"2012-10-17\\\",\\\"Statement\\\":[{\\\"Effect\\\":\\\"Allow\\\",\\\"Action\\\":\\\"*\\\",\\\"Resource\\\":\\\"*\\\"}]}\",\n                    \"setAsDefault\": true\n                },\n                \"responseElements\": {\n                    \"policyVersion\": {\n                        \"versionId\": \"v2\",\n                        \"isDefaultVersion\": true,\n                        \"createDate\": \"Mar 14, 2026 2:26:02 AM\"\n                    }\n                }\n            }\n        },\n        {\n            \"EventId\": \"6f1d2a10-3b7c-4e51-9a12-c0ffee000012\",\n            \"EventName\": \"ListSecrets\",\n            \"ReadOnly\": \"true\",\n            \"AccessKeyId\": \"AKIAIOSFODNN7EXAMPLE\",\n            \"EventTime\": \"2026-03-14T02:27:10+00:00\",\n            \"EventSource\": \"secretsmanager.amazonaws.com\",\n            \"Username\": \"ci-deploy\",\n            \"Resources\": [],\n            \"CloudTrailEvent\": {\n                \"sourceIPAddress\": \"203.0.113.50\",\n                \"userAgent\": \"Boto3/1.34.46 md/Botocore#1.34.46 ua/2.0 os/linux#6.5.0 lang/python#3.11.6\"\n            }\n        }\n    ]\n}\n# stage window 3: the identity changed its own permissions, then the call that was denied at 02:09:02 succeeded."
+          },
+          {
+            "match": "^(?=.*AttributeKey=(?:AccessKeyId,AttributeValue=AKIAIOSFODNN7EXAMPLE|Username,AttributeValue=ci-deploy)(?:\\s|$))(?=.*--start-time 2026-03-14T02:[23][0-9])aws cloudtrail lookup-events\\b",
+            "output": "Results for this window are withheld: work the incident in order. Review the earlier stage first (and record it with `ir-case record`)."
+          },
+          {
+            "match": "^(?=.*AttributeKey=(?:AccessKeyId,AttributeValue=AKIAIOSFODNN7EXAMPLE|Username,AttributeValue=ci-deploy)(?:\\s|$))(?=.*--start-time 2026-03-14T02:[45][0-9])aws cloudtrail lookup-events\\b",
+            "requires": [
+              "s3"
+            ],
+            "sets": [
+              "s4"
+            ],
+            "output": "{\n    \"Events\": [\n        {\n            \"EventId\": \"6f1d2a10-3b7c-4e51-9a13-c0ffee000013\",\n            \"EventName\": \"CreateUser\",\n            \"ReadOnly\": \"false\",\n            \"AccessKeyId\": \"AKIAIOSFODNN7EXAMPLE\",\n            \"EventTime\": \"2026-03-14T02:41:05+00:00\",\n            \"EventSource\": \"iam.amazonaws.com\",\n            \"Username\": \"ci-deploy\",\n            \"Resources\": [\n                {\n                    \"ResourceType\": \"AWS::IAM::User\",\n                    \"ResourceName\": \"support-sync\"\n                }\n            ],\n            \"CloudTrailEvent\": {\n                \"sourceIPAddress\": \"203.0.113.50\",\n                \"userAgent\": \"Boto3/1.34.46 md/Botocore#1.34.46 ua/2.0 os/linux#6.5.0 lang/python#3.11.6\",\n                \"requestParameters\": {\n                    \"userName\": \"support-sync\"\n                },\n                \"responseElements\": {\n                    \"user\": {\n                        \"userName\": \"support-sync\",\n                        \"arn\": \"arn:aws:iam::111122223333:user/support-sync\"\n                    }\n                }\n            }\n        },\n        {\n            \"EventId\": \"6f1d2a10-3b7c-4e51-9a14-c0ffee000014\",\n            \"EventName\": \"AttachUserPolicy\",\n            \"ReadOnly\": \"false\",\n            \"AccessKeyId\": \"AKIAIOSFODNN7EXAMPLE\",\n            \"EventTime\": \"2026-03-14T02:41:33+00:00\",\n            \"EventSource\": \"iam.amazonaws.com\",\n            \"Username\": \"ci-deploy\",\n            \"Resources\": [\n                {\n                    \"ResourceType\": \"AWS::IAM::User\",\n                    \"ResourceName\": \"support-sync\"\n                }\n            ],\n            \"CloudTrailEvent\": {\n                \"sourceIPAddress\": \"203.0.113.50\",\n                \"userAgent\": \"Boto3/1.34.46 md/Botocore#1.34.46 ua/2.0 os/linux#6.5.0 lang/python#3.11.6\",\n                \"requestParameters\": {\n                    \"userName\": \"support-sync\",\n                    \"policyArn\": \"arn:aws:iam::aws:policy/AdministratorAccess\"\n                }\n            }\n        },\n        {\n            \"EventId\": \"6f1d2a10-3b7c-4e51-9a15-c0ffee000015\",\n            \"EventName\": \"CreateAccessKey\",\n            \"ReadOnly\": \"false\",\n            \"AccessKeyId\": \"AKIAIOSFODNN7EXAMPLE\",\n            \"EventTime\": \"2026-03-14T02:42:10+00:00\",\n            \"EventSource\": \"iam.amazonaws.com\",\n            \"Username\": \"ci-deploy\",\n            \"Resources\": [\n                {\n                    \"ResourceType\": \"AWS::IAM::User\",\n                    \"ResourceName\": \"support-sync\"\n                }\n            ],\n            \"CloudTrailEvent\": {\n                \"sourceIPAddress\": \"203.0.113.50\",\n                \"userAgent\": \"Boto3/1.34.46 md/Botocore#1.34.46 ua/2.0 os/linux#6.5.0 lang/python#3.11.6\",\n                \"requestParameters\": {\n                    \"userName\": \"support-sync\"\n                },\n                \"responseElements\": {\n                    \"accessKey\": {\n                        \"userName\": \"support-sync\",\n                        \"accessKeyId\": \"AKIAJEXAMPLEKEY00001\",\n                        \"status\": \"Active\",\n                        \"createDate\": \"Mar 14, 2026 2:42:10 AM\",\n                        \"secretAccessKey\": \"HIDDEN_DUE_TO_SECURITY_REASONS\"\n                    }\n                }\n            }\n        }\n    ]\n}\n# stage window 4: a new IAM user with AdministratorAccess and its own access key (AKIAJEXAMPLEKEY00001) now exists outside the pipeline."
+          },
+          {
+            "match": "^(?=.*AttributeKey=(?:AccessKeyId,AttributeValue=AKIAIOSFODNN7EXAMPLE|Username,AttributeValue=ci-deploy)(?:\\s|$))(?=.*--start-time 2026-03-14T02:[45][0-9])aws cloudtrail lookup-events\\b",
+            "output": "Results for this window are withheld: work the incident in order. Review the earlier stage first (and record it with `ir-case record`)."
+          },
+          {
+            "match": "^(?=.*AttributeKey=(?:AccessKeyId,AttributeValue=AKIAJEXAMPLEKEY00001|Username,AttributeValue=support-sync)(?:\\s|$))aws cloudtrail lookup-events\\b",
+            "requires": [
+              "s4"
+            ],
+            "sets": [
+              "s5"
+            ],
+            "output": "{\n    \"Events\": [\n        {\n            \"EventId\": \"6f1d2a10-3b7c-4e51-9a16-c0ffee000016\",\n            \"EventName\": \"ListSecrets\",\n            \"ReadOnly\": \"true\",\n            \"AccessKeyId\": \"AKIAJEXAMPLEKEY00001\",\n            \"EventTime\": \"2026-03-14T03:05:12+00:00\",\n            \"EventSource\": \"secretsmanager.amazonaws.com\",\n            \"Username\": \"support-sync\",\n            \"Resources\": [],\n            \"CloudTrailEvent\": {\n                \"sourceIPAddress\": \"192.0.2.44\",\n                \"userAgent\": \"Boto3/1.34.46 md/Botocore#1.34.46 ua/2.0 os/linux#6.5.0 lang/python#3.11.6\"\n            }\n        },\n        {\n            \"EventId\": \"6f1d2a10-3b7c-4e51-9a17-c0ffee000017\",\n            \"EventName\": \"GetSecretValue\",\n            \"ReadOnly\": \"true\",\n            \"AccessKeyId\": \"AKIAJEXAMPLEKEY00001\",\n            \"EventTime\": \"2026-03-14T03:05:40+00:00\",\n            \"EventSource\": \"secretsmanager.amazonaws.com\",\n            \"Username\": \"support-sync\",\n            \"Resources\": [\n                {\n                    \"ResourceType\": \"AWS::SecretsManager::Secret\",\n                    \"ResourceName\": \"prod/customer-db-creds\"\n                }\n            ],\n            \"CloudTrailEvent\": {\n                \"sourceIPAddress\": \"192.0.2.44\",\n                \"userAgent\": \"Boto3/1.34.46 md/Botocore#1.34.46 ua/2.0 os/linux#6.5.0 lang/python#3.11.6\",\n                \"requestParameters\": {\n                    \"secretId\": \"prod/customer-db-creds\"\n                }\n            }\n        },\n        {\n            \"EventId\": \"6f1d2a10-3b7c-4e51-9a18-c0ffee000018\",\n            \"EventName\": \"GetSecretValue\",\n            \"ReadOnly\": \"true\",\n            \"AccessKeyId\": \"AKIAJEXAMPLEKEY00001\",\n            \"EventTime\": \"2026-03-14T03:06:03+00:00\",\n            \"EventSource\": \"secretsmanager.amazonaws.com\",\n            \"Username\": \"support-sync\",\n            \"Resources\": [\n                {\n                    \"ResourceType\": \"AWS::SecretsManager::Secret\",\n                    \"ResourceName\": \"prod/master-key\"\n                }\n            ],\n            \"CloudTrailEvent\": {\n                \"sourceIPAddress\": \"192.0.2.44\",\n                \"userAgent\": \"Boto3/1.34.46 md/Botocore#1.34.46 ua/2.0 os/linux#6.5.0 lang/python#3.11.6\",\n                \"requestParameters\": {\n                    \"secretId\": \"prod/master-key\"\n                }\n            }\n        }\n    ]\n}\n# stage window 5: the new key, from a different address (192.0.2.44), reads production secrets.\n# S3 data events (from the trail's S3 log bucket, not lookup-events): 1,284 GetObject calls on arn:aws:s3:::acme-customer-exports between 03:07 and 03:21 by support-sync."
+          },
+          {
+            "match": "^(?=.*AttributeKey=(?:AccessKeyId,AttributeValue=AKIAJEXAMPLEKEY00001|Username,AttributeValue=support-sync)(?:\\s|$))aws cloudtrail lookup-events\\b",
+            "output": "{\n    \"Events\": []\n}\n# note: you have no reason to look at this identity yet. How would you know it exists? Walk the first key's timeline in order."
+          },
+          {
+            "match": "^aws cloudtrail lookup-events\\b.*AttributeKey=(Username|AccessKeyId)",
+            "output": "{\n    \"Events\": []\n}"
+          },
+          {
+            "match": "^aws cloudtrail lookup-events\\b",
+            "output": "usage: aws cloudtrail lookup-events --lookup-attributes AttributeKey=<Username|AccessKeyId|EventName|...>,AttributeValue=<value> [--start-time <ts>] [--end-time <ts>]\nerror: --lookup-attributes is required"
+          },
+          {
+            "match": "^aws iam list-policy-versions --policy-arn arn:aws:iam::111122223333:policy\\/ci-deploy-policy$",
+            "sets": [
+              "saw_versions"
+            ],
+            "output": "{\n    \"Versions\": [\n        {\n            \"VersionId\": \"v2\",\n            \"IsDefaultVersion\": true,\n            \"CreateDate\": \"2026-03-14T02:26:02+00:00\"\n        },\n        {\n            \"VersionId\": \"v1\",\n            \"IsDefaultVersion\": false,\n            \"CreateDate\": \"2025-06-02T09:10:44+00:00\"\n        }\n    ]\n}"
+          },
+          {
+            "match": "^aws iam get-policy-version --policy-arn arn:aws:iam::111122223333:policy\\/ci-deploy-policy --version-id v2$",
+            "output": "{\n    \"PolicyVersion\": {\n        \"Document\": {\n            \"Version\": \"2012-10-17\",\n            \"Statement\": [\n                {\n                    \"Effect\": \"Allow\",\n                    \"Action\": \"*\",\n                    \"Resource\": \"*\"\n                }\n            ]\n        },\n        \"VersionId\": \"v2\",\n        \"IsDefaultVersion\": true,\n        \"CreateDate\": \"2026-03-14T02:26:02+00:00\"\n    }\n}"
+          },
+          {
+            "match": "^aws iam get-policy-version --policy-arn arn:aws:iam::111122223333:policy\\/ci-deploy-policy --version-id v1$",
+            "output": "{\n    \"PolicyVersion\": {\n        \"Document\": \"(same statements as ci-deploy-policy.json in the artifacts, with the iam:CreatePolicyVersion / SetDefaultPolicyVersion statement)\",\n        \"VersionId\": \"v1\",\n        \"IsDefaultVersion\": false\n    }\n}"
+          },
+          {
+            "match": "^aws iam list-attached-user-policies --user-name ci-deploy$",
+            "output": "{\n    \"AttachedPolicies\": [\n        { \"PolicyName\": \"ci-deploy-policy\", \"PolicyArn\": \"arn:aws:iam::111122223333:policy/ci-deploy-policy\" }\n    ]\n}"
+          },
+          {
+            "match": "^ir-case record --stage initial-access --event-id 6f1d2a10-3b7c-4e51-9a01-c0ffee000001$",
+            "requires": [
+              "s1"
+            ],
+            "sets": [
+              "rec1"
+            ],
+            "output": "[ir-case] stage 'initial-access' recorded. First use of AKIAIOSFODNN7EXAMPLE from 203.0.113.50 (baseline 198.51.100.10).\n[ir-case] evidence token: FLAG{kc_initial_access_new_ip}"
+          },
+          {
+            "match": "^ir-case record --stage privilege-escalation --event-id 6f1d2a10-3b7c-4e51-9a11-c0ffee000011$",
+            "requires": [
+              "s3"
+            ],
+            "sets": [
+              "rec3"
+            ],
+            "output": "[ir-case] stage 'privilege-escalation' recorded. iam:CreatePolicyVersion on ci-deploy-policy, v2 set as default (Action *, Resource *).\n[ir-case] evidence token: FLAG{kc_escalation_policy_version}"
+          },
+          {
+            "match": "^ir-case record --stage persistence --event-id 6f1d2a10-3b7c-4e51-9a15-c0ffee000015$",
+            "requires": [
+              "s4"
+            ],
+            "sets": [
+              "rec4"
+            ],
+            "output": "[ir-case] stage 'persistence' recorded. iam:CreateAccessKey for user support-sync produced AKIAJEXAMPLEKEY00001.\n[ir-case] evidence token: FLAG{kc_persistence_new_access_key}"
+          },
+          {
+            "match": "^ir-case record --stage data-access --event-id 6f1d2a10-3b7c-4e51-9a17-c0ffee000017$",
+            "requires": [
+              "s5"
+            ],
+            "sets": [
+              "rec5"
+            ],
+            "output": "[ir-case] stage 'data-access' recorded. secretsmanager:GetSecretValue prod/customer-db-creds by support-sync from 192.0.2.44.\n[ir-case] evidence token: FLAG{kc_data_access_secret_read}"
+          },
+          {
+            "match": "^ir-case record --stage (\\S+) --event-id (\\S+)$",
+            "output": "[ir-case] rejected: event $2 is not the pivotal event for stage '$1', or you have not reviewed that stage's window yet.\nPick the single event that proves the stage (not a discovery call) and make sure you have pulled that window with lookup-events."
+          },
+          {
+            "match": "^ir-case\\b",
+            "output": "usage: ir-case record --stage <initial-access|privilege-escalation|persistence|data-access> --event-id <EventId>"
+          }
+        ]
+      },
+      "solution": [
+        "aws cloudtrail lookup-events --lookup-attributes AttributeKey=AccessKeyId,AttributeValue=AKIAIOSFODNN7EXAMPLE",
+        "aws cloudtrail lookup-events --lookup-attributes AttributeKey=AccessKeyId,AttributeValue=AKIAIOSFODNN7EXAMPLE --start-time 2026-03-14T02:00:00Z --end-time 2026-03-14T02:05:00Z",
+        "ir-case record --stage initial-access --event-id 6f1d2a10-3b7c-4e51-9a01-c0ffee000001",
+        "aws cloudtrail lookup-events --lookup-attributes AttributeKey=AccessKeyId,AttributeValue=AKIAIOSFODNN7EXAMPLE --start-time 2026-03-14T02:05:00Z --end-time 2026-03-14T02:20:00Z",
+        "aws cloudtrail lookup-events --lookup-attributes AttributeKey=AccessKeyId,AttributeValue=AKIAIOSFODNN7EXAMPLE --start-time 2026-03-14T02:20:00Z --end-time 2026-03-14T02:40:00Z",
+        "ir-case record --stage privilege-escalation --event-id 6f1d2a10-3b7c-4e51-9a11-c0ffee000011",
+        "aws cloudtrail lookup-events --lookup-attributes AttributeKey=AccessKeyId,AttributeValue=AKIAIOSFODNN7EXAMPLE --start-time 2026-03-14T02:40:00Z --end-time 2026-03-14T03:00:00Z",
+        "ir-case record --stage persistence --event-id 6f1d2a10-3b7c-4e51-9a15-c0ffee000015",
+        "aws cloudtrail lookup-events --lookup-attributes AttributeKey=AccessKeyId,AttributeValue=AKIAJEXAMPLEKEY00001",
+        "ir-case record --stage data-access --event-id 6f1d2a10-3b7c-4e51-9a17-c0ffee000017"
+      ],
+      "tasks": [
+        {
+          "id": "t1",
+          "kind": "flag",
+          "prompt": "Stage 1 - initial access. Pull the first window of the key's activity (the timeline tells you where it starts), find the event that proves the key was first used from an address outside the baseline, and record it with ir-case. Paste the evidence token.",
+          "flag": "FLAG{kc_initial_access_new_ip}",
+          "explanation": "Initial access is the first use of the stolen credential, here GetCallerIdentity from 203.0.113.50 instead of the CI NAT gateway. Attackers nearly always begin with sts:GetCallerIdentity because it needs no permission and tells them whose key they hold. The signal for defenders is not the call but the source address and user agent deviating from the key's baseline."
+        },
+        {
+          "id": "t2",
+          "kind": "choice",
+          "prompt": "Which controls would have prevented stage 1 (use of the leaked key by someone outside your CI)? Select all that apply.",
+          "options": [
+            "Replace the long-lived IAM user key with short-lived credentials: the pipeline assumes a role through OIDC federation",
+            "Add a condition to the key's permissions limiting use to the CI NAT gateway range or VPC endpoint (aws:SourceIp / aws:SourceVpce)",
+            "Require MFA for console sign-in for ci-deploy",
+            "Enable S3 Block Public Access on the artifact bucket"
+          ],
+          "correct": [
+            0,
+            1
+          ],
+          "explanation": "A key that does not exist (OIDC role session credentials) cannot be leaked for long, and a key bound to the CI network range is useless from 203.0.113.50. Console MFA is irrelevant because the activity was API-only, and Block Public Access protects buckets, not credentials."
+        },
+        {
+          "id": "t3",
+          "kind": "flag",
+          "prompt": "Stage 3 - privilege escalation. Walk the discovery window and then the next one. Find the IAM write call that changed what ci-deploy could do and record it with ir-case. Paste the evidence token.",
+          "flag": "FLAG{kc_escalation_policy_version}",
+          "explanation": "The pivotal event is iam:CreatePolicyVersion on ci-deploy-policy with setAsDefault true: a new default version that says Action * on Resource *. The giveaway in the log is the retried secretsmanager:ListSecrets that was AccessDenied at 02:09 and succeeds at 02:27. Always look for a denied call that later succeeds."
+        },
+        {
+          "id": "t4",
+          "kind": "policy",
+          "mode": "identity",
+          "prompt": "Fix ci-deploy's policy. The pipeline must still upload build artifacts, deploy CloudFormation stacks and be able to READ its own policy, but it must not be able to create or default-set a version of ANY managed policy (including its own).",
+          "starter": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"ArtifactBucket\",\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"s3:PutObject\",\n        \"s3:GetObject\"\n      ],\n      \"Resource\": \"arn:aws:s3:::acme-ci-artifacts/builds/*\"\n    },\n    {\n      \"Sid\": \"ArtifactBucketList\",\n      \"Effect\": \"Allow\",\n      \"Action\": \"s3:ListBucket\",\n      \"Resource\": \"arn:aws:s3:::acme-ci-artifacts\"\n    },\n    {\n      \"Sid\": \"DeployStacks\",\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"cloudformation:CreateStack\",\n        \"cloudformation:UpdateStack\",\n        \"cloudformation:DescribeStacks\"\n      ],\n      \"Resource\": \"*\"\n    },\n    {\n      \"Sid\": \"SelfServicePolicy\",\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"iam:CreatePolicyVersion\",\n        \"iam:SetDefaultPolicyVersion\",\n        \"iam:GetPolicy\",\n        \"iam:GetPolicyVersion\",\n        \"iam:ListPolicyVersions\"\n      ],\n      \"Resource\": \"*\"\n    }\n  ]\n}",
+          "solution": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"s3:PutObject\",\n        \"s3:GetObject\"\n      ],\n      \"Resource\": \"arn:aws:s3:::acme-ci-artifacts/builds/*\"\n    },\n    {\n      \"Effect\": \"Allow\",\n      \"Action\": \"s3:ListBucket\",\n      \"Resource\": \"arn:aws:s3:::acme-ci-artifacts\"\n    },\n    {\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"cloudformation:CreateStack\",\n        \"cloudformation:UpdateStack\",\n        \"cloudformation:DescribeStacks\"\n      ],\n      \"Resource\": \"*\"\n    },\n    {\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"iam:GetPolicy\",\n        \"iam:GetPolicyVersion\",\n        \"iam:ListPolicyVersions\"\n      ],\n      \"Resource\": \"arn:aws:iam::111122223333:policy/ci-deploy-policy\"\n    }\n  ]\n}",
+          "tests": [
+            {
+              "name": "Can still upload build artifacts",
+              "action": "s3:PutObject",
+              "resource": "arn:aws:s3:::acme-ci-artifacts/builds/app-1.4.2.zip",
+              "expect": "allow"
+            },
+            {
+              "name": "Can still update CloudFormation stacks",
+              "action": "cloudformation:UpdateStack",
+              "resource": "arn:aws:cloudformation:us-east-1:111122223333:stack/app-prod/abc123",
+              "expect": "allow"
+            },
+            {
+              "name": "Can still read its own managed policy",
+              "action": "iam:GetPolicy",
+              "resource": "arn:aws:iam::111122223333:policy/ci-deploy-policy",
+              "expect": "allow"
+            },
+            {
+              "name": "Cannot create a new version of its own policy",
+              "action": "iam:CreatePolicyVersion",
+              "resource": "arn:aws:iam::111122223333:policy/ci-deploy-policy",
+              "expect": "deny"
+            },
+            {
+              "name": "Cannot make an older or newer policy version the default",
+              "action": "iam:SetDefaultPolicyVersion",
+              "resource": "arn:aws:iam::111122223333:policy/ci-deploy-policy",
+              "expect": "deny"
+            },
+            {
+              "name": "Cannot edit any other managed policy either",
+              "action": "iam:CreatePolicyVersion",
+              "resource": "arn:aws:iam::111122223333:policy/prod-admin-policy",
+              "expect": "deny"
+            },
+            {
+              "name": "Cannot read customer export objects",
+              "action": "s3:GetObject",
+              "resource": "arn:aws:s3:::acme-customer-exports/2026/03/export.csv",
+              "expect": "deny"
+            }
+          ],
+          "explanation": "iam:CreatePolicyVersion (and iam:SetDefaultPolicyVersion) on a policy that is attached to yourself is a complete privilege-escalation primitive: you simply rewrite your own permissions. The fix is to remove the write actions, not to wrap them in conditions, and to keep only the read access the pipeline actually needs. Verify the fix by testing both what must still work and what must now fail."
+        },
+        {
+          "id": "t5",
+          "kind": "flag",
+          "prompt": "Stage 4 - persistence. Walk the window after the escalation, find the event that created a credential that would survive revoking ci-deploy's key, and record it. Paste the evidence token.",
+          "flag": "FLAG{kc_persistence_new_access_key}",
+          "explanation": "The attacker used the new admin rights to mint a second identity: CreateUser, AttachUserPolicy with AdministratorAccess, then CreateAccessKey. The access key is the persistence artifact because it keeps working after you disable the leaked key. Your containment plan must therefore cover every principal created during the incident window, not just the original key."
+        },
+        {
+          "id": "t6",
+          "kind": "answer",
+          "prompt": "What is the IAM user name of the backdoor identity created during the persistence stage?",
+          "accept": [
+            "support-sync",
+            "user/support-sync",
+            "arn:aws:iam::111122223333:user/support-sync"
+          ],
+          "explanation": "support-sync was named to look like a routine integration user. Responders should diff the IAM user list against the last known-good inventory and treat any user or key created inside the incident window as hostile until proven otherwise."
+        },
+        {
+          "id": "t7",
+          "kind": "choice",
+          "prompt": "Which control would have alerted you to the persistence stage within minutes?",
+          "options": [
+            "An EventBridge rule on CloudTrail management events for iam.amazonaws.com CreateUser, CreateAccessKey and AttachUserPolicy that pages the security team",
+            "Enable S3 versioning on the artifact bucket",
+            "Turn on VPC Flow Logs for the CI subnets",
+            "Enable Cost Anomaly Detection"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "IAM write calls are management events, so a CloudTrail-driven EventBridge rule can notify within about a minute of them happening. Flow logs and S3 versioning do not see IAM API calls, and cost anomaly detection fires only if the attacker spends money."
+        },
+        {
+          "id": "t8",
+          "kind": "flag",
+          "prompt": "Stage 5 - data access. Pivot on the new identity's access key (you found it in the persistence stage) to see what it did, and record the first read of a production secret. Paste the evidence token.",
+          "flag": "FLAG{kc_data_access_secret_read}",
+          "explanation": "Pivoting from the attacker's first credential to the second one is the core skill of kill-chain reconstruction: the persistence stage tells you where to look next. The new key read prod/customer-db-creds from a different address, and the object-level S3 reads sit in data events, which lookup-events cannot show, so you need the trail's S3 logs or CloudTrail Lake for scoping."
+        },
+        {
+          "id": "t9",
+          "kind": "choice",
+          "prompt": "The attacker already held AdministratorAccess. Which control would STILL have stopped them reading prod/customer-db-creds?",
+          "options": [
+            "An explicit Deny (SCP, and/or the secret's resource policy and KMS key policy) that allows GetSecretValue on prod/* only for the application role",
+            "CloudTrail log file validation",
+            "Rotating the secret every 30 days",
+            "Tagging the secret with data-classification=confidential"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "An explicit Deny beats any Allow, including AdministratorAccess. An SCP is the strongest form because an administrator in the member account cannot remove it. Log file validation protects log integrity, rotation only shortens the useful life of a stolen secret, and a tag changes nothing by itself."
+        }
+      ],
+      "takeaways": [
+        "Reconstruct incidents in order: the first use of a credential, discovery, a permission change, new identities, then data access. Each stage tells you where to look next.",
+        "A denied call that later succeeds is the clearest log signature of a privilege escalation; iam:CreatePolicyVersion on your own policy is a full escalation path.",
+        "Contain every identity the attacker created, not just the leaked key, and pivot on the credentials the logs reveal.",
+        "Prevent with short-lived credentials and explicit Deny guardrails; detect IAM write calls with EventBridge on CloudTrail management events."
+      ]
+    }
+  },
+  {
+    "labId": "cloud-L26",
+    "title": "Audit Cross-Account Trust",
+    "objective": "Audit which roles and resource policies in your account trust a partner AWS account and what they can reach, then tighten a bucket policy and a role trust policy so only one specific partner role can reach one prefix, understanding that cross-account access needs both an identity allow and a resource/trust allow.",
+    "successCriteria": [
+      "You enumerated every role that trusts account 444455556666 and what each can reach",
+      "You rewrote the shared bucket policy so a single partner role can only read one prefix",
+      "You rewrote the PartnerAnalyticsRole trust policy to name one partner role and require the agreed ExternalId"
+    ],
+    "hints": [
+      "Start with the role list: look at each trust policy's Principal. Which ones name a whole account rather than a specific role?",
+      "For each trusting role, check how recently it was used and what policies it carries. Then read the bucket policy and list the top-level prefixes.",
+      "Cross-account access is the AND of two sides. Name the exact partner role (not the :root account) in your policy, and scope the Resource to the prefix. For ListBucket, use an s3:prefix condition."
+    ],
+    "estimatedHours": 2,
+    "resources": [
+      {
+        "title": "AWS docs: Cross-account policy evaluation logic",
+        "url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_evaluation-logic-cross-account.html",
+        "type": "link"
+      },
+      {
+        "title": "AWS docs: The confused deputy problem",
+        "url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/confused-deputy.html",
+        "type": "link"
+      },
+      {
+        "title": "AWS docs: How to use an external ID when granting access to your AWS resources",
+        "url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_create_for-user_externalid.html",
+        "type": "link"
+      },
+      {
+        "title": "AWS docs: What is IAM Access Analyzer?",
+        "url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/what-is-access-analyzer.html",
+        "type": "link"
+      }
+    ],
+    "range": {
+      "scenario": "Your account is 111122223333. A data partner, Orbital Metrics, operates account 444455556666 and consumes feeds that you publish in the bucket acme-shared-exports. Over the years several roles and a bucket policy were created to let them in. A customer security questionnaire now asks you to prove exactly which of your roles trust the partner account, what they can reach and whether the partner can read anything beyond the one feed it was contracted for. You audit the trust relationships from the terminal, then tighten the bucket policy and the role trust policy so that a single partner role reaches a single prefix. All accounts and names are fictional.",
+      "artifacts": [
+        {
+          "name": "partner-onboarding-notes.txt",
+          "language": "text",
+          "content": "Partner: Orbital Metrics (fictional)\nPartner account: 444455556666\nContracted scope: read-only access to the partner-feeds/ prefix of s3://acme-shared-exports\nPartner principal that runs the feed job: arn:aws:iam::444455556666:role/partner-analytics\nExternalId agreed for AssumeRole: acme-ext-9d3e71\nOther partner roles (NOT in scope for any access): arn:aws:iam::444455556666:role/dev-sandbox, arn:aws:iam::444455556666:role/billing-sync (billing only)",
+          "note": "What was contractually agreed. Your fixes must match this scope exactly."
+        },
+        {
+          "name": "acme-shared-exports-bucket-policy.json",
+          "language": "json",
+          "content": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"PartnerRead\",\n      \"Effect\": \"Allow\",\n      \"Principal\": {\n        \"AWS\": \"arn:aws:iam::444455556666:root\"\n      },\n      \"Action\": [\n        \"s3:GetObject\",\n        \"s3:ListBucket\"\n      ],\n      \"Resource\": [\n        \"arn:aws:s3:::acme-shared-exports\",\n        \"arn:aws:s3:::acme-shared-exports/*\"\n      ]\n    }\n  ]\n}",
+          "note": "The current bucket policy on acme-shared-exports (resource side)."
+        },
+        {
+          "name": "PartnerAnalyticsRole-trust.json",
+          "language": "json",
+          "content": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Effect\": \"Allow\",\n      \"Principal\": {\n        \"AWS\": \"arn:aws:iam::444455556666:root\"\n      },\n      \"Action\": \"sts:AssumeRole\"\n    }\n  ]\n}",
+          "note": "The current trust policy on your PartnerAnalyticsRole (role-assumption side)."
+        },
+        {
+          "name": "partner-account-identity-policies.json",
+          "language": "json",
+          "content": "{\n  \"note\": \"Identity policies in the PARTNER account (you do not control these)\",\n  \"partnerAnalyticsRoleIdentityPolicy\": {\n    \"Version\": \"2012-10-17\",\n    \"Statement\": [\n      {\n        \"Sid\": \"ReadOrbitalExports\",\n        \"Effect\": \"Allow\",\n        \"Action\": [\n          \"s3:GetObject\",\n          \"s3:ListBucket\"\n        ],\n        \"Resource\": [\n          \"arn:aws:s3:::acme-shared-exports\",\n          \"arn:aws:s3:::acme-shared-exports/*\"\n        ]\n      }\n    ]\n  },\n  \"partnerCallerAssumePolicy\": {\n    \"Version\": \"2012-10-17\",\n    \"Statement\": [\n      {\n        \"Sid\": \"AssumeAcmeAnalytics\",\n        \"Effect\": \"Allow\",\n        \"Action\": \"sts:AssumeRole\",\n        \"Resource\": \"arn:aws:iam::111122223333:role/PartnerAnalyticsRole\"\n      }\n    ]\n  }\n}",
+          "note": "The partner side of the equation: their identity policies already allow access. Only your side is yours to fix."
+        }
+      ],
+      "terminal": {
+        "prompt": "auditor@sec-workstation:~$",
+        "intro": "Assumed SecurityAuditRole in account 111122223333 (read-only). Region: us-east-1. Tools: aws cli, trustaudit (simulated CSPM).",
+        "help": "Commands you can try:\n  aws sts get-caller-identity\n  aws iam list-roles\n  aws iam get-role --role-name <name>\n  aws iam list-role-policies --role-name <name>\n  aws iam get-role-policy --role-name <name> --policy-name <p>\n  aws iam list-attached-role-policies --role-name <name>\n  aws s3api get-bucket-policy --bucket <b>\n  aws s3api list-objects-v2 --bucket <b> --delimiter /\n  aws accessanalyzer list-findings --analyzer-arn <arn>\n  trustaudit report --account <id> --partner <id>",
+        "rules": [
+          {
+            "match": "^aws sts get-caller-identity$",
+            "output": "{\n    \"UserId\": \"AROAEXAMPLESECAUD001:audit-session\",\n    \"Account\": \"111122223333\",\n    \"Arn\": \"arn:aws:sts::111122223333:assumed-role/SecurityAuditRole/audit-session\"\n}"
+          },
+          {
+            "match": "^aws iam list-roles$",
+            "sets": [
+              "roles_listed"
+            ],
+            "output": "{\n    \"Roles\": [\n        {\n            \"Path\": \"/\",\n            \"RoleName\": \"AppServerRole\",\n            \"RoleId\": \"AROAEXAMPLEAPPSRV001\",\n            \"Arn\": \"arn:aws:iam::111122223333:role/AppServerRole\",\n            \"CreateDate\": \"2024-11-05T10:12:09+00:00\",\n            \"AssumeRolePolicyDocument\": {\n                \"Version\": \"2012-10-17\",\n                \"Statement\": [\n                    {\n                        \"Effect\": \"Allow\",\n                        \"Principal\": {\n                            \"Service\": \"ec2.amazonaws.com\"\n                        },\n                        \"Action\": \"sts:AssumeRole\"\n                    }\n                ]\n            },\n            \"MaxSessionDuration\": 3600,\n            \"RoleLastUsed\": {\n                \"LastUsedDate\": \"2026-03-20T07:55:00+00:00\",\n                \"Region\": \"us-east-1\"\n            }\n        },\n        {\n            \"Path\": \"/\",\n            \"RoleName\": \"PartnerAnalyticsRole\",\n            \"RoleId\": \"AROAEXAMPLEPARTANA01\",\n            \"Arn\": \"arn:aws:iam::111122223333:role/PartnerAnalyticsRole\",\n            \"CreateDate\": \"2024-11-05T10:12:09+00:00\",\n            \"AssumeRolePolicyDocument\": {\n                \"Version\": \"2012-10-17\",\n                \"Statement\": [\n                    {\n                        \"Effect\": \"Allow\",\n                        \"Principal\": {\n                            \"AWS\": \"arn:aws:iam::444455556666:root\"\n                        },\n                        \"Action\": \"sts:AssumeRole\"\n                    }\n                ]\n            },\n            \"MaxSessionDuration\": 3600,\n            \"RoleLastUsed\": {\n                \"LastUsedDate\": \"2026-03-11T14:20:00+00:00\",\n                \"Region\": \"us-east-1\"\n            }\n        },\n        {\n            \"Path\": \"/\",\n            \"RoleName\": \"PartnerBillingRole\",\n            \"RoleId\": \"AROAEXAMPLEPARTBIL01\",\n            \"Arn\": \"arn:aws:iam::111122223333:role/PartnerBillingRole\",\n            \"CreateDate\": \"2024-11-05T10:12:09+00:00\",\n            \"AssumeRolePolicyDocument\": {\n                \"Version\": \"2012-10-17\",\n                \"Statement\": [\n                    {\n                        \"Effect\": \"Allow\",\n                        \"Principal\": {\n                            \"AWS\": \"arn:aws:iam::444455556666:role/billing-sync\"\n                        },\n                        \"Action\": \"sts:AssumeRole\",\n                        \"Condition\": {\n                            \"StringEquals\": {\n                                \"sts:ExternalId\": \"acme-ext-b2a4c8\"\n                            }\n                        }\n                    }\n                ]\n            },\n            \"MaxSessionDuration\": 3600,\n            \"RoleLastUsed\": {\n                \"LastUsedDate\": \"2026-03-12T06:01:00+00:00\",\n                \"Region\": \"us-east-1\"\n            }\n        },\n        {\n            \"Path\": \"/\",\n            \"RoleName\": \"LegacyVendorRole\",\n            \"RoleId\": \"AROAEXAMPLELEGVEND01\",\n            \"Arn\": \"arn:aws:iam::111122223333:role/LegacyVendorRole\",\n            \"CreateDate\": \"2024-11-05T10:12:09+00:00\",\n            \"AssumeRolePolicyDocument\": {\n                \"Version\": \"2012-10-17\",\n                \"Statement\": [\n                    {\n                        \"Effect\": \"Allow\",\n                        \"Principal\": {\n                            \"AWS\": \"arn:aws:iam::444455556666:root\"\n                        },\n                        \"Action\": \"sts:AssumeRole\"\n                    }\n                ]\n            },\n            \"MaxSessionDuration\": 3600,\n            \"RoleLastUsed\": {\n                \"LastUsedDate\": \"2025-01-22T11:40:00+00:00\",\n                \"Region\": \"us-east-1\"\n            }\n        },\n        {\n            \"Path\": \"/\",\n            \"RoleName\": \"SecurityAuditRole\",\n            \"RoleId\": \"AROAEXAMPLESECAUD001\",\n            \"Arn\": \"arn:aws:iam::111122223333:role/SecurityAuditRole\",\n            \"CreateDate\": \"2024-11-05T10:12:09+00:00\",\n            \"AssumeRolePolicyDocument\": {\n                \"Version\": \"2012-10-17\",\n                \"Statement\": [\n                    {\n                        \"Effect\": \"Allow\",\n                        \"Principal\": {\n                            \"AWS\": \"arn:aws:iam::111122223333:root\"\n                        },\n                        \"Action\": \"sts:AssumeRole\"\n                    }\n                ]\n            },\n            \"MaxSessionDuration\": 3600,\n            \"RoleLastUsed\": {\n                \"LastUsedDate\": \"2026-03-20T09:00:00+00:00\",\n                \"Region\": \"us-east-1\"\n            }\n        }\n    ]\n}"
+          },
+          {
+            "match": "^aws iam get-role --role-name PartnerAnalyticsRole$",
+            "sets": [
+              "rev_analytics"
+            ],
+            "output": "{\n    \"Role\": {\n        \"Path\": \"/\",\n        \"RoleName\": \"PartnerAnalyticsRole\",\n        \"RoleId\": \"AROAEXAMPLEPARTANA01\",\n        \"Arn\": \"arn:aws:iam::111122223333:role/PartnerAnalyticsRole\",\n        \"CreateDate\": \"2024-11-05T10:12:09+00:00\",\n        \"AssumeRolePolicyDocument\": {\n            \"Version\": \"2012-10-17\",\n            \"Statement\": [\n                {\n                    \"Effect\": \"Allow\",\n                    \"Principal\": {\n                        \"AWS\": \"arn:aws:iam::444455556666:root\"\n                    },\n                    \"Action\": \"sts:AssumeRole\"\n                }\n            ]\n        },\n        \"MaxSessionDuration\": 3600,\n        \"RoleLastUsed\": {\n            \"LastUsedDate\": \"2026-03-11T14:20:00+00:00\",\n            \"Region\": \"us-east-1\"\n        }\n    }\n}"
+          },
+          {
+            "match": "^aws iam get-role --role-name LegacyVendorRole$",
+            "sets": [
+              "rev_legacy"
+            ],
+            "output": "{\n    \"Role\": {\n        \"Path\": \"/\",\n        \"RoleName\": \"LegacyVendorRole\",\n        \"RoleId\": \"AROAEXAMPLELEGVEND01\",\n        \"Arn\": \"arn:aws:iam::111122223333:role/LegacyVendorRole\",\n        \"CreateDate\": \"2024-11-05T10:12:09+00:00\",\n        \"AssumeRolePolicyDocument\": {\n            \"Version\": \"2012-10-17\",\n            \"Statement\": [\n                {\n                    \"Effect\": \"Allow\",\n                    \"Principal\": {\n                        \"AWS\": \"arn:aws:iam::444455556666:root\"\n                    },\n                    \"Action\": \"sts:AssumeRole\"\n                }\n            ]\n        },\n        \"MaxSessionDuration\": 3600,\n        \"RoleLastUsed\": {\n            \"LastUsedDate\": \"2025-01-22T11:40:00+00:00\",\n            \"Region\": \"us-east-1\"\n        }\n    }\n}"
+          },
+          {
+            "match": "^aws iam get-role --role-name PartnerBillingRole$",
+            "sets": [
+              "rev_billing"
+            ],
+            "output": "{\n    \"Role\": {\n        \"Path\": \"/\",\n        \"RoleName\": \"PartnerBillingRole\",\n        \"RoleId\": \"AROAEXAMPLEPARTBIL01\",\n        \"Arn\": \"arn:aws:iam::111122223333:role/PartnerBillingRole\",\n        \"CreateDate\": \"2024-11-05T10:12:09+00:00\",\n        \"AssumeRolePolicyDocument\": {\n            \"Version\": \"2012-10-17\",\n            \"Statement\": [\n                {\n                    \"Effect\": \"Allow\",\n                    \"Principal\": {\n                        \"AWS\": \"arn:aws:iam::444455556666:role/billing-sync\"\n                    },\n                    \"Action\": \"sts:AssumeRole\",\n                    \"Condition\": {\n                        \"StringEquals\": {\n                            \"sts:ExternalId\": \"acme-ext-b2a4c8\"\n                        }\n                    }\n                }\n            ]\n        },\n        \"MaxSessionDuration\": 3600,\n        \"RoleLastUsed\": {\n            \"LastUsedDate\": \"2026-03-12T06:01:00+00:00\",\n            \"Region\": \"us-east-1\"\n        }\n    }\n}"
+          },
+          {
+            "match": "^aws iam get-role --role-name AppServerRole$",
+            "output": "{\n    \"Role\": {\n        \"Path\": \"/\",\n        \"RoleName\": \"AppServerRole\",\n        \"RoleId\": \"AROAEXAMPLEAPPSRV001\",\n        \"Arn\": \"arn:aws:iam::111122223333:role/AppServerRole\",\n        \"CreateDate\": \"2024-11-05T10:12:09+00:00\",\n        \"AssumeRolePolicyDocument\": {\n            \"Version\": \"2012-10-17\",\n            \"Statement\": [\n                {\n                    \"Effect\": \"Allow\",\n                    \"Principal\": {\n                        \"Service\": \"ec2.amazonaws.com\"\n                    },\n                    \"Action\": \"sts:AssumeRole\"\n                }\n            ]\n        },\n        \"MaxSessionDuration\": 3600,\n        \"RoleLastUsed\": {\n            \"LastUsedDate\": \"2026-03-20T07:55:00+00:00\",\n            \"Region\": \"us-east-1\"\n        }\n    }\n}"
+          },
+          {
+            "match": "^aws iam get-role --role-name SecurityAuditRole$",
+            "output": "{\n    \"Role\": {\n        \"Path\": \"/\",\n        \"RoleName\": \"SecurityAuditRole\",\n        \"RoleId\": \"AROAEXAMPLESECAUD001\",\n        \"Arn\": \"arn:aws:iam::111122223333:role/SecurityAuditRole\",\n        \"CreateDate\": \"2024-11-05T10:12:09+00:00\",\n        \"AssumeRolePolicyDocument\": {\n            \"Version\": \"2012-10-17\",\n            \"Statement\": [\n                {\n                    \"Effect\": \"Allow\",\n                    \"Principal\": {\n                        \"AWS\": \"arn:aws:iam::111122223333:root\"\n                    },\n                    \"Action\": \"sts:AssumeRole\"\n                }\n            ]\n        },\n        \"MaxSessionDuration\": 3600,\n        \"RoleLastUsed\": {\n            \"LastUsedDate\": \"2026-03-20T09:00:00+00:00\",\n            \"Region\": \"us-east-1\"\n        }\n    }\n}"
+          },
+          {
+            "match": "^aws iam get-role --role-name (\\S+)$",
+            "output": "An error occurred (NoSuchEntity) when calling the GetRole operation: The role with name $1 cannot be found."
+          },
+          {
+            "match": "^aws iam list-role-policies --role-name partneranalyticsrole$",
+            "output": "{\n    \"PolicyNames\": [\n        \"ReadSharedExports\"\n    ]\n}"
+          },
+          {
+            "match": "^aws iam get-role-policy --role-name partneranalyticsrole --policy-name readsharedexports$",
+            "sets": [
+              "reach_analytics"
+            ],
+            "output": "{\n    \"RoleName\": \"PartnerAnalyticsRole\",\n    \"PolicyName\": \"ReadSharedExports\",\n    \"PolicyDocument\": {\n        \"Version\": \"2012-10-17\",\n        \"Statement\": [\n            {\n                \"Sid\": \"ReadSharedExports\",\n                \"Effect\": \"Allow\",\n                \"Action\": [\n                    \"s3:GetObject\",\n                    \"s3:ListBucket\"\n                ],\n                \"Resource\": [\n                    \"arn:aws:s3:::acme-shared-exports\",\n                    \"arn:aws:s3:::acme-shared-exports/*\"\n                ]\n            }\n        ]\n    }\n}"
+          },
+          {
+            "match": "^aws iam list-attached-role-policies --role-name legacyvendorrole$",
+            "sets": [
+              "reach_legacy"
+            ],
+            "output": "{\n    \"AttachedPolicies\": [\n        {\n            \"PolicyName\": \"AmazonS3FullAccess\",\n            \"PolicyArn\": \"arn:aws:iam::aws:policy/AmazonS3FullAccess\"\n        }\n    ]\n}"
+          },
+          {
+            "match": "^aws iam list-attached-role-policies --role-name partnerbillingrole$",
+            "output": "{\n    \"AttachedPolicies\": [\n        {\n            \"PolicyName\": \"AWSBillingReadOnlyAccess\",\n            \"PolicyArn\": \"arn:aws:iam::aws:policy/AWSBillingReadOnlyAccess\"\n        }\n    ]\n}"
+          },
+          {
+            "match": "^aws iam (list-attached-role-policies|list-role-policies) --role-name (\\S+)$",
+            "output": "{\n    \"AttachedPolicies\": []\n}\n# (nothing attached or inline for $2 that matters to this audit)"
+          },
+          {
+            "match": "^aws s3api get-bucket-policy --bucket acme-shared-exports$",
+            "sets": [
+              "rev_bucket"
+            ],
+            "output": "{\n    \"Policy\": \"{\\\"Version\\\":\\\"2012-10-17\\\",\\\"Statement\\\":[{\\\"Sid\\\":\\\"PartnerRead\\\",\\\"Effect\\\":\\\"Allow\\\",\\\"Principal\\\":{\\\"AWS\\\":\\\"arn:aws:iam::444455556666:root\\\"},\\\"Action\\\":[\\\"s3:GetObject\\\",\\\"s3:ListBucket\\\"],\\\"Resource\\\":[\\\"arn:aws:s3:::acme-shared-exports\\\",\\\"arn:aws:s3:::acme-shared-exports/*\\\"]}]}\"\n}"
+          },
+          {
+            "match": "^aws s3api get-bucket-policy --bucket (\\S+)$",
+            "output": "An error occurred (NoSuchBucketPolicy) when calling the GetBucketPolicy operation: The bucket policy does not exist"
+          },
+          {
+            "match": "^aws s3api list-objects-v2 --bucket acme-shared-exports --delimiter \\/$",
+            "sets": [
+              "rev_prefixes"
+            ],
+            "output": "{\n    \"CommonPrefixes\": [\n        {\n            \"Prefix\": \"finance/\"\n        },\n        {\n            \"Prefix\": \"hr/\"\n        },\n        {\n            \"Prefix\": \"partner-feeds/\"\n        }\n    ],\n    \"KeyCount\": 3\n}"
+          },
+          {
+            "match": "^aws accessanalyzer list-findings\\b",
+            "sets": [
+              "saw_findings"
+            ],
+            "output": "{\n    \"findings\": [\n        {\n            \"id\": \"a1b2c3d4-EXAMPLE-0001\",\n            \"resource\": \"arn:aws:s3:::acme-shared-exports\",\n            \"resourceType\": \"AWS::S3::Bucket\",\n            \"principal\": {\n                \"AWS\": \"444455556666\"\n            },\n            \"action\": [\n                \"s3:GetObject\",\n                \"s3:ListBucket\"\n            ],\n            \"isPublic\": false,\n            \"status\": \"ACTIVE\"\n        },\n        {\n            \"id\": \"a1b2c3d4-EXAMPLE-0002\",\n            \"resource\": \"arn:aws:iam::111122223333:role/PartnerAnalyticsRole\",\n            \"resourceType\": \"AWS::IAM::Role\",\n            \"principal\": {\n                \"AWS\": \"444455556666\"\n            },\n            \"action\": [\n                \"sts:AssumeRole\"\n            ],\n            \"isPublic\": false,\n            \"status\": \"ACTIVE\"\n        },\n        {\n            \"id\": \"a1b2c3d4-EXAMPLE-0003\",\n            \"resource\": \"arn:aws:iam::111122223333:role/LegacyVendorRole\",\n            \"resourceType\": \"AWS::IAM::Role\",\n            \"principal\": {\n                \"AWS\": \"444455556666\"\n            },\n            \"action\": [\n                \"sts:AssumeRole\"\n            ],\n            \"isPublic\": false,\n            \"status\": \"ACTIVE\"\n        }\n    ]\n}"
+          },
+          {
+            "match": "^trustaudit report\\b",
+            "requires": [
+              "roles_listed",
+              "rev_analytics",
+              "rev_legacy",
+              "rev_billing",
+              "rev_bucket",
+              "reach_analytics"
+            ],
+            "sets": [
+              "audit_done"
+            ],
+            "output": "trustaudit 2.1 (simulated CSPM) - account 111122223333 - external account 444455556666\n\nROLE                  TRUSTS                      EXTERNALID  LAST USED    REACH                                              RISK\nPartnerAnalyticsRole  444455556666:root (any role)  no         2026-03-11   s3 Get/List on acme-shared-exports, ALL prefixes   HIGH\nLegacyVendorRole      444455556666:root (any role)  no         2025-01-22   AmazonS3FullAccess, ALL buckets                    CRITICAL (unused 14 months)\nPartnerBillingRole    role/billing-sync            yes        2026-03-12   AWSBillingReadOnlyAccess                           LOW\n\nRESOURCE POLICIES\ns3://acme-shared-exports   Principal 444455556666:root   Get/List on whole bucket (finance/, hr/, partner-feeds/)   HIGH\n\nAudit complete: 3/3 trust relationships and 1/1 resource policies reviewed, none left unclassified.\naudit-token: FLAG{xa_partner_trust_audit_done}"
+          },
+          {
+            "match": "^trustaudit report\\b",
+            "output": "trustaudit: audit incomplete. Not every trust relationship and resource policy has been reviewed yet.\nList the roles, inspect each role that trusts the partner account and what it can reach, and read the bucket policy. Then re-run."
+          },
+          {
+            "match": "^trustaudit\\b",
+            "output": "usage: trustaudit report --account <id> --partner <id>"
+          }
+        ]
+      },
+      "solution": [
+        "aws sts get-caller-identity",
+        "aws iam list-roles",
+        "aws iam get-role --role-name PartnerAnalyticsRole",
+        "aws iam get-role --role-name LegacyVendorRole",
+        "aws iam get-role --role-name PartnerBillingRole",
+        "aws iam get-role-policy --role-name PartnerAnalyticsRole --policy-name ReadSharedExports",
+        "aws s3api get-bucket-policy --bucket acme-shared-exports",
+        "trustaudit report --account 111122223333 --partner 444455556666"
+      ],
+      "tasks": [
+        {
+          "id": "t1",
+          "kind": "answer",
+          "prompt": "Use list-roles and read each trust policy. How many roles in account 111122223333 trust the partner account 444455556666 (by account root or by a specific partner role)? Answer with a number.",
+          "accept": [
+            "3",
+            "three"
+          ],
+          "explanation": "PartnerAnalyticsRole and LegacyVendorRole trust the partner account root, while PartnerBillingRole trusts one specific partner role. A trust inventory must count all three, because each one is a way into your account that someone has to own and review. Access Analyzer's external-access findings surface the same relationships."
+        },
+        {
+          "id": "t2",
+          "kind": "answer",
+          "prompt": "Which trusting role has not been used for more than a year and carries a broad managed policy, making it the first candidate for deletion?",
+          "accept": [
+            "legacyvendorrole",
+            "legacy vendor role",
+            "arn:aws:iam::111122223333:role/legacyvendorrole"
+          ],
+          "explanation": "LegacyVendorRole was last used in January 2025, trusts the whole partner account and carries AmazonS3FullAccess. An unused, over-privileged, account-wide trust is pure risk: remove it. Use RoleLastUsed (and Access Analyzer's unused-access findings) to find these."
+        },
+        {
+          "id": "t3",
+          "kind": "flag",
+          "prompt": "Complete the audit: review every trusting role, what each can reach and the bucket policy, then run the trust audit report. Paste the audit token it prints.",
+          "flag": "FLAG{xa_partner_trust_audit_done}",
+          "explanation": "A clean audit means that no trust relationship or resource policy was left unclassified. The report only completes when you have looked at the role trust policies, the reach of each role and the bucket policy: trust (who can assume), permissions (what they can do) and resource policy (what the resource allows) are three separate places to check."
+        },
+        {
+          "id": "t4",
+          "kind": "choice",
+          "prompt": "Your bucket policy names only arn:aws:iam::444455556666:role/partner-analytics. The partner admin attaches an identity policy to role dev-sandbox in their account that allows s3:GetObject on your bucket. Can dev-sandbox read objects?",
+          "options": [
+            "Yes - the identity policy in the partner account is enough",
+            "No - across accounts BOTH sides must allow: an identity allow in the partner account AND a resource policy in your account that names the caller (or the partner account root)",
+            "Yes - both accounts are in the same AWS Region, so it counts as same-account access",
+            "Only if the bucket ACL is also set to public-read"
+          ],
+          "correct": [
+            1
+          ],
+          "explanation": "Within one account an identity policy or a resource policy naming the caller is enough. Across accounts, AWS requires an explicit allow on both sides. That is why the fix for a partner over-reach belongs in YOUR policies: name the exact partner role, and the partner's own identity policies cannot widen it."
+        },
+        {
+          "id": "t5",
+          "kind": "policy",
+          "mode": "resource",
+          "prompt": "Fix the bucket policy on acme-shared-exports. Only the partner role partner-analytics (arn:aws:iam::444455556666:role/partner-analytics) may read objects, and only under the partner-feeds/ prefix, and may list only that prefix. Other partner roles, other prefixes (finance/, hr/) and other accounts must be denied. The partner's identity policies (fixed) already allow everything on the bucket, so your policy is the only gate.",
+          "starter": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"PartnerRead\",\n      \"Effect\": \"Allow\",\n      \"Principal\": {\n        \"AWS\": \"arn:aws:iam::444455556666:root\"\n      },\n      \"Action\": [\n        \"s3:GetObject\",\n        \"s3:ListBucket\"\n      ],\n      \"Resource\": [\n        \"arn:aws:s3:::acme-shared-exports\",\n        \"arn:aws:s3:::acme-shared-exports/*\"\n      ]\n    }\n  ]\n}",
+          "solution": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"PartnerFeedsRead\",\n      \"Effect\": \"Allow\",\n      \"Principal\": {\n        \"AWS\": \"arn:aws:iam::444455556666:role/partner-analytics\"\n      },\n      \"Action\": \"s3:GetObject\",\n      \"Resource\": \"arn:aws:s3:::acme-shared-exports/partner-feeds/*\"\n    },\n    {\n      \"Sid\": \"PartnerFeedsList\",\n      \"Effect\": \"Allow\",\n      \"Principal\": {\n        \"AWS\": \"arn:aws:iam::444455556666:role/partner-analytics\"\n      },\n      \"Action\": \"s3:ListBucket\",\n      \"Resource\": \"arn:aws:s3:::acme-shared-exports\",\n      \"Condition\": {\n        \"StringLike\": {\n          \"s3:prefix\": \"partner-feeds/*\"\n        }\n      }\n    }\n  ]\n}",
+          "fixed": {
+            "identity": [
+              "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"ReadOrbitalExports\",\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"s3:GetObject\",\n        \"s3:ListBucket\"\n      ],\n      \"Resource\": [\n        \"arn:aws:s3:::acme-shared-exports\",\n        \"arn:aws:s3:::acme-shared-exports/*\"\n      ]\n    }\n  ]\n}"
+            ],
+            "crossAccount": true
+          },
+          "tests": [
+            {
+              "name": "partner-analytics can read a feed object",
+              "action": "s3:GetObject",
+              "resource": "arn:aws:s3:::acme-shared-exports/partner-feeds/2026/03/daily.csv",
+              "principal": "arn:aws:sts::444455556666:assumed-role/partner-analytics/feed-job",
+              "expect": "allow"
+            },
+            {
+              "name": "partner-analytics can list the partner-feeds prefix",
+              "action": "s3:ListBucket",
+              "resource": "arn:aws:s3:::acme-shared-exports",
+              "principal": "arn:aws:sts::444455556666:assumed-role/partner-analytics/feed-job",
+              "context": {
+                "s3:prefix": "partner-feeds/2026/"
+              },
+              "expect": "allow"
+            },
+            {
+              "name": "partner-analytics cannot read finance objects",
+              "action": "s3:GetObject",
+              "resource": "arn:aws:s3:::acme-shared-exports/finance/q1-payroll.xlsx",
+              "principal": "arn:aws:sts::444455556666:assumed-role/partner-analytics/feed-job",
+              "expect": "deny"
+            },
+            {
+              "name": "partner-analytics cannot read hr objects",
+              "action": "s3:GetObject",
+              "resource": "arn:aws:s3:::acme-shared-exports/hr/headcount.csv",
+              "principal": "arn:aws:sts::444455556666:assumed-role/partner-analytics/feed-job",
+              "expect": "deny"
+            },
+            {
+              "name": "partner-analytics cannot list the finance prefix",
+              "action": "s3:ListBucket",
+              "resource": "arn:aws:s3:::acme-shared-exports",
+              "principal": "arn:aws:sts::444455556666:assumed-role/partner-analytics/feed-job",
+              "context": {
+                "s3:prefix": "finance/"
+              },
+              "expect": "deny"
+            },
+            {
+              "name": "partner-analytics cannot list the whole bucket without a prefix",
+              "action": "s3:ListBucket",
+              "resource": "arn:aws:s3:::acme-shared-exports",
+              "principal": "arn:aws:sts::444455556666:assumed-role/partner-analytics/feed-job",
+              "expect": "deny"
+            },
+            {
+              "name": "Another partner role (dev-sandbox) cannot read the feed",
+              "action": "s3:GetObject",
+              "resource": "arn:aws:s3:::acme-shared-exports/partner-feeds/2026/03/daily.csv",
+              "principal": "arn:aws:iam::444455556666:role/dev-sandbox",
+              "expect": "deny"
+            },
+            {
+              "name": "A role in an unrelated account cannot read the feed",
+              "action": "s3:GetObject",
+              "resource": "arn:aws:s3:::acme-shared-exports/partner-feeds/2026/03/daily.csv",
+              "principal": "arn:aws:iam::999988887777:role/random-role",
+              "expect": "deny"
+            }
+          ],
+          "explanation": "Naming :root for the partner delegates to every principal in their account that their admin chooses to grant, so the partner decides who reaches your data. Naming the exact role ARN and scoping Resource to partner-feeds/* puts the decision back in your hands. ListBucket acts on the bucket ARN, not on objects, so it needs its own statement with an s3:prefix condition."
+        },
+        {
+          "id": "t6",
+          "kind": "policy",
+          "mode": "resource",
+          "prompt": "Fix the trust policy of PartnerAnalyticsRole (it is the 'resource' being protected). Only the partner role partner-analytics may assume it, and only when it presents the ExternalId agreed in the onboarding notes. The partner side already allows sts:AssumeRole on this role (fixed), so your trust policy is the gate.",
+          "starter": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Effect\": \"Allow\",\n      \"Principal\": {\n        \"AWS\": \"arn:aws:iam::444455556666:root\"\n      },\n      \"Action\": \"sts:AssumeRole\"\n    }\n  ]\n}",
+          "solution": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Effect\": \"Allow\",\n      \"Principal\": {\n        \"AWS\": \"arn:aws:iam::444455556666:role/partner-analytics\"\n      },\n      \"Action\": \"sts:AssumeRole\",\n      \"Condition\": {\n        \"StringEquals\": {\n          \"sts:ExternalId\": \"acme-ext-9d3e71\"\n        }\n      }\n    }\n  ]\n}",
+          "fixed": {
+            "identity": [
+              "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"AssumeAcmeAnalytics\",\n      \"Effect\": \"Allow\",\n      \"Action\": \"sts:AssumeRole\",\n      \"Resource\": \"arn:aws:iam::111122223333:role/PartnerAnalyticsRole\"\n    }\n  ]\n}"
+            ],
+            "crossAccount": true
+          },
+          "tests": [
+            {
+              "name": "partner-analytics can assume the role with the agreed ExternalId",
+              "action": "sts:AssumeRole",
+              "resource": "arn:aws:iam::111122223333:role/PartnerAnalyticsRole",
+              "principal": "arn:aws:iam::444455556666:role/partner-analytics",
+              "context": {
+                "sts:ExternalId": "acme-ext-9d3e71"
+              },
+              "expect": "allow"
+            },
+            {
+              "name": "partner-analytics cannot assume it without the ExternalId",
+              "action": "sts:AssumeRole",
+              "resource": "arn:aws:iam::111122223333:role/PartnerAnalyticsRole",
+              "principal": "arn:aws:iam::444455556666:role/partner-analytics",
+              "expect": "deny"
+            },
+            {
+              "name": "partner-analytics cannot assume it with a wrong ExternalId",
+              "action": "sts:AssumeRole",
+              "resource": "arn:aws:iam::111122223333:role/PartnerAnalyticsRole",
+              "principal": "arn:aws:iam::444455556666:role/partner-analytics",
+              "context": {
+                "sts:ExternalId": "acme-ext-000000"
+              },
+              "expect": "deny"
+            },
+            {
+              "name": "dev-sandbox cannot assume it, even with the ExternalId",
+              "action": "sts:AssumeRole",
+              "resource": "arn:aws:iam::111122223333:role/PartnerAnalyticsRole",
+              "principal": "arn:aws:iam::444455556666:role/dev-sandbox",
+              "context": {
+                "sts:ExternalId": "acme-ext-9d3e71"
+              },
+              "expect": "deny"
+            },
+            {
+              "name": "A partner IAM user cannot assume it",
+              "action": "sts:AssumeRole",
+              "resource": "arn:aws:iam::111122223333:role/PartnerAnalyticsRole",
+              "principal": "arn:aws:iam::444455556666:user/intern",
+              "context": {
+                "sts:ExternalId": "acme-ext-9d3e71"
+              },
+              "expect": "deny"
+            },
+            {
+              "name": "An unrelated account cannot assume it",
+              "action": "sts:AssumeRole",
+              "resource": "arn:aws:iam::111122223333:role/PartnerAnalyticsRole",
+              "principal": "arn:aws:iam::999988887777:role/partner-analytics",
+              "context": {
+                "sts:ExternalId": "acme-ext-9d3e71"
+              },
+              "expect": "deny"
+            }
+          ],
+          "explanation": "Assuming a role across accounts needs the caller's identity policy to allow sts:AssumeRole AND your trust policy to allow the caller. Trusting :root accepts any partner principal their administrators permit; naming the single role narrows it to one workload, and the ExternalId condition stops another of the partner's customers from tricking the partner into assuming your role on their behalf (the confused deputy)."
+        },
+        {
+          "id": "t7",
+          "kind": "choice",
+          "prompt": "What attack does requiring sts:ExternalId in a third party's trust policy defend against?",
+          "options": [
+            "Brute-forcing the partner's password",
+            "The confused deputy: someone else tricking the partner into assuming YOUR role on behalf of a different customer",
+            "Network sniffing of the AssumeRole call",
+            "Expired temporary credentials being reused"
+          ],
+          "correct": [
+            1
+          ],
+          "explanation": "A service provider that assumes roles in many customers' accounts could be coerced into using a role ARN it should not. A per-customer ExternalId that only your integration knows means the provider can only assume your role when acting for you. It is a defence for third-party access, not an authentication secret."
+        }
+      ],
+      "takeaways": [
+        "Inventory trust in three places: role trust policies, the permissions of each trusting role, and resource policies such as bucket policies. Prune stale ones with RoleLastUsed.",
+        "Cross-account access needs both sides to allow: the caller's identity policy and your resource or trust policy. Your own policy is therefore the control you can actually enforce.",
+        "Name the exact partner role, not the account :root, scope the Resource to the one prefix, and add ExternalId for third-party role assumption.",
+        "Use IAM Access Analyzer external-access findings to keep this inventory continuously rather than once."
+      ]
+    }
+  },
+  {
+    "labId": "cloud-L27",
+    "title": "Choke-Point Report",
+    "objective": "Analyse an attack graph from internet-exposed assets to crown-jewel data, find the single control whose removal breaks the most paths, and implement it as a graded SCP deny that cuts the choke point while legitimate access keeps working.",
+    "successCriteria": [
+      "You listed all internet-to-crown-jewel paths and ranked the control points by paths broken",
+      "You confirmed the choke point with the graph tool's what-if simulation",
+      "You wrote an SCP that denies the choke-point trust to everyone except the legitimate release role"
+    ],
+    "hints": [
+      "Counting paths per entry point misleads: look for the node or edge that many different paths share.",
+      "Rank the control points with graphq, then ask graphq to explain the top one. What is it trusted by, and who actually needs that trust?",
+      "Cut the shared trust, not each entry point. A Deny on sts:AssumeRole for DeployAdminRole with an ArnNotLike exception for the release role leaves legitimate use intact."
+    ],
+    "estimatedHours": 2,
+    "resources": [
+      {
+        "title": "NCC Group PMapper (IAM attack-graph tool)",
+        "url": "https://github.com/nccgroup/PMapper",
+        "type": "link"
+      },
+      {
+        "title": "AWS docs: Service control policies (SCPs)",
+        "url": "https://docs.aws.amazon.com/organizations/latest/userguide/orgs_manage_policies_scps.html",
+        "type": "link"
+      },
+      {
+        "title": "AWS docs: IAM JSON policy elements: Condition operators",
+        "url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_elements_condition_operators.html",
+        "type": "link"
+      }
+    ],
+    "range": {
+      "scenario": "Your cloud security team has an attack-graph snapshot of account 111122223333: four internet-exposed assets, a handful of IAM roles, and three crown-jewel data stores. A pentest report lists a different finding per entry point, and the backlog has dozens of tickets. Rather than patching every entry point, you must work out which single control sits on the most paths to the crown jewels, confirm it with the graph tool, and implement it as a guardrail that breaks those paths without stopping the release pipeline. The estate is fictional and the analysis is read-only.",
+      "artifacts": [
+        {
+          "name": "attack-graph.json",
+          "language": "json",
+          "content": "{\n  \"meta\": {\n    \"account\": \"111122223333\",\n    \"snapshot\": \"2026-03-20T09:00:00Z\",\n    \"source\": \"graphq (simulated attack-graph tool)\",\n    \"nodes\": 14,\n    \"edges\": 17\n  },\n  \"nodes\": [\n    {\n      \"id\": \"internet\",\n      \"type\": \"source\"\n    },\n    {\n      \"id\": \"web-alb-app\",\n      \"type\": \"entry\",\n      \"note\": \"EC2 behind a public ALB, IMDSv1 still enabled\"\n    },\n    {\n      \"id\": \"jenkins-public\",\n      \"type\": \"entry\",\n      \"note\": \"Jenkins on an internet-facing host\"\n    },\n    {\n      \"id\": \"api-fn-url\",\n      \"type\": \"entry\",\n      \"note\": \"Lambda with a public Function URL (auth NONE)\"\n    },\n    {\n      \"id\": \"bastion-ssh\",\n      \"type\": \"entry\",\n      \"note\": \"SSH bastion, tcp/22 open to 0.0.0.0/0\"\n    },\n    {\n      \"id\": \"AppServerRole\",\n      \"type\": \"role\"\n    },\n    {\n      \"id\": \"CiBuildRole\",\n      \"type\": \"role\"\n    },\n    {\n      \"id\": \"ApiLambdaRole\",\n      \"type\": \"role\"\n    },\n    {\n      \"id\": \"BastionRole\",\n      \"type\": \"role\"\n    },\n    {\n      \"id\": \"DeployAdminRole\",\n      \"type\": \"role\",\n      \"note\": \"AdministratorAccess; trusts the account root\"\n    },\n    {\n      \"id\": \"DeployPipelineRole\",\n      \"type\": \"role\",\n      \"note\": \"release pipeline; NOT reachable from the internet\"\n    },\n    {\n      \"id\": \"s3:acme-customer-pii\",\n      \"type\": \"crown-jewel\"\n    },\n    {\n      \"id\": \"rds:prod-customer-db\",\n      \"type\": \"crown-jewel\"\n    },\n    {\n      \"id\": \"secret:prod/master-key\",\n      \"type\": \"crown-jewel\"\n    }\n  ],\n  \"edges\": [\n    {\n      \"from\": \"internet\",\n      \"to\": \"web-alb-app\",\n      \"via\": \"tcp/443 (ALB)\"\n    },\n    {\n      \"from\": \"internet\",\n      \"to\": \"jenkins-public\",\n      \"via\": \"tcp/8080\"\n    },\n    {\n      \"from\": \"internet\",\n      \"to\": \"api-fn-url\",\n      \"via\": \"https (Function URL)\"\n    },\n    {\n      \"from\": \"internet\",\n      \"to\": \"bastion-ssh\",\n      \"via\": \"tcp/22\"\n    },\n    {\n      \"from\": \"web-alb-app\",\n      \"to\": \"AppServerRole\",\n      \"via\": \"instance profile\"\n    },\n    {\n      \"from\": \"jenkins-public\",\n      \"to\": \"CiBuildRole\",\n      \"via\": \"instance profile\"\n    },\n    {\n      \"from\": \"api-fn-url\",\n      \"to\": \"ApiLambdaRole\",\n      \"via\": \"execution role\"\n    },\n    {\n      \"from\": \"bastion-ssh\",\n      \"to\": \"BastionRole\",\n      \"via\": \"instance profile\"\n    },\n    {\n      \"from\": \"AppServerRole\",\n      \"to\": \"DeployAdminRole\",\n      \"via\": \"sts:AssumeRole\",\n      \"allowedBy\": \"identity: sts:AssumeRole on *; trust: account root\"\n    },\n    {\n      \"from\": \"CiBuildRole\",\n      \"to\": \"DeployAdminRole\",\n      \"via\": \"sts:AssumeRole\",\n      \"allowedBy\": \"identity: sts:AssumeRole on *; trust: account root\"\n    },\n    {\n      \"from\": \"ApiLambdaRole\",\n      \"to\": \"DeployAdminRole\",\n      \"via\": \"sts:AssumeRole\",\n      \"allowedBy\": \"identity: sts:AssumeRole on *; trust: account root\"\n    },\n    {\n      \"from\": \"DeployPipelineRole\",\n      \"to\": \"DeployAdminRole\",\n      \"via\": \"sts:AssumeRole\",\n      \"allowedBy\": \"legitimate release path\"\n    },\n    {\n      \"from\": \"DeployAdminRole\",\n      \"to\": \"s3:acme-customer-pii\",\n      \"via\": \"AdministratorAccess\"\n    },\n    {\n      \"from\": \"DeployAdminRole\",\n      \"to\": \"rds:prod-customer-db\",\n      \"via\": \"AdministratorAccess\"\n    },\n    {\n      \"from\": \"DeployAdminRole\",\n      \"to\": \"secret:prod/master-key\",\n      \"via\": \"AdministratorAccess\"\n    },\n    {\n      \"from\": \"BastionRole\",\n      \"to\": \"s3:acme-customer-pii\",\n      \"via\": \"s3:GetObject on arn:aws:s3:::acme-customer-pii/*\"\n    },\n    {\n      \"from\": \"ApiLambdaRole\",\n      \"to\": \"secret:prod/master-key\",\n      \"via\": \"secretsmanager:GetSecretValue on prod/*\"\n    }\n  ]\n}",
+          "note": "The graph snapshot: nodes and edges from the internet to the crown jewels."
+        },
+        {
+          "name": "DeployAdminRole-trust.json",
+          "language": "json",
+          "content": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Effect\": \"Allow\",\n      \"Principal\": {\n        \"AWS\": \"arn:aws:iam::111122223333:root\"\n      },\n      \"Action\": \"sts:AssumeRole\"\n    }\n  ]\n}",
+          "note": "Trust policy of the role that carries AdministratorAccess."
+        },
+        {
+          "name": "workload-role-identity-policy.json",
+          "language": "json",
+          "content": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"AssumeAnyRole\",\n      \"Effect\": \"Allow\",\n      \"Action\": \"sts:AssumeRole\",\n      \"Resource\": \"*\"\n    },\n    {\n      \"Sid\": \"ReadAppAssets\",\n      \"Effect\": \"Allow\",\n      \"Action\": \"s3:GetObject\",\n      \"Resource\": \"arn:aws:s3:::acme-app-assets/*\"\n    }\n  ]\n}",
+          "note": "The identity policy shared by the workload roles (the fixed identity side of your SCP test)."
+        }
+      ],
+      "terminal": {
+        "prompt": "secops@graph-workstation:~$",
+        "intro": "graphq (simulated attack-graph tool) loaded with the 2026-03-20 snapshot of account 111122223333.",
+        "help": "Commands you can try:\n  graphq summary\n  graphq paths --from <internet|web-alb-app|jenkins-public|api-fn-url|bastion-ssh> --to crown-jewels\n  graphq chokepoints\n  graphq explain --node <name>\n  graphq simulate --restrict-trust <role> --allow <role>",
+        "rules": [
+          {
+            "match": "^graphq summary$",
+            "sets": [
+              "summarised"
+            ],
+            "output": "Attack graph for account 111122223333 (snapshot 2026-03-20T09:00Z)\n  nodes: 14   edges: 17\n  internet entry points: 4 (web-alb-app, jenkins-public, api-fn-url, bastion-ssh)\n  crown jewels: 3 (s3:acme-customer-pii, rds:prod-customer-db, secret:prod/master-key)\nNext: graphq paths --from internet --to crown-jewels"
+          },
+          {
+            "match": "^graphq paths --from internet --to crown-jewels$",
+            "sets": [
+              "paths_listed"
+            ],
+            "output": "Model: account 111122223333, nodes=14 edges=17, snapshot 2026-03-20T09:00Z\n11 paths found: internet -> crown-jewels\nP01  internet > web-alb-app > AppServerRole > DeployAdminRole > s3:acme-customer-pii\nP02  internet > web-alb-app > AppServerRole > DeployAdminRole > rds:prod-customer-db\nP03  internet > web-alb-app > AppServerRole > DeployAdminRole > secret:prod/master-key\nP04  internet > jenkins-public > CiBuildRole > DeployAdminRole > s3:acme-customer-pii\nP05  internet > jenkins-public > CiBuildRole > DeployAdminRole > rds:prod-customer-db\nP06  internet > jenkins-public > CiBuildRole > DeployAdminRole > secret:prod/master-key\nP07  internet > api-fn-url > ApiLambdaRole > DeployAdminRole > s3:acme-customer-pii\nP08  internet > api-fn-url > ApiLambdaRole > DeployAdminRole > rds:prod-customer-db\nP09  internet > api-fn-url > ApiLambdaRole > DeployAdminRole > secret:prod/master-key\nP10  internet > api-fn-url > ApiLambdaRole > secret:prod/master-key\nP11  internet > bastion-ssh > BastionRole > s3:acme-customer-pii"
+          },
+          {
+            "match": "^graphq paths --from web-alb-app --to crown-jewels$",
+            "output": "3 paths from web-alb-app:\nP01  web-alb-app > AppServerRole > DeployAdminRole > s3:acme-customer-pii\nP02  web-alb-app > AppServerRole > DeployAdminRole > rds:prod-customer-db\nP03  web-alb-app > AppServerRole > DeployAdminRole > secret:prod/master-key"
+          },
+          {
+            "match": "^graphq paths --from jenkins-public --to crown-jewels$",
+            "output": "3 paths from jenkins-public:\nP04  jenkins-public > CiBuildRole > DeployAdminRole > s3:acme-customer-pii\nP05  jenkins-public > CiBuildRole > DeployAdminRole > rds:prod-customer-db\nP06  jenkins-public > CiBuildRole > DeployAdminRole > secret:prod/master-key"
+          },
+          {
+            "match": "^graphq paths --from api-fn-url --to crown-jewels$",
+            "output": "4 paths from api-fn-url:\nP07  api-fn-url > ApiLambdaRole > DeployAdminRole > s3:acme-customer-pii\nP08  api-fn-url > ApiLambdaRole > DeployAdminRole > rds:prod-customer-db\nP09  api-fn-url > ApiLambdaRole > DeployAdminRole > secret:prod/master-key\nP10  api-fn-url > ApiLambdaRole > secret:prod/master-key"
+          },
+          {
+            "match": "^graphq paths --from bastion-ssh --to crown-jewels$",
+            "output": "1 paths from bastion-ssh:\nP11  bastion-ssh > BastionRole > s3:acme-customer-pii"
+          },
+          {
+            "match": "^graphq paths\\b",
+            "output": "usage: graphq paths --from <internet|web-alb-app|jenkins-public|api-fn-url|bastion-ssh> --to crown-jewels"
+          },
+          {
+            "match": "^graphq chokepoints$",
+            "requires": [
+              "paths_listed"
+            ],
+            "sets": [
+              "chokepoints_seen"
+            ],
+            "output": "Ranking control points by internet-to-crown-jewel paths that break if the point is removed (11 paths total)\nRANK  CONTROL POINT                           PATHS BROKEN\n1     trust of role DeployAdminRole            9 of 11   (3 inbound sts:AssumeRole edges: AppServerRole, CiBuildRole, ApiLambdaRole)\n2     role ApiLambdaRole                       4 of 11\n2     entry api-fn-url                         4 of 11\n2     asset s3:acme-customer-pii               4 of 11\n2     asset secret:prod/master-key             4 of 11\n6     role AppServerRole / entry web-alb-app   3 of 11\n6     role CiBuildRole / entry jenkins-public  3 of 11\n8     role BastionRole / entry bastion-ssh     1 of 11\nUse: graphq explain --node <name>   |   graphq simulate --restrict-trust <role> --allow <role>"
+          },
+          {
+            "match": "^graphq chokepoints$",
+            "output": "graphq: no path set loaded. Run `graphq paths --from internet --to crown-jewels` first, then rank the control points."
+          },
+          {
+            "match": "^graphq explain --node deployadminrole$",
+            "requires": [
+              "chokepoints_seen"
+            ],
+            "sets": [
+              "explained"
+            ],
+            "output": "DeployAdminRole\n  permissions : AdministratorAccess\n  trust       : Principal arn:aws:iam::111122223333:root (every principal in the account that has sts:AssumeRole)\n  inbound     : AppServerRole, CiBuildRole, ApiLambdaRole (identity policy grants sts:AssumeRole on *), DeployPipelineRole (legitimate)\n  outbound    : s3:acme-customer-pii, rds:prod-customer-db, secret:prod/master-key\n  note        : 3 internet-exposed workload roles can reach AdministratorAccess through this one trust relationship."
+          },
+          {
+            "match": "^graphq explain --node (\\S+)$",
+            "output": "graphq: $1 explained. Nothing remarkable beyond its own outbound edges. (Rank control points first with `graphq chokepoints`.)"
+          },
+          {
+            "match": "^graphq simulate --restrict-trust deployadminrole --allow deploypipelinerole$",
+            "requires": [
+              "chokepoints_seen"
+            ],
+            "sets": [
+              "simulated"
+            ],
+            "output": "what-if: restrict trust of DeployAdminRole to [DeployPipelineRole]\n  edges removed : AppServerRole>DeployAdminRole, CiBuildRole>DeployAdminRole, ApiLambdaRole>DeployAdminRole\n  paths before  : 11\n  paths after   : 2\n  remaining     : P01 internet > api-fn-url > ApiLambdaRole > secret:prod/master-key\n                  P02 internet > bastion-ssh > BastionRole > s3:acme-customer-pii\n  preserved     : DeployPipelineRole > DeployAdminRole (legitimate release path)  OK\n  verdict       : CHOKE POINT CONFIRMED\n  token         : FLAG{gq_chokepoint_deployadminrole}"
+          },
+          {
+            "match": "^graphq simulate\\b",
+            "requires": [
+              "chokepoints_seen"
+            ],
+            "output": "what-if: no change to the model. Restricting that trust does not cut any modelled internet-to-crown-jewel edge (workload roles are entered through instance profiles or execution roles, not sts:AssumeRole).\n  paths before: 11   paths after: 11\nUsage: graphq simulate --restrict-trust <role> --allow <role>"
+          },
+          {
+            "match": "^graphq simulate\\b",
+            "output": "graphq: refusing to simulate without a baseline. Run `graphq paths --from internet --to crown-jewels` and `graphq chokepoints` first."
+          },
+          {
+            "match": "^graphq\\b",
+            "output": "usage: graphq summary | paths --from <..> --to crown-jewels | chokepoints | explain --node <n> | simulate --restrict-trust <role> --allow <role>"
+          }
+        ]
+      },
+      "solution": [
+        "graphq summary",
+        "graphq paths --from internet --to crown-jewels",
+        "graphq chokepoints",
+        "graphq explain --node DeployAdminRole",
+        "graphq simulate --restrict-trust DeployAdminRole --allow DeployPipelineRole"
+      ],
+      "tasks": [
+        {
+          "id": "t1",
+          "kind": "answer",
+          "prompt": "List all paths from the internet to the crown jewels with graphq. How many distinct paths are there? Answer with a number.",
+          "accept": [
+            "11",
+            "eleven"
+          ],
+          "explanation": "Eleven paths from four entry points reach three crown jewels. The number matters less than the shape: nine of them run through the same role. Enumerating paths before prioritising is what turns a long pentest finding list into a ranked remediation."
+        },
+        {
+          "id": "t2",
+          "kind": "answer",
+          "prompt": "Rank the control points with graphq. Which role's trust relationship sits on the most paths (the choke point)?",
+          "accept": [
+            "deployadminrole",
+            "deploy admin role",
+            "arn:aws:iam::111122223333:role/deployadminrole"
+          ],
+          "explanation": "DeployAdminRole is on 9 of 11 paths: three different workload roles can assume it because its trust policy delegates to the whole account root and their identity policies allow sts:AssumeRole on *. Fix that one relationship and nine paths disappear, whereas fixing an entry point removes at most three or four."
+        },
+        {
+          "id": "t3",
+          "kind": "choice",
+          "prompt": "Which single remediation breaks the most paths while keeping the release pipeline working?",
+          "options": [
+            "Enforce IMDSv2 on web-alb-app",
+            "Put jenkins-public behind a VPN",
+            "Restrict who may assume DeployAdminRole to the release pipeline role only",
+            "Enable S3 Block Public Access on acme-customer-pii",
+            "Rotate the secret prod/master-key"
+          ],
+          "correct": [
+            2
+          ],
+          "explanation": "Restricting the trust (or a guardrail on sts:AssumeRole for that role) removes nine paths and leaves the legitimate DeployPipelineRole edge. IMDSv2 and a VPN each fix only one entry point (three paths), Block Public Access does nothing here because the bucket is reached through IAM, and rotation does not remove any path."
+        },
+        {
+          "id": "t4",
+          "kind": "flag",
+          "prompt": "Confirm your choke point with the tool: explain the node, then simulate restricting its trust to the legitimate release role. Paste the token from the what-if result.",
+          "flag": "FLAG{gq_chokepoint_deployadminrole}",
+          "explanation": "A what-if simulation proves the claim before you change production: paths fall from 11 to 2 and the legitimate pipeline edge is preserved. Always validate a remediation against both the paths it should break and the access it must not break."
+        },
+        {
+          "id": "t5",
+          "kind": "policy",
+          "mode": "scp",
+          "prompt": "Implement the choke-point fix as an SCP (the FullAWSAccess allow is already in place, and the workload roles' identity policy is fixed). Deny sts:AssumeRole on DeployAdminRole for every principal EXCEPT DeployPipelineRole. Other role assumptions and normal workload access must keep working. The starter reflects an old pentest ticket that blocked only one role.",
+          "starter": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"OldPentestFinding\",\n      \"Effect\": \"Deny\",\n      \"Action\": \"sts:AssumeRole\",\n      \"Resource\": \"*\",\n      \"Condition\": {\n        \"StringEquals\": {\n          \"aws:PrincipalArn\": \"arn:aws:iam::111122223333:role/AppServerRole\"\n        }\n      }\n    }\n  ]\n}",
+          "solution": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"OnlyPipelineAssumesDeployAdmin\",\n      \"Effect\": \"Deny\",\n      \"Action\": \"sts:AssumeRole\",\n      \"Resource\": \"arn:aws:iam::111122223333:role/DeployAdminRole\",\n      \"Condition\": {\n        \"ArnNotLike\": {\n          \"aws:PrincipalArn\": \"arn:aws:iam::111122223333:role/DeployPipelineRole\"\n        }\n      }\n    }\n  ]\n}",
+          "fixed": {
+            "identity": [
+              "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"AssumeAnyRole\",\n      \"Effect\": \"Allow\",\n      \"Action\": \"sts:AssumeRole\",\n      \"Resource\": \"*\"\n    },\n    {\n      \"Sid\": \"ReadAppAssets\",\n      \"Effect\": \"Allow\",\n      \"Action\": \"s3:GetObject\",\n      \"Resource\": \"arn:aws:s3:::acme-app-assets/*\"\n    }\n  ]\n}"
+            ],
+            "scp": [
+              "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"FullAWSAccess\",\n      \"Effect\": \"Allow\",\n      \"Action\": \"*\",\n      \"Resource\": \"*\"\n    }\n  ]\n}"
+            ]
+          },
+          "tests": [
+            {
+              "name": "AppServerRole cannot assume DeployAdminRole",
+              "action": "sts:AssumeRole",
+              "resource": "arn:aws:iam::111122223333:role/DeployAdminRole",
+              "context": {
+                "aws:PrincipalArn": "arn:aws:iam::111122223333:role/AppServerRole"
+              },
+              "expect": "deny"
+            },
+            {
+              "name": "CiBuildRole (Jenkins) cannot assume DeployAdminRole",
+              "action": "sts:AssumeRole",
+              "resource": "arn:aws:iam::111122223333:role/DeployAdminRole",
+              "context": {
+                "aws:PrincipalArn": "arn:aws:iam::111122223333:role/CiBuildRole"
+              },
+              "expect": "deny"
+            },
+            {
+              "name": "ApiLambdaRole cannot assume DeployAdminRole",
+              "action": "sts:AssumeRole",
+              "resource": "arn:aws:iam::111122223333:role/DeployAdminRole",
+              "context": {
+                "aws:PrincipalArn": "arn:aws:iam::111122223333:role/ApiLambdaRole"
+              },
+              "expect": "deny"
+            },
+            {
+              "name": "The release pipeline role can still assume DeployAdminRole",
+              "action": "sts:AssumeRole",
+              "resource": "arn:aws:iam::111122223333:role/DeployAdminRole",
+              "context": {
+                "aws:PrincipalArn": "arn:aws:iam::111122223333:role/DeployPipelineRole"
+              },
+              "expect": "allow"
+            },
+            {
+              "name": "AppServerRole can still assume an unrelated role (AppReadRole)",
+              "action": "sts:AssumeRole",
+              "resource": "arn:aws:iam::111122223333:role/AppReadRole",
+              "context": {
+                "aws:PrincipalArn": "arn:aws:iam::111122223333:role/AppServerRole"
+              },
+              "expect": "allow"
+            },
+            {
+              "name": "AppServerRole can still read its own assets bucket",
+              "action": "s3:GetObject",
+              "resource": "arn:aws:s3:::acme-app-assets/logo.png",
+              "context": {
+                "aws:PrincipalArn": "arn:aws:iam::111122223333:role/AppServerRole"
+              },
+              "expect": "allow"
+            }
+          ],
+          "explanation": "An SCP deny with ArnNotLike on aws:PrincipalArn is the standard shape of a choke-point guardrail: everyone is denied except the named role, so it cuts nine paths no matter how many identity policies grant sts:AssumeRole. The old starter only denied one workload role and for every target, which both misses the other two roles and breaks AppServerRole's legitimate assumptions."
+        },
+        {
+          "id": "t6",
+          "kind": "answer",
+          "prompt": "After the choke point is cut, how many internet-to-crown-jewel paths remain according to the what-if result? Answer with a number.",
+          "accept": [
+            "2",
+            "two"
+          ],
+          "explanation": "Two paths remain: ApiLambdaRole reading the master-key secret and BastionRole reading the PII bucket directly. They are over-broad data permissions, not a shared choke point, so they need their own least-privilege fixes. Rerun the graph after each change: the ranking shifts as paths disappear."
+        }
+      ],
+      "takeaways": [
+        "Do not triage by entry point: enumerate paths and fix the node or edge shared by the most of them. One trust relationship removed nine of eleven paths.",
+        "Confirm a remediation with a what-if before applying it, and check both what it breaks and what must keep working.",
+        "A Deny with an ArnNotLike exception in an SCP or permission boundary is a durable choke-point control: it holds even when identity policies are too broad.",
+        "After cutting the choke point, re-rank: the residual paths are your next, smaller, least-privilege tickets."
+      ]
+    }
+  }
+]

@@ -1,0 +1,1570 @@
+[
+  {
+    "labId": "cloud-L15",
+    "title": "Metadata Exposure Review",
+    "objective": "Run the post-incident review of a link-preview web app whose EC2 role credentials were used from an unexpected IP: find the exposure path, contain it (revoke sessions, harden the metadata service), and rebuild the role to least privilege.",
+    "successCriteria": [
+      "You identified why a server-side URL fetch can reach the instance metadata service, and which instance settings made it worse",
+      "You spotted the role session used from an IP that is not the instance, and contained it by revoking older sessions and enforcing IMDSv2 with hop limit 1",
+      "You rewrote the instance role policy so it can touch only the app's own bucket prefix and table"
+    ],
+    "hints": [
+      "Start with the evidence: instance settings (describe-instances), the role attached to the instance profile, and what CloudTrail says that role's session did and from where.",
+      "Containment has two halves: invalidate credentials that were already issued, and make sure the instance cannot hand out credentials the same way again. Compare MetadataOptions in the artifact with what you want them to be.",
+      "Use aws iam put-role-policy with a deny-before-timestamp document on LinkPreviewRole (see revoke-older-sessions.json), then aws ec2 modify-instance-metadata-options with --http-tokens required and --http-put-response-hop-limit 1. Re-run describe-instances to verify."
+    ],
+    "estimatedHours": 2,
+    "resources": [
+      {
+        "title": "AWS docs: Configure the instance metadata service",
+        "url": "https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/configuring-instance-metadata-service.html",
+        "type": "link"
+      },
+      {
+        "title": "AWS docs: Revoke IAM role temporary security credentials",
+        "url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_use_revoke-sessions.html",
+        "type": "link"
+      },
+      {
+        "title": "AWS Security Blog: Defense in depth against SSRF and the EC2 metadata service",
+        "url": "https://aws.amazon.com/blogs/security/defense-in-depth-open-firewalls-reverse-proxies-ssrf-vulnerabilities-ec2-instance-metadata-service/",
+        "type": "link"
+      },
+      {
+        "title": "OWASP: Server-Side Request Forgery Prevention Cheat Sheet",
+        "url": "https://cheatsheetseries.owasp.org/cheatsheets/Server_Side_Request_Forgery_Prevention_Cheat_Sheet.html",
+        "type": "link"
+      }
+    ],
+    "range": {
+      "scenario": "ShopCo's security team got a GuardDuty finding: credentials belonging to the instance role of `link-preview` (a web app on EC2 that fetches any URL a user pastes and returns a page snippet) were used from an IP address that is not the instance. You are the incident responder in account 111122223333 with the `IncidentResponderRole` (read access plus the ability to modify IAM and EC2 metadata settings). Review the evidence, work out how the credentials could leave the instance, contain the incident, and fix the root causes so it cannot recur. Everything is simulated; use the terminal like the AWS CLI.",
+      "artifacts": [
+        {
+          "name": "preview_service.py",
+          "language": "text",
+          "content": "# link-preview service (Flask), runs on the EC2 instance\nimport requests\nfrom flask import Flask, request, jsonify\n\napp = Flask(__name__)\n\n@app.route(\"/preview\")\ndef preview():\n    url = request.args.get(\"url\", \"\")\n    # fetch the page the user pasted and return its status and first 500 bytes\n    resp = requests.get(url, timeout=3, allow_redirects=True)\n    return jsonify({\"status\": resp.status_code, \"snippet\": resp.text[:500]})\n",
+          "note": "Application code under review. Note what the code does with the user-supplied value before it makes the request."
+        },
+        {
+          "name": "instance-metadata-options.json",
+          "language": "json",
+          "content": "{\n    \"Reservations\": [\n        {\n            \"Instances\": [\n                {\n                    \"InstanceId\": \"i-0a1b2c3d4e5f60001\",\n                    \"InstanceType\": \"t3.small\",\n                    \"State\": {\n                        \"Name\": \"running\"\n                    },\n                    \"PrivateIpAddress\": \"10.0.1.25\",\n                    \"PublicIpAddress\": \"203.0.113.10\",\n                    \"IamInstanceProfile\": {\n                        \"Arn\": \"arn:aws:iam::111122223333:instance-profile/LinkPreviewProfile\",\n                        \"Id\": \"AIPAEXAMPLELINKPREVIEW1\"\n                    },\n                    \"MetadataOptions\": {\n                        \"State\": \"applied\",\n                        \"HttpTokens\": \"optional\",\n                        \"HttpPutResponseHopLimit\": 2,\n                        \"HttpEndpoint\": \"enabled\",\n                        \"HttpProtocolIpv6\": \"disabled\",\n                        \"InstanceMetadataTags\": \"disabled\"\n                    },\n                    \"Tags\": [\n                        {\n                            \"Key\": \"Name\",\n                            \"Value\": \"link-preview\"\n                        }\n                    ]\n                }\n            ]\n        }\n    ]\n}",
+          "note": "describe-instances output for i-0a1b2c3d4e5f60001 as found during the review."
+        },
+        {
+          "name": "LinkPreviewRole-policy.json",
+          "language": "json",
+          "content": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"Storage\",\n      \"Effect\": \"Allow\",\n      \"Action\": \"s3:*\",\n      \"Resource\": \"*\"\n    },\n    {\n      \"Sid\": \"Tables\",\n      \"Effect\": \"Allow\",\n      \"Action\": \"dynamodb:*\",\n      \"Resource\": \"*\"\n    },\n    {\n      \"Sid\": \"Secrets\",\n      \"Effect\": \"Allow\",\n      \"Action\": \"secretsmanager:GetSecretValue\",\n      \"Resource\": \"*\"\n    }\n  ]\n}",
+          "note": "Inline policy LinkPreviewAccess on the instance role. The app only stores thumbnails in s3://shopco-link-previews and caches results in the DynamoDB table LinkPreviewCache."
+        },
+        {
+          "name": "cloudtrail-events.json",
+          "language": "json",
+          "content": "[\n  {\n    \"eventVersion\": \"1.09\",\n    \"eventTime\": \"2026-11-13T21:05:12Z\",\n    \"eventSource\": \"s3.amazonaws.com\",\n    \"eventName\": \"PutObject\",\n    \"userIdentity\": {\n      \"type\": \"AssumedRole\",\n      \"arn\": \"arn:aws:sts::111122223333:assumed-role/LinkPreviewRole/i-0a1b2c3d4e5f60001\",\n      \"accessKeyId\": \"ASIAIOSFODNN7EXAMPLE\",\n      \"sessionContext\": {\n        \"sessionIssuer\": {\n          \"type\": \"Role\",\n          \"userName\": \"LinkPreviewRole\",\n          \"arn\": \"arn:aws:iam::111122223333:role/LinkPreviewRole\"\n        }\n      }\n    },\n    \"sourceIPAddress\": \"203.0.113.10\",\n    \"userAgent\": \"Boto3/1.34.0 md/Botocore#1.34.0\",\n    \"requestParameters\": {\n      \"bucketName\": \"shopco-link-previews\",\n      \"key\": \"thumbs/4f2a.png\"\n    },\n    \"eventID\": \"11111111-aaaa-4bbb-8ccc-000000000001\"\n  },\n  {\n    \"eventVersion\": \"1.09\",\n    \"eventTime\": \"2026-11-14T03:42:18Z\",\n    \"eventSource\": \"s3.amazonaws.com\",\n    \"eventName\": \"ListBuckets\",\n    \"userIdentity\": {\n      \"type\": \"AssumedRole\",\n      \"arn\": \"arn:aws:sts::111122223333:assumed-role/LinkPreviewRole/i-0a1b2c3d4e5f60001\",\n      \"accessKeyId\": \"ASIAIOSFODNN7EXAMPLE\",\n      \"sessionContext\": {\n        \"sessionIssuer\": {\n          \"type\": \"Role\",\n          \"userName\": \"LinkPreviewRole\",\n          \"arn\": \"arn:aws:iam::111122223333:role/LinkPreviewRole\"\n        }\n      }\n    },\n    \"sourceIPAddress\": \"198.51.100.77\",\n    \"userAgent\": \"aws-cli/2.15.0 Python/3.11.6\",\n    \"eventID\": \"11111111-aaaa-4bbb-8ccc-000000000002\"\n  },\n  {\n    \"eventVersion\": \"1.09\",\n    \"eventTime\": \"2026-11-14T03:42:51Z\",\n    \"eventSource\": \"s3.amazonaws.com\",\n    \"eventName\": \"ListObjectsV2\",\n    \"userIdentity\": {\n      \"type\": \"AssumedRole\",\n      \"arn\": \"arn:aws:sts::111122223333:assumed-role/LinkPreviewRole/i-0a1b2c3d4e5f60001\",\n      \"accessKeyId\": \"ASIAIOSFODNN7EXAMPLE\",\n      \"sessionContext\": {\n        \"sessionIssuer\": {\n          \"type\": \"Role\",\n          \"userName\": \"LinkPreviewRole\",\n          \"arn\": \"arn:aws:iam::111122223333:role/LinkPreviewRole\"\n        }\n      }\n    },\n    \"sourceIPAddress\": \"198.51.100.77\",\n    \"userAgent\": \"aws-cli/2.15.0 Python/3.11.6\",\n    \"requestParameters\": {\n      \"bucketName\": \"shopco-customer-exports\"\n    },\n    \"eventID\": \"11111111-aaaa-4bbb-8ccc-000000000003\"\n  },\n  {\n    \"eventVersion\": \"1.09\",\n    \"eventTime\": \"2026-11-14T03:43:20Z\",\n    \"eventSource\": \"s3.amazonaws.com\",\n    \"eventName\": \"GetObject\",\n    \"userIdentity\": {\n      \"type\": \"AssumedRole\",\n      \"arn\": \"arn:aws:sts::111122223333:assumed-role/LinkPreviewRole/i-0a1b2c3d4e5f60001\",\n      \"accessKeyId\": \"ASIAIOSFODNN7EXAMPLE\",\n      \"sessionContext\": {\n        \"sessionIssuer\": {\n          \"type\": \"Role\",\n          \"userName\": \"LinkPreviewRole\",\n          \"arn\": \"arn:aws:iam::111122223333:role/LinkPreviewRole\"\n        }\n      }\n    },\n    \"sourceIPAddress\": \"198.51.100.77\",\n    \"userAgent\": \"aws-cli/2.15.0 Python/3.11.6\",\n    \"requestParameters\": {\n      \"bucketName\": \"shopco-customer-exports\",\n      \"key\": \"export-2026-10.csv\"\n    },\n    \"eventID\": \"11111111-aaaa-4bbb-8ccc-000000000004\"\n  }\n]",
+          "note": "Excerpt of CloudTrail events (S3 data events enabled) for the role session named after the instance id. The instance's public IP is 203.0.113.10."
+        },
+        {
+          "name": "revoke-older-sessions.json",
+          "language": "json",
+          "content": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": {\n    \"Effect\": \"Deny\",\n    \"Action\": [\n      \"*\"\n    ],\n    \"Resource\": [\n      \"*\"\n    ],\n    \"Condition\": {\n      \"DateLessThan\": {\n        \"aws:TokenIssueTime\": \"2026-11-14T04:30:00Z\"\n      }\n    }\n  }\n}",
+          "note": "A policy document for containment: denies every action to sessions issued before the given timestamp. Use it in the terminal with file://revoke-older-sessions.json."
+        }
+      ],
+      "terminal": {
+        "prompt": "responder@ir-workstation:~$",
+        "intro": "Assumed IncidentResponderRole in account 111122223333. Region: us-east-1. Evidence preservation: do not terminate the instance.",
+        "help": "Commands you can try (like the AWS CLI):\n  aws sts get-caller-identity\n  aws ec2 describe-instances --filters Name=tag:Name,Values=link-preview\n  aws iam get-instance-profile --instance-profile-name <name>\n  aws iam list-role-policies --role-name <role>\n  aws iam get-role-policy --role-name <role> --policy-name <name>\n  aws cloudtrail lookup-events --lookup-attributes AttributeKey=Username,AttributeValue=<instance-id>\n  aws iam put-role-policy --role-name <role> --policy-name <name> --policy-document file://<doc>.json\n  aws ec2 modify-instance-metadata-options --instance-id <id> --http-tokens <optional|required> --http-put-response-hop-limit <n> --http-endpoint enabled\n  aws secretsmanager rotate-secret --secret-id <id>",
+        "rules": [
+          {
+            "match": "^aws sts get-caller-identity$",
+            "sets": [
+              "whoami"
+            ],
+            "output": "{\n    \"UserId\": \"AROAEXAMPLEIRRESP0001:responder\",\n    \"Account\": \"111122223333\",\n    \"Arn\": \"arn:aws:sts::111122223333:assumed-role/IncidentResponderRole/responder\"\n}"
+          },
+          {
+            "match": "^aws ec2 describe-instances\\b",
+            "requires": [
+              "imds_hardened",
+              "sessions_revoked"
+            ],
+            "sets": [
+              "found_instance"
+            ],
+            "output": "{\n    \"Reservations\": [\n        {\n            \"Instances\": [\n                {\n                    \"InstanceId\": \"i-0a1b2c3d4e5f60001\",\n                    \"InstanceType\": \"t3.small\",\n                    \"State\": {\n                        \"Name\": \"running\"\n                    },\n                    \"PrivateIpAddress\": \"10.0.1.25\",\n                    \"PublicIpAddress\": \"203.0.113.10\",\n                    \"IamInstanceProfile\": {\n                        \"Arn\": \"arn:aws:iam::111122223333:instance-profile/LinkPreviewProfile\",\n                        \"Id\": \"AIPAEXAMPLELINKPREVIEW1\"\n                    },\n                    \"MetadataOptions\": {\n                        \"State\": \"applied\",\n                        \"HttpTokens\": \"required\",\n                        \"HttpPutResponseHopLimit\": 1,\n                        \"HttpEndpoint\": \"enabled\",\n                        \"HttpProtocolIpv6\": \"disabled\",\n                        \"InstanceMetadataTags\": \"disabled\"\n                    },\n                    \"Tags\": [\n                        {\n                            \"Key\": \"Name\",\n                            \"Value\": \"link-preview\"\n                        },\n                        {\n                            \"Key\": \"secops:ir-verified\",\n                            \"Value\": \"FLAG{ssrf_contained_sessions_revoked}\"\n                        }\n                    ]\n                }\n            ]\n        }\n    ]\n}"
+          },
+          {
+            "match": "^aws ec2 describe-instances\\b",
+            "requires": [
+              "imds_hardened"
+            ],
+            "sets": [
+              "found_instance"
+            ],
+            "output": "{\n    \"Reservations\": [\n        {\n            \"Instances\": [\n                {\n                    \"InstanceId\": \"i-0a1b2c3d4e5f60001\",\n                    \"InstanceType\": \"t3.small\",\n                    \"State\": {\n                        \"Name\": \"running\"\n                    },\n                    \"PrivateIpAddress\": \"10.0.1.25\",\n                    \"PublicIpAddress\": \"203.0.113.10\",\n                    \"IamInstanceProfile\": {\n                        \"Arn\": \"arn:aws:iam::111122223333:instance-profile/LinkPreviewProfile\",\n                        \"Id\": \"AIPAEXAMPLELINKPREVIEW1\"\n                    },\n                    \"MetadataOptions\": {\n                        \"State\": \"applied\",\n                        \"HttpTokens\": \"required\",\n                        \"HttpPutResponseHopLimit\": 1,\n                        \"HttpEndpoint\": \"enabled\",\n                        \"HttpProtocolIpv6\": \"disabled\",\n                        \"InstanceMetadataTags\": \"disabled\"\n                    },\n                    \"Tags\": [\n                        {\n                            \"Key\": \"Name\",\n                            \"Value\": \"link-preview\"\n                        }\n                    ]\n                }\n            ]\n        }\n    ]\n}"
+          },
+          {
+            "match": "^aws ec2 describe-instances\\b",
+            "sets": [
+              "found_instance"
+            ],
+            "output": "{\n    \"Reservations\": [\n        {\n            \"Instances\": [\n                {\n                    \"InstanceId\": \"i-0a1b2c3d4e5f60001\",\n                    \"InstanceType\": \"t3.small\",\n                    \"State\": {\n                        \"Name\": \"running\"\n                    },\n                    \"PrivateIpAddress\": \"10.0.1.25\",\n                    \"PublicIpAddress\": \"203.0.113.10\",\n                    \"IamInstanceProfile\": {\n                        \"Arn\": \"arn:aws:iam::111122223333:instance-profile/LinkPreviewProfile\",\n                        \"Id\": \"AIPAEXAMPLELINKPREVIEW1\"\n                    },\n                    \"MetadataOptions\": {\n                        \"State\": \"applied\",\n                        \"HttpTokens\": \"optional\",\n                        \"HttpPutResponseHopLimit\": 2,\n                        \"HttpEndpoint\": \"enabled\",\n                        \"HttpProtocolIpv6\": \"disabled\",\n                        \"InstanceMetadataTags\": \"disabled\"\n                    },\n                    \"Tags\": [\n                        {\n                            \"Key\": \"Name\",\n                            \"Value\": \"link-preview\"\n                        }\n                    ]\n                }\n            ]\n        }\n    ]\n}"
+          },
+          {
+            "match": "^aws ec2 describe-instance-attribute\\b",
+            "output": "Note: metadata service settings (HttpTokens, hop limit, endpoint) are not instance attributes.\nRead them from MetadataOptions in 'aws ec2 describe-instances' output."
+          },
+          {
+            "match": "^aws iam get-instance-profile --instance-profile-name linkpreviewprofile$",
+            "sets": [
+              "found_role"
+            ],
+            "output": "{\n    \"InstanceProfile\": {\n        \"InstanceProfileName\": \"LinkPreviewProfile\",\n        \"Arn\": \"arn:aws:iam::111122223333:instance-profile/LinkPreviewProfile\",\n        \"Roles\": [\n            {\n                \"RoleName\": \"LinkPreviewRole\",\n                \"Arn\": \"arn:aws:iam::111122223333:role/LinkPreviewRole\"\n            }\n        ]\n    }\n}"
+          },
+          {
+            "match": "^aws iam get-instance-profile\\b",
+            "output": "An error occurred (NoSuchEntity) when calling the GetInstanceProfile operation: Instance Profile not found. The instance's profile name is in the IamInstanceProfile ARN from describe-instances."
+          },
+          {
+            "match": "^aws iam list-attached-role-policies --role-name linkpreviewrole$",
+            "output": "{\n    \"AttachedPolicies\": []\n}"
+          },
+          {
+            "match": "^aws iam list-role-policies --role-name linkpreviewrole$",
+            "output": "{\n    \"PolicyNames\": [\n        \"LinkPreviewAccess\"\n    ]\n}"
+          },
+          {
+            "match": "^aws iam get-role-policy --role-name linkpreviewrole --policy-name linkpreviewaccess$",
+            "sets": [
+              "reviewed_policy"
+            ],
+            "output": "{\n    \"RoleName\": \"LinkPreviewRole\",\n    \"PolicyName\": \"LinkPreviewAccess\",\n    \"PolicyDocument\": {\n        \"Version\": \"2012-10-17\",\n        \"Statement\": [\n            {\n                \"Sid\": \"Storage\",\n                \"Effect\": \"Allow\",\n                \"Action\": \"s3:*\",\n                \"Resource\": \"*\"\n            },\n            {\n                \"Sid\": \"Tables\",\n                \"Effect\": \"Allow\",\n                \"Action\": \"dynamodb:*\",\n                \"Resource\": \"*\"\n            },\n            {\n                \"Sid\": \"Secrets\",\n                \"Effect\": \"Allow\",\n                \"Action\": \"secretsmanager:GetSecretValue\",\n                \"Resource\": \"*\"\n            }\n        ]\n    }\n}"
+          },
+          {
+            "match": "^aws cloudtrail lookup-events\\b",
+            "sets": [
+              "trail_reviewed"
+            ],
+            "output": "{\n    \"Events\": [\n        {\n            \"EventId\": \"11111111-aaaa-4bbb-8ccc-000000000001\",\n            \"EventName\": \"PutObject\",\n            \"EventTime\": \"2026-11-13T21:05:12+00:00\",\n            \"EventSource\": \"s3.amazonaws.com\",\n            \"Username\": \"i-0a1b2c3d4e5f60001\",\n            \"CloudTrailEvent\": \"{\\\"sourceIPAddress\\\":\\\"203.0.113.10\\\",\\\"userAgent\\\":\\\"Boto3/1.34.0 md/Botocore#1.34.0\\\",\\\"eventName\\\":\\\"PutObject\\\",\\\"accessKeyId\\\":\\\"ASIAIOSFODNN7EXAMPLE\\\"}\"\n        },\n        {\n            \"EventId\": \"11111111-aaaa-4bbb-8ccc-000000000002\",\n            \"EventName\": \"ListBuckets\",\n            \"EventTime\": \"2026-11-14T03:42:18+00:00\",\n            \"EventSource\": \"s3.amazonaws.com\",\n            \"Username\": \"i-0a1b2c3d4e5f60001\",\n            \"CloudTrailEvent\": \"{\\\"sourceIPAddress\\\":\\\"198.51.100.77\\\",\\\"userAgent\\\":\\\"aws-cli/2.15.0 Python/3.11.6\\\",\\\"eventName\\\":\\\"ListBuckets\\\",\\\"accessKeyId\\\":\\\"ASIAIOSFODNN7EXAMPLE\\\"}\"\n        },\n        {\n            \"EventId\": \"11111111-aaaa-4bbb-8ccc-000000000003\",\n            \"EventName\": \"ListObjectsV2\",\n            \"EventTime\": \"2026-11-14T03:42:51+00:00\",\n            \"EventSource\": \"s3.amazonaws.com\",\n            \"Username\": \"i-0a1b2c3d4e5f60001\",\n            \"CloudTrailEvent\": \"{\\\"sourceIPAddress\\\":\\\"198.51.100.77\\\",\\\"userAgent\\\":\\\"aws-cli/2.15.0 Python/3.11.6\\\",\\\"eventName\\\":\\\"ListObjectsV2\\\",\\\"accessKeyId\\\":\\\"ASIAIOSFODNN7EXAMPLE\\\"}\"\n        },\n        {\n            \"EventId\": \"11111111-aaaa-4bbb-8ccc-000000000004\",\n            \"EventName\": \"GetObject\",\n            \"EventTime\": \"2026-11-14T03:43:20+00:00\",\n            \"EventSource\": \"s3.amazonaws.com\",\n            \"Username\": \"i-0a1b2c3d4e5f60001\",\n            \"CloudTrailEvent\": \"{\\\"sourceIPAddress\\\":\\\"198.51.100.77\\\",\\\"userAgent\\\":\\\"aws-cli/2.15.0 Python/3.11.6\\\",\\\"eventName\\\":\\\"GetObject\\\",\\\"accessKeyId\\\":\\\"ASIAIOSFODNN7EXAMPLE\\\"}\"\n        }\n    ]\n}"
+          },
+          {
+            "match": "^aws iam put-role-policy (?=.*--role-name LinkPreviewRole\\b)(?=.*--policy-name (?!LinkPreviewAccess\\b)\\S+)(?=.*--policy-document file://\\S*revoke\\S*).*$",
+            "sets": [
+              "sessions_revoked"
+            ],
+            "output": "(command succeeded, no output)\nAll sessions of LinkPreviewRole issued before the timestamp in the document are now denied. The instance obtains fresh credentials automatically."
+          },
+          {
+            "match": "^aws iam put-role-policy (?=.*--role-name LinkPreviewRole\\b)(?=.*--policy-name LinkPreviewAccess\\b)(?=.*--policy-document file://\\S+).*$",
+            "sets": [
+              "policy_replaced"
+            ],
+            "output": "(command succeeded, no output)"
+          },
+          {
+            "match": "^aws iam delete-role-policy (?=.*--role-name LinkPreviewRole\\b)(?=.*--policy-name LinkPreviewAccess\\b).*$",
+            "sets": [
+              "policy_removed"
+            ],
+            "output": "(command succeeded, no output)\nNote: the app now has no permissions at all; re-attach a scoped policy before returning it to service."
+          },
+          {
+            "match": "^aws iam put-role-policy\\b",
+            "output": "usage: aws iam put-role-policy --role-name <role> --policy-name <name> --policy-document file://<doc>.json\nTo invalidate already-issued credentials the document must be a deny-before-timestamp policy (see revoke-older-sessions.json)."
+          },
+          {
+            "match": "^aws iam delete-role\\b",
+            "output": "An error occurred (AccessDenied) when calling the DeleteRole operation: User: arn:aws:sts::111122223333:assumed-role/IncidentResponderRole/responder is not authorized to perform: iam:DeleteRole on resource: role LinkPreviewRole"
+          },
+          {
+            "match": "^aws ec2 (terminate|stop)-instances\\b",
+            "output": "An error occurred (UnauthorizedOperation) when calling the TerminateInstances operation: You are not authorized to perform this operation. Evidence on the instance must be preserved for forensics."
+          },
+          {
+            "match": "^aws ec2 modify-instance-metadata-options (?=.*--instance-id i-0a1b2c3d4e5f60001\\b)(?=.*--http-tokens required)(?=.*--http-put-response-hop-limit 1\\b).*$",
+            "sets": [
+              "imds_hardened"
+            ],
+            "output": "{\n    \"InstanceId\": \"i-0a1b2c3d4e5f60001\",\n    \"InstanceMetadataOptions\": {\n        \"State\": \"pending\",\n        \"HttpTokens\": \"required\",\n        \"HttpPutResponseHopLimit\": 1,\n        \"HttpEndpoint\": \"enabled\",\n        \"HttpProtocolIpv6\": \"disabled\",\n        \"InstanceMetadataTags\": \"disabled\"\n    }\n}"
+          },
+          {
+            "match": "^aws ec2 modify-instance-metadata-options (?=.*--instance-id i-0a1b2c3d4e5f60001\\b)(?=.*--http-tokens required).*$",
+            "output": "{\n    \"InstanceId\": \"i-0a1b2c3d4e5f60001\",\n    \"InstanceMetadataOptions\": {\n        \"State\": \"pending\",\n        \"HttpTokens\": \"required\",\n        \"HttpPutResponseHopLimit\": 2,\n        \"HttpEndpoint\": \"enabled\",\n        \"HttpProtocolIpv6\": \"disabled\",\n        \"InstanceMetadataTags\": \"disabled\"\n    }\n}"
+          },
+          {
+            "match": "^aws ec2 modify-instance-metadata-options (?=.*--instance-id i-0a1b2c3d4e5f60001\\b)(?=.*--http-put-response-hop-limit 1\\b).*$",
+            "output": "{\n    \"InstanceId\": \"i-0a1b2c3d4e5f60001\",\n    \"InstanceMetadataOptions\": {\n        \"State\": \"pending\",\n        \"HttpTokens\": \"optional\",\n        \"HttpPutResponseHopLimit\": 1,\n        \"HttpEndpoint\": \"enabled\",\n        \"HttpProtocolIpv6\": \"disabled\",\n        \"InstanceMetadataTags\": \"disabled\"\n    }\n}"
+          },
+          {
+            "match": "^aws ec2 modify-instance-metadata-options\\b(?!.*--instance-id i-0a1b2c3d4e5f60001\\b)",
+            "output": "An error occurred (InvalidInstanceID.NotFound) when calling the ModifyInstanceMetadataOptions operation: The instance ID does not exist (or is not the link-preview instance: i-0a1b2c3d4e5f60001)."
+          },
+          {
+            "match": "^aws ec2 modify-instance-metadata-options\\b",
+            "output": "{\n    \"InstanceId\": \"i-0a1b2c3d4e5f60001\",\n    \"InstanceMetadataOptions\": {\n        \"State\": \"pending\",\n        \"HttpTokens\": \"optional\",\n        \"HttpPutResponseHopLimit\": 2,\n        \"HttpEndpoint\": \"enabled\",\n        \"HttpProtocolIpv6\": \"disabled\",\n        \"InstanceMetadataTags\": \"disabled\"\n    }\n}\n(no hardening parameters changed the effective state: set --http-tokens and --http-put-response-hop-limit)"
+          },
+          {
+            "match": "^aws secretsmanager rotate-secret --secret-id (\\S+)",
+            "sets": [
+              "secrets_rotated"
+            ],
+            "output": "{\n    \"ARN\": \"arn:aws:secretsmanager:us-east-1:111122223333:secret:$1-AbCdEf\",\n    \"Name\": \"$1\",\n    \"VersionId\": \"6f1c2d3e-4a5b-6789-abcd-ef0123456789\"\n}"
+          }
+        ]
+      },
+      "solution": [
+        "aws sts get-caller-identity",
+        "aws ec2 describe-instances --filters Name=tag:Name,Values=link-preview",
+        "aws iam get-instance-profile --instance-profile-name LinkPreviewProfile",
+        "aws iam get-role-policy --role-name LinkPreviewRole --policy-name LinkPreviewAccess",
+        "aws cloudtrail lookup-events --lookup-attributes AttributeKey=Username,AttributeValue=i-0a1b2c3d4e5f60001",
+        "aws iam put-role-policy --role-name LinkPreviewRole --policy-name AWSRevokeOlderSessions --policy-document file://revoke-older-sessions.json",
+        "aws ec2 modify-instance-metadata-options --instance-id i-0a1b2c3d4e5f60001 --http-tokens required --http-put-response-hop-limit 1 --http-endpoint enabled",
+        "aws ec2 describe-instances --instance-ids i-0a1b2c3d4e5f60001"
+      ],
+      "tasks": [
+        {
+          "id": "t1",
+          "kind": "choice",
+          "prompt": "Read preview_service.py. Why can a feature that fetches a user-supplied URL end up exposing the instance's role credentials?",
+          "options": [
+            "The fetch is made by the instance itself, so the link-local metadata address that only the instance can reach is reachable too; the app acts as a proxy into it and returns whatever answers",
+            "The metadata service has a public IP address, so any visitor can reach it directly once the app is running",
+            "Flask exposes environment variables in every JSON response by default",
+            "The instance security group allows inbound traffic on port 80, which is what the metadata service listens on"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "The metadata service lives on a link-local address that is only routable from the instance's own network stack. A server-side request made on a user's behalf runs from that stack, so the application becomes a confused deputy that can be steered at internal-only endpoints. The code never validates the destination, the scheme or the redirect target, which is the classic server-side request forgery weakness."
+        },
+        {
+          "id": "t2",
+          "kind": "answer",
+          "prompt": "Review the CloudTrail evidence. Which source IP address used the role session from somewhere other than the instance's public IP (203.0.113.10)?",
+          "accept": [
+            "198.51.100.77"
+          ],
+          "explanation": "Instance-role credentials are meant to be used from the instance. A session that suddenly appears from a different public IP, with a different user agent, listing buckets and then reading a customer export, is the signature of credentials that left the instance. The IP and user agent are your pivot points for scoping what was accessed."
+        },
+        {
+          "id": "t3",
+          "kind": "choice",
+          "prompt": "Which settings in instance-metadata-options.json made this exposure easier? Select all that apply.",
+          "options": [
+            "HttpTokens: optional, so IMDSv1 style plain GET requests are accepted without a session token",
+            "HttpPutResponseHopLimit: 2, so a token response can travel one extra network hop, for example through a forwarding layer or container",
+            "InstanceMetadataTags: disabled",
+            "State: applied"
+          ],
+          "correct": [
+            0,
+            1
+          ],
+          "explanation": "With HttpTokens optional, any request that can issue a simple GET is enough to read credentials. IMDSv2 requires a PUT to obtain a session token first and a token header on later reads, which a forwarded GET-only request usually cannot supply. A hop limit of 1 also stops the token response from being forwarded beyond the instance. Disabled instance tags and the applied state are not risk factors."
+        },
+        {
+          "id": "t4",
+          "kind": "flag",
+          "prompt": "Contain the incident from the terminal: invalidate the role sessions that were already issued, enforce IMDSv2 with hop limit 1 on the instance, and then verify the instance. Paste the flag the security-ops verification tag shows.",
+          "flag": "FLAG{ssrf_contained_sessions_revoked}",
+          "explanation": "Containment needs both halves. Revoking older sessions kills the stolen credentials that still have hours left to live; hardening the metadata service stops the instance from issuing credentials to the same kind of request again. Doing only one leaves either live stolen credentials or a reusable exposure path."
+        },
+        {
+          "id": "t5",
+          "kind": "answer",
+          "prompt": "When you use the IAM console's 'Revoke active sessions' on a role, it attaches an inline deny policy to the role. What is that policy conventionally named?",
+          "accept": [
+            "awsrevokeoldersessions",
+            "aws revoke older sessions",
+            "awsrevokeoldersessions policy"
+          ],
+          "explanation": "AWSRevokeOlderSessions denies all actions where aws:TokenIssueTime is earlier than the time you revoke. It does not delete credentials; it makes older sessions useless while new sessions, issued after the cutoff, keep working. Remember to also rotate any long-lived secrets the role could read, because the attacker may have copied them."
+        },
+        {
+          "id": "t6",
+          "kind": "policy",
+          "mode": "identity",
+          "prompt": "Rebuild the instance role policy to least privilege. The app must read and write thumbnails under s3://shopco-link-previews and read, write and query the DynamoDB table LinkPreviewCache in us-east-1. It must not list buckets, read other buckets, read secrets, or delete tables.",
+          "starter": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"Storage\",\n      \"Effect\": \"Allow\",\n      \"Action\": \"s3:*\",\n      \"Resource\": \"*\"\n    },\n    {\n      \"Sid\": \"Tables\",\n      \"Effect\": \"Allow\",\n      \"Action\": \"dynamodb:*\",\n      \"Resource\": \"*\"\n    },\n    {\n      \"Sid\": \"Secrets\",\n      \"Effect\": \"Allow\",\n      \"Action\": \"secretsmanager:GetSecretValue\",\n      \"Resource\": \"*\"\n    }\n  ]\n}",
+          "solution": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"s3:GetObject\",\n        \"s3:PutObject\"\n      ],\n      \"Resource\": \"arn:aws:s3:::shopco-link-previews/*\"\n    },\n    {\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"dynamodb:GetItem\",\n        \"dynamodb:PutItem\",\n        \"dynamodb:Query\"\n      ],\n      \"Resource\": \"arn:aws:dynamodb:us-east-1:111122223333:table/LinkPreviewCache\"\n    }\n  ]\n}",
+          "tests": [
+            {
+              "name": "App can write thumbnails to its bucket",
+              "action": "s3:PutObject",
+              "resource": "arn:aws:s3:::shopco-link-previews/thumbs/4f2a.png",
+              "expect": "allow"
+            },
+            {
+              "name": "App can read thumbnails from its bucket",
+              "action": "s3:GetObject",
+              "resource": "arn:aws:s3:::shopco-link-previews/thumbs/4f2a.png",
+              "expect": "allow"
+            },
+            {
+              "name": "App can write cache items",
+              "action": "dynamodb:PutItem",
+              "resource": "arn:aws:dynamodb:us-east-1:111122223333:table/LinkPreviewCache",
+              "expect": "allow"
+            },
+            {
+              "name": "App cannot list all buckets",
+              "action": "s3:ListAllMyBuckets",
+              "resource": "*",
+              "expect": "deny"
+            },
+            {
+              "name": "App cannot read the customer exports bucket",
+              "action": "s3:GetObject",
+              "resource": "arn:aws:s3:::shopco-customer-exports/export-2026-10.csv",
+              "expect": "deny"
+            },
+            {
+              "name": "App cannot read production secrets",
+              "action": "secretsmanager:GetSecretValue",
+              "resource": "arn:aws:secretsmanager:us-east-1:111122223333:secret:prod/db-password-AbCdEf",
+              "expect": "deny"
+            },
+            {
+              "name": "App cannot delete its own table",
+              "action": "dynamodb:DeleteTable",
+              "resource": "arn:aws:dynamodb:us-east-1:111122223333:table/LinkPreviewCache",
+              "expect": "deny"
+            }
+          ],
+          "explanation": "The stolen session could read the customer exports bucket only because the role had s3:* on every resource. Least privilege means naming the exact actions and ARNs the workload uses, so a credential leak exposes only what the app already needed. Blast radius is the part of an incident you control in advance."
+        },
+        {
+          "id": "t7",
+          "kind": "choice",
+          "prompt": "Which application-level fix best removes the root cause in preview_service.py?",
+          "options": [
+            "Only fetch hostnames from an approved allow-list, restrict schemes to https, resolve the name and reject loopback, private and link-local addresses on the resolved IP, and do not follow redirects blindly",
+            "Reject URLs that contain the literal text of the metadata IP address",
+            "Check that the URL starts with https:// and nothing else",
+            "Increase the request timeout so that internal requests fail more often"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "A string deny-list is easy to sidestep because the same destination can be written in other forms or reached through a hostname that resolves to it or a redirect. Validate the destination after resolution, prefer an allow-list, and treat redirects as new requests that need the same checks. Keep IMDSv2 and least privilege as defence in depth: application bugs will happen, so the platform should limit the damage."
+        }
+      ],
+      "takeaways": [
+        "Server-side fetch features can reach internal-only endpoints such as the metadata service; validate destinations after DNS resolution, allow-list where possible, and do not follow redirects blindly.",
+        "Contain credential exposure in two moves: revoke already-issued sessions (deny before a timestamp) and close the path that issued them (IMDSv2 required, hop limit 1).",
+        "Give instance roles only the actions and ARNs the workload needs; the role's permissions define the blast radius when its credentials leak."
+      ]
+    }
+  },
+  {
+    "labId": "cloud-L16",
+    "title": "Enforce IMDSv2",
+    "objective": "Audit a fleet of EC2 instances for IMDSv2 compliance, harden every non-compliant instance with HttpTokens=required and hop limit 1, verify the result, and write an SCP that stops new non-compliant launches.",
+    "successCriteria": [
+      "You found every instance that does not meet the standard (HttpTokens required and hop limit 1) and hardened them",
+      "You verified the fleet with a describe and a compliance check, and checked for IMDSv1 callers before enforcing",
+      "You wrote an SCP that denies launching instances without IMDSv2 and with a hop limit above 1"
+    ],
+    "hints": [
+      "The standard has two parts: HttpTokens and the hop limit. An instance can fail on either one, so look at both columns.",
+      "describe-instances shows MetadataOptions for the whole fleet. Fix each non-compliant instance with modify-instance-metadata-options, then re-check.",
+      "For an instance that is already 'required' but has hop limit 2, only the hop limit needs lowering. For the SCP, use a Deny on ec2:RunInstances with the ec2:MetadataHttpTokens condition key (StringNotEquals required) and a NumericGreaterThan on ec2:MetadataHttpPutResponseHopLimit."
+    ],
+    "estimatedHours": 1,
+    "resources": [
+      {
+        "title": "AWS docs: Configure the instance metadata service",
+        "url": "https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/configuring-instance-metadata-service.html",
+        "type": "link"
+      },
+      {
+        "title": "AWS Config managed rule: ec2-imdsv2-check",
+        "url": "https://docs.aws.amazon.com/config/latest/developerguide/ec2-imdsv2-check.html",
+        "type": "link"
+      },
+      {
+        "title": "AWS Security Blog: Defense in depth against SSRF and the EC2 metadata service",
+        "url": "https://aws.amazon.com/blogs/security/defense-in-depth-open-firewalls-reverse-proxies-ssrf-vulnerabilities-ec2-instance-metadata-service/",
+        "type": "link"
+      }
+    ],
+    "range": {
+      "scenario": "After an SSRF incident, Security Engineering published a standard: every EC2 instance in account 111122223333 must require IMDSv2 and use a metadata hop limit of 1. You have been handed the `SecurityAuditRole` and five instances in us-east-1 to check, fix and sign off. Some already comply, some do not in different ways, and one of them runs a legacy workload nobody wants to break. Work out which instances are non-compliant, harden them with the simulated AWS CLI, confirm the fleet is clean, and then close the door for future launches with a service control policy.",
+      "artifacts": [
+        {
+          "name": "imds-standard.txt",
+          "language": "text",
+          "content": "Instance Metadata Service standard (Security Engineering, v3)\n\n1. HttpTokens must be 'required' (IMDSv2 only). No IMDSv1 exceptions.\n2. HttpPutResponseHopLimit must be 1 unless a documented exception exists (none are on file).\n3. HttpEndpoint stays 'enabled' (workloads need role credentials).\n4. New launches must be blocked at the Organizations level if they do not set (1) and (2).\n5. Before enforcing on a running instance, confirm via CloudWatch metric MetadataNoToken that nothing still calls IMDSv1.\n",
+          "note": "The compliance standard you are auditing against."
+        },
+        {
+          "name": "launch-template-app-base.json",
+          "language": "json",
+          "content": "{\n  \"LaunchTemplateName\": \"app-base\",\n  \"VersionNumber\": 4,\n  \"LaunchTemplateData\": {\n    \"InstanceType\": \"t3.medium\",\n    \"ImageId\": \"ami-0123456789abcdef0\",\n    \"MetadataOptions\": {\n      \"HttpTokens\": \"optional\",\n      \"HttpPutResponseHopLimit\": 2,\n      \"HttpEndpoint\": \"enabled\"\n    }\n  }\n}",
+          "note": "The launch template used to build most of the fleet. It explains how non-compliant instances keep appearing."
+        },
+        {
+          "name": "current-scp.json",
+          "language": "json",
+          "content": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"FullAWSAccess\",\n      \"Effect\": \"Allow\",\n      \"Action\": \"*\",\n      \"Resource\": \"*\"\n    }\n  ]\n}",
+          "note": "The SCP currently attached to the workloads OU: it allows everything."
+        }
+      ],
+      "terminal": {
+        "prompt": "auditor@sec-eng:~$",
+        "intro": "Assumed SecurityAuditRole in account 111122223333. Region: us-east-1. Fleet: 5 instances.",
+        "help": "Commands you can try (like the AWS CLI):\n  aws sts get-caller-identity\n  aws ec2 describe-instances\n  aws ec2 modify-instance-metadata-options --instance-id <id> --http-tokens required --http-put-response-hop-limit 1\n  aws cloudwatch get-metric-statistics --namespace AWS/EC2 --metric-name MetadataNoToken --dimensions Name=InstanceId,Value=<id> --statistics Sum --period 3600 --start-time 2026-11-19T00:00:00Z --end-time 2026-11-20T00:00:00Z\n  aws configservice get-compliance-details-by-config-rule --config-rule-name imds-hardening-check",
+        "rules": [
+          {
+            "match": "^aws sts get-caller-identity$",
+            "sets": [
+              "whoami"
+            ],
+            "output": "{\n    \"UserId\": \"AROAEXAMPLEAUDIT00001:audit.session\",\n    \"Account\": \"111122223333\",\n    \"Arn\": \"arn:aws:sts::111122223333:assumed-role/SecurityAuditRole/audit.session\"\n}"
+          },
+          {
+            "match": "^aws ec2 describe-instances\\b",
+            "requires": [
+              "fixed_102",
+              "fixed_103",
+              "fixed_104"
+            ],
+            "output": "---------------------------------------------------------------------\n|                        DescribeInstances                          |\n+----------------------+------------------+-------------+-----------+\n|  InstanceId          |  Name            |  HttpTokens |  HopLimit |\n+----------------------+------------------+-------------+-----------+\n|  i-0a1b2c3d4e5f60101 |  web-frontend    |  required   |  1        |\n|  i-0a1b2c3d4e5f60102 |  api-gateway     |  required   |  1        |\n|  i-0a1b2c3d4e5f60103 |  batch-worker    |  required   |  1        |\n|  i-0a1b2c3d4e5f60104 |  legacy-reports  |  required   |  1        |\n|  i-0a1b2c3d4e5f60105 |  bastion         |  required   |  1        |\n+----------------------+------------------+-------------+-----------+"
+          },
+          {
+            "match": "^aws ec2 describe-instances\\b",
+            "requires": [
+              "fixed_102",
+              "fixed_103"
+            ],
+            "output": "---------------------------------------------------------------------\n|                        DescribeInstances                          |\n+----------------------+------------------+-------------+-----------+\n|  InstanceId          |  Name            |  HttpTokens |  HopLimit |\n+----------------------+------------------+-------------+-----------+\n|  i-0a1b2c3d4e5f60101 |  web-frontend    |  required   |  1        |\n|  i-0a1b2c3d4e5f60102 |  api-gateway     |  required   |  1        |\n|  i-0a1b2c3d4e5f60103 |  batch-worker    |  required   |  1        |\n|  i-0a1b2c3d4e5f60104 |  legacy-reports  |  optional   |  1        |\n|  i-0a1b2c3d4e5f60105 |  bastion         |  required   |  1        |\n+----------------------+------------------+-------------+-----------+"
+          },
+          {
+            "match": "^aws ec2 describe-instances\\b",
+            "requires": [
+              "fixed_102",
+              "fixed_104"
+            ],
+            "output": "---------------------------------------------------------------------\n|                        DescribeInstances                          |\n+----------------------+------------------+-------------+-----------+\n|  InstanceId          |  Name            |  HttpTokens |  HopLimit |\n+----------------------+------------------+-------------+-----------+\n|  i-0a1b2c3d4e5f60101 |  web-frontend    |  required   |  1        |\n|  i-0a1b2c3d4e5f60102 |  api-gateway     |  required   |  1        |\n|  i-0a1b2c3d4e5f60103 |  batch-worker    |  required   |  2        |\n|  i-0a1b2c3d4e5f60104 |  legacy-reports  |  required   |  1        |\n|  i-0a1b2c3d4e5f60105 |  bastion         |  required   |  1        |\n+----------------------+------------------+-------------+-----------+"
+          },
+          {
+            "match": "^aws ec2 describe-instances\\b",
+            "requires": [
+              "fixed_103",
+              "fixed_104"
+            ],
+            "output": "---------------------------------------------------------------------\n|                        DescribeInstances                          |\n+----------------------+------------------+-------------+-----------+\n|  InstanceId          |  Name            |  HttpTokens |  HopLimit |\n+----------------------+------------------+-------------+-----------+\n|  i-0a1b2c3d4e5f60101 |  web-frontend    |  required   |  1        |\n|  i-0a1b2c3d4e5f60102 |  api-gateway     |  optional   |  2        |\n|  i-0a1b2c3d4e5f60103 |  batch-worker    |  required   |  1        |\n|  i-0a1b2c3d4e5f60104 |  legacy-reports  |  required   |  1        |\n|  i-0a1b2c3d4e5f60105 |  bastion         |  required   |  1        |\n+----------------------+------------------+-------------+-----------+"
+          },
+          {
+            "match": "^aws ec2 describe-instances\\b",
+            "requires": [
+              "fixed_102"
+            ],
+            "output": "---------------------------------------------------------------------\n|                        DescribeInstances                          |\n+----------------------+------------------+-------------+-----------+\n|  InstanceId          |  Name            |  HttpTokens |  HopLimit |\n+----------------------+------------------+-------------+-----------+\n|  i-0a1b2c3d4e5f60101 |  web-frontend    |  required   |  1        |\n|  i-0a1b2c3d4e5f60102 |  api-gateway     |  required   |  1        |\n|  i-0a1b2c3d4e5f60103 |  batch-worker    |  required   |  2        |\n|  i-0a1b2c3d4e5f60104 |  legacy-reports  |  optional   |  1        |\n|  i-0a1b2c3d4e5f60105 |  bastion         |  required   |  1        |\n+----------------------+------------------+-------------+-----------+"
+          },
+          {
+            "match": "^aws ec2 describe-instances\\b",
+            "requires": [
+              "fixed_103"
+            ],
+            "output": "---------------------------------------------------------------------\n|                        DescribeInstances                          |\n+----------------------+------------------+-------------+-----------+\n|  InstanceId          |  Name            |  HttpTokens |  HopLimit |\n+----------------------+------------------+-------------+-----------+\n|  i-0a1b2c3d4e5f60101 |  web-frontend    |  required   |  1        |\n|  i-0a1b2c3d4e5f60102 |  api-gateway     |  optional   |  2        |\n|  i-0a1b2c3d4e5f60103 |  batch-worker    |  required   |  1        |\n|  i-0a1b2c3d4e5f60104 |  legacy-reports  |  optional   |  1        |\n|  i-0a1b2c3d4e5f60105 |  bastion         |  required   |  1        |\n+----------------------+------------------+-------------+-----------+"
+          },
+          {
+            "match": "^aws ec2 describe-instances\\b",
+            "requires": [
+              "fixed_104"
+            ],
+            "output": "---------------------------------------------------------------------\n|                        DescribeInstances                          |\n+----------------------+------------------+-------------+-----------+\n|  InstanceId          |  Name            |  HttpTokens |  HopLimit |\n+----------------------+------------------+-------------+-----------+\n|  i-0a1b2c3d4e5f60101 |  web-frontend    |  required   |  1        |\n|  i-0a1b2c3d4e5f60102 |  api-gateway     |  optional   |  2        |\n|  i-0a1b2c3d4e5f60103 |  batch-worker    |  required   |  2        |\n|  i-0a1b2c3d4e5f60104 |  legacy-reports  |  required   |  1        |\n|  i-0a1b2c3d4e5f60105 |  bastion         |  required   |  1        |\n+----------------------+------------------+-------------+-----------+"
+          },
+          {
+            "match": "^aws ec2 describe-instances\\b",
+            "requires": [],
+            "output": "---------------------------------------------------------------------\n|                        DescribeInstances                          |\n+----------------------+------------------+-------------+-----------+\n|  InstanceId          |  Name            |  HttpTokens |  HopLimit |\n+----------------------+------------------+-------------+-----------+\n|  i-0a1b2c3d4e5f60101 |  web-frontend    |  required   |  1        |\n|  i-0a1b2c3d4e5f60102 |  api-gateway     |  optional   |  2        |\n|  i-0a1b2c3d4e5f60103 |  batch-worker    |  required   |  2        |\n|  i-0a1b2c3d4e5f60104 |  legacy-reports  |  optional   |  1        |\n|  i-0a1b2c3d4e5f60105 |  bastion         |  required   |  1        |\n+----------------------+------------------+-------------+-----------+"
+          },
+          {
+            "match": "^aws configservice get-compliance-details-by-config-rule\\b",
+            "requires": [
+              "fixed_102",
+              "fixed_103",
+              "fixed_104"
+            ],
+            "output": "{\n    \"EvaluationResults\": [\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"imds-hardening-check\",\n                    \"ResourceType\": \"AWS::EC2::Instance\",\n                    \"ResourceId\": \"i-0a1b2c3d4e5f60101\"\n                }\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"Annotation\": \"HttpTokens=required, HopLimit=1; fleet attestation FLAG{imds_fleet_hardened_7c2e}\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"imds-hardening-check\",\n                    \"ResourceType\": \"AWS::EC2::Instance\",\n                    \"ResourceId\": \"i-0a1b2c3d4e5f60102\"\n                }\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"Annotation\": \"HttpTokens=required, HopLimit=1\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"imds-hardening-check\",\n                    \"ResourceType\": \"AWS::EC2::Instance\",\n                    \"ResourceId\": \"i-0a1b2c3d4e5f60103\"\n                }\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"Annotation\": \"HttpTokens=required, HopLimit=1\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"imds-hardening-check\",\n                    \"ResourceType\": \"AWS::EC2::Instance\",\n                    \"ResourceId\": \"i-0a1b2c3d4e5f60104\"\n                }\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"Annotation\": \"HttpTokens=required, HopLimit=1\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"imds-hardening-check\",\n                    \"ResourceType\": \"AWS::EC2::Instance\",\n                    \"ResourceId\": \"i-0a1b2c3d4e5f60105\"\n                }\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"Annotation\": \"HttpTokens=required, HopLimit=1\"\n        }\n    ]\n}"
+          },
+          {
+            "match": "^aws configservice get-compliance-details-by-config-rule\\b",
+            "requires": [
+              "fixed_102",
+              "fixed_103"
+            ],
+            "output": "{\n    \"EvaluationResults\": [\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"imds-hardening-check\",\n                    \"ResourceType\": \"AWS::EC2::Instance\",\n                    \"ResourceId\": \"i-0a1b2c3d4e5f60101\"\n                }\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"Annotation\": \"HttpTokens=required, HopLimit=1\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"imds-hardening-check\",\n                    \"ResourceType\": \"AWS::EC2::Instance\",\n                    \"ResourceId\": \"i-0a1b2c3d4e5f60102\"\n                }\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"Annotation\": \"HttpTokens=required, HopLimit=1\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"imds-hardening-check\",\n                    \"ResourceType\": \"AWS::EC2::Instance\",\n                    \"ResourceId\": \"i-0a1b2c3d4e5f60103\"\n                }\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"Annotation\": \"HttpTokens=required, HopLimit=1\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"imds-hardening-check\",\n                    \"ResourceType\": \"AWS::EC2::Instance\",\n                    \"ResourceId\": \"i-0a1b2c3d4e5f60104\"\n                }\n            },\n            \"ComplianceType\": \"NON_COMPLIANT\",\n            \"Annotation\": \"HttpTokens=optional, HopLimit=1\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"imds-hardening-check\",\n                    \"ResourceType\": \"AWS::EC2::Instance\",\n                    \"ResourceId\": \"i-0a1b2c3d4e5f60105\"\n                }\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"Annotation\": \"HttpTokens=required, HopLimit=1\"\n        }\n    ]\n}"
+          },
+          {
+            "match": "^aws configservice get-compliance-details-by-config-rule\\b",
+            "requires": [
+              "fixed_102",
+              "fixed_104"
+            ],
+            "output": "{\n    \"EvaluationResults\": [\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"imds-hardening-check\",\n                    \"ResourceType\": \"AWS::EC2::Instance\",\n                    \"ResourceId\": \"i-0a1b2c3d4e5f60101\"\n                }\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"Annotation\": \"HttpTokens=required, HopLimit=1\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"imds-hardening-check\",\n                    \"ResourceType\": \"AWS::EC2::Instance\",\n                    \"ResourceId\": \"i-0a1b2c3d4e5f60102\"\n                }\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"Annotation\": \"HttpTokens=required, HopLimit=1\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"imds-hardening-check\",\n                    \"ResourceType\": \"AWS::EC2::Instance\",\n                    \"ResourceId\": \"i-0a1b2c3d4e5f60103\"\n                }\n            },\n            \"ComplianceType\": \"NON_COMPLIANT\",\n            \"Annotation\": \"HttpTokens=required, HopLimit=2\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"imds-hardening-check\",\n                    \"ResourceType\": \"AWS::EC2::Instance\",\n                    \"ResourceId\": \"i-0a1b2c3d4e5f60104\"\n                }\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"Annotation\": \"HttpTokens=required, HopLimit=1\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"imds-hardening-check\",\n                    \"ResourceType\": \"AWS::EC2::Instance\",\n                    \"ResourceId\": \"i-0a1b2c3d4e5f60105\"\n                }\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"Annotation\": \"HttpTokens=required, HopLimit=1\"\n        }\n    ]\n}"
+          },
+          {
+            "match": "^aws configservice get-compliance-details-by-config-rule\\b",
+            "requires": [
+              "fixed_103",
+              "fixed_104"
+            ],
+            "output": "{\n    \"EvaluationResults\": [\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"imds-hardening-check\",\n                    \"ResourceType\": \"AWS::EC2::Instance\",\n                    \"ResourceId\": \"i-0a1b2c3d4e5f60101\"\n                }\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"Annotation\": \"HttpTokens=required, HopLimit=1\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"imds-hardening-check\",\n                    \"ResourceType\": \"AWS::EC2::Instance\",\n                    \"ResourceId\": \"i-0a1b2c3d4e5f60102\"\n                }\n            },\n            \"ComplianceType\": \"NON_COMPLIANT\",\n            \"Annotation\": \"HttpTokens=optional, HopLimit=2\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"imds-hardening-check\",\n                    \"ResourceType\": \"AWS::EC2::Instance\",\n                    \"ResourceId\": \"i-0a1b2c3d4e5f60103\"\n                }\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"Annotation\": \"HttpTokens=required, HopLimit=1\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"imds-hardening-check\",\n                    \"ResourceType\": \"AWS::EC2::Instance\",\n                    \"ResourceId\": \"i-0a1b2c3d4e5f60104\"\n                }\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"Annotation\": \"HttpTokens=required, HopLimit=1\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"imds-hardening-check\",\n                    \"ResourceType\": \"AWS::EC2::Instance\",\n                    \"ResourceId\": \"i-0a1b2c3d4e5f60105\"\n                }\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"Annotation\": \"HttpTokens=required, HopLimit=1\"\n        }\n    ]\n}"
+          },
+          {
+            "match": "^aws configservice get-compliance-details-by-config-rule\\b",
+            "requires": [
+              "fixed_102"
+            ],
+            "output": "{\n    \"EvaluationResults\": [\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"imds-hardening-check\",\n                    \"ResourceType\": \"AWS::EC2::Instance\",\n                    \"ResourceId\": \"i-0a1b2c3d4e5f60101\"\n                }\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"Annotation\": \"HttpTokens=required, HopLimit=1\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"imds-hardening-check\",\n                    \"ResourceType\": \"AWS::EC2::Instance\",\n                    \"ResourceId\": \"i-0a1b2c3d4e5f60102\"\n                }\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"Annotation\": \"HttpTokens=required, HopLimit=1\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"imds-hardening-check\",\n                    \"ResourceType\": \"AWS::EC2::Instance\",\n                    \"ResourceId\": \"i-0a1b2c3d4e5f60103\"\n                }\n            },\n            \"ComplianceType\": \"NON_COMPLIANT\",\n            \"Annotation\": \"HttpTokens=required, HopLimit=2\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"imds-hardening-check\",\n                    \"ResourceType\": \"AWS::EC2::Instance\",\n                    \"ResourceId\": \"i-0a1b2c3d4e5f60104\"\n                }\n            },\n            \"ComplianceType\": \"NON_COMPLIANT\",\n            \"Annotation\": \"HttpTokens=optional, HopLimit=1\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"imds-hardening-check\",\n                    \"ResourceType\": \"AWS::EC2::Instance\",\n                    \"ResourceId\": \"i-0a1b2c3d4e5f60105\"\n                }\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"Annotation\": \"HttpTokens=required, HopLimit=1\"\n        }\n    ]\n}"
+          },
+          {
+            "match": "^aws configservice get-compliance-details-by-config-rule\\b",
+            "requires": [
+              "fixed_103"
+            ],
+            "output": "{\n    \"EvaluationResults\": [\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"imds-hardening-check\",\n                    \"ResourceType\": \"AWS::EC2::Instance\",\n                    \"ResourceId\": \"i-0a1b2c3d4e5f60101\"\n                }\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"Annotation\": \"HttpTokens=required, HopLimit=1\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"imds-hardening-check\",\n                    \"ResourceType\": \"AWS::EC2::Instance\",\n                    \"ResourceId\": \"i-0a1b2c3d4e5f60102\"\n                }\n            },\n            \"ComplianceType\": \"NON_COMPLIANT\",\n            \"Annotation\": \"HttpTokens=optional, HopLimit=2\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"imds-hardening-check\",\n                    \"ResourceType\": \"AWS::EC2::Instance\",\n                    \"ResourceId\": \"i-0a1b2c3d4e5f60103\"\n                }\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"Annotation\": \"HttpTokens=required, HopLimit=1\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"imds-hardening-check\",\n                    \"ResourceType\": \"AWS::EC2::Instance\",\n                    \"ResourceId\": \"i-0a1b2c3d4e5f60104\"\n                }\n            },\n            \"ComplianceType\": \"NON_COMPLIANT\",\n            \"Annotation\": \"HttpTokens=optional, HopLimit=1\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"imds-hardening-check\",\n                    \"ResourceType\": \"AWS::EC2::Instance\",\n                    \"ResourceId\": \"i-0a1b2c3d4e5f60105\"\n                }\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"Annotation\": \"HttpTokens=required, HopLimit=1\"\n        }\n    ]\n}"
+          },
+          {
+            "match": "^aws configservice get-compliance-details-by-config-rule\\b",
+            "requires": [
+              "fixed_104"
+            ],
+            "output": "{\n    \"EvaluationResults\": [\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"imds-hardening-check\",\n                    \"ResourceType\": \"AWS::EC2::Instance\",\n                    \"ResourceId\": \"i-0a1b2c3d4e5f60101\"\n                }\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"Annotation\": \"HttpTokens=required, HopLimit=1\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"imds-hardening-check\",\n                    \"ResourceType\": \"AWS::EC2::Instance\",\n                    \"ResourceId\": \"i-0a1b2c3d4e5f60102\"\n                }\n            },\n            \"ComplianceType\": \"NON_COMPLIANT\",\n            \"Annotation\": \"HttpTokens=optional, HopLimit=2\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"imds-hardening-check\",\n                    \"ResourceType\": \"AWS::EC2::Instance\",\n                    \"ResourceId\": \"i-0a1b2c3d4e5f60103\"\n                }\n            },\n            \"ComplianceType\": \"NON_COMPLIANT\",\n            \"Annotation\": \"HttpTokens=required, HopLimit=2\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"imds-hardening-check\",\n                    \"ResourceType\": \"AWS::EC2::Instance\",\n                    \"ResourceId\": \"i-0a1b2c3d4e5f60104\"\n                }\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"Annotation\": \"HttpTokens=required, HopLimit=1\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"imds-hardening-check\",\n                    \"ResourceType\": \"AWS::EC2::Instance\",\n                    \"ResourceId\": \"i-0a1b2c3d4e5f60105\"\n                }\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"Annotation\": \"HttpTokens=required, HopLimit=1\"\n        }\n    ]\n}"
+          },
+          {
+            "match": "^aws configservice get-compliance-details-by-config-rule\\b",
+            "requires": [],
+            "output": "{\n    \"EvaluationResults\": [\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"imds-hardening-check\",\n                    \"ResourceType\": \"AWS::EC2::Instance\",\n                    \"ResourceId\": \"i-0a1b2c3d4e5f60101\"\n                }\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"Annotation\": \"HttpTokens=required, HopLimit=1\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"imds-hardening-check\",\n                    \"ResourceType\": \"AWS::EC2::Instance\",\n                    \"ResourceId\": \"i-0a1b2c3d4e5f60102\"\n                }\n            },\n            \"ComplianceType\": \"NON_COMPLIANT\",\n            \"Annotation\": \"HttpTokens=optional, HopLimit=2\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"imds-hardening-check\",\n                    \"ResourceType\": \"AWS::EC2::Instance\",\n                    \"ResourceId\": \"i-0a1b2c3d4e5f60103\"\n                }\n            },\n            \"ComplianceType\": \"NON_COMPLIANT\",\n            \"Annotation\": \"HttpTokens=required, HopLimit=2\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"imds-hardening-check\",\n                    \"ResourceType\": \"AWS::EC2::Instance\",\n                    \"ResourceId\": \"i-0a1b2c3d4e5f60104\"\n                }\n            },\n            \"ComplianceType\": \"NON_COMPLIANT\",\n            \"Annotation\": \"HttpTokens=optional, HopLimit=1\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"imds-hardening-check\",\n                    \"ResourceType\": \"AWS::EC2::Instance\",\n                    \"ResourceId\": \"i-0a1b2c3d4e5f60105\"\n                }\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"Annotation\": \"HttpTokens=required, HopLimit=1\"\n        }\n    ]\n}"
+          },
+          {
+            "match": "^aws configservice describe-compliance-by-config-rule\\b",
+            "output": "{\n    \"ComplianceByConfigRules\": [\n        {\n            \"ConfigRuleName\": \"imds-hardening-check\",\n            \"Compliance\": {\n                \"ComplianceType\": \"NON_COMPLIANT\"\n            }\n        }\n    ]\n}\n(use get-compliance-details-by-config-rule to see which instances)"
+          },
+          {
+            "match": "^aws cloudwatch get-metric-statistics (?=.*--namespace AWS/EC2)(?=.*--metric-name MetadataNoToken)(?=.*Value=i-0a1b2c3d4e5f60104\\b).*$",
+            "sets": [
+              "checked_noToken"
+            ],
+            "output": "{\n    \"Label\": \"MetadataNoToken\",\n    \"Datapoints\": [\n        {\n            \"Timestamp\": \"2026-11-19T12:00:00+00:00\",\n            \"Sum\": 1840,\n            \"Unit\": \"Count\"\n        }\n    ]\n}"
+          },
+          {
+            "match": "^aws cloudwatch get-metric-statistics (?=.*--namespace AWS/EC2)(?=.*--metric-name MetadataNoToken)(?=.*Value=i-0a1b2c3d4e5f60101\\b).*$",
+            "output": "{\n    \"Label\": \"MetadataNoToken\",\n    \"Datapoints\": [\n        {\n            \"Timestamp\": \"2026-11-19T12:00:00+00:00\",\n            \"Sum\": 0,\n            \"Unit\": \"Count\"\n        }\n    ]\n}"
+          },
+          {
+            "match": "^aws cloudwatch get-metric-statistics (?=.*--namespace AWS/EC2)(?=.*--metric-name MetadataNoToken)(?=.*Value=i-0a1b2c3d4e5f60102\\b).*$",
+            "output": "{\n    \"Label\": \"MetadataNoToken\",\n    \"Datapoints\": [\n        {\n            \"Timestamp\": \"2026-11-19T12:00:00+00:00\",\n            \"Sum\": 0,\n            \"Unit\": \"Count\"\n        }\n    ]\n}"
+          },
+          {
+            "match": "^aws cloudwatch get-metric-statistics (?=.*--namespace AWS/EC2)(?=.*--metric-name MetadataNoToken)(?=.*Value=i-0a1b2c3d4e5f60103\\b).*$",
+            "output": "{\n    \"Label\": \"MetadataNoToken\",\n    \"Datapoints\": [\n        {\n            \"Timestamp\": \"2026-11-19T12:00:00+00:00\",\n            \"Sum\": 0,\n            \"Unit\": \"Count\"\n        }\n    ]\n}"
+          },
+          {
+            "match": "^aws cloudwatch get-metric-statistics (?=.*--namespace AWS/EC2)(?=.*--metric-name MetadataNoToken)(?=.*Value=i-0a1b2c3d4e5f60105\\b).*$",
+            "output": "{\n    \"Label\": \"MetadataNoToken\",\n    \"Datapoints\": [\n        {\n            \"Timestamp\": \"2026-11-19T12:00:00+00:00\",\n            \"Sum\": 0,\n            \"Unit\": \"Count\"\n        }\n    ]\n}"
+          },
+          {
+            "match": "^aws cloudwatch get-metric-statistics\\b",
+            "output": "{\n    \"Label\": \"MetadataNoToken\",\n    \"Datapoints\": []\n}\n(no datapoints: check --namespace AWS/EC2, --metric-name MetadataNoToken and --dimensions Name=InstanceId,Value=<id>)"
+          },
+          {
+            "match": "^aws ec2 modify-instance-metadata-options (?=.*--instance-id i-0a1b2c3d4e5f60102\\b)(?=.*--http-tokens required)(?=.*--http-put-response-hop-limit 1\\b).*$",
+            "sets": [
+              "fixed_102"
+            ],
+            "output": "{\n    \"InstanceId\": \"i-0a1b2c3d4e5f60102\",\n    \"InstanceMetadataOptions\": {\n        \"State\": \"pending\",\n        \"HttpTokens\": \"required\",\n        \"HttpPutResponseHopLimit\": 1,\n        \"HttpEndpoint\": \"enabled\",\n        \"HttpProtocolIpv6\": \"disabled\",\n        \"InstanceMetadataTags\": \"disabled\"\n    }\n}"
+          },
+          {
+            "match": "^aws ec2 modify-instance-metadata-options (?=.*--instance-id i-0a1b2c3d4e5f60102\\b)(?=.*--http-put-response-hop-limit 1\\b)(?!.*--http-tokens optional).*$",
+            "requires": [
+              "tok_102"
+            ],
+            "sets": [
+              "fixed_102"
+            ],
+            "output": "{\n    \"InstanceId\": \"i-0a1b2c3d4e5f60102\",\n    \"InstanceMetadataOptions\": {\n        \"State\": \"pending\",\n        \"HttpTokens\": \"required\",\n        \"HttpPutResponseHopLimit\": 1,\n        \"HttpEndpoint\": \"enabled\",\n        \"HttpProtocolIpv6\": \"disabled\",\n        \"InstanceMetadataTags\": \"disabled\"\n    }\n}"
+          },
+          {
+            "match": "^aws ec2 modify-instance-metadata-options (?=.*--instance-id i-0a1b2c3d4e5f60102\\b)(?=.*--http-tokens required).*$",
+            "requires": [
+              "hop_102"
+            ],
+            "sets": [
+              "fixed_102"
+            ],
+            "output": "{\n    \"InstanceId\": \"i-0a1b2c3d4e5f60102\",\n    \"InstanceMetadataOptions\": {\n        \"State\": \"pending\",\n        \"HttpTokens\": \"required\",\n        \"HttpPutResponseHopLimit\": 1,\n        \"HttpEndpoint\": \"enabled\",\n        \"HttpProtocolIpv6\": \"disabled\",\n        \"InstanceMetadataTags\": \"disabled\"\n    }\n}"
+          },
+          {
+            "match": "^aws ec2 modify-instance-metadata-options (?=.*--instance-id i-0a1b2c3d4e5f60102\\b)(?=.*--http-put-response-hop-limit 1\\b)(?!.*--http-tokens optional).*$",
+            "sets": [
+              "hop_102"
+            ],
+            "output": "{\n    \"InstanceId\": \"i-0a1b2c3d4e5f60102\",\n    \"InstanceMetadataOptions\": {\n        \"State\": \"pending\",\n        \"HttpTokens\": \"optional\",\n        \"HttpPutResponseHopLimit\": 1,\n        \"HttpEndpoint\": \"enabled\",\n        \"HttpProtocolIpv6\": \"disabled\",\n        \"InstanceMetadataTags\": \"disabled\"\n    }\n}"
+          },
+          {
+            "match": "^aws ec2 modify-instance-metadata-options (?=.*--instance-id i-0a1b2c3d4e5f60102\\b)(?=.*--http-tokens required).*$",
+            "sets": [
+              "tok_102"
+            ],
+            "output": "{\n    \"InstanceId\": \"i-0a1b2c3d4e5f60102\",\n    \"InstanceMetadataOptions\": {\n        \"State\": \"pending\",\n        \"HttpTokens\": \"required\",\n        \"HttpPutResponseHopLimit\": 2,\n        \"HttpEndpoint\": \"enabled\",\n        \"HttpProtocolIpv6\": \"disabled\",\n        \"InstanceMetadataTags\": \"disabled\"\n    }\n}"
+          },
+          {
+            "match": "^aws ec2 modify-instance-metadata-options (?=.*--instance-id i-0a1b2c3d4e5f60102\\b).*$",
+            "output": "{\n    \"InstanceId\": \"i-0a1b2c3d4e5f60102\",\n    \"InstanceMetadataOptions\": {\n        \"State\": \"pending\",\n        \"HttpTokens\": \"optional\",\n        \"HttpPutResponseHopLimit\": 2,\n        \"HttpEndpoint\": \"enabled\",\n        \"HttpProtocolIpv6\": \"disabled\",\n        \"InstanceMetadataTags\": \"disabled\"\n    }\n}"
+          },
+          {
+            "match": "^aws ec2 modify-instance-metadata-options (?=.*--instance-id i-0a1b2c3d4e5f60103\\b)(?=.*--http-put-response-hop-limit 1\\b)(?!.*--http-tokens optional).*$",
+            "sets": [
+              "fixed_103"
+            ],
+            "output": "{\n    \"InstanceId\": \"i-0a1b2c3d4e5f60103\",\n    \"InstanceMetadataOptions\": {\n        \"State\": \"pending\",\n        \"HttpTokens\": \"required\",\n        \"HttpPutResponseHopLimit\": 1,\n        \"HttpEndpoint\": \"enabled\",\n        \"HttpProtocolIpv6\": \"disabled\",\n        \"InstanceMetadataTags\": \"disabled\"\n    }\n}"
+          },
+          {
+            "match": "^aws ec2 modify-instance-metadata-options (?=.*--instance-id i-0a1b2c3d4e5f60103\\b).*$",
+            "output": "{\n    \"InstanceId\": \"i-0a1b2c3d4e5f60103\",\n    \"InstanceMetadataOptions\": {\n        \"State\": \"pending\",\n        \"HttpTokens\": \"required\",\n        \"HttpPutResponseHopLimit\": 2,\n        \"HttpEndpoint\": \"enabled\",\n        \"HttpProtocolIpv6\": \"disabled\",\n        \"InstanceMetadataTags\": \"disabled\"\n    }\n}"
+          },
+          {
+            "match": "^aws ec2 modify-instance-metadata-options (?=.*--instance-id i-0a1b2c3d4e5f60104\\b)(?=.*--http-tokens required)(?!.*--http-put-response-hop-limit (?!1\\b)).*$",
+            "sets": [
+              "fixed_104"
+            ],
+            "output": "{\n    \"InstanceId\": \"i-0a1b2c3d4e5f60104\",\n    \"InstanceMetadataOptions\": {\n        \"State\": \"pending\",\n        \"HttpTokens\": \"required\",\n        \"HttpPutResponseHopLimit\": 1,\n        \"HttpEndpoint\": \"enabled\",\n        \"HttpProtocolIpv6\": \"disabled\",\n        \"InstanceMetadataTags\": \"disabled\"\n    }\n}"
+          },
+          {
+            "match": "^aws ec2 modify-instance-metadata-options (?=.*--instance-id i-0a1b2c3d4e5f60104\\b).*$",
+            "output": "{\n    \"InstanceId\": \"i-0a1b2c3d4e5f60104\",\n    \"InstanceMetadataOptions\": {\n        \"State\": \"pending\",\n        \"HttpTokens\": \"optional\",\n        \"HttpPutResponseHopLimit\": 1,\n        \"HttpEndpoint\": \"enabled\",\n        \"HttpProtocolIpv6\": \"disabled\",\n        \"InstanceMetadataTags\": \"disabled\"\n    }\n}"
+          },
+          {
+            "match": "^aws ec2 modify-instance-metadata-options (?=.*--instance-id i-0a1b2c3d4e5f60(101|105)\\b).*$",
+            "output": "(command succeeded) The instance already meets the standard; no change was needed."
+          },
+          {
+            "match": "^aws ec2 modify-instance-metadata-options (?=.*--instance-id \\S+).*$",
+            "output": "An error occurred (InvalidInstanceID.NotFound) when calling the ModifyInstanceMetadataOptions operation: The instance ID does not exist. Use describe-instances to get ids."
+          },
+          {
+            "match": "^aws ec2 modify-instance-metadata-options ",
+            "output": "usage: aws ec2 modify-instance-metadata-options --instance-id <id> [--http-tokens optional|required] [--http-put-response-hop-limit <n>] [--http-endpoint enabled|disabled]\nerror: --instance-id is required"
+          }
+        ]
+      },
+      "solution": [
+        "aws sts get-caller-identity",
+        "aws ec2 describe-instances",
+        "aws ec2 modify-instance-metadata-options --instance-id i-0a1b2c3d4e5f60102 --http-tokens required --http-put-response-hop-limit 1",
+        "aws ec2 modify-instance-metadata-options --instance-id i-0a1b2c3d4e5f60103 --http-put-response-hop-limit 1",
+        "aws ec2 modify-instance-metadata-options --instance-id i-0a1b2c3d4e5f60104 --http-tokens required",
+        "aws configservice get-compliance-details-by-config-rule --config-rule-name imds-hardening-check"
+      ],
+      "tasks": [
+        {
+          "id": "t1",
+          "kind": "choice",
+          "prompt": "Why do HttpTokens=required and HttpPutResponseHopLimit=1 together make it much harder to read role credentials through a server-side request forgery bug?",
+          "options": [
+            "IMDSv2 needs a session token obtained with a PUT request and sent in a header on later reads, which a simple forwarded GET cannot supply, and hop limit 1 keeps the token response from being forwarded off the instance",
+            "IMDSv2 encrypts the role credentials with a key stored on the instance, so intercepted traffic is unreadable",
+            "Hop limit 1 blocks all outbound traffic from the instance",
+            "IMDSv2 moves the metadata service to a public endpoint protected by the instance security group"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "IMDSv2 is session-oriented: the caller must first request a short-lived token with a PUT, then present it on every metadata read. Typical SSRF bugs only let an attacker issue a plain GET, and the hop limit keeps token responses from crossing a forwarding hop. It is a mitigation that raises the bar, not a substitute for fixing the application bug."
+        },
+        {
+          "id": "t2",
+          "kind": "answer",
+          "prompt": "Use describe-instances. How many of the five instances do NOT meet the standard (HttpTokens required and hop limit 1)? Reply with a number.",
+          "accept": [
+            "3",
+            "three"
+          ],
+          "explanation": "Two instances pass; three fail in different ways: one allows IMDSv1 and has hop limit 2, one allows IMDSv1 with hop limit 1, and one requires tokens but has hop limit 2. An audit that only checks HttpTokens misses the last one, so check every control in the standard."
+        },
+        {
+          "id": "t3",
+          "kind": "flag",
+          "prompt": "Harden every non-compliant instance, then run the AWS Config compliance check for imds-hardening-check. When the whole fleet is compliant, paste the flag in the attestation annotation.",
+          "flag": "FLAG{imds_fleet_hardened_7c2e}",
+          "explanation": "Each instance needed a different change: two needed IMDSv2 enforced, and two needed the hop limit lowered. Verifying with a compliance rule rather than assuming success is what makes the audit defensible, and re-running it periodically catches drift when new instances launch from an old template."
+        },
+        {
+          "id": "t4",
+          "kind": "choice",
+          "prompt": "Before enforcing HttpTokens=required on a running production instance, which signal tells you whether something is still calling the metadata service the old IMDSv1 way and would break?",
+          "options": [
+            "The CloudWatch metric MetadataNoToken for that instance (metadata calls made without a session token)",
+            "The CPUUtilization metric for that instance",
+            "The StatusCheckFailed metric for that instance",
+            "The NetworkIn metric for the instance's network interface"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "MetadataNoToken counts metadata requests that did not use a token, in other words IMDSv1 calls. If it is non-zero, something on the instance (often an old SDK or agent) will lose access to credentials after enforcement, so upgrade it first or schedule the change. A zero count lets you enforce with confidence."
+        },
+        {
+          "id": "t5",
+          "kind": "answer",
+          "prompt": "Query MetadataNoToken for the instances you plan to enforce. Which instance name still has callers using IMDSv1?",
+          "accept": [
+            "legacy-reports",
+            "i-0a1b2c3d4e5f60104",
+            "legacy reports"
+          ],
+          "explanation": "legacy-reports is still making token-less calls, so enforcing IMDSv2 will break whatever software is doing that until its SDK or agent is updated to use IMDSv2. The right response is to fix the caller and then enforce, not to leave the instance on IMDSv1 forever. Coordinate with the owner, set a deadline, and track it as an exception until it closes."
+        },
+        {
+          "id": "t6",
+          "kind": "answer",
+          "prompt": "What is the IAM condition key, used in an SCP or IAM policy for ec2:RunInstances, that carries the HttpTokens value requested for the new instance?",
+          "accept": [
+            "ec2:metadatahttptokens",
+            "metadatahttptokens"
+          ],
+          "explanation": "ec2:MetadataHttpTokens lets you write a policy such as 'deny RunInstances unless the value is required'. A companion key, ec2:MetadataHttpPutResponseHopLimit, lets you cap the hop limit. Policies that prevent a bad configuration at creation time scale better than auditing after the fact."
+        },
+        {
+          "id": "t7",
+          "kind": "policy",
+          "mode": "scp",
+          "prompt": "Write the guardrail for current-scp.json: keep the allow-all statement, and add denies so that ec2:RunInstances on instance resources is refused unless HttpTokens is 'required', and refused when the hop limit is greater than 1.",
+          "fixed": {
+            "identity": [
+              "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Effect\": \"Allow\",\n      \"Action\": \"ec2:*\",\n      \"Resource\": \"*\"\n    }\n  ]\n}"
+            ]
+          },
+          "starter": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"FullAWSAccess\",\n      \"Effect\": \"Allow\",\n      \"Action\": \"*\",\n      \"Resource\": \"*\"\n    }\n  ]\n}",
+          "solution": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"FullAWSAccess\",\n      \"Effect\": \"Allow\",\n      \"Action\": \"*\",\n      \"Resource\": \"*\"\n    },\n    {\n      \"Sid\": \"RequireImdsV2\",\n      \"Effect\": \"Deny\",\n      \"Action\": \"ec2:RunInstances\",\n      \"Resource\": \"arn:aws:ec2:*:*:instance/*\",\n      \"Condition\": {\n        \"StringNotEquals\": {\n          \"ec2:MetadataHttpTokens\": \"required\"\n        }\n      }\n    },\n    {\n      \"Sid\": \"LimitMetadataHops\",\n      \"Effect\": \"Deny\",\n      \"Action\": \"ec2:RunInstances\",\n      \"Resource\": \"arn:aws:ec2:*:*:instance/*\",\n      \"Condition\": {\n        \"NumericGreaterThan\": {\n          \"ec2:MetadataHttpPutResponseHopLimit\": \"1\"\n        }\n      }\n    }\n  ]\n}",
+          "tests": [
+            {
+              "name": "Launch with IMDSv2 required and hop limit 1 is allowed",
+              "action": "ec2:RunInstances",
+              "resource": "arn:aws:ec2:us-east-1:111122223333:instance/i-0a1b2c3d4e5f60199",
+              "context": {
+                "ec2:MetadataHttpTokens": "required",
+                "ec2:MetadataHttpPutResponseHopLimit": 1
+              },
+              "expect": "allow"
+            },
+            {
+              "name": "Launch that leaves IMDSv1 enabled is denied",
+              "action": "ec2:RunInstances",
+              "resource": "arn:aws:ec2:us-east-1:111122223333:instance/i-0a1b2c3d4e5f60199",
+              "context": {
+                "ec2:MetadataHttpTokens": "optional",
+                "ec2:MetadataHttpPutResponseHopLimit": 1
+              },
+              "expect": "deny"
+            },
+            {
+              "name": "Launch with IMDSv2 required but hop limit 2 is denied",
+              "action": "ec2:RunInstances",
+              "resource": "arn:aws:ec2:us-east-1:111122223333:instance/i-0a1b2c3d4e5f60199",
+              "context": {
+                "ec2:MetadataHttpTokens": "required",
+                "ec2:MetadataHttpPutResponseHopLimit": 2
+              },
+              "expect": "deny"
+            },
+            {
+              "name": "Launch that states no HttpTokens value at all is denied",
+              "action": "ec2:RunInstances",
+              "resource": "arn:aws:ec2:us-east-1:111122223333:instance/i-0a1b2c3d4e5f60199",
+              "expect": "deny"
+            },
+            {
+              "name": "Everyday read calls keep working",
+              "action": "ec2:DescribeInstances",
+              "resource": "*",
+              "expect": "allow"
+            }
+          ],
+          "explanation": "A Deny with StringNotEquals on ec2:MetadataHttpTokens refuses anything except 'required', and because a negated operator is true when the key is missing, a launch that omits the setting is blocked too. The hop-limit statement uses NumericGreaterThan so values above 1 are refused. SCPs never grant, which is why the allow-all statement stays: the SCP only fences what identity policies can grant."
+        }
+      ],
+      "takeaways": [
+        "A compliance standard has several parts: check each control (HttpTokens and hop limit), not just the headline one.",
+        "Check MetadataNoToken before enforcing IMDSv2 on running instances, and fix legacy callers rather than leaving exceptions open.",
+        "Detect drift with AWS Config and prevent it at creation time with an SCP using ec2:MetadataHttpTokens, and fix the launch templates that keep producing non-compliant instances."
+      ]
+    }
+  },
+  {
+    "labId": "cloud-L17",
+    "title": "Expose Audit",
+    "objective": "Audit security groups for ports reachable from 0.0.0.0/0, list the findings through the simulated CLI, remediate each to least privilege (revoke the open rule, add a narrow one), verify clean, and tighten the remediation role itself.",
+    "successCriteria": [
+      "You identified every security group exposing an admin or data port to the internet and told legitimate public rules apart from findings",
+      "You revoked each world-open rule and replaced it with the narrowest source the standard allows",
+      "You verified the account with a compliance check and scoped the remediation role to describe and security group ingress changes only"
+    ],
+    "hints": [
+      "An external scan tells you which ports are reachable, not why. Use describe-security-groups with the ip-permission.cidr filter to find which groups allow them.",
+      "Not every 0.0.0.0/0 rule is a finding: read change-standard.txt to see which ports may be public and which sources are acceptable for admin and data ports.",
+      "Revoke first: aws ec2 revoke-security-group-ingress --group-id <sg> --protocol tcp --port <p> --cidr 0.0.0.0/0. Then add the narrow rule with authorize-security-group-ingress, using --cidr for the VPN range or --source-group for the app tier."
+    ],
+    "estimatedHours": 1,
+    "resources": [
+      {
+        "title": "Amazon VPC docs: Security group rules",
+        "url": "https://docs.aws.amazon.com/vpc/latest/userguide/security-group-rules.html",
+        "type": "link"
+      },
+      {
+        "title": "Amazon VPC docs: Control traffic with security groups",
+        "url": "https://docs.aws.amazon.com/vpc/latest/userguide/vpc-security-groups.html",
+        "type": "link"
+      },
+      {
+        "title": "AWS Config managed rule: restricted-ssh",
+        "url": "https://docs.aws.amazon.com/config/latest/developerguide/restricted-ssh.html",
+        "type": "link"
+      }
+    ],
+    "range": {
+      "scenario": "An external attack-surface scan of account 111122223333 found several open ports on public addresses, and the network team has been asked to close the gaps without breaking anything. You are on the NetOps team with the `NetOpsRemediationRole`. Map the scan's findings to security groups, decide which exposures are legitimate and which are findings, remediate each finding to least privilege following the change standard, and prove with the compliance check that the account is clean. Everything is simulated; use the terminal like the AWS CLI.",
+      "artifacts": [
+        {
+          "name": "external-scan-summary.txt",
+          "language": "text",
+          "content": "External port scan summary (run from the internet against the account's public addresses)\n\nPublic address      Open ports seen\n198.51.100.10       80, 443\n198.51.100.21       22\n198.51.100.34       3389\n198.51.100.45       3306\n198.51.100.58       6379\n\nThe scan shows which ports are reachable, not which security group allows them. Map each finding to a group with the CLI.\n",
+          "note": "What the internet can reach today."
+        },
+        {
+          "name": "change-standard.txt",
+          "language": "text",
+          "content": "Network change standard (NetOps, v2)\n\n1. Admin ports (22/SSH, 3389/RDP) may be reachable only from the corporate VPN range 192.0.2.0/24.\n2. Database and cache ports (3306/MySQL, 5432/PostgreSQL, 6379/Redis) may be reachable only from the app tier: security group sg-0a1b2c3d4e5f60f06, or the app subnets (10.0.0.0/16 and narrower).\n3. 0.0.0.0/0 and ::/0 are acceptable only for tcp/80 and tcp/443 on the public load balancer group (web-alb).\n4. Remove the world-open rule first, then add the narrow rule. Do not delete security groups that are attached to instances.\n5. Verify with the compliance rule no-world-open-admin-ports after every change batch.\n",
+          "note": "The rules your remediation must follow."
+        },
+        {
+          "name": "netops-remediation-role-policy.json",
+          "language": "json",
+          "content": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"NetOpsEverything\",\n      \"Effect\": \"Allow\",\n      \"Action\": \"ec2:*\",\n      \"Resource\": \"*\"\n    }\n  ]\n}",
+          "note": "The identity policy currently attached to NetOpsRemediationRole."
+        }
+      ],
+      "terminal": {
+        "prompt": "netops@ops-console:~$",
+        "intro": "Assumed NetOpsRemediationRole in account 111122223333. Region: us-east-1.",
+        "help": "Commands you can try (like the AWS CLI):\n  aws sts get-caller-identity\n  aws ec2 describe-security-groups\n  aws ec2 describe-security-groups --filters Name=ip-permission.cidr,Values=0.0.0.0/0\n  aws ec2 describe-security-group-rules --filters Name=group-id,Values=<sg-id>\n  aws ec2 revoke-security-group-ingress --group-id <sg-id> --protocol tcp --port <p> --cidr 0.0.0.0/0\n  aws ec2 authorize-security-group-ingress --group-id <sg-id> --protocol tcp --port <p> --cidr <range> | --source-group <sg-id>\n  aws configservice get-compliance-details-by-config-rule --config-rule-name no-world-open-admin-ports",
+        "rules": [
+          {
+            "match": "^aws sts get-caller-identity$",
+            "sets": [
+              "whoami"
+            ],
+            "output": "{\n    \"UserId\": \"AROAEXAMPLENETOPS0001:netops\",\n    \"Account\": \"111122223333\",\n    \"Arn\": \"arn:aws:sts::111122223333:assumed-role/NetOpsRemediationRole/netops\"\n}"
+          },
+          {
+            "match": "^aws ec2 describe-security-groups\\b.*ip-permission\\.cidr",
+            "requires": [
+              "rev_ssh",
+              "rev_rdp",
+              "rev_db",
+              "rev_redis"
+            ],
+            "sets": [
+              "listed_world_open"
+            ],
+            "output": "Security group rules with source 0.0.0.0/0 (IPv4 ingress)\nGroupId               GroupName     Proto  Port   Source\nsg-0a1b2c3d4e5f60a01  web-alb       tcp    80     0.0.0.0/0\nsg-0a1b2c3d4e5f60a01  web-alb       tcp    443    0.0.0.0/0"
+          },
+          {
+            "match": "^aws ec2 describe-security-groups\\b.*ip-permission\\.cidr",
+            "requires": [
+              "rev_ssh",
+              "rev_rdp",
+              "rev_db"
+            ],
+            "sets": [
+              "listed_world_open"
+            ],
+            "output": "Security group rules with source 0.0.0.0/0 (IPv4 ingress)\nGroupId               GroupName     Proto  Port   Source\nsg-0a1b2c3d4e5f60a01  web-alb       tcp    80     0.0.0.0/0\nsg-0a1b2c3d4e5f60a01  web-alb       tcp    443    0.0.0.0/0\nsg-0a1b2c3d4e5f60e05  cache-redis   tcp    6379   0.0.0.0/0"
+          },
+          {
+            "match": "^aws ec2 describe-security-groups\\b.*ip-permission\\.cidr",
+            "requires": [
+              "rev_ssh",
+              "rev_rdp",
+              "rev_redis"
+            ],
+            "sets": [
+              "listed_world_open"
+            ],
+            "output": "Security group rules with source 0.0.0.0/0 (IPv4 ingress)\nGroupId               GroupName     Proto  Port   Source\nsg-0a1b2c3d4e5f60a01  web-alb       tcp    80     0.0.0.0/0\nsg-0a1b2c3d4e5f60a01  web-alb       tcp    443    0.0.0.0/0\nsg-0a1b2c3d4e5f60d04  orders-db     tcp    3306   0.0.0.0/0"
+          },
+          {
+            "match": "^aws ec2 describe-security-groups\\b.*ip-permission\\.cidr",
+            "requires": [
+              "rev_ssh",
+              "rev_db",
+              "rev_redis"
+            ],
+            "sets": [
+              "listed_world_open"
+            ],
+            "output": "Security group rules with source 0.0.0.0/0 (IPv4 ingress)\nGroupId               GroupName     Proto  Port   Source\nsg-0a1b2c3d4e5f60a01  web-alb       tcp    80     0.0.0.0/0\nsg-0a1b2c3d4e5f60a01  web-alb       tcp    443    0.0.0.0/0\nsg-0a1b2c3d4e5f60c03  win-admin     tcp    3389   0.0.0.0/0"
+          },
+          {
+            "match": "^aws ec2 describe-security-groups\\b.*ip-permission\\.cidr",
+            "requires": [
+              "rev_rdp",
+              "rev_db",
+              "rev_redis"
+            ],
+            "sets": [
+              "listed_world_open"
+            ],
+            "output": "Security group rules with source 0.0.0.0/0 (IPv4 ingress)\nGroupId               GroupName     Proto  Port   Source\nsg-0a1b2c3d4e5f60a01  web-alb       tcp    80     0.0.0.0/0\nsg-0a1b2c3d4e5f60a01  web-alb       tcp    443    0.0.0.0/0\nsg-0a1b2c3d4e5f60b02  bastion-ssh   tcp    22     0.0.0.0/0"
+          },
+          {
+            "match": "^aws ec2 describe-security-groups\\b.*ip-permission\\.cidr",
+            "requires": [
+              "rev_ssh",
+              "rev_rdp"
+            ],
+            "sets": [
+              "listed_world_open"
+            ],
+            "output": "Security group rules with source 0.0.0.0/0 (IPv4 ingress)\nGroupId               GroupName     Proto  Port   Source\nsg-0a1b2c3d4e5f60a01  web-alb       tcp    80     0.0.0.0/0\nsg-0a1b2c3d4e5f60a01  web-alb       tcp    443    0.0.0.0/0\nsg-0a1b2c3d4e5f60d04  orders-db     tcp    3306   0.0.0.0/0\nsg-0a1b2c3d4e5f60e05  cache-redis   tcp    6379   0.0.0.0/0"
+          },
+          {
+            "match": "^aws ec2 describe-security-groups\\b.*ip-permission\\.cidr",
+            "requires": [
+              "rev_ssh",
+              "rev_db"
+            ],
+            "sets": [
+              "listed_world_open"
+            ],
+            "output": "Security group rules with source 0.0.0.0/0 (IPv4 ingress)\nGroupId               GroupName     Proto  Port   Source\nsg-0a1b2c3d4e5f60a01  web-alb       tcp    80     0.0.0.0/0\nsg-0a1b2c3d4e5f60a01  web-alb       tcp    443    0.0.0.0/0\nsg-0a1b2c3d4e5f60c03  win-admin     tcp    3389   0.0.0.0/0\nsg-0a1b2c3d4e5f60e05  cache-redis   tcp    6379   0.0.0.0/0"
+          },
+          {
+            "match": "^aws ec2 describe-security-groups\\b.*ip-permission\\.cidr",
+            "requires": [
+              "rev_rdp",
+              "rev_db"
+            ],
+            "sets": [
+              "listed_world_open"
+            ],
+            "output": "Security group rules with source 0.0.0.0/0 (IPv4 ingress)\nGroupId               GroupName     Proto  Port   Source\nsg-0a1b2c3d4e5f60a01  web-alb       tcp    80     0.0.0.0/0\nsg-0a1b2c3d4e5f60a01  web-alb       tcp    443    0.0.0.0/0\nsg-0a1b2c3d4e5f60b02  bastion-ssh   tcp    22     0.0.0.0/0\nsg-0a1b2c3d4e5f60e05  cache-redis   tcp    6379   0.0.0.0/0"
+          },
+          {
+            "match": "^aws ec2 describe-security-groups\\b.*ip-permission\\.cidr",
+            "requires": [
+              "rev_ssh",
+              "rev_redis"
+            ],
+            "sets": [
+              "listed_world_open"
+            ],
+            "output": "Security group rules with source 0.0.0.0/0 (IPv4 ingress)\nGroupId               GroupName     Proto  Port   Source\nsg-0a1b2c3d4e5f60a01  web-alb       tcp    80     0.0.0.0/0\nsg-0a1b2c3d4e5f60a01  web-alb       tcp    443    0.0.0.0/0\nsg-0a1b2c3d4e5f60c03  win-admin     tcp    3389   0.0.0.0/0\nsg-0a1b2c3d4e5f60d04  orders-db     tcp    3306   0.0.0.0/0"
+          },
+          {
+            "match": "^aws ec2 describe-security-groups\\b.*ip-permission\\.cidr",
+            "requires": [
+              "rev_rdp",
+              "rev_redis"
+            ],
+            "sets": [
+              "listed_world_open"
+            ],
+            "output": "Security group rules with source 0.0.0.0/0 (IPv4 ingress)\nGroupId               GroupName     Proto  Port   Source\nsg-0a1b2c3d4e5f60a01  web-alb       tcp    80     0.0.0.0/0\nsg-0a1b2c3d4e5f60a01  web-alb       tcp    443    0.0.0.0/0\nsg-0a1b2c3d4e5f60b02  bastion-ssh   tcp    22     0.0.0.0/0\nsg-0a1b2c3d4e5f60d04  orders-db     tcp    3306   0.0.0.0/0"
+          },
+          {
+            "match": "^aws ec2 describe-security-groups\\b.*ip-permission\\.cidr",
+            "requires": [
+              "rev_db",
+              "rev_redis"
+            ],
+            "sets": [
+              "listed_world_open"
+            ],
+            "output": "Security group rules with source 0.0.0.0/0 (IPv4 ingress)\nGroupId               GroupName     Proto  Port   Source\nsg-0a1b2c3d4e5f60a01  web-alb       tcp    80     0.0.0.0/0\nsg-0a1b2c3d4e5f60a01  web-alb       tcp    443    0.0.0.0/0\nsg-0a1b2c3d4e5f60b02  bastion-ssh   tcp    22     0.0.0.0/0\nsg-0a1b2c3d4e5f60c03  win-admin     tcp    3389   0.0.0.0/0"
+          },
+          {
+            "match": "^aws ec2 describe-security-groups\\b.*ip-permission\\.cidr",
+            "requires": [
+              "rev_ssh"
+            ],
+            "sets": [
+              "listed_world_open"
+            ],
+            "output": "Security group rules with source 0.0.0.0/0 (IPv4 ingress)\nGroupId               GroupName     Proto  Port   Source\nsg-0a1b2c3d4e5f60a01  web-alb       tcp    80     0.0.0.0/0\nsg-0a1b2c3d4e5f60a01  web-alb       tcp    443    0.0.0.0/0\nsg-0a1b2c3d4e5f60c03  win-admin     tcp    3389   0.0.0.0/0\nsg-0a1b2c3d4e5f60d04  orders-db     tcp    3306   0.0.0.0/0\nsg-0a1b2c3d4e5f60e05  cache-redis   tcp    6379   0.0.0.0/0"
+          },
+          {
+            "match": "^aws ec2 describe-security-groups\\b.*ip-permission\\.cidr",
+            "requires": [
+              "rev_rdp"
+            ],
+            "sets": [
+              "listed_world_open"
+            ],
+            "output": "Security group rules with source 0.0.0.0/0 (IPv4 ingress)\nGroupId               GroupName     Proto  Port   Source\nsg-0a1b2c3d4e5f60a01  web-alb       tcp    80     0.0.0.0/0\nsg-0a1b2c3d4e5f60a01  web-alb       tcp    443    0.0.0.0/0\nsg-0a1b2c3d4e5f60b02  bastion-ssh   tcp    22     0.0.0.0/0\nsg-0a1b2c3d4e5f60d04  orders-db     tcp    3306   0.0.0.0/0\nsg-0a1b2c3d4e5f60e05  cache-redis   tcp    6379   0.0.0.0/0"
+          },
+          {
+            "match": "^aws ec2 describe-security-groups\\b.*ip-permission\\.cidr",
+            "requires": [
+              "rev_db"
+            ],
+            "sets": [
+              "listed_world_open"
+            ],
+            "output": "Security group rules with source 0.0.0.0/0 (IPv4 ingress)\nGroupId               GroupName     Proto  Port   Source\nsg-0a1b2c3d4e5f60a01  web-alb       tcp    80     0.0.0.0/0\nsg-0a1b2c3d4e5f60a01  web-alb       tcp    443    0.0.0.0/0\nsg-0a1b2c3d4e5f60b02  bastion-ssh   tcp    22     0.0.0.0/0\nsg-0a1b2c3d4e5f60c03  win-admin     tcp    3389   0.0.0.0/0\nsg-0a1b2c3d4e5f60e05  cache-redis   tcp    6379   0.0.0.0/0"
+          },
+          {
+            "match": "^aws ec2 describe-security-groups\\b.*ip-permission\\.cidr",
+            "requires": [
+              "rev_redis"
+            ],
+            "sets": [
+              "listed_world_open"
+            ],
+            "output": "Security group rules with source 0.0.0.0/0 (IPv4 ingress)\nGroupId               GroupName     Proto  Port   Source\nsg-0a1b2c3d4e5f60a01  web-alb       tcp    80     0.0.0.0/0\nsg-0a1b2c3d4e5f60a01  web-alb       tcp    443    0.0.0.0/0\nsg-0a1b2c3d4e5f60b02  bastion-ssh   tcp    22     0.0.0.0/0\nsg-0a1b2c3d4e5f60c03  win-admin     tcp    3389   0.0.0.0/0\nsg-0a1b2c3d4e5f60d04  orders-db     tcp    3306   0.0.0.0/0"
+          },
+          {
+            "match": "^aws ec2 describe-security-groups\\b.*ip-permission\\.cidr",
+            "requires": [],
+            "sets": [
+              "listed_world_open"
+            ],
+            "output": "Security group rules with source 0.0.0.0/0 (IPv4 ingress)\nGroupId               GroupName     Proto  Port   Source\nsg-0a1b2c3d4e5f60a01  web-alb       tcp    80     0.0.0.0/0\nsg-0a1b2c3d4e5f60a01  web-alb       tcp    443    0.0.0.0/0\nsg-0a1b2c3d4e5f60b02  bastion-ssh   tcp    22     0.0.0.0/0\nsg-0a1b2c3d4e5f60c03  win-admin     tcp    3389   0.0.0.0/0\nsg-0a1b2c3d4e5f60d04  orders-db     tcp    3306   0.0.0.0/0\nsg-0a1b2c3d4e5f60e05  cache-redis   tcp    6379   0.0.0.0/0"
+          },
+          {
+            "match": "^aws ec2 describe-security-groups\\b",
+            "sets": [
+              "listed_groups"
+            ],
+            "output": "GroupId               GroupName     Description\nsg-0a1b2c3d4e5f60a01  web-alb       Public application load balancer\nsg-0a1b2c3d4e5f60b02  bastion-ssh   Admin jump host\nsg-0a1b2c3d4e5f60c03  win-admin     Windows admin server\nsg-0a1b2c3d4e5f60d04  orders-db     Orders MySQL database\nsg-0a1b2c3d4e5f60e05  cache-redis   Session cache\nsg-0a1b2c3d4e5f60f06  app-internal  App tier instances\n(hint: add --filters Name=ip-permission.cidr,Values=0.0.0.0/0 to list only world-open rules)"
+          },
+          {
+            "match": "^aws ec2 describe-security-group-rules\\b.*sg-0a1b2c3d4e5f60b02",
+            "requires": [
+              "rev_ssh",
+              "auth_ssh"
+            ],
+            "output": "{\n    \"SecurityGroupRules\": [\n        {\n            \"SecurityGroupRuleId\": \"sgr-0b0b0b0b0b0b0b0b2\",\n            \"GroupId\": \"sg-0a1b2c3d4e5f60b02\",\n            \"IsEgress\": false,\n            \"IpProtocol\": \"tcp\",\n            \"FromPort\": 22,\n            \"ToPort\": 22,\n            \"CidrIpv4\": \"192.0.2.0/24\"\n        },\n        {\n            \"SecurityGroupRuleId\": \"sgr-0e9e9e9e9e9e9e9e9\",\n            \"GroupId\": \"sg-0a1b2c3d4e5f60b02\",\n            \"IsEgress\": true,\n            \"IpProtocol\": \"-1\",\n            \"FromPort\": -1,\n            \"ToPort\": -1,\n            \"CidrIpv4\": \"0.0.0.0/0\"\n        }\n    ]\n}"
+          },
+          {
+            "match": "^aws ec2 describe-security-group-rules\\b.*sg-0a1b2c3d4e5f60b02",
+            "requires": [
+              "auth_ssh"
+            ],
+            "output": "{\n    \"SecurityGroupRules\": [\n        {\n            \"SecurityGroupRuleId\": \"sgr-0a0a0a0a0a0a0a0a2\",\n            \"GroupId\": \"sg-0a1b2c3d4e5f60b02\",\n            \"IsEgress\": false,\n            \"IpProtocol\": \"tcp\",\n            \"FromPort\": 22,\n            \"ToPort\": 22,\n            \"CidrIpv4\": \"0.0.0.0/0\"\n        },\n        {\n            \"SecurityGroupRuleId\": \"sgr-0b0b0b0b0b0b0b0b2\",\n            \"GroupId\": \"sg-0a1b2c3d4e5f60b02\",\n            \"IsEgress\": false,\n            \"IpProtocol\": \"tcp\",\n            \"FromPort\": 22,\n            \"ToPort\": 22,\n            \"CidrIpv4\": \"192.0.2.0/24\"\n        },\n        {\n            \"SecurityGroupRuleId\": \"sgr-0e9e9e9e9e9e9e9e9\",\n            \"GroupId\": \"sg-0a1b2c3d4e5f60b02\",\n            \"IsEgress\": true,\n            \"IpProtocol\": \"-1\",\n            \"FromPort\": -1,\n            \"ToPort\": -1,\n            \"CidrIpv4\": \"0.0.0.0/0\"\n        }\n    ]\n}"
+          },
+          {
+            "match": "^aws ec2 describe-security-group-rules\\b.*sg-0a1b2c3d4e5f60b02",
+            "requires": [
+              "rev_ssh"
+            ],
+            "output": "{\n    \"SecurityGroupRules\": [\n        {\n            \"SecurityGroupRuleId\": \"sgr-0e9e9e9e9e9e9e9e9\",\n            \"GroupId\": \"sg-0a1b2c3d4e5f60b02\",\n            \"IsEgress\": true,\n            \"IpProtocol\": \"-1\",\n            \"FromPort\": -1,\n            \"ToPort\": -1,\n            \"CidrIpv4\": \"0.0.0.0/0\"\n        }\n    ]\n}"
+          },
+          {
+            "match": "^aws ec2 describe-security-group-rules\\b.*sg-0a1b2c3d4e5f60b02",
+            "output": "{\n    \"SecurityGroupRules\": [\n        {\n            \"SecurityGroupRuleId\": \"sgr-0a0a0a0a0a0a0a0a2\",\n            \"GroupId\": \"sg-0a1b2c3d4e5f60b02\",\n            \"IsEgress\": false,\n            \"IpProtocol\": \"tcp\",\n            \"FromPort\": 22,\n            \"ToPort\": 22,\n            \"CidrIpv4\": \"0.0.0.0/0\"\n        },\n        {\n            \"SecurityGroupRuleId\": \"sgr-0e9e9e9e9e9e9e9e9\",\n            \"GroupId\": \"sg-0a1b2c3d4e5f60b02\",\n            \"IsEgress\": true,\n            \"IpProtocol\": \"-1\",\n            \"FromPort\": -1,\n            \"ToPort\": -1,\n            \"CidrIpv4\": \"0.0.0.0/0\"\n        }\n    ]\n}"
+          },
+          {
+            "match": "^aws ec2 describe-security-group-rules\\b.*sg-0a1b2c3d4e5f60c03",
+            "requires": [
+              "rev_rdp",
+              "auth_rdp"
+            ],
+            "output": "{\n    \"SecurityGroupRules\": [\n        {\n            \"SecurityGroupRuleId\": \"sgr-0b0b0b0b0b0b0b0b9\",\n            \"GroupId\": \"sg-0a1b2c3d4e5f60c03\",\n            \"IsEgress\": false,\n            \"IpProtocol\": \"tcp\",\n            \"FromPort\": 3389,\n            \"ToPort\": 3389,\n            \"CidrIpv4\": \"192.0.2.0/24\"\n        },\n        {\n            \"SecurityGroupRuleId\": \"sgr-0e9e9e9e9e9e9e9e9\",\n            \"GroupId\": \"sg-0a1b2c3d4e5f60c03\",\n            \"IsEgress\": true,\n            \"IpProtocol\": \"-1\",\n            \"FromPort\": -1,\n            \"ToPort\": -1,\n            \"CidrIpv4\": \"0.0.0.0/0\"\n        }\n    ]\n}"
+          },
+          {
+            "match": "^aws ec2 describe-security-group-rules\\b.*sg-0a1b2c3d4e5f60c03",
+            "requires": [
+              "auth_rdp"
+            ],
+            "output": "{\n    \"SecurityGroupRules\": [\n        {\n            \"SecurityGroupRuleId\": \"sgr-0a0a0a0a0a0a0a0a9\",\n            \"GroupId\": \"sg-0a1b2c3d4e5f60c03\",\n            \"IsEgress\": false,\n            \"IpProtocol\": \"tcp\",\n            \"FromPort\": 3389,\n            \"ToPort\": 3389,\n            \"CidrIpv4\": \"0.0.0.0/0\"\n        },\n        {\n            \"SecurityGroupRuleId\": \"sgr-0b0b0b0b0b0b0b0b9\",\n            \"GroupId\": \"sg-0a1b2c3d4e5f60c03\",\n            \"IsEgress\": false,\n            \"IpProtocol\": \"tcp\",\n            \"FromPort\": 3389,\n            \"ToPort\": 3389,\n            \"CidrIpv4\": \"192.0.2.0/24\"\n        },\n        {\n            \"SecurityGroupRuleId\": \"sgr-0e9e9e9e9e9e9e9e9\",\n            \"GroupId\": \"sg-0a1b2c3d4e5f60c03\",\n            \"IsEgress\": true,\n            \"IpProtocol\": \"-1\",\n            \"FromPort\": -1,\n            \"ToPort\": -1,\n            \"CidrIpv4\": \"0.0.0.0/0\"\n        }\n    ]\n}"
+          },
+          {
+            "match": "^aws ec2 describe-security-group-rules\\b.*sg-0a1b2c3d4e5f60c03",
+            "requires": [
+              "rev_rdp"
+            ],
+            "output": "{\n    \"SecurityGroupRules\": [\n        {\n            \"SecurityGroupRuleId\": \"sgr-0e9e9e9e9e9e9e9e9\",\n            \"GroupId\": \"sg-0a1b2c3d4e5f60c03\",\n            \"IsEgress\": true,\n            \"IpProtocol\": \"-1\",\n            \"FromPort\": -1,\n            \"ToPort\": -1,\n            \"CidrIpv4\": \"0.0.0.0/0\"\n        }\n    ]\n}"
+          },
+          {
+            "match": "^aws ec2 describe-security-group-rules\\b.*sg-0a1b2c3d4e5f60c03",
+            "output": "{\n    \"SecurityGroupRules\": [\n        {\n            \"SecurityGroupRuleId\": \"sgr-0a0a0a0a0a0a0a0a9\",\n            \"GroupId\": \"sg-0a1b2c3d4e5f60c03\",\n            \"IsEgress\": false,\n            \"IpProtocol\": \"tcp\",\n            \"FromPort\": 3389,\n            \"ToPort\": 3389,\n            \"CidrIpv4\": \"0.0.0.0/0\"\n        },\n        {\n            \"SecurityGroupRuleId\": \"sgr-0e9e9e9e9e9e9e9e9\",\n            \"GroupId\": \"sg-0a1b2c3d4e5f60c03\",\n            \"IsEgress\": true,\n            \"IpProtocol\": \"-1\",\n            \"FromPort\": -1,\n            \"ToPort\": -1,\n            \"CidrIpv4\": \"0.0.0.0/0\"\n        }\n    ]\n}"
+          },
+          {
+            "match": "^aws ec2 describe-security-group-rules\\b.*sg-0a1b2c3d4e5f60d04",
+            "requires": [
+              "rev_db",
+              "auth_db"
+            ],
+            "output": "{\n    \"SecurityGroupRules\": [\n        {\n            \"SecurityGroupRuleId\": \"sgr-0b0b0b0b0b0b0b0b6\",\n            \"GroupId\": \"sg-0a1b2c3d4e5f60d04\",\n            \"IsEgress\": false,\n            \"IpProtocol\": \"tcp\",\n            \"FromPort\": 3306,\n            \"ToPort\": 3306,\n            \"ReferencedGroupInfo\": {\n                \"GroupId\": \"sg-0a1b2c3d4e5f60f06\"\n            }\n        },\n        {\n            \"SecurityGroupRuleId\": \"sgr-0e9e9e9e9e9e9e9e9\",\n            \"GroupId\": \"sg-0a1b2c3d4e5f60d04\",\n            \"IsEgress\": true,\n            \"IpProtocol\": \"-1\",\n            \"FromPort\": -1,\n            \"ToPort\": -1,\n            \"CidrIpv4\": \"0.0.0.0/0\"\n        }\n    ]\n}"
+          },
+          {
+            "match": "^aws ec2 describe-security-group-rules\\b.*sg-0a1b2c3d4e5f60d04",
+            "requires": [
+              "auth_db"
+            ],
+            "output": "{\n    \"SecurityGroupRules\": [\n        {\n            \"SecurityGroupRuleId\": \"sgr-0a0a0a0a0a0a0a0a6\",\n            \"GroupId\": \"sg-0a1b2c3d4e5f60d04\",\n            \"IsEgress\": false,\n            \"IpProtocol\": \"tcp\",\n            \"FromPort\": 3306,\n            \"ToPort\": 3306,\n            \"CidrIpv4\": \"0.0.0.0/0\"\n        },\n        {\n            \"SecurityGroupRuleId\": \"sgr-0b0b0b0b0b0b0b0b6\",\n            \"GroupId\": \"sg-0a1b2c3d4e5f60d04\",\n            \"IsEgress\": false,\n            \"IpProtocol\": \"tcp\",\n            \"FromPort\": 3306,\n            \"ToPort\": 3306,\n            \"ReferencedGroupInfo\": {\n                \"GroupId\": \"sg-0a1b2c3d4e5f60f06\"\n            }\n        },\n        {\n            \"SecurityGroupRuleId\": \"sgr-0e9e9e9e9e9e9e9e9\",\n            \"GroupId\": \"sg-0a1b2c3d4e5f60d04\",\n            \"IsEgress\": true,\n            \"IpProtocol\": \"-1\",\n            \"FromPort\": -1,\n            \"ToPort\": -1,\n            \"CidrIpv4\": \"0.0.0.0/0\"\n        }\n    ]\n}"
+          },
+          {
+            "match": "^aws ec2 describe-security-group-rules\\b.*sg-0a1b2c3d4e5f60d04",
+            "requires": [
+              "rev_db"
+            ],
+            "output": "{\n    \"SecurityGroupRules\": [\n        {\n            \"SecurityGroupRuleId\": \"sgr-0e9e9e9e9e9e9e9e9\",\n            \"GroupId\": \"sg-0a1b2c3d4e5f60d04\",\n            \"IsEgress\": true,\n            \"IpProtocol\": \"-1\",\n            \"FromPort\": -1,\n            \"ToPort\": -1,\n            \"CidrIpv4\": \"0.0.0.0/0\"\n        }\n    ]\n}"
+          },
+          {
+            "match": "^aws ec2 describe-security-group-rules\\b.*sg-0a1b2c3d4e5f60d04",
+            "output": "{\n    \"SecurityGroupRules\": [\n        {\n            \"SecurityGroupRuleId\": \"sgr-0a0a0a0a0a0a0a0a6\",\n            \"GroupId\": \"sg-0a1b2c3d4e5f60d04\",\n            \"IsEgress\": false,\n            \"IpProtocol\": \"tcp\",\n            \"FromPort\": 3306,\n            \"ToPort\": 3306,\n            \"CidrIpv4\": \"0.0.0.0/0\"\n        },\n        {\n            \"SecurityGroupRuleId\": \"sgr-0e9e9e9e9e9e9e9e9\",\n            \"GroupId\": \"sg-0a1b2c3d4e5f60d04\",\n            \"IsEgress\": true,\n            \"IpProtocol\": \"-1\",\n            \"FromPort\": -1,\n            \"ToPort\": -1,\n            \"CidrIpv4\": \"0.0.0.0/0\"\n        }\n    ]\n}"
+          },
+          {
+            "match": "^aws ec2 describe-security-group-rules\\b.*sg-0a1b2c3d4e5f60e05",
+            "requires": [
+              "rev_redis",
+              "auth_redis"
+            ],
+            "output": "{\n    \"SecurityGroupRules\": [\n        {\n            \"SecurityGroupRuleId\": \"sgr-0b0b0b0b0b0b0b0b9\",\n            \"GroupId\": \"sg-0a1b2c3d4e5f60e05\",\n            \"IsEgress\": false,\n            \"IpProtocol\": \"tcp\",\n            \"FromPort\": 6379,\n            \"ToPort\": 6379,\n            \"ReferencedGroupInfo\": {\n                \"GroupId\": \"sg-0a1b2c3d4e5f60f06\"\n            }\n        },\n        {\n            \"SecurityGroupRuleId\": \"sgr-0e9e9e9e9e9e9e9e9\",\n            \"GroupId\": \"sg-0a1b2c3d4e5f60e05\",\n            \"IsEgress\": true,\n            \"IpProtocol\": \"-1\",\n            \"FromPort\": -1,\n            \"ToPort\": -1,\n            \"CidrIpv4\": \"0.0.0.0/0\"\n        }\n    ]\n}"
+          },
+          {
+            "match": "^aws ec2 describe-security-group-rules\\b.*sg-0a1b2c3d4e5f60e05",
+            "requires": [
+              "auth_redis"
+            ],
+            "output": "{\n    \"SecurityGroupRules\": [\n        {\n            \"SecurityGroupRuleId\": \"sgr-0a0a0a0a0a0a0a0a9\",\n            \"GroupId\": \"sg-0a1b2c3d4e5f60e05\",\n            \"IsEgress\": false,\n            \"IpProtocol\": \"tcp\",\n            \"FromPort\": 6379,\n            \"ToPort\": 6379,\n            \"CidrIpv4\": \"0.0.0.0/0\"\n        },\n        {\n            \"SecurityGroupRuleId\": \"sgr-0b0b0b0b0b0b0b0b9\",\n            \"GroupId\": \"sg-0a1b2c3d4e5f60e05\",\n            \"IsEgress\": false,\n            \"IpProtocol\": \"tcp\",\n            \"FromPort\": 6379,\n            \"ToPort\": 6379,\n            \"ReferencedGroupInfo\": {\n                \"GroupId\": \"sg-0a1b2c3d4e5f60f06\"\n            }\n        },\n        {\n            \"SecurityGroupRuleId\": \"sgr-0e9e9e9e9e9e9e9e9\",\n            \"GroupId\": \"sg-0a1b2c3d4e5f60e05\",\n            \"IsEgress\": true,\n            \"IpProtocol\": \"-1\",\n            \"FromPort\": -1,\n            \"ToPort\": -1,\n            \"CidrIpv4\": \"0.0.0.0/0\"\n        }\n    ]\n}"
+          },
+          {
+            "match": "^aws ec2 describe-security-group-rules\\b.*sg-0a1b2c3d4e5f60e05",
+            "requires": [
+              "rev_redis"
+            ],
+            "output": "{\n    \"SecurityGroupRules\": [\n        {\n            \"SecurityGroupRuleId\": \"sgr-0e9e9e9e9e9e9e9e9\",\n            \"GroupId\": \"sg-0a1b2c3d4e5f60e05\",\n            \"IsEgress\": true,\n            \"IpProtocol\": \"-1\",\n            \"FromPort\": -1,\n            \"ToPort\": -1,\n            \"CidrIpv4\": \"0.0.0.0/0\"\n        }\n    ]\n}"
+          },
+          {
+            "match": "^aws ec2 describe-security-group-rules\\b.*sg-0a1b2c3d4e5f60e05",
+            "output": "{\n    \"SecurityGroupRules\": [\n        {\n            \"SecurityGroupRuleId\": \"sgr-0a0a0a0a0a0a0a0a9\",\n            \"GroupId\": \"sg-0a1b2c3d4e5f60e05\",\n            \"IsEgress\": false,\n            \"IpProtocol\": \"tcp\",\n            \"FromPort\": 6379,\n            \"ToPort\": 6379,\n            \"CidrIpv4\": \"0.0.0.0/0\"\n        },\n        {\n            \"SecurityGroupRuleId\": \"sgr-0e9e9e9e9e9e9e9e9\",\n            \"GroupId\": \"sg-0a1b2c3d4e5f60e05\",\n            \"IsEgress\": true,\n            \"IpProtocol\": \"-1\",\n            \"FromPort\": -1,\n            \"ToPort\": -1,\n            \"CidrIpv4\": \"0.0.0.0/0\"\n        }\n    ]\n}"
+          },
+          {
+            "match": "^aws ec2 describe-security-group-rules\\b",
+            "output": "{\n    \"SecurityGroupRules\": []\n}\n(filter by group: --filters Name=group-id,Values=<sg-id>)"
+          },
+          {
+            "match": "^aws ec2 revoke-security-group-ingress (?=.*--group-id sg-0a1b2c3d4e5f60b02\\b)(?=.*--port 22\\b)(?=.*--cidr 0\\.0\\.0\\.0/0).*$",
+            "requires": [
+              "rev_ssh"
+            ],
+            "output": "An error occurred (InvalidPermission.NotFound) when calling the RevokeSecurityGroupIngress operation: The specified rule does not exist in this security group."
+          },
+          {
+            "match": "^aws ec2 revoke-security-group-ingress (?=.*--group-id sg-0a1b2c3d4e5f60b02\\b)(?=.*--port 22\\b)(?=.*--cidr 0\\.0\\.0\\.0/0).*$",
+            "sets": [
+              "rev_ssh"
+            ],
+            "output": "{\n    \"Return\": true,\n    \"RevokedSecurityGroupRules\": [\n        {\n            \"SecurityGroupRuleId\": \"sgr-0a0a0a0a0a0a0a0a2\",\n            \"GroupId\": \"sg-0a1b2c3d4e5f60b02\",\n            \"IsEgress\": false,\n            \"IpProtocol\": \"tcp\",\n            \"FromPort\": 22,\n            \"ToPort\": 22,\n            \"CidrIpv4\": \"0.0.0.0/0\"\n        }\n    ]\n}"
+          },
+          {
+            "match": "^aws ec2 revoke-security-group-ingress (?=.*--group-id sg-0a1b2c3d4e5f60c03\\b)(?=.*--port 3389\\b)(?=.*--cidr 0\\.0\\.0\\.0/0).*$",
+            "requires": [
+              "rev_rdp"
+            ],
+            "output": "An error occurred (InvalidPermission.NotFound) when calling the RevokeSecurityGroupIngress operation: The specified rule does not exist in this security group."
+          },
+          {
+            "match": "^aws ec2 revoke-security-group-ingress (?=.*--group-id sg-0a1b2c3d4e5f60c03\\b)(?=.*--port 3389\\b)(?=.*--cidr 0\\.0\\.0\\.0/0).*$",
+            "sets": [
+              "rev_rdp"
+            ],
+            "output": "{\n    \"Return\": true,\n    \"RevokedSecurityGroupRules\": [\n        {\n            \"SecurityGroupRuleId\": \"sgr-0a0a0a0a0a0a0a0a9\",\n            \"GroupId\": \"sg-0a1b2c3d4e5f60c03\",\n            \"IsEgress\": false,\n            \"IpProtocol\": \"tcp\",\n            \"FromPort\": 3389,\n            \"ToPort\": 3389,\n            \"CidrIpv4\": \"0.0.0.0/0\"\n        }\n    ]\n}"
+          },
+          {
+            "match": "^aws ec2 revoke-security-group-ingress (?=.*--group-id sg-0a1b2c3d4e5f60d04\\b)(?=.*--port 3306\\b)(?=.*--cidr 0\\.0\\.0\\.0/0).*$",
+            "requires": [
+              "rev_db"
+            ],
+            "output": "An error occurred (InvalidPermission.NotFound) when calling the RevokeSecurityGroupIngress operation: The specified rule does not exist in this security group."
+          },
+          {
+            "match": "^aws ec2 revoke-security-group-ingress (?=.*--group-id sg-0a1b2c3d4e5f60d04\\b)(?=.*--port 3306\\b)(?=.*--cidr 0\\.0\\.0\\.0/0).*$",
+            "sets": [
+              "rev_db"
+            ],
+            "output": "{\n    \"Return\": true,\n    \"RevokedSecurityGroupRules\": [\n        {\n            \"SecurityGroupRuleId\": \"sgr-0a0a0a0a0a0a0a0a6\",\n            \"GroupId\": \"sg-0a1b2c3d4e5f60d04\",\n            \"IsEgress\": false,\n            \"IpProtocol\": \"tcp\",\n            \"FromPort\": 3306,\n            \"ToPort\": 3306,\n            \"CidrIpv4\": \"0.0.0.0/0\"\n        }\n    ]\n}"
+          },
+          {
+            "match": "^aws ec2 revoke-security-group-ingress (?=.*--group-id sg-0a1b2c3d4e5f60e05\\b)(?=.*--port 6379\\b)(?=.*--cidr 0\\.0\\.0\\.0/0).*$",
+            "requires": [
+              "rev_redis"
+            ],
+            "output": "An error occurred (InvalidPermission.NotFound) when calling the RevokeSecurityGroupIngress operation: The specified rule does not exist in this security group."
+          },
+          {
+            "match": "^aws ec2 revoke-security-group-ingress (?=.*--group-id sg-0a1b2c3d4e5f60e05\\b)(?=.*--port 6379\\b)(?=.*--cidr 0\\.0\\.0\\.0/0).*$",
+            "sets": [
+              "rev_redis"
+            ],
+            "output": "{\n    \"Return\": true,\n    \"RevokedSecurityGroupRules\": [\n        {\n            \"SecurityGroupRuleId\": \"sgr-0a0a0a0a0a0a0a0a9\",\n            \"GroupId\": \"sg-0a1b2c3d4e5f60e05\",\n            \"IsEgress\": false,\n            \"IpProtocol\": \"tcp\",\n            \"FromPort\": 6379,\n            \"ToPort\": 6379,\n            \"CidrIpv4\": \"0.0.0.0/0\"\n        }\n    ]\n}"
+          },
+          {
+            "match": "^aws ec2 revoke-security-group-ingress\\b",
+            "output": "An error occurred (InvalidPermission.NotFound) when calling the RevokeSecurityGroupIngress operation: The specified rule does not exist in this security group. Match the group, protocol, port and source exactly."
+          },
+          {
+            "match": "^aws ec2 authorize-security-group-ingress (?=.*--group-id sg-0a1b2c3d4e5f60b02\\b)(?=.*--port 22\\b)(?=.*--cidr 192\\.0\\.2\\.\\d{1,3}/(2[4-9]|3[0-2])).*$",
+            "requires": [
+              "auth_ssh"
+            ],
+            "output": "An error occurred (InvalidPermission.Duplicate) when calling the AuthorizeSecurityGroupIngress operation: the specified rule already exists"
+          },
+          {
+            "match": "^aws ec2 authorize-security-group-ingress (?=.*--group-id sg-0a1b2c3d4e5f60b02\\b)(?=.*--port 22\\b)(?=.*--cidr 192\\.0\\.2\\.\\d{1,3}/(2[4-9]|3[0-2])).*$",
+            "sets": [
+              "auth_ssh"
+            ],
+            "output": "{\n    \"Return\": true,\n    \"SecurityGroupRules\": [\n        {\n            \"SecurityGroupRuleId\": \"sgr-0b0b0b0b0b0b0b0b2\",\n            \"GroupId\": \"sg-0a1b2c3d4e5f60b02\",\n            \"IsEgress\": false,\n            \"IpProtocol\": \"tcp\",\n            \"FromPort\": 22,\n            \"ToPort\": 22\n        }\n    ]\n}"
+          },
+          {
+            "match": "^aws ec2 authorize-security-group-ingress (?=.*--group-id sg-0a1b2c3d4e5f60c03\\b)(?=.*--port 3389\\b)(?=.*--cidr 192\\.0\\.2\\.\\d{1,3}/(2[4-9]|3[0-2])).*$",
+            "requires": [
+              "auth_rdp"
+            ],
+            "output": "An error occurred (InvalidPermission.Duplicate) when calling the AuthorizeSecurityGroupIngress operation: the specified rule already exists"
+          },
+          {
+            "match": "^aws ec2 authorize-security-group-ingress (?=.*--group-id sg-0a1b2c3d4e5f60c03\\b)(?=.*--port 3389\\b)(?=.*--cidr 192\\.0\\.2\\.\\d{1,3}/(2[4-9]|3[0-2])).*$",
+            "sets": [
+              "auth_rdp"
+            ],
+            "output": "{\n    \"Return\": true,\n    \"SecurityGroupRules\": [\n        {\n            \"SecurityGroupRuleId\": \"sgr-0b0b0b0b0b0b0b0b9\",\n            \"GroupId\": \"sg-0a1b2c3d4e5f60c03\",\n            \"IsEgress\": false,\n            \"IpProtocol\": \"tcp\",\n            \"FromPort\": 3389,\n            \"ToPort\": 3389\n        }\n    ]\n}"
+          },
+          {
+            "match": "^aws ec2 authorize-security-group-ingress (?=.*--group-id sg-0a1b2c3d4e5f60d04\\b)(?=.*--port 3306\\b)(?=.*(?:--source-group sg-0a1b2c3d4e5f60f06\\b|--cidr 10\\.0\\.\\d{1,3}\\.\\d{1,3}/(?:1[6-9]|2\\d|3[0-2]))).*$",
+            "requires": [
+              "auth_db"
+            ],
+            "output": "An error occurred (InvalidPermission.Duplicate) when calling the AuthorizeSecurityGroupIngress operation: the specified rule already exists"
+          },
+          {
+            "match": "^aws ec2 authorize-security-group-ingress (?=.*--group-id sg-0a1b2c3d4e5f60d04\\b)(?=.*--port 3306\\b)(?=.*(?:--source-group sg-0a1b2c3d4e5f60f06\\b|--cidr 10\\.0\\.\\d{1,3}\\.\\d{1,3}/(?:1[6-9]|2\\d|3[0-2]))).*$",
+            "sets": [
+              "auth_db"
+            ],
+            "output": "{\n    \"Return\": true,\n    \"SecurityGroupRules\": [\n        {\n            \"SecurityGroupRuleId\": \"sgr-0b0b0b0b0b0b0b0b6\",\n            \"GroupId\": \"sg-0a1b2c3d4e5f60d04\",\n            \"IsEgress\": false,\n            \"IpProtocol\": \"tcp\",\n            \"FromPort\": 3306,\n            \"ToPort\": 3306\n        }\n    ]\n}"
+          },
+          {
+            "match": "^aws ec2 authorize-security-group-ingress (?=.*--group-id sg-0a1b2c3d4e5f60e05\\b)(?=.*--port 6379\\b)(?=.*(?:--source-group sg-0a1b2c3d4e5f60f06\\b|--cidr 10\\.0\\.\\d{1,3}\\.\\d{1,3}/(?:1[6-9]|2\\d|3[0-2]))).*$",
+            "requires": [
+              "auth_redis"
+            ],
+            "output": "An error occurred (InvalidPermission.Duplicate) when calling the AuthorizeSecurityGroupIngress operation: the specified rule already exists"
+          },
+          {
+            "match": "^aws ec2 authorize-security-group-ingress (?=.*--group-id sg-0a1b2c3d4e5f60e05\\b)(?=.*--port 6379\\b)(?=.*(?:--source-group sg-0a1b2c3d4e5f60f06\\b|--cidr 10\\.0\\.\\d{1,3}\\.\\d{1,3}/(?:1[6-9]|2\\d|3[0-2]))).*$",
+            "sets": [
+              "auth_redis"
+            ],
+            "output": "{\n    \"Return\": true,\n    \"SecurityGroupRules\": [\n        {\n            \"SecurityGroupRuleId\": \"sgr-0b0b0b0b0b0b0b0b9\",\n            \"GroupId\": \"sg-0a1b2c3d4e5f60e05\",\n            \"IsEgress\": false,\n            \"IpProtocol\": \"tcp\",\n            \"FromPort\": 6379,\n            \"ToPort\": 6379\n        }\n    ]\n}"
+          },
+          {
+            "match": "^aws ec2 authorize-security-group-ingress\\b",
+            "output": "[change-guard] Change rejected by the change-approval hook: the source is not allowed by the change standard.\nAdmin ports (22, 3389): the corporate VPN range only. Data ports (3306, 6379): the app tier security group or the app subnets.\nSee change-standard.txt. Use --group-id <sg> --protocol tcp --port <p> with --cidr or --source-group."
+          },
+          {
+            "match": "^aws ec2 delete-security-group\\b",
+            "output": "An error occurred (DependencyViolation) when calling the DeleteSecurityGroup operation: resource sg-... has a dependent object. The group is attached to running instances; fix its rules instead of deleting it."
+          },
+          {
+            "match": "^aws configservice get-compliance-details-by-config-rule\\b",
+            "requires": [
+              "rev_ssh",
+              "rev_rdp",
+              "rev_db",
+              "rev_redis",
+              "auth_ssh",
+              "auth_rdp",
+              "auth_db",
+              "auth_redis"
+            ],
+            "output": "{\n    \"EvaluationResults\": [\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60a01\"\n                }\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"Annotation\": \"tcp/80 and tcp/443 on a public load balancer are allowed by the standard\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60b02\"\n                }\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"Annotation\": \"No 0.0.0.0/0 ingress on admin or data ports; change attestation FLAG{exposure_audit_closed_5d81}\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60c03\"\n                }\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"Annotation\": \"No 0.0.0.0/0 ingress on admin or data ports\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60d04\"\n                }\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"Annotation\": \"No 0.0.0.0/0 ingress on admin or data ports\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60e05\"\n                }\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"Annotation\": \"No 0.0.0.0/0 ingress on admin or data ports\"\n        }\n    ]\n}"
+          },
+          {
+            "match": "^aws configservice get-compliance-details-by-config-rule\\b",
+            "requires": [
+              "rev_ssh",
+              "rev_rdp",
+              "rev_db",
+              "rev_redis"
+            ],
+            "output": "{\n    \"EvaluationResults\": [\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60a01\"\n                }\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"Annotation\": \"tcp/80 and tcp/443 on a public load balancer are allowed by the standard\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60b02\"\n                }\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"Annotation\": \"No 0.0.0.0/0 ingress on admin or data ports\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60c03\"\n                }\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"Annotation\": \"No 0.0.0.0/0 ingress on admin or data ports\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60d04\"\n                }\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"Annotation\": \"No 0.0.0.0/0 ingress on admin or data ports\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60e05\"\n                }\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"Annotation\": \"No 0.0.0.0/0 ingress on admin or data ports\"\n        }\n    ]\n}"
+          },
+          {
+            "match": "^aws configservice get-compliance-details-by-config-rule\\b",
+            "requires": [
+              "rev_ssh",
+              "rev_rdp",
+              "rev_db"
+            ],
+            "output": "{\n    \"EvaluationResults\": [\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60a01\"\n                }\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"Annotation\": \"tcp/80 and tcp/443 on a public load balancer are allowed by the standard\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60b02\"\n                }\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"Annotation\": \"No 0.0.0.0/0 ingress on admin or data ports\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60c03\"\n                }\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"Annotation\": \"No 0.0.0.0/0 ingress on admin or data ports\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60d04\"\n                }\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"Annotation\": \"No 0.0.0.0/0 ingress on admin or data ports\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60e05\"\n                }\n            },\n            \"ComplianceType\": \"NON_COMPLIANT\",\n            \"Annotation\": \"tcp/6379 open to 0.0.0.0/0\"\n        }\n    ]\n}"
+          },
+          {
+            "match": "^aws configservice get-compliance-details-by-config-rule\\b",
+            "requires": [
+              "rev_ssh",
+              "rev_rdp",
+              "rev_redis"
+            ],
+            "output": "{\n    \"EvaluationResults\": [\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60a01\"\n                }\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"Annotation\": \"tcp/80 and tcp/443 on a public load balancer are allowed by the standard\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60b02\"\n                }\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"Annotation\": \"No 0.0.0.0/0 ingress on admin or data ports\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60c03\"\n                }\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"Annotation\": \"No 0.0.0.0/0 ingress on admin or data ports\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60d04\"\n                }\n            },\n            \"ComplianceType\": \"NON_COMPLIANT\",\n            \"Annotation\": \"tcp/3306 open to 0.0.0.0/0\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60e05\"\n                }\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"Annotation\": \"No 0.0.0.0/0 ingress on admin or data ports\"\n        }\n    ]\n}"
+          },
+          {
+            "match": "^aws configservice get-compliance-details-by-config-rule\\b",
+            "requires": [
+              "rev_ssh",
+              "rev_db",
+              "rev_redis"
+            ],
+            "output": "{\n    \"EvaluationResults\": [\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60a01\"\n                }\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"Annotation\": \"tcp/80 and tcp/443 on a public load balancer are allowed by the standard\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60b02\"\n                }\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"Annotation\": \"No 0.0.0.0/0 ingress on admin or data ports\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60c03\"\n                }\n            },\n            \"ComplianceType\": \"NON_COMPLIANT\",\n            \"Annotation\": \"tcp/3389 open to 0.0.0.0/0\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60d04\"\n                }\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"Annotation\": \"No 0.0.0.0/0 ingress on admin or data ports\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60e05\"\n                }\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"Annotation\": \"No 0.0.0.0/0 ingress on admin or data ports\"\n        }\n    ]\n}"
+          },
+          {
+            "match": "^aws configservice get-compliance-details-by-config-rule\\b",
+            "requires": [
+              "rev_rdp",
+              "rev_db",
+              "rev_redis"
+            ],
+            "output": "{\n    \"EvaluationResults\": [\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60a01\"\n                }\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"Annotation\": \"tcp/80 and tcp/443 on a public load balancer are allowed by the standard\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60b02\"\n                }\n            },\n            \"ComplianceType\": \"NON_COMPLIANT\",\n            \"Annotation\": \"tcp/22 open to 0.0.0.0/0\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60c03\"\n                }\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"Annotation\": \"No 0.0.0.0/0 ingress on admin or data ports\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60d04\"\n                }\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"Annotation\": \"No 0.0.0.0/0 ingress on admin or data ports\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60e05\"\n                }\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"Annotation\": \"No 0.0.0.0/0 ingress on admin or data ports\"\n        }\n    ]\n}"
+          },
+          {
+            "match": "^aws configservice get-compliance-details-by-config-rule\\b",
+            "requires": [
+              "rev_ssh",
+              "rev_rdp"
+            ],
+            "output": "{\n    \"EvaluationResults\": [\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60a01\"\n                }\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"Annotation\": \"tcp/80 and tcp/443 on a public load balancer are allowed by the standard\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60b02\"\n                }\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"Annotation\": \"No 0.0.0.0/0 ingress on admin or data ports\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60c03\"\n                }\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"Annotation\": \"No 0.0.0.0/0 ingress on admin or data ports\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60d04\"\n                }\n            },\n            \"ComplianceType\": \"NON_COMPLIANT\",\n            \"Annotation\": \"tcp/3306 open to 0.0.0.0/0\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60e05\"\n                }\n            },\n            \"ComplianceType\": \"NON_COMPLIANT\",\n            \"Annotation\": \"tcp/6379 open to 0.0.0.0/0\"\n        }\n    ]\n}"
+          },
+          {
+            "match": "^aws configservice get-compliance-details-by-config-rule\\b",
+            "requires": [
+              "rev_ssh",
+              "rev_db"
+            ],
+            "output": "{\n    \"EvaluationResults\": [\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60a01\"\n                }\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"Annotation\": \"tcp/80 and tcp/443 on a public load balancer are allowed by the standard\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60b02\"\n                }\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"Annotation\": \"No 0.0.0.0/0 ingress on admin or data ports\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60c03\"\n                }\n            },\n            \"ComplianceType\": \"NON_COMPLIANT\",\n            \"Annotation\": \"tcp/3389 open to 0.0.0.0/0\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60d04\"\n                }\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"Annotation\": \"No 0.0.0.0/0 ingress on admin or data ports\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60e05\"\n                }\n            },\n            \"ComplianceType\": \"NON_COMPLIANT\",\n            \"Annotation\": \"tcp/6379 open to 0.0.0.0/0\"\n        }\n    ]\n}"
+          },
+          {
+            "match": "^aws configservice get-compliance-details-by-config-rule\\b",
+            "requires": [
+              "rev_rdp",
+              "rev_db"
+            ],
+            "output": "{\n    \"EvaluationResults\": [\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60a01\"\n                }\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"Annotation\": \"tcp/80 and tcp/443 on a public load balancer are allowed by the standard\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60b02\"\n                }\n            },\n            \"ComplianceType\": \"NON_COMPLIANT\",\n            \"Annotation\": \"tcp/22 open to 0.0.0.0/0\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60c03\"\n                }\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"Annotation\": \"No 0.0.0.0/0 ingress on admin or data ports\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60d04\"\n                }\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"Annotation\": \"No 0.0.0.0/0 ingress on admin or data ports\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60e05\"\n                }\n            },\n            \"ComplianceType\": \"NON_COMPLIANT\",\n            \"Annotation\": \"tcp/6379 open to 0.0.0.0/0\"\n        }\n    ]\n}"
+          },
+          {
+            "match": "^aws configservice get-compliance-details-by-config-rule\\b",
+            "requires": [
+              "rev_ssh",
+              "rev_redis"
+            ],
+            "output": "{\n    \"EvaluationResults\": [\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60a01\"\n                }\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"Annotation\": \"tcp/80 and tcp/443 on a public load balancer are allowed by the standard\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60b02\"\n                }\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"Annotation\": \"No 0.0.0.0/0 ingress on admin or data ports\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60c03\"\n                }\n            },\n            \"ComplianceType\": \"NON_COMPLIANT\",\n            \"Annotation\": \"tcp/3389 open to 0.0.0.0/0\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60d04\"\n                }\n            },\n            \"ComplianceType\": \"NON_COMPLIANT\",\n            \"Annotation\": \"tcp/3306 open to 0.0.0.0/0\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60e05\"\n                }\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"Annotation\": \"No 0.0.0.0/0 ingress on admin or data ports\"\n        }\n    ]\n}"
+          },
+          {
+            "match": "^aws configservice get-compliance-details-by-config-rule\\b",
+            "requires": [
+              "rev_rdp",
+              "rev_redis"
+            ],
+            "output": "{\n    \"EvaluationResults\": [\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60a01\"\n                }\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"Annotation\": \"tcp/80 and tcp/443 on a public load balancer are allowed by the standard\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60b02\"\n                }\n            },\n            \"ComplianceType\": \"NON_COMPLIANT\",\n            \"Annotation\": \"tcp/22 open to 0.0.0.0/0\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60c03\"\n                }\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"Annotation\": \"No 0.0.0.0/0 ingress on admin or data ports\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60d04\"\n                }\n            },\n            \"ComplianceType\": \"NON_COMPLIANT\",\n            \"Annotation\": \"tcp/3306 open to 0.0.0.0/0\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60e05\"\n                }\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"Annotation\": \"No 0.0.0.0/0 ingress on admin or data ports\"\n        }\n    ]\n}"
+          },
+          {
+            "match": "^aws configservice get-compliance-details-by-config-rule\\b",
+            "requires": [
+              "rev_db",
+              "rev_redis"
+            ],
+            "output": "{\n    \"EvaluationResults\": [\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60a01\"\n                }\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"Annotation\": \"tcp/80 and tcp/443 on a public load balancer are allowed by the standard\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60b02\"\n                }\n            },\n            \"ComplianceType\": \"NON_COMPLIANT\",\n            \"Annotation\": \"tcp/22 open to 0.0.0.0/0\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60c03\"\n                }\n            },\n            \"ComplianceType\": \"NON_COMPLIANT\",\n            \"Annotation\": \"tcp/3389 open to 0.0.0.0/0\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60d04\"\n                }\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"Annotation\": \"No 0.0.0.0/0 ingress on admin or data ports\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60e05\"\n                }\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"Annotation\": \"No 0.0.0.0/0 ingress on admin or data ports\"\n        }\n    ]\n}"
+          },
+          {
+            "match": "^aws configservice get-compliance-details-by-config-rule\\b",
+            "requires": [
+              "rev_ssh"
+            ],
+            "output": "{\n    \"EvaluationResults\": [\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60a01\"\n                }\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"Annotation\": \"tcp/80 and tcp/443 on a public load balancer are allowed by the standard\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60b02\"\n                }\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"Annotation\": \"No 0.0.0.0/0 ingress on admin or data ports\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60c03\"\n                }\n            },\n            \"ComplianceType\": \"NON_COMPLIANT\",\n            \"Annotation\": \"tcp/3389 open to 0.0.0.0/0\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60d04\"\n                }\n            },\n            \"ComplianceType\": \"NON_COMPLIANT\",\n            \"Annotation\": \"tcp/3306 open to 0.0.0.0/0\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60e05\"\n                }\n            },\n            \"ComplianceType\": \"NON_COMPLIANT\",\n            \"Annotation\": \"tcp/6379 open to 0.0.0.0/0\"\n        }\n    ]\n}"
+          },
+          {
+            "match": "^aws configservice get-compliance-details-by-config-rule\\b",
+            "requires": [
+              "rev_rdp"
+            ],
+            "output": "{\n    \"EvaluationResults\": [\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60a01\"\n                }\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"Annotation\": \"tcp/80 and tcp/443 on a public load balancer are allowed by the standard\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60b02\"\n                }\n            },\n            \"ComplianceType\": \"NON_COMPLIANT\",\n            \"Annotation\": \"tcp/22 open to 0.0.0.0/0\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60c03\"\n                }\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"Annotation\": \"No 0.0.0.0/0 ingress on admin or data ports\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60d04\"\n                }\n            },\n            \"ComplianceType\": \"NON_COMPLIANT\",\n            \"Annotation\": \"tcp/3306 open to 0.0.0.0/0\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60e05\"\n                }\n            },\n            \"ComplianceType\": \"NON_COMPLIANT\",\n            \"Annotation\": \"tcp/6379 open to 0.0.0.0/0\"\n        }\n    ]\n}"
+          },
+          {
+            "match": "^aws configservice get-compliance-details-by-config-rule\\b",
+            "requires": [
+              "rev_db"
+            ],
+            "output": "{\n    \"EvaluationResults\": [\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60a01\"\n                }\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"Annotation\": \"tcp/80 and tcp/443 on a public load balancer are allowed by the standard\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60b02\"\n                }\n            },\n            \"ComplianceType\": \"NON_COMPLIANT\",\n            \"Annotation\": \"tcp/22 open to 0.0.0.0/0\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60c03\"\n                }\n            },\n            \"ComplianceType\": \"NON_COMPLIANT\",\n            \"Annotation\": \"tcp/3389 open to 0.0.0.0/0\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60d04\"\n                }\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"Annotation\": \"No 0.0.0.0/0 ingress on admin or data ports\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60e05\"\n                }\n            },\n            \"ComplianceType\": \"NON_COMPLIANT\",\n            \"Annotation\": \"tcp/6379 open to 0.0.0.0/0\"\n        }\n    ]\n}"
+          },
+          {
+            "match": "^aws configservice get-compliance-details-by-config-rule\\b",
+            "requires": [
+              "rev_redis"
+            ],
+            "output": "{\n    \"EvaluationResults\": [\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60a01\"\n                }\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"Annotation\": \"tcp/80 and tcp/443 on a public load balancer are allowed by the standard\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60b02\"\n                }\n            },\n            \"ComplianceType\": \"NON_COMPLIANT\",\n            \"Annotation\": \"tcp/22 open to 0.0.0.0/0\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60c03\"\n                }\n            },\n            \"ComplianceType\": \"NON_COMPLIANT\",\n            \"Annotation\": \"tcp/3389 open to 0.0.0.0/0\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60d04\"\n                }\n            },\n            \"ComplianceType\": \"NON_COMPLIANT\",\n            \"Annotation\": \"tcp/3306 open to 0.0.0.0/0\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60e05\"\n                }\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"Annotation\": \"No 0.0.0.0/0 ingress on admin or data ports\"\n        }\n    ]\n}"
+          },
+          {
+            "match": "^aws configservice get-compliance-details-by-config-rule\\b",
+            "requires": [],
+            "output": "{\n    \"EvaluationResults\": [\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60a01\"\n                }\n            },\n            \"ComplianceType\": \"COMPLIANT\",\n            \"Annotation\": \"tcp/80 and tcp/443 on a public load balancer are allowed by the standard\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60b02\"\n                }\n            },\n            \"ComplianceType\": \"NON_COMPLIANT\",\n            \"Annotation\": \"tcp/22 open to 0.0.0.0/0\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60c03\"\n                }\n            },\n            \"ComplianceType\": \"NON_COMPLIANT\",\n            \"Annotation\": \"tcp/3389 open to 0.0.0.0/0\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60d04\"\n                }\n            },\n            \"ComplianceType\": \"NON_COMPLIANT\",\n            \"Annotation\": \"tcp/3306 open to 0.0.0.0/0\"\n        },\n        {\n            \"EvaluationResultIdentifier\": {\n                \"EvaluationResultQualifier\": {\n                    \"ConfigRuleName\": \"no-world-open-admin-ports\",\n                    \"ResourceType\": \"AWS::EC2::SecurityGroup\",\n                    \"ResourceId\": \"sg-0a1b2c3d4e5f60e05\"\n                }\n            },\n            \"ComplianceType\": \"NON_COMPLIANT\",\n            \"Annotation\": \"tcp/6379 open to 0.0.0.0/0\"\n        }\n    ]\n}"
+          }
+        ]
+      },
+      "solution": [
+        "aws sts get-caller-identity",
+        "aws ec2 describe-security-groups --filters Name=ip-permission.cidr,Values=0.0.0.0/0",
+        "aws ec2 revoke-security-group-ingress --group-id sg-0a1b2c3d4e5f60b02 --protocol tcp --port 22 --cidr 0.0.0.0/0",
+        "aws ec2 revoke-security-group-ingress --group-id sg-0a1b2c3d4e5f60c03 --protocol tcp --port 3389 --cidr 0.0.0.0/0",
+        "aws ec2 revoke-security-group-ingress --group-id sg-0a1b2c3d4e5f60d04 --protocol tcp --port 3306 --cidr 0.0.0.0/0",
+        "aws ec2 revoke-security-group-ingress --group-id sg-0a1b2c3d4e5f60e05 --protocol tcp --port 6379 --cidr 0.0.0.0/0",
+        "aws ec2 authorize-security-group-ingress --group-id sg-0a1b2c3d4e5f60b02 --protocol tcp --port 22 --cidr 192.0.2.0/24",
+        "aws ec2 authorize-security-group-ingress --group-id sg-0a1b2c3d4e5f60c03 --protocol tcp --port 3389 --cidr 192.0.2.0/24",
+        "aws ec2 authorize-security-group-ingress --group-id sg-0a1b2c3d4e5f60d04 --protocol tcp --port 3306 --source-group sg-0a1b2c3d4e5f60f06",
+        "aws ec2 authorize-security-group-ingress --group-id sg-0a1b2c3d4e5f60e05 --protocol tcp --port 6379 --source-group sg-0a1b2c3d4e5f60f06",
+        "aws configservice get-compliance-details-by-config-rule --config-rule-name no-world-open-admin-ports"
+      ],
+      "tasks": [
+        {
+          "id": "t1",
+          "kind": "choice",
+          "prompt": "Per change-standard.txt, which of these open-to-the-internet rules is legitimate and should be kept?",
+          "options": [
+            "tcp/443 on the public application load balancer group (web-alb)",
+            "tcp/22 on the admin jump host group",
+            "tcp/3306 on the orders database group",
+            "tcp/6379 on the session cache group"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "A public load balancer exists to receive web traffic from the internet, so tcp/80 and tcp/443 on it are expected. Administration and data stores should never be directly reachable from the internet: reaching them should require the VPN or the application tier. The audit is about separating deliberate exposure from accidental exposure."
+        },
+        {
+          "id": "t2",
+          "kind": "answer",
+          "prompt": "List the world-open rules with the ip-permission.cidr filter. How many security groups expose an admin or data port to 0.0.0.0/0 (do not count the load balancer group)? Reply with a number.",
+          "accept": [
+            "4",
+            "four"
+          ],
+          "explanation": "Four groups expose SSH, RDP, MySQL and Redis to the internet. An external scan shows ports; mapping them to the exact group, rule and owner is what lets you fix them without guesswork. Automate this listing so that it runs regularly rather than only after a scan."
+        },
+        {
+          "id": "t3",
+          "kind": "answer",
+          "prompt": "Which security group (name or id) exposes tcp/3389, remote desktop, to the internet?",
+          "accept": [
+            "win-admin",
+            "sg-0a1b2c3d4e5f60c03",
+            "win-admin-sg"
+          ],
+          "explanation": "RDP open to the world is a long-standing target of brute-force and credential-stuffing attempts. Admin protocols belong behind a VPN or a managed session service, with the source limited to the corporate range. Note the group is attached to a running instance, which is why you edit its rules instead of deleting it."
+        },
+        {
+          "id": "t4",
+          "kind": "flag",
+          "prompt": "Remediate all four findings: revoke each 0.0.0.0/0 rule, then add the narrowest access the change standard allows (VPN range for admin ports, app tier for data ports). Run the compliance rule and paste the change attestation flag.",
+          "flag": "FLAG{exposure_audit_closed_5d81}",
+          "explanation": "Least-privilege remediation has two parts: remove the exposure, then restore the access that is actually needed from the smallest possible source. Revoking alone can cause an outage, and adding a broad replacement leaves the exposure. Verifying with a compliance rule gives you evidence that the fix landed."
+        },
+        {
+          "id": "t5",
+          "kind": "choice",
+          "prompt": "What is the best replacement source for the database rule on tcp/3306?",
+          "options": [
+            "The app tier security group as the source, so only instances in that group can connect",
+            "0.0.0.0/0 with a strong database password",
+            "10.0.0.0/8, which covers every private address",
+            "Move the database to a non-default port and keep 0.0.0.0/0"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Referencing the app tier's security group as the source follows instances as they scale and change IP, and nothing else can connect. A strong password does not make an exposed service safe, a very wide private range lets every workload in the network reach the database, and changing the port is obscurity, not access control."
+        },
+        {
+          "id": "t6",
+          "kind": "choice",
+          "prompt": "Which statement about auditing and cleaning up world-open rules is correct?",
+          "options": [
+            "0.0.0.0/0 and ::/0 are separate rules: IPv6 exposure has to be audited and revoked in addition to the IPv4 rule",
+            "Revoking the IPv4 rule automatically removes the IPv6 rule for the same port",
+            "Deleting a security group that is attached to running instances is the fastest safe way to remove its rules",
+            "Rules open to the internet only matter if the instance has a public IP address"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "A security group can hold an IPv4 rule (0.0.0.0/0) and an IPv6 rule (::/0) for the same port; each must be handled separately, or you leave an open door behind. Deleting an attached group is not possible, and even for a group that could be deleted, removing the rule is the safe path. Whether an instance has a public address affects reachability, but you should still fix world-open rules because addresses change."
+        },
+        {
+          "id": "t7",
+          "kind": "policy",
+          "mode": "identity",
+          "prompt": "Tighten NetOpsRemediationRole. It must be able to describe EC2 resources and add or revoke security group ingress rules on security groups in us-east-1, and nothing else: no deleting security groups, no terminating instances, no changes in other regions.",
+          "starter": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"NetOpsEverything\",\n      \"Effect\": \"Allow\",\n      \"Action\": \"ec2:*\",\n      \"Resource\": \"*\"\n    }\n  ]\n}",
+          "solution": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Effect\": \"Allow\",\n      \"Action\": \"ec2:Describe*\",\n      \"Resource\": \"*\"\n    },\n    {\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"ec2:AuthorizeSecurityGroupIngress\",\n        \"ec2:RevokeSecurityGroupIngress\"\n      ],\n      \"Resource\": \"arn:aws:ec2:us-east-1:111122223333:security-group/*\"\n    }\n  ]\n}",
+          "tests": [
+            {
+              "name": "Can describe security groups",
+              "action": "ec2:DescribeSecurityGroups",
+              "resource": "*",
+              "expect": "allow"
+            },
+            {
+              "name": "Can describe security group rules",
+              "action": "ec2:DescribeSecurityGroupRules",
+              "resource": "*",
+              "expect": "allow"
+            },
+            {
+              "name": "Can revoke ingress on a us-east-1 group",
+              "action": "ec2:RevokeSecurityGroupIngress",
+              "resource": "arn:aws:ec2:us-east-1:111122223333:security-group/sg-0a1b2c3d4e5f60b02",
+              "expect": "allow"
+            },
+            {
+              "name": "Can add ingress on a us-east-1 group",
+              "action": "ec2:AuthorizeSecurityGroupIngress",
+              "resource": "arn:aws:ec2:us-east-1:111122223333:security-group/sg-0a1b2c3d4e5f60b02",
+              "expect": "allow"
+            },
+            {
+              "name": "Cannot delete security groups",
+              "action": "ec2:DeleteSecurityGroup",
+              "resource": "arn:aws:ec2:us-east-1:111122223333:security-group/sg-0a1b2c3d4e5f60b02",
+              "expect": "deny"
+            },
+            {
+              "name": "Cannot terminate instances",
+              "action": "ec2:TerminateInstances",
+              "resource": "arn:aws:ec2:us-east-1:111122223333:instance/i-0a1b2c3d4e5f60abc",
+              "expect": "deny"
+            },
+            {
+              "name": "Cannot change groups in another region",
+              "action": "ec2:AuthorizeSecurityGroupIngress",
+              "resource": "arn:aws:ec2:us-west-2:111122223333:security-group/sg-0a1b2c3d4e5f60b02",
+              "expect": "deny"
+            }
+          ],
+          "explanation": "A remediation role is a powerful tool: it can open ports as easily as it closes them, so scope it to the actions and resources the job needs. Describe calls are read-only and need a wildcard resource, while the ingress changes are limited to security group ARNs in one region. Pair this with CloudTrail alerts on ingress changes that add 0.0.0.0/0."
+        }
+      ],
+      "takeaways": [
+        "Map scan findings to concrete security group rules, separate legitimate public exposure (a load balancer on 80/443) from accidental exposure (admin and data ports), and fix the latter.",
+        "Remediate in two steps: revoke the world-open rule, then add the narrowest source that preserves legitimate access (VPN range for admin, app-tier security group for data). Remember IPv6 (::/0).",
+        "Verify with a compliance rule, and scope the remediation role itself so the tool that closes ports cannot open them everywhere."
+      ]
+    }
+  }
+]

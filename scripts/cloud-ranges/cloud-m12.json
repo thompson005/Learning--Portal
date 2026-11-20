@@ -1,0 +1,1394 @@
+[
+  {
+    "labId": "cloud-L28",
+    "objective": "Triage a Prowler scan of a messy AWS account: separate real, exploitable exposure from false positives and noise, spot the findings that chain together, and fix the top one with a corrected bucket policy.",
+    "successCriteria": [
+      "You read the critical findings with a filtered Prowler run instead of scrolling the whole report",
+      "You identified which critical findings are false positives or noise, and why",
+      "You named the finding to fix first and the three findings that chain into account takeover",
+      "You rewrote the exposed bucket policy so anonymous access is gone and the legitimate jobs still work"
+    ],
+    "hints": [
+      "The baseline scan only gives you counts. Prowler can filter by severity or service to show the actual findings.",
+      "Two critical findings share the same check name. Compare the buckets: what are they for, and what is in them? Tags and `aws s3 ls` help.",
+      "Fix first: the bucket holding the nightly database dumps. In its policy, replace the Principal \"*\" allow with the one role that restores backups, and deny non-TLS requests."
+    ],
+    "estimatedHours": 2,
+    "resources": [
+      {
+        "title": "Prowler on GitHub",
+        "url": "https://github.com/prowler-cloud/prowler",
+        "type": "link"
+      },
+      {
+        "title": "ScoutSuite on GitHub",
+        "url": "https://github.com/nccgroup/ScoutSuite",
+        "type": "link"
+      },
+      {
+        "title": "AWS docs: Blocking public access to your Amazon S3 storage",
+        "url": "https://docs.aws.amazon.com/AmazonS3/latest/userguide/access-control-block-public-access.html",
+        "type": "link"
+      },
+      {
+        "title": "AWS docs: What is AWS Security Hub?",
+        "url": "https://docs.aws.amazon.com/securityhub/latest/userguide/what-is-securityhub.html",
+        "type": "link"
+      }
+    ],
+    "range": {
+      "scenario": "You are the new cloud security engineer at Northwind Retail. Last night a Prowler scan of production account 111122223333 finished and the report lists 31 failed findings: 3 critical, 9 high, 14 medium and 5 low. The CISO wants a prioritised plan by lunchtime, and the team has been told 'just fix the criticals'. Use the terminal to read the findings, check what the flagged resources really are, work out which ones are noise, which ones chain into something worse, and which single finding must be fixed first. Then fix it.",
+      "artifacts": [
+        {
+          "name": "triage-rubric.txt",
+          "language": "text",
+          "content": "NORTHWIND TRIAGE RUBRIC\n\n1. Reachability    Can an unauthenticated user on the internet touch it today?\n2. Blast radius    What data or privilege sits behind it?\n3. Preconditions   How many other things must be true first? (3 or more = not exploitable today)\n4. Chains          Do two or three lower findings combine into one critical path?\n5. Compensating    Is there a control or a tag that shows this is intentional?\n\nThe tool's severity label is a starting point, not the ranking.\nA false positive is muted as an accepted risk with an owner and an expiry date, not ignored.",
+          "note": "How the security team ranks findings."
+        },
+        {
+          "name": "inventory.yaml",
+          "language": "yaml",
+          "content": "# Northwind Retail - account 111122223333 (us-east-1)\ncompute:\n  - name: web-prod-01\n    id: i-0a1b2c3d4e5f60718\n    role: public storefront (Node.js), Elastic IP 203.0.113.25, instance profile WebAppProfile -> WebAppRole\ndatabases:\n  - name: nw-staging-db\n    engine: postgres, used by the staging pipeline\ns3:\n  - nw-marketing-assets: static images and CSS for www.northwind.example\n  - nw-prod-db-backups: nightly pg_dump of the production orders database, written by BackupJobRole, restored by DbaRestoreRole\n  - nw-app-logs: application log archive\nsecurity_groups:\n  - sg-0f3a9d27c41e8b650: web-prod-sg\n  - sg-0b1d4e7a9c2f61d08: legacy-migration-open, created for the 2021 datacenter migration\n  - sg-04e19c7d02ab3f568: old-bastion\n  - sg-0e6a2b9d13c7f4580: tmp-test\n",
+          "note": "What the account is supposed to contain."
+        },
+        {
+          "name": "nw-prod-db-backups-policy.json",
+          "language": "json",
+          "content": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"PublicDownload\",\n      \"Effect\": \"Allow\",\n      \"Principal\": \"*\",\n      \"Action\": \"s3:GetObject\",\n      \"Resource\": \"arn:aws:s3:::nw-prod-db-backups/*\"\n    },\n    {\n      \"Sid\": \"BackupJobWrite\",\n      \"Effect\": \"Allow\",\n      \"Principal\": {\n        \"AWS\": \"arn:aws:iam::111122223333:role/BackupJobRole\"\n      },\n      \"Action\": \"s3:PutObject\",\n      \"Resource\": \"arn:aws:s3:::nw-prod-db-backups/*\"\n    }\n  ]\n}",
+          "note": "The bucket policy currently on the backups bucket."
+        }
+      ],
+      "terminal": {
+        "prompt": "sec-auditor@posture:~$",
+        "intro": "Read-only audit identity for account 111122223333, region us-east-1. Prowler is installed.",
+        "help": "Commands you can try:\n  prowler aws                       baseline scan (overview only)\n  prowler aws --severity <level>    read findings of one severity (critical, high, medium, low)\n  prowler aws --service <name>      read findings for a service (s3, ec2, iam, cloudtrail ...)\n  aws s3api get-bucket-tagging --bucket <name>\n  aws s3 ls s3://<bucket>/\n  aws s3api get-bucket-policy --bucket <name>\n  aws ec2 describe-network-interfaces --filters Name=group-id,Values=<sg-id>\n  aws ec2 describe-instances --instance-ids <id>\n  aws iam get-role-policy --role-name <role> --policy-name <name>",
+        "rules": [
+          {
+            "match": "^aws sts get-caller-identity$",
+            "output": "{\n    \"UserId\": \"AIDAEXAMPLEAUDITOR01\",\n    \"Account\": \"111122223333\",\n    \"Arn\": \"arn:aws:iam::111122223333:user/sec-auditor\"\n}"
+          },
+          {
+            "match": "^prowler aws$",
+            "sets": [
+              "baseline_scan"
+            ],
+            "output": "-> Using the AWS credentials below:\n  - AWS-CLI Profile: default\n  - AWS Regions: us-east-1\n  - AWS Account: 111122223333\n  - Caller Identity ARN: arn:aws:iam::111122223333:user/sec-auditor\nExecuting 284 checks, please wait...\n\nOverview Results:\n  Failed: 31 (24.4%)   Passed: 96 (75.6%)   Muted: 0   Total findings: 127\n\nFailed findings by severity:\n  critical   3\n  high       9\n  medium     14\n  low        5\n\nFailed findings by service:\n  s3 10   ec2 8   iam 7   cloudtrail 2   rds 1   guardduty 1   vpc 1   kms 1\n\nDetailed results are in output/prowler-output-111122223333-20261120.csv (and .json-ocsf, .html).\nRe-run with a filter to read findings, e.g. --severity <level> or --service <name>."
+          },
+          {
+            "match": "^prowler aws --severity critical high$",
+            "output": "-> Using the AWS credentials below:\n  - AWS-CLI Profile: default\n  - AWS Regions: us-east-1\n  - AWS Account: 111122223333\n  - Caller Identity ARN: arn:aws:iam::111122223333:user/sec-auditor\nExecuting 284 checks, please wait...\n\nFAIL | critical | s3 | s3_bucket_public_access | us-east-1 | nw-marketing-assets\n     S3 Bucket nw-marketing-assets has a bucket policy allowing public read access (Principal \"*\", s3:GetObject).\n     Tags: env=prod, purpose=public-website, data-class=public\n\nFAIL | critical | ec2 | ec2_securitygroup_allow_ingress_from_internet_to_any_port | us-east-1 | sg-0b1d4e7a9c2f61d08 (legacy-migration-open)\n     Security group sg-0b1d4e7a9c2f61d08 has all ports open to 0.0.0.0/0.\n\nFAIL | critical | s3 | s3_bucket_public_access | us-east-1 | nw-prod-db-backups\n     S3 Bucket nw-prod-db-backups has a bucket policy allowing public read access (Principal \"*\", s3:GetObject).\n     Tags: env=prod, data-class=confidential, ticket=FLAG{cspm_critical_first_a41f}\n\nFAIL | high     | ec2 | ec2_instance_imdsv2_enabled | us-east-1 | i-0a1b2c3d4e5f60718 (web-prod-01)\n     EC2 Instance i-0a1b2c3d4e5f60718 has IMDSv2 optional (HttpTokens=optional); IMDSv1 is still enabled.\n\nFAIL | high     | iam | iam_inline_policy_no_administrative_privileges | us-east-1 | WebAppRole/AppEverything\n     Inline policy AppEverything attached to role WebAppRole allows \"*:*\" administrative privileges.\n\nFAIL | high     | ec2 | ec2_securitygroup_allow_ingress_from_internet_to_tcp_port_22 | us-east-1 | sg-0f3a9d27c41e8b650 (web-prod-sg)\n     Security group sg-0f3a9d27c41e8b650 has TCP port 22 open to 0.0.0.0/0.\n\nFAIL | high     | iam | iam_user_mfa_enabled_console_access | us-east-1 | contractor-dev1\n     User contractor-dev1 has console access but no MFA device.\n\nFAIL | high     | s3 | s3_account_level_public_access_blocks | us-east-1 | account 111122223333\n     Block Public Access is not fully enabled at the account level (BlockPublicPolicy=false, RestrictPublicBuckets=false).\n\nFAIL | high     | iam | iam_policy_allows_privilege_escalation | us-east-1 | DevPassRoleLambda\n     Customer policy DevPassRoleLambda allows privilege escalation via iam:PassRole + lambda:CreateFunction.\n\nFAIL | high     | ec2 | ec2_networkacl_allow_ingress_tcp_port_22 | us-east-1 | acl-0c5d8e1f2a3b4c6d7 (default)\n     Network ACL acl-0c5d8e1f2a3b4c6d7 allows ingress on TCP port 22 from 0.0.0.0/0.\n\nFAIL | high     | rds | rds_instance_no_public_access | us-east-1 | nw-staging-db\n     RDS Instance nw-staging-db is publicly accessible (PubliclyAccessible=true).\n\nFAIL | high     | ec2 | ec2_securitygroup_allow_ingress_from_internet_to_tcp_port_22 | us-east-1 | sg-04e19c7d02ab3f568 (old-bastion)\n     Security group sg-04e19c7d02ab3f568 has TCP port 22 open to 0.0.0.0/0.\n\nFull results: output/prowler-output-111122223333-20261120.csv, .json-ocsf, .html"
+          },
+          {
+            "match": "^prowler aws --severity high critical$",
+            "output": "-> Using the AWS credentials below:\n  - AWS-CLI Profile: default\n  - AWS Regions: us-east-1\n  - AWS Account: 111122223333\n  - Caller Identity ARN: arn:aws:iam::111122223333:user/sec-auditor\nExecuting 284 checks, please wait...\n\nFAIL | critical | s3 | s3_bucket_public_access | us-east-1 | nw-marketing-assets\n     S3 Bucket nw-marketing-assets has a bucket policy allowing public read access (Principal \"*\", s3:GetObject).\n     Tags: env=prod, purpose=public-website, data-class=public\n\nFAIL | critical | ec2 | ec2_securitygroup_allow_ingress_from_internet_to_any_port | us-east-1 | sg-0b1d4e7a9c2f61d08 (legacy-migration-open)\n     Security group sg-0b1d4e7a9c2f61d08 has all ports open to 0.0.0.0/0.\n\nFAIL | critical | s3 | s3_bucket_public_access | us-east-1 | nw-prod-db-backups\n     S3 Bucket nw-prod-db-backups has a bucket policy allowing public read access (Principal \"*\", s3:GetObject).\n     Tags: env=prod, data-class=confidential, ticket=FLAG{cspm_critical_first_a41f}\n\nFAIL | high     | ec2 | ec2_instance_imdsv2_enabled | us-east-1 | i-0a1b2c3d4e5f60718 (web-prod-01)\n     EC2 Instance i-0a1b2c3d4e5f60718 has IMDSv2 optional (HttpTokens=optional); IMDSv1 is still enabled.\n\nFAIL | high     | iam | iam_inline_policy_no_administrative_privileges | us-east-1 | WebAppRole/AppEverything\n     Inline policy AppEverything attached to role WebAppRole allows \"*:*\" administrative privileges.\n\nFAIL | high     | ec2 | ec2_securitygroup_allow_ingress_from_internet_to_tcp_port_22 | us-east-1 | sg-0f3a9d27c41e8b650 (web-prod-sg)\n     Security group sg-0f3a9d27c41e8b650 has TCP port 22 open to 0.0.0.0/0.\n\nFAIL | high     | iam | iam_user_mfa_enabled_console_access | us-east-1 | contractor-dev1\n     User contractor-dev1 has console access but no MFA device.\n\nFAIL | high     | s3 | s3_account_level_public_access_blocks | us-east-1 | account 111122223333\n     Block Public Access is not fully enabled at the account level (BlockPublicPolicy=false, RestrictPublicBuckets=false).\n\nFAIL | high     | iam | iam_policy_allows_privilege_escalation | us-east-1 | DevPassRoleLambda\n     Customer policy DevPassRoleLambda allows privilege escalation via iam:PassRole + lambda:CreateFunction.\n\nFAIL | high     | ec2 | ec2_networkacl_allow_ingress_tcp_port_22 | us-east-1 | acl-0c5d8e1f2a3b4c6d7 (default)\n     Network ACL acl-0c5d8e1f2a3b4c6d7 allows ingress on TCP port 22 from 0.0.0.0/0.\n\nFAIL | high     | rds | rds_instance_no_public_access | us-east-1 | nw-staging-db\n     RDS Instance nw-staging-db is publicly accessible (PubliclyAccessible=true).\n\nFAIL | high     | ec2 | ec2_securitygroup_allow_ingress_from_internet_to_tcp_port_22 | us-east-1 | sg-04e19c7d02ab3f568 (old-bastion)\n     Security group sg-04e19c7d02ab3f568 has TCP port 22 open to 0.0.0.0/0.\n\nFull results: output/prowler-output-111122223333-20261120.csv, .json-ocsf, .html"
+          },
+          {
+            "match": "^prowler aws (?:--status fail )?--severity critical(?: --status fail)?$",
+            "sets": [
+              "critical_read"
+            ],
+            "output": "-> Using the AWS credentials below:\n  - AWS-CLI Profile: default\n  - AWS Regions: us-east-1\n  - AWS Account: 111122223333\n  - Caller Identity ARN: arn:aws:iam::111122223333:user/sec-auditor\nExecuting 284 checks, please wait...\n\nFAIL | critical | s3 | s3_bucket_public_access | us-east-1 | nw-marketing-assets\n     S3 Bucket nw-marketing-assets has a bucket policy allowing public read access (Principal \"*\", s3:GetObject).\n     Tags: env=prod, purpose=public-website, data-class=public\n\nFAIL | critical | ec2 | ec2_securitygroup_allow_ingress_from_internet_to_any_port | us-east-1 | sg-0b1d4e7a9c2f61d08 (legacy-migration-open)\n     Security group sg-0b1d4e7a9c2f61d08 has all ports open to 0.0.0.0/0.\n\nFAIL | critical | s3 | s3_bucket_public_access | us-east-1 | nw-prod-db-backups\n     S3 Bucket nw-prod-db-backups has a bucket policy allowing public read access (Principal \"*\", s3:GetObject).\n     Tags: env=prod, data-class=confidential, ticket=FLAG{cspm_critical_first_a41f}\n\nFull results: output/prowler-output-111122223333-20261120.csv, .json-ocsf, .html"
+          },
+          {
+            "match": "^prowler aws (?:--status fail )?--severity high(?: --status fail)?$",
+            "output": "-> Using the AWS credentials below:\n  - AWS-CLI Profile: default\n  - AWS Regions: us-east-1\n  - AWS Account: 111122223333\n  - Caller Identity ARN: arn:aws:iam::111122223333:user/sec-auditor\nExecuting 284 checks, please wait...\n\nFAIL | high     | ec2 | ec2_instance_imdsv2_enabled | us-east-1 | i-0a1b2c3d4e5f60718 (web-prod-01)\n     EC2 Instance i-0a1b2c3d4e5f60718 has IMDSv2 optional (HttpTokens=optional); IMDSv1 is still enabled.\n\nFAIL | high     | iam | iam_inline_policy_no_administrative_privileges | us-east-1 | WebAppRole/AppEverything\n     Inline policy AppEverything attached to role WebAppRole allows \"*:*\" administrative privileges.\n\nFAIL | high     | ec2 | ec2_securitygroup_allow_ingress_from_internet_to_tcp_port_22 | us-east-1 | sg-0f3a9d27c41e8b650 (web-prod-sg)\n     Security group sg-0f3a9d27c41e8b650 has TCP port 22 open to 0.0.0.0/0.\n\nFAIL | high     | iam | iam_user_mfa_enabled_console_access | us-east-1 | contractor-dev1\n     User contractor-dev1 has console access but no MFA device.\n\nFAIL | high     | s3 | s3_account_level_public_access_blocks | us-east-1 | account 111122223333\n     Block Public Access is not fully enabled at the account level (BlockPublicPolicy=false, RestrictPublicBuckets=false).\n\nFAIL | high     | iam | iam_policy_allows_privilege_escalation | us-east-1 | DevPassRoleLambda\n     Customer policy DevPassRoleLambda allows privilege escalation via iam:PassRole + lambda:CreateFunction.\n\nFAIL | high     | ec2 | ec2_networkacl_allow_ingress_tcp_port_22 | us-east-1 | acl-0c5d8e1f2a3b4c6d7 (default)\n     Network ACL acl-0c5d8e1f2a3b4c6d7 allows ingress on TCP port 22 from 0.0.0.0/0.\n\nFAIL | high     | rds | rds_instance_no_public_access | us-east-1 | nw-staging-db\n     RDS Instance nw-staging-db is publicly accessible (PubliclyAccessible=true).\n\nFAIL | high     | ec2 | ec2_securitygroup_allow_ingress_from_internet_to_tcp_port_22 | us-east-1 | sg-04e19c7d02ab3f568 (old-bastion)\n     Security group sg-04e19c7d02ab3f568 has TCP port 22 open to 0.0.0.0/0.\n\nFull results: output/prowler-output-111122223333-20261120.csv, .json-ocsf, .html"
+          },
+          {
+            "match": "^prowler aws (?:--status fail )?--severity medium(?: --status fail)?$",
+            "output": "-> Using the AWS credentials below:\n  - AWS-CLI Profile: default\n  - AWS Regions: us-east-1\n  - AWS Account: 111122223333\n  - Caller Identity ARN: arn:aws:iam::111122223333:user/sec-auditor\nExecuting 284 checks, please wait...\n\nFAIL | medium   | s3 | s3_bucket_default_encryption | us-east-1 | nw-app-logs\n     S3 Bucket nw-app-logs does not have default encryption enabled.\n\nFAIL | medium   | s3 | s3_bucket_secure_transport_policy | us-east-1 | nw-app-logs\n     S3 Bucket nw-app-logs does not have a policy that denies non-TLS requests.\n\nFAIL | medium   | s3 | s3_bucket_secure_transport_policy | us-east-1 | nw-prod-db-backups\n     S3 Bucket nw-prod-db-backups does not have a policy that denies non-TLS requests.\n\nFAIL | medium   | s3 | s3_bucket_server_access_logging_enabled | us-east-1 | nw-prod-db-backups\n     S3 Bucket nw-prod-db-backups has server access logging disabled.\n\nFAIL | medium   | s3 | s3_bucket_object_versioning | us-east-1 | nw-prod-db-backups\n     S3 Bucket nw-prod-db-backups has object versioning disabled.\n\nFAIL | medium   | cloudtrail | cloudtrail_log_file_validation_enabled | us-east-1 | org-trail\n     Trail org-trail does not have log file validation enabled.\n\nFAIL | medium   | cloudtrail | cloudtrail_s3_dataevents_read_enabled | us-east-1 | org-trail\n     Trail org-trail does not record S3 data events (reads), so object downloads are not logged.\n\nFAIL | medium   | ec2 | ec2_instance_public_ip | us-east-1 | i-0a1b2c3d4e5f60718 (web-prod-01)\n     EC2 Instance i-0a1b2c3d4e5f60718 has a public IP address (203.0.113.25).\n\nFAIL | medium   | ec2 | ec2_ebs_default_encryption | us-east-1 | us-east-1\n     EBS default encryption is not enabled in us-east-1.\n\nFAIL | medium   | guardduty | guardduty_is_enabled | us-east-1 | us-east-1\n     GuardDuty is not enabled in us-east-1.\n\nFAIL | medium   | vpc | vpc_flow_logs_enabled | us-east-1 | vpc-0aa11bb22cc33dd44\n     VPC vpc-0aa11bb22cc33dd44 has no flow logs enabled.\n\nFAIL | medium   | iam | iam_password_policy_minimum_length_14 | us-east-1 | account 111122223333\n     The IAM password policy requires a minimum length of 8, not 14.\n\nFAIL | medium   | iam | iam_rotate_access_key_90_days | us-east-1 | contractor-dev1\n     User contractor-dev1 has an access key older than 90 days (last rotated 212 days ago).\n\nFAIL | medium   | kms | kms_cmk_rotation_enabled | us-east-1 | alias/app-data\n     KMS key alias/app-data does not have automatic rotation enabled.\n\nFull results: output/prowler-output-111122223333-20261120.csv, .json-ocsf, .html"
+          },
+          {
+            "match": "^prowler aws (?:--status fail )?--severity low(?: --status fail)?$",
+            "output": "-> Using the AWS credentials below:\n  - AWS-CLI Profile: default\n  - AWS Regions: us-east-1\n  - AWS Account: 111122223333\n  - Caller Identity ARN: arn:aws:iam::111122223333:user/sec-auditor\nExecuting 284 checks, please wait...\n\nFAIL | low      | iam | iam_policy_attached_only_to_group_or_roles | us-east-1 | contractor-dev1\n     User contractor-dev1 has policies attached directly instead of through a group or role.\n\nFAIL | low      | s3 | s3_bucket_no_mfa_delete | us-east-1 | nw-prod-db-backups\n     S3 Bucket nw-prod-db-backups does not have MFA Delete enabled.\n\nFAIL | low      | iam | iam_support_role_created | us-east-1 | account 111122223333\n     No IAM role exists to manage incidents with AWS Support.\n\nFAIL | low      | ec2 | ec2_securitygroup_not_used | us-east-1 | sg-0e6a2b9d13c7f4580 (tmp-test)\n     Security group sg-0e6a2b9d13c7f4580 is not attached to any network interface.\n\nFAIL | low      | s3 | s3_bucket_lifecycle_enabled | us-east-1 | nw-app-logs\n     S3 Bucket nw-app-logs has no lifecycle configuration.\n\nFull results: output/prowler-output-111122223333-20261120.csv, .json-ocsf, .html"
+          },
+          {
+            "match": "^prowler aws --severity informational$",
+            "output": "-> Using the AWS credentials below:\n  - AWS-CLI Profile: default\n  - AWS Regions: us-east-1\n  - AWS Account: 111122223333\n  - Caller Identity ARN: arn:aws:iam::111122223333:user/sec-auditor\nExecuting 284 checks, please wait...\n\nNo FAIL findings with severity informational."
+          },
+          {
+            "match": "^prowler aws --service s3$",
+            "output": "-> Using the AWS credentials below:\n  - AWS-CLI Profile: default\n  - AWS Regions: us-east-1\n  - AWS Account: 111122223333\n  - Caller Identity ARN: arn:aws:iam::111122223333:user/sec-auditor\nExecuting 284 checks, please wait...\n\nFAIL | critical | s3 | s3_bucket_public_access | us-east-1 | nw-marketing-assets\n     S3 Bucket nw-marketing-assets has a bucket policy allowing public read access (Principal \"*\", s3:GetObject).\n     Tags: env=prod, purpose=public-website, data-class=public\n\nFAIL | critical | s3 | s3_bucket_public_access | us-east-1 | nw-prod-db-backups\n     S3 Bucket nw-prod-db-backups has a bucket policy allowing public read access (Principal \"*\", s3:GetObject).\n     Tags: env=prod, data-class=confidential, ticket=FLAG{cspm_critical_first_a41f}\n\nFAIL | high     | s3 | s3_account_level_public_access_blocks | us-east-1 | account 111122223333\n     Block Public Access is not fully enabled at the account level (BlockPublicPolicy=false, RestrictPublicBuckets=false).\n\nFAIL | medium   | s3 | s3_bucket_default_encryption | us-east-1 | nw-app-logs\n     S3 Bucket nw-app-logs does not have default encryption enabled.\n\nFAIL | medium   | s3 | s3_bucket_secure_transport_policy | us-east-1 | nw-app-logs\n     S3 Bucket nw-app-logs does not have a policy that denies non-TLS requests.\n\nFAIL | medium   | s3 | s3_bucket_secure_transport_policy | us-east-1 | nw-prod-db-backups\n     S3 Bucket nw-prod-db-backups does not have a policy that denies non-TLS requests.\n\nFAIL | medium   | s3 | s3_bucket_server_access_logging_enabled | us-east-1 | nw-prod-db-backups\n     S3 Bucket nw-prod-db-backups has server access logging disabled.\n\nFAIL | medium   | s3 | s3_bucket_object_versioning | us-east-1 | nw-prod-db-backups\n     S3 Bucket nw-prod-db-backups has object versioning disabled.\n\nFAIL | low      | s3 | s3_bucket_no_mfa_delete | us-east-1 | nw-prod-db-backups\n     S3 Bucket nw-prod-db-backups does not have MFA Delete enabled.\n\nFAIL | low      | s3 | s3_bucket_lifecycle_enabled | us-east-1 | nw-app-logs\n     S3 Bucket nw-app-logs has no lifecycle configuration.\n\nFull results: output/prowler-output-111122223333-20261120.csv, .json-ocsf, .html"
+          },
+          {
+            "match": "^prowler aws --service ec2$",
+            "output": "-> Using the AWS credentials below:\n  - AWS-CLI Profile: default\n  - AWS Regions: us-east-1\n  - AWS Account: 111122223333\n  - Caller Identity ARN: arn:aws:iam::111122223333:user/sec-auditor\nExecuting 284 checks, please wait...\n\nFAIL | critical | ec2 | ec2_securitygroup_allow_ingress_from_internet_to_any_port | us-east-1 | sg-0b1d4e7a9c2f61d08 (legacy-migration-open)\n     Security group sg-0b1d4e7a9c2f61d08 has all ports open to 0.0.0.0/0.\n\nFAIL | high     | ec2 | ec2_instance_imdsv2_enabled | us-east-1 | i-0a1b2c3d4e5f60718 (web-prod-01)\n     EC2 Instance i-0a1b2c3d4e5f60718 has IMDSv2 optional (HttpTokens=optional); IMDSv1 is still enabled.\n\nFAIL | high     | ec2 | ec2_securitygroup_allow_ingress_from_internet_to_tcp_port_22 | us-east-1 | sg-0f3a9d27c41e8b650 (web-prod-sg)\n     Security group sg-0f3a9d27c41e8b650 has TCP port 22 open to 0.0.0.0/0.\n\nFAIL | high     | ec2 | ec2_networkacl_allow_ingress_tcp_port_22 | us-east-1 | acl-0c5d8e1f2a3b4c6d7 (default)\n     Network ACL acl-0c5d8e1f2a3b4c6d7 allows ingress on TCP port 22 from 0.0.0.0/0.\n\nFAIL | high     | ec2 | ec2_securitygroup_allow_ingress_from_internet_to_tcp_port_22 | us-east-1 | sg-04e19c7d02ab3f568 (old-bastion)\n     Security group sg-04e19c7d02ab3f568 has TCP port 22 open to 0.0.0.0/0.\n\nFAIL | medium   | ec2 | ec2_instance_public_ip | us-east-1 | i-0a1b2c3d4e5f60718 (web-prod-01)\n     EC2 Instance i-0a1b2c3d4e5f60718 has a public IP address (203.0.113.25).\n\nFAIL | medium   | ec2 | ec2_ebs_default_encryption | us-east-1 | us-east-1\n     EBS default encryption is not enabled in us-east-1.\n\nFAIL | low      | ec2 | ec2_securitygroup_not_used | us-east-1 | sg-0e6a2b9d13c7f4580 (tmp-test)\n     Security group sg-0e6a2b9d13c7f4580 is not attached to any network interface.\n\nFull results: output/prowler-output-111122223333-20261120.csv, .json-ocsf, .html"
+          },
+          {
+            "match": "^prowler aws --service iam$",
+            "output": "-> Using the AWS credentials below:\n  - AWS-CLI Profile: default\n  - AWS Regions: us-east-1\n  - AWS Account: 111122223333\n  - Caller Identity ARN: arn:aws:iam::111122223333:user/sec-auditor\nExecuting 284 checks, please wait...\n\nFAIL | high     | iam | iam_inline_policy_no_administrative_privileges | us-east-1 | WebAppRole/AppEverything\n     Inline policy AppEverything attached to role WebAppRole allows \"*:*\" administrative privileges.\n\nFAIL | high     | iam | iam_user_mfa_enabled_console_access | us-east-1 | contractor-dev1\n     User contractor-dev1 has console access but no MFA device.\n\nFAIL | high     | iam | iam_policy_allows_privilege_escalation | us-east-1 | DevPassRoleLambda\n     Customer policy DevPassRoleLambda allows privilege escalation via iam:PassRole + lambda:CreateFunction.\n\nFAIL | medium   | iam | iam_password_policy_minimum_length_14 | us-east-1 | account 111122223333\n     The IAM password policy requires a minimum length of 8, not 14.\n\nFAIL | medium   | iam | iam_rotate_access_key_90_days | us-east-1 | contractor-dev1\n     User contractor-dev1 has an access key older than 90 days (last rotated 212 days ago).\n\nFAIL | low      | iam | iam_policy_attached_only_to_group_or_roles | us-east-1 | contractor-dev1\n     User contractor-dev1 has policies attached directly instead of through a group or role.\n\nFAIL | low      | iam | iam_support_role_created | us-east-1 | account 111122223333\n     No IAM role exists to manage incidents with AWS Support.\n\nFull results: output/prowler-output-111122223333-20261120.csv, .json-ocsf, .html"
+          },
+          {
+            "match": "^prowler aws --service cloudtrail$",
+            "output": "-> Using the AWS credentials below:\n  - AWS-CLI Profile: default\n  - AWS Regions: us-east-1\n  - AWS Account: 111122223333\n  - Caller Identity ARN: arn:aws:iam::111122223333:user/sec-auditor\nExecuting 284 checks, please wait...\n\nFAIL | medium   | cloudtrail | cloudtrail_log_file_validation_enabled | us-east-1 | org-trail\n     Trail org-trail does not have log file validation enabled.\n\nFAIL | medium   | cloudtrail | cloudtrail_s3_dataevents_read_enabled | us-east-1 | org-trail\n     Trail org-trail does not record S3 data events (reads), so object downloads are not logged.\n\nFull results: output/prowler-output-111122223333-20261120.csv, .json-ocsf, .html"
+          },
+          {
+            "match": "^prowler aws --service rds$",
+            "output": "-> Using the AWS credentials below:\n  - AWS-CLI Profile: default\n  - AWS Regions: us-east-1\n  - AWS Account: 111122223333\n  - Caller Identity ARN: arn:aws:iam::111122223333:user/sec-auditor\nExecuting 284 checks, please wait...\n\nFAIL | high     | rds | rds_instance_no_public_access | us-east-1 | nw-staging-db\n     RDS Instance nw-staging-db is publicly accessible (PubliclyAccessible=true).\n\nFull results: output/prowler-output-111122223333-20261120.csv, .json-ocsf, .html"
+          },
+          {
+            "match": "^prowler aws --service guardduty$",
+            "output": "-> Using the AWS credentials below:\n  - AWS-CLI Profile: default\n  - AWS Regions: us-east-1\n  - AWS Account: 111122223333\n  - Caller Identity ARN: arn:aws:iam::111122223333:user/sec-auditor\nExecuting 284 checks, please wait...\n\nFAIL | medium   | guardduty | guardduty_is_enabled | us-east-1 | us-east-1\n     GuardDuty is not enabled in us-east-1.\n\nFull results: output/prowler-output-111122223333-20261120.csv, .json-ocsf, .html"
+          },
+          {
+            "match": "^prowler aws --service vpc$",
+            "output": "-> Using the AWS credentials below:\n  - AWS-CLI Profile: default\n  - AWS Regions: us-east-1\n  - AWS Account: 111122223333\n  - Caller Identity ARN: arn:aws:iam::111122223333:user/sec-auditor\nExecuting 284 checks, please wait...\n\nFAIL | medium   | vpc | vpc_flow_logs_enabled | us-east-1 | vpc-0aa11bb22cc33dd44\n     VPC vpc-0aa11bb22cc33dd44 has no flow logs enabled.\n\nFull results: output/prowler-output-111122223333-20261120.csv, .json-ocsf, .html"
+          },
+          {
+            "match": "^prowler aws --service kms$",
+            "output": "-> Using the AWS credentials below:\n  - AWS-CLI Profile: default\n  - AWS Regions: us-east-1\n  - AWS Account: 111122223333\n  - Caller Identity ARN: arn:aws:iam::111122223333:user/sec-auditor\nExecuting 284 checks, please wait...\n\nFAIL | medium   | kms | kms_cmk_rotation_enabled | us-east-1 | alias/app-data\n     KMS key alias/app-data does not have automatic rotation enabled.\n\nFull results: output/prowler-output-111122223333-20261120.csv, .json-ocsf, .html"
+          },
+          {
+            "match": "^prowler aws --service (\\S+)$",
+            "output": "-> Using the AWS credentials below:\n  - AWS-CLI Profile: default\n  - AWS Regions: us-east-1\n  - AWS Account: 111122223333\n  - Caller Identity ARN: arn:aws:iam::111122223333:user/sec-auditor\nExecuting 284 checks, please wait...\n\nNo FAIL findings for service $1 (or the service name is not recognised; try s3, ec2, iam, cloudtrail)."
+          },
+          {
+            "match": "^prowler aws --severity (\\S+)$",
+            "output": "prowler: error: argument --severity: invalid choice: '$1' (choose from 'critical', 'high', 'medium', 'low', 'informational')"
+          },
+          {
+            "match": "^prowler( aws)? (?:-h|--help)$",
+            "output": "usage: prowler aws [--severity {critical,high,medium,low,informational} ...] [--service SERVICE ...] [--status FAIL]\nRun `prowler aws` for the overview, then filter to read findings."
+          },
+          {
+            "match": "^prowler\\b",
+            "output": "usage: prowler aws [--severity ...] [--service ...]\nprowler: error: choose a provider, e.g. `prowler aws`"
+          },
+          {
+            "match": "^aws s3api get-bucket-tagging --bucket nw-marketing-assets$",
+            "output": "{\n    \"TagSet\": [\n        { \"Key\": \"env\", \"Value\": \"prod\" },\n        { \"Key\": \"purpose\", \"Value\": \"public-website\" },\n        { \"Key\": \"data-class\", \"Value\": \"public\" }\n    ]\n}"
+          },
+          {
+            "match": "^aws s3api get-bucket-tagging --bucket nw-prod-db-backups$",
+            "output": "{\n    \"TagSet\": [\n        { \"Key\": \"env\", \"Value\": \"prod\" },\n        { \"Key\": \"data-class\", \"Value\": \"confidential\" },\n        { \"Key\": \"ticket\", \"Value\": \"FLAG{cspm_critical_first_a41f}\" }\n    ]\n}"
+          },
+          {
+            "match": "^aws s3 ls s3://nw-marketing-assets/?$",
+            "output": "                           PRE css/\n                           PRE img/\n2026-10-02 09:14:07      48211 favicon.ico\n2026-10-02 09:14:07     191034 hero.webp\n2026-10-02 09:14:07       3120 logo.svg"
+          },
+          {
+            "match": "^aws s3 ls s3://nw-prod-db-backups/?$",
+            "output": "2026-11-18 02:00:41 9786543210 ordersdb-20261118.dump.gz\n2026-11-19 02:00:39 9791122004 ordersdb-20261119.dump.gz\n2026-11-20 02:00:44 9795510987 ordersdb-20261120.dump.gz"
+          },
+          {
+            "match": "^aws s3api get-bucket-policy --bucket nw-marketing-assets$",
+            "output": "{\n    \"Policy\": \"{\\\"Version\\\":\\\"2012-10-17\\\",\\\"Statement\\\":[{\\\"Sid\\\":\\\"PublicSiteAssets\\\",\\\"Effect\\\":\\\"Allow\\\",\\\"Principal\\\":\\\"*\\\",\\\"Action\\\":\\\"s3:GetObject\\\",\\\"Resource\\\":\\\"arn:aws:s3:::nw-marketing-assets/*\\\"}]}\"\n}"
+          },
+          {
+            "match": "^aws s3api get-bucket-policy --bucket nw-prod-db-backups$",
+            "output": "{\n    \"Policy\": \"{\\\"Version\\\":\\\"2012-10-17\\\",\\\"Statement\\\":[{\\\"Sid\\\":\\\"PublicDownload\\\",\\\"Effect\\\":\\\"Allow\\\",\\\"Principal\\\":\\\"*\\\",\\\"Action\\\":\\\"s3:GetObject\\\",\\\"Resource\\\":\\\"arn:aws:s3:::nw-prod-db-backups/*\\\"},{\\\"Sid\\\":\\\"BackupJobWrite\\\",\\\"Effect\\\":\\\"Allow\\\",\\\"Principal\\\":{\\\"AWS\\\":\\\"arn:aws:iam::111122223333:role/BackupJobRole\\\"},\\\"Action\\\":\\\"s3:PutObject\\\",\\\"Resource\\\":\\\"arn:aws:s3:::nw-prod-db-backups/*\\\"}]}\"\n}"
+          },
+          {
+            "match": "^aws s3api get-bucket-policy --bucket (\\S+)$",
+            "output": "An error occurred (NoSuchBucketPolicy) when calling the GetBucketPolicy operation: The bucket policy does not exist"
+          },
+          {
+            "match": "^aws ec2 describe-network-interfaces --filters Name=group-id,Values=sg-0b1d4e7a9c2f61d08$",
+            "output": "{\n    \"NetworkInterfaces\": []\n}"
+          },
+          {
+            "match": "^aws ec2 describe-network-interfaces --filters Name=group-id,Values=sg-04e19c7d02ab3f568$",
+            "output": "{\n    \"NetworkInterfaces\": []\n}"
+          },
+          {
+            "match": "^aws ec2 describe-network-interfaces --filters Name=group-id,Values=sg-0f3a9d27c41e8b650$",
+            "output": "{\n    \"NetworkInterfaces\": [\n        {\n            \"NetworkInterfaceId\": \"eni-0d41c8a7e2b9f3016\",\n            \"Association\": { \"PublicIp\": \"203.0.113.25\" },\n            \"Attachment\": { \"InstanceId\": \"i-0a1b2c3d4e5f60718\", \"Status\": \"attached\" },\n            \"Groups\": [ { \"GroupName\": \"web-prod-sg\", \"GroupId\": \"sg-0f3a9d27c41e8b650\" } ]\n        }\n    ]\n}"
+          },
+          {
+            "match": "^aws ec2 describe-instances --instance-ids i-0a1b2c3d4e5f60718$",
+            "output": "{\n    \"Reservations\": [ { \"Instances\": [ {\n        \"InstanceId\": \"i-0a1b2c3d4e5f60718\",\n        \"Tags\": [ { \"Key\": \"Name\", \"Value\": \"web-prod-01\" } ],\n        \"PublicIpAddress\": \"203.0.113.25\",\n        \"IamInstanceProfile\": { \"Arn\": \"arn:aws:iam::111122223333:instance-profile/WebAppProfile\" },\n        \"MetadataOptions\": { \"HttpTokens\": \"optional\", \"HttpPutResponseHopLimit\": 2, \"HttpEndpoint\": \"enabled\" }\n    } ] } ]\n}"
+          },
+          {
+            "match": "^aws iam get-role-policy --role-name WebAppRole --policy-name AppEverything$",
+            "output": "{\n    \"RoleName\": \"WebAppRole\",\n    \"PolicyName\": \"AppEverything\",\n    \"PolicyDocument\": {\n        \"Version\": \"2012-10-17\",\n        \"Statement\": [ { \"Effect\": \"Allow\", \"Action\": \"*\", \"Resource\": \"*\" } ]\n    }\n}"
+          },
+          {
+            "match": "^aws (?:s3|s3api|ec2|iam) (?:put|delete|create|update|modify|attach|authorize|revoke)\\S*",
+            "output": "An error occurred (AccessDenied) when calling the operation: User: arn:aws:iam::111122223333:user/sec-auditor is not authorized to perform that action (this is a read-only audit identity; fix findings through the policy editor tasks)"
+          }
+        ]
+      },
+      "solution": [
+        "aws sts get-caller-identity",
+        "prowler aws",
+        "prowler aws --severity critical",
+        "aws s3api get-bucket-tagging --bucket nw-marketing-assets"
+      ],
+      "tasks": [
+        {
+          "id": "t1",
+          "kind": "choice",
+          "prompt": "The baseline scan shows 3 critical, 9 high, 14 medium and 5 low findings. Which approach gives the best remediation order?",
+          "options": [
+            "Fix every critical finding first in report order, then every high, and so on",
+            "Rank by exploitable impact: internet reachability, what is behind it, preconditions and compensating controls, and treat chained findings as one path",
+            "Fix the service with the most failed findings first, because it removes the most lines from the report",
+            "Mute everything below high so the report is short enough to action"
+          ],
+          "correct": [
+            1
+          ],
+          "explanation": "Severity is the tool's generic guess; it does not know that one bucket is a public website and another holds database dumps, or that a security group is attached to nothing. Ranking by reachability, blast radius, preconditions and chains is what turns a 31-line report into a plan. Fixing by count or muting low findings optimises the report, not the risk."
+        },
+        {
+          "id": "t2",
+          "kind": "answer",
+          "prompt": "Run the filtered Prowler read for critical findings. Two of the three share the same check. Which bucket is intentionally public (a false positive to mute as accepted risk)?",
+          "accept": [
+            "nw-marketing-assets",
+            "arn:aws:s3:::nw-marketing-assets",
+            "marketing-assets",
+            "nw marketing assets"
+          ],
+          "explanation": "nw-marketing-assets serves the static images and CSS of the public website and is tagged purpose=public-website, data-class=public, so a public-read policy is the design. The finding should be muted with an owner and an expiry, not 'fixed'. The other bucket holds confidential database dumps, so the same check there is a real exposure."
+        },
+        {
+          "id": "t3",
+          "kind": "flag",
+          "prompt": "Read the critical findings with a filtered Prowler run (not the baseline) and capture the flag from the exposed bucket's details.",
+          "flag": "FLAG{cspm_critical_first_a41f}",
+          "explanation": "Filtering by severity is how you read findings instead of counts. The flag was in the ticket tag of the real exposure, which a skim of the overview would never show. Filtering by service or severity is also how you keep a scan of hundreds of checks workable."
+        },
+        {
+          "id": "t4",
+          "kind": "answer",
+          "prompt": "Which single resource must be fixed first? Give the bucket name.",
+          "accept": [
+            "nw-prod-db-backups",
+            "arn:aws:s3:::nw-prod-db-backups",
+            "prod-db-backups",
+            "nw prod db backups"
+          ],
+          "explanation": "nw-prod-db-backups is the only finding that is internet-reachable right now, needs no preconditions, and exposes confidential data (full production database dumps). Its supporting medium findings make it worse: no data events in CloudTrail means downloads are not logged, and no TLS-only policy or versioning. Public scanners find open buckets within hours, so this beats the EC2 chain."
+        },
+        {
+          "id": "t5",
+          "kind": "choice",
+          "prompt": "Three findings, each rated high or medium on its own, combine into a path to full account takeover through web-prod-01. Which three?",
+          "options": [
+            "ec2_instance_public_ip + ec2_instance_imdsv2_enabled + iam_inline_policy_no_administrative_privileges (WebAppRole)",
+            "s3_bucket_default_encryption + s3_bucket_lifecycle_enabled + kms_cmk_rotation_enabled",
+            "cloudtrail_log_file_validation_enabled + vpc_flow_logs_enabled + iam_support_role_created",
+            "ec2_networkacl_allow_ingress_tcp_port_22 + rds_instance_no_public_access + ec2_securitygroup_not_used"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "A public web server whose app can be tricked into making requests (SSRF) can read role credentials from IMDSv1, and WebAppRole has \"*:*\", so the stolen credentials are administrator. This is the Capital One pattern. No single finding is critical, which is exactly why chains get missed when you only sort by severity. Fix it by requiring IMDSv2 and cutting WebAppRole down to what the app uses."
+        },
+        {
+          "id": "t6",
+          "kind": "policy",
+          "mode": "resource",
+          "prompt": "Fix the exposed bucket policy on nw-prod-db-backups. Anonymous users must not read or list anything. BackupJobRole must still upload dumps, DbaRestoreRole must still download them, other principals get nothing, and every request must use TLS.",
+          "starter": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"PublicDownload\",\n      \"Effect\": \"Allow\",\n      \"Principal\": \"*\",\n      \"Action\": \"s3:GetObject\",\n      \"Resource\": \"arn:aws:s3:::nw-prod-db-backups/*\"\n    },\n    {\n      \"Sid\": \"BackupJobWrite\",\n      \"Effect\": \"Allow\",\n      \"Principal\": {\n        \"AWS\": \"arn:aws:iam::111122223333:role/BackupJobRole\"\n      },\n      \"Action\": \"s3:PutObject\",\n      \"Resource\": \"arn:aws:s3:::nw-prod-db-backups/*\"\n    }\n  ]\n}",
+          "solution": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"DbaRestoreRead\",\n      \"Effect\": \"Allow\",\n      \"Principal\": {\n        \"AWS\": \"arn:aws:iam::111122223333:role/DbaRestoreRole\"\n      },\n      \"Action\": \"s3:GetObject\",\n      \"Resource\": \"arn:aws:s3:::nw-prod-db-backups/*\"\n    },\n    {\n      \"Sid\": \"BackupJobWrite\",\n      \"Effect\": \"Allow\",\n      \"Principal\": {\n        \"AWS\": \"arn:aws:iam::111122223333:role/BackupJobRole\"\n      },\n      \"Action\": \"s3:PutObject\",\n      \"Resource\": \"arn:aws:s3:::nw-prod-db-backups/*\"\n    },\n    {\n      \"Sid\": \"DenyInsecureTransport\",\n      \"Effect\": \"Deny\",\n      \"Principal\": \"*\",\n      \"Action\": \"s3:*\",\n      \"Resource\": [\n        \"arn:aws:s3:::nw-prod-db-backups\",\n        \"arn:aws:s3:::nw-prod-db-backups/*\"\n      ],\n      \"Condition\": {\n        \"Bool\": {\n          \"aws:SecureTransport\": \"false\"\n        }\n      }\n    }\n  ]\n}",
+          "tests": [
+            {
+              "name": "Anonymous users cannot download dumps",
+              "action": "s3:GetObject",
+              "resource": "arn:aws:s3:::nw-prod-db-backups/ordersdb-20261120.dump.gz",
+              "expect": "deny"
+            },
+            {
+              "name": "Anonymous users cannot list the bucket",
+              "action": "s3:ListBucket",
+              "resource": "arn:aws:s3:::nw-prod-db-backups",
+              "expect": "deny"
+            },
+            {
+              "name": "BackupJobRole can still upload dumps",
+              "action": "s3:PutObject",
+              "resource": "arn:aws:s3:::nw-prod-db-backups/ordersdb-20261121.dump.gz",
+              "principal": "arn:aws:iam::111122223333:role/BackupJobRole",
+              "context": {
+                "aws:SecureTransport": true
+              },
+              "expect": "allow"
+            },
+            {
+              "name": "DbaRestoreRole can still download dumps",
+              "action": "s3:GetObject",
+              "resource": "arn:aws:s3:::nw-prod-db-backups/ordersdb-20261120.dump.gz",
+              "principal": "arn:aws:iam::111122223333:role/DbaRestoreRole",
+              "context": {
+                "aws:SecureTransport": true
+              },
+              "expect": "allow"
+            },
+            {
+              "name": "Uploads over plain HTTP are rejected",
+              "action": "s3:PutObject",
+              "resource": "arn:aws:s3:::nw-prod-db-backups/ordersdb-20261121.dump.gz",
+              "principal": "arn:aws:iam::111122223333:role/BackupJobRole",
+              "context": {
+                "aws:SecureTransport": false
+              },
+              "expect": "deny"
+            },
+            {
+              "name": "An unrelated role from another account cannot read dumps",
+              "action": "s3:GetObject",
+              "resource": "arn:aws:s3:::nw-prod-db-backups/ordersdb-20261120.dump.gz",
+              "principal": "arn:aws:iam::999988887777:role/ExternalScanner",
+              "context": {
+                "aws:SecureTransport": true
+              },
+              "expect": "deny"
+            }
+          ],
+          "explanation": "The fix is to name the exact principals that need access instead of \"*\", and to add an explicit Deny for aws:SecureTransport=false (an explicit Deny wins over every Allow). Account-wide, turning on S3 Block Public Access would have stopped this policy from being effective at all, which is the systemic fix for the whole finding class."
+        },
+        {
+          "id": "t7",
+          "kind": "choice",
+          "prompt": "The legacy-migration-open security group (critical) is attached to no network interface, and the marketing bucket is public on purpose. What should you do with these two findings?",
+          "options": [
+            "Delete the marketing bucket policy and the security group today so the critical count drops to zero",
+            "Ignore them silently so the report stays accurate",
+            "Document each as a false positive or accepted risk with an owner and an expiry date, mute them, and delete the unused security group as clean-up",
+            "Downgrade the tool's severity setting for all s3 and ec2 checks"
+          ],
+          "correct": [
+            2
+          ],
+          "explanation": "Muting with an owner and an expiry keeps the decision auditable and brings the finding back for review if the situation changes. Deleting the marketing policy would take the website down; ignoring leaves noise that trains people to distrust the report; downgrading whole checks would hide the real exposure in nw-prod-db-backups. Removing the unattached security group is cheap hygiene, but it is not urgent."
+        }
+      ],
+      "takeaways": [
+        "A CSPM severity label is a starting point. Rank by reachability, blast radius, preconditions and compensating controls.",
+        "Look for chains: a public instance, IMDSv1 and an admin role are each only high or medium, but together they are account takeover.",
+        "Check what a flagged resource is before fixing it. Tags, contents and attachments separate false positives from real exposure.",
+        "Mute false positives as documented accepted risks, and fix the finding class with a guardrail such as account-level S3 Block Public Access."
+      ]
+    }
+  },
+  {
+    "labId": "cloud-L29",
+    "objective": "Write preventive Service Control Policies (leave-org, CloudTrail/GuardDuty tamper, region lock, public S3, IMDSv2) that block bad actions even for administrators, and dry-run a Checkov scan that catches the same mistakes before deploy.",
+    "successCriteria": [
+      "Your SCPs block the dangerous actions even though the test principal is a full administrator",
+      "Every SCP still allows normal work (allowed regions, global services, private S3, IMDSv2 launches)",
+      "You chose the right mechanism (SCP vs permission boundary vs identity policy) for an org-wide guarantee",
+      "You ran a Checkov dry run against the Terraform change and identified the failing checks"
+    ],
+    "hints": [
+      "SCPs only filter; they never grant. Here the admin identity policy and a FullAWSAccess SCP already allow everything, so your policy should be Deny statements.",
+      "Two things commonly break guardrails: forgetting related actions (stop, delete, update) and breaking global services. Read the tests by name to see which behaviours are checked.",
+      "Region lock: use NotAction to leave IAM, STS, Organizations and similar global services out of the deny. IMDSv2: the condition must deny when the token setting is NOT required. For Checkov, scan the whole file first, then re-run with --check using the ID of the IMDSv1 failure."
+    ],
+    "estimatedHours": 2,
+    "resources": [
+      {
+        "title": "AWS docs: Service control policies (SCPs)",
+        "url": "https://docs.aws.amazon.com/organizations/latest/userguide/orgs_manage_policies_scps.html",
+        "type": "link"
+      },
+      {
+        "title": "AWS docs: SCP examples",
+        "url": "https://docs.aws.amazon.com/organizations/latest/userguide/orgs_manage_policies_scps_examples.html",
+        "type": "link"
+      },
+      {
+        "title": "AWS docs: Configure instance metadata options",
+        "url": "https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/configuring-instance-metadata-options.html",
+        "type": "link"
+      },
+      {
+        "title": "Checkov",
+        "url": "https://www.checkov.io/",
+        "type": "link"
+      }
+    ],
+    "range": {
+      "scenario": "You are on the platform team at Northwind Retail. After a near miss where a developer with admin rights stopped CloudTrail in a sandbox account and another launched servers in an unmonitored region, leadership wants guardrails that hold even against administrators. You will write the Service Control Policies for the organization (the test principal in every task is a full administrator with Action * on Resource *), and then dry-run a Checkov scan on a proposed Terraform change to prove the same mistakes are caught before they ever reach the cloud.",
+      "artifacts": [
+        {
+          "name": "guardrail-requirements.txt",
+          "language": "text",
+          "content": "GUARDRAIL REQUIREMENTS (approved by security council)\n\n1. No account may leave the organization.\n2. CloudTrail and GuardDuty cannot be stopped, deleted or detached by anyone in a member account.\n3. Resources may only be created in ap-south-1 and eu-west-1. Global services (IAM, STS, Organizations, CloudFront, Route 53, Support, Budgets) must keep working.\n4. Block Public Access cannot be disabled and public ACLs cannot be applied. Only the OrgSecurityAdmin role may change Block Public Access (break-glass).\n5. New EC2 instances must require IMDSv2.",
+          "note": "What the SCPs must enforce."
+        },
+        {
+          "name": "admin-identity-policy.json",
+          "language": "json",
+          "content": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Effect\": \"Allow\",\n      \"Action\": \"*\",\n      \"Resource\": \"*\"\n    }\n  ]\n}",
+          "note": "The identity policy on the test principal. It allows everything."
+        },
+        {
+          "name": "main.tf",
+          "language": "text",
+          "content": "# main.tf - reports service (proposed change, MR !482)\nresource \"aws_s3_bucket\" \"reports\" {\n  bucket = \"nw-reports-prod\"\n  acl    = \"public-read\"\n}\n\nresource \"aws_s3_bucket_public_access_block\" \"reports\" {\n  bucket                  = aws_s3_bucket.reports.id\n  block_public_acls       = false\n  block_public_policy     = false\n  ignore_public_acls      = false\n  restrict_public_buckets = false\n}\n\nresource \"aws_instance\" \"reports_api\" {\n  ami           = \"ami-0abcdef1234567890\"\n  instance_type = \"t3.small\"\n  monitoring    = true\n  ebs_optimized = true\n\n  metadata_options {\n    http_endpoint = \"enabled\"\n    http_tokens   = \"optional\"\n  }\n}\n",
+          "note": "A proposed Terraform change (MR !482), not yet deployed."
+        }
+      ],
+      "terminal": {
+        "prompt": "platform-eng@guardrails:~/mr-482$",
+        "intro": "Working copy of merge request !482. checkov is installed. Nothing here can deploy.",
+        "help": "Commands you can try:\n  ls\n  cat main.tf\n  checkov -f main.tf                          full scan of the file\n  checkov -f main.tf --check <CKV_ID>          run a single check\n  aws organizations list-policies --filter SERVICE_CONTROL_POLICY",
+        "rules": [
+          {
+            "match": "^ls$",
+            "output": "main.tf  README.md"
+          },
+          {
+            "match": "^cat main\\.tf$",
+            "output": "# main.tf - reports service (proposed change, MR !482)\nresource \"aws_s3_bucket\" \"reports\" {\n  bucket = \"nw-reports-prod\"\n  acl    = \"public-read\"\n}\n\nresource \"aws_s3_bucket_public_access_block\" \"reports\" {\n  bucket                  = aws_s3_bucket.reports.id\n  block_public_acls       = false\n  block_public_policy     = false\n  ignore_public_acls      = false\n  restrict_public_buckets = false\n}\n\nresource \"aws_instance\" \"reports_api\" {\n  ami           = \"ami-0abcdef1234567890\"\n  instance_type = \"t3.small\"\n  monitoring    = true\n  ebs_optimized = true\n\n  metadata_options {\n    http_endpoint = \"enabled\"\n    http_tokens   = \"optional\"\n  }\n}\n"
+          },
+          {
+            "match": "^checkov (?:-f|-d) \\S+(?: --compact| --quiet| --framework terraform)*$",
+            "sets": [
+              "iac_scanned"
+            ],
+            "output": "terraform scan results:\n\nPassed checks: 2, Failed checks: 6, Skipped checks: 0\n\nCheck: CKV_AWS_126: \"Ensure that detailed monitoring is enabled for EC2 instances\"\n\tPASSED for resource: aws_instance.reports_api\n\tFile: /main.tf:15-25\n\nCheck: CKV_AWS_135: \"Ensure that EC2 is EBS optimized\"\n\tPASSED for resource: aws_instance.reports_api\n\tFile: /main.tf:15-25\n\nCheck: CKV_AWS_20: \"S3 Bucket has an ACL defined which allows public READ access.\"\n\tFAILED for resource: aws_s3_bucket.reports\n\tFile: /main.tf:2-5\n\nCheck: CKV_AWS_53: \"Ensure S3 bucket has block public ACLS enabled\"\n\tFAILED for resource: aws_s3_bucket_public_access_block.reports\n\tFile: /main.tf:7-13\n\nCheck: CKV_AWS_54: \"Ensure S3 bucket has block public policy enabled\"\n\tFAILED for resource: aws_s3_bucket_public_access_block.reports\n\tFile: /main.tf:7-13\n\nCheck: CKV_AWS_55: \"Ensure S3 bucket has ignore public ACLs enabled\"\n\tFAILED for resource: aws_s3_bucket_public_access_block.reports\n\tFile: /main.tf:7-13\n\nCheck: CKV_AWS_56: \"Ensure S3 bucket has 'restrict_public_bucket' enabled\"\n\tFAILED for resource: aws_s3_bucket_public_access_block.reports\n\tFile: /main.tf:7-13\n\nCheck: CKV_AWS_79: \"Ensure Instance Metadata Service Version 1 is not enabled\"\n\tFAILED for resource: aws_instance.reports_api\n\tFile: /main.tf:15-25"
+          },
+          {
+            "match": "^checkov (?:-f|-d) \\S+ --check CKV_AWS_79$",
+            "requires": [
+              "iac_scanned"
+            ],
+            "output": "terraform scan results:\n\nPassed checks: 0, Failed checks: 1, Skipped checks: 0\n\nCheck: CKV_AWS_79: \"Ensure Instance Metadata Service Version 1 is not enabled\"\n\tFAILED for resource: aws_instance.reports_api\n\tFile: /main.tf:15-25\n\nDry run only: nothing was deployed. Exit code 1, so the CI gate would BLOCK merge request !482.\nGate receipt: FLAG{iac_gate_blocks_imdsv1_c82d}"
+          },
+          {
+            "match": "^checkov (?:-f|-d) \\S+ --check CKV_AWS_79$",
+            "output": "No full report on record for this merge request yet. Run a full scan first (`checkov -f main.tf`) so you can see which check IDs fire on this file."
+          },
+          {
+            "match": "^checkov (?:-f|-d) \\S+ --check \\S+$",
+            "output": "terraform scan results:\n\nPassed checks: 0, Failed checks: 0, Skipped checks: 0\n\nNo matching results for those check IDs on this file. Look at the full report to pick the ID that matches the guardrail you are testing."
+          },
+          {
+            "match": "^checkov\\b",
+            "output": "usage: checkov -f <file> | -d <dir> [--check CKV_ID[,CKV_ID...]] [--compact] [--quiet]"
+          },
+          {
+            "match": "^terraform (?:plan|apply|init)\\b",
+            "output": "terraform is not installed in this sandbox. This is a dry run: scan the code with checkov, do not deploy it."
+          },
+          {
+            "match": "^aws organizations list-policies --filter SERVICE_CONTROL_POLICY$",
+            "output": "{\n    \"Policies\": [\n        { \"Id\": \"p-FullAWSAccess\", \"Arn\": \"arn:aws:organizations::aws:policy/service_control_policy/p-FullAWSAccess\", \"Name\": \"FullAWSAccess\", \"AwsManaged\": true }\n    ]\n}"
+          },
+          {
+            "match": "^aws sts get-caller-identity$",
+            "output": "{\n    \"UserId\": \"AIDAEXAMPLEPLATFORM01\",\n    \"Account\": \"111122223333\",\n    \"Arn\": \"arn:aws:iam::111122223333:user/platform-eng\"\n}"
+          }
+        ]
+      },
+      "solution": [
+        "ls",
+        "cat main.tf",
+        "checkov -f main.tf",
+        "checkov -f main.tf --check CKV_AWS_79"
+      ],
+      "tasks": [
+        {
+          "id": "t1",
+          "kind": "choice",
+          "prompt": "Security needs a guarantee that no one in any member account, including account administrators, can ever stop CloudTrail. Which mechanism provides it?",
+          "options": [
+            "An IAM policy with a Deny statement attached to every administrator in every account",
+            "A permission boundary that each account owner attaches to the roles they create",
+            "An SCP attached to the organization root or OU by the management account",
+            "An AWS Config rule that raises an alert after a trail has been stopped"
+          ],
+          "correct": [
+            2
+          ],
+          "explanation": "An SCP is applied by the management account and sets a ceiling no administrator in the member account can edit, so the guarantee does not depend on every account doing the right thing. IAM policies and boundaries are controlled by the account owners they are meant to constrain, and a Config rule is detective: the trail is already off when it fires."
+        },
+        {
+          "id": "t2",
+          "kind": "policy",
+          "mode": "scp",
+          "prompt": "Complete the SCP: no account may leave the organization, and CloudTrail and GuardDuty cannot be stopped, deleted or tampered with. Read-only and everyday actions must keep working.",
+          "starter": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"DenyLeaveOrg\",\n      \"Effect\": \"Deny\",\n      \"Action\": \"organizations:LeaveOrganization\",\n      \"Resource\": \"*\"\n    },\n    {\n      \"Sid\": \"DenyStopTrail\",\n      \"Effect\": \"Deny\",\n      \"Action\": \"cloudtrail:StopLogging\",\n      \"Resource\": \"*\"\n    }\n  ]\n}",
+          "solution": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"DenyLeaveOrg\",\n      \"Effect\": \"Deny\",\n      \"Action\": \"organizations:LeaveOrganization\",\n      \"Resource\": \"*\"\n    },\n    {\n      \"Sid\": \"ProtectCloudTrail\",\n      \"Effect\": \"Deny\",\n      \"Action\": [\n        \"cloudtrail:StopLogging\",\n        \"cloudtrail:DeleteTrail\",\n        \"cloudtrail:UpdateTrail\",\n        \"cloudtrail:PutEventSelectors\"\n      ],\n      \"Resource\": \"*\"\n    },\n    {\n      \"Sid\": \"ProtectGuardDuty\",\n      \"Effect\": \"Deny\",\n      \"Action\": [\n        \"guardduty:DeleteDetector\",\n        \"guardduty:DisassociateFromMasterAccount\",\n        \"guardduty:DisassociateFromAdministratorAccount\"\n      ],\n      \"Resource\": \"*\"\n    }\n  ]\n}",
+          "fixed": {
+            "identity": [
+              "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Effect\": \"Allow\",\n      \"Action\": \"*\",\n      \"Resource\": \"*\"\n    }\n  ]\n}"
+            ],
+            "scp": [
+              "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"FullAWSAccess\",\n      \"Effect\": \"Allow\",\n      \"Action\": \"*\",\n      \"Resource\": \"*\"\n    }\n  ]\n}"
+            ]
+          },
+          "tests": [
+            {
+              "name": "Cannot leave the organization",
+              "action": "organizations:LeaveOrganization",
+              "expect": "deny"
+            },
+            {
+              "name": "Cannot stop CloudTrail logging",
+              "action": "cloudtrail:StopLogging",
+              "resource": "arn:aws:cloudtrail:ap-south-1:111122223333:trail/org-trail",
+              "expect": "deny"
+            },
+            {
+              "name": "Cannot delete a trail",
+              "action": "cloudtrail:DeleteTrail",
+              "resource": "arn:aws:cloudtrail:ap-south-1:111122223333:trail/org-trail",
+              "expect": "deny"
+            },
+            {
+              "name": "Cannot change what a trail records",
+              "action": "cloudtrail:PutEventSelectors",
+              "resource": "arn:aws:cloudtrail:ap-south-1:111122223333:trail/org-trail",
+              "expect": "deny"
+            },
+            {
+              "name": "Cannot delete the GuardDuty detector",
+              "action": "guardduty:DeleteDetector",
+              "expect": "deny"
+            },
+            {
+              "name": "Can still read trail configuration",
+              "action": "cloudtrail:DescribeTrails",
+              "expect": "allow"
+            },
+            {
+              "name": "Can still read GuardDuty findings",
+              "action": "guardduty:ListFindings",
+              "expect": "allow"
+            },
+            {
+              "name": "Normal work such as writing to S3 still works",
+              "action": "s3:PutObject",
+              "resource": "arn:aws:s3:::nw-app-data/report.csv",
+              "expect": "allow"
+            }
+          ],
+          "explanation": "A guardrail has to cover every way to reach the same outcome: stopping logging, deleting the trail, updating it or changing event selectors all blind you equally. Likewise for GuardDuty: delete the detector or disassociate from the administrator account. Allowing the read-only calls (Describe, List) matters because over-broad SCPs break monitoring tools and are quickly removed by frustrated teams."
+        },
+        {
+          "id": "t3",
+          "kind": "policy",
+          "mode": "scp",
+          "prompt": "Fix the region lock. Allowed regions are ap-south-1 and eu-west-1 only, but global services such as IAM must keep working (their requests are logged against us-east-1).",
+          "starter": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"OnlyMumbai\",\n      \"Effect\": \"Deny\",\n      \"Action\": \"*\",\n      \"Resource\": \"*\",\n      \"Condition\": {\n        \"StringNotEquals\": {\n          \"aws:RequestedRegion\": [\n            \"ap-south-1\"\n          ]\n        }\n      }\n    }\n  ]\n}",
+          "solution": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"DenyUnapprovedRegions\",\n      \"Effect\": \"Deny\",\n      \"NotAction\": [\n        \"iam:*\",\n        \"organizations:*\",\n        \"sts:*\",\n        \"cloudfront:*\",\n        \"route53:*\",\n        \"support:*\",\n        \"budgets:*\"\n      ],\n      \"Resource\": \"*\",\n      \"Condition\": {\n        \"StringNotEquals\": {\n          \"aws:RequestedRegion\": [\n            \"ap-south-1\",\n            \"eu-west-1\"\n          ]\n        }\n      }\n    }\n  ]\n}",
+          "fixed": {
+            "identity": [
+              "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Effect\": \"Allow\",\n      \"Action\": \"*\",\n      \"Resource\": \"*\"\n    }\n  ]\n}"
+            ],
+            "scp": [
+              "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"FullAWSAccess\",\n      \"Effect\": \"Allow\",\n      \"Action\": \"*\",\n      \"Resource\": \"*\"\n    }\n  ]\n}"
+            ]
+          },
+          "tests": [
+            {
+              "name": "Cannot launch EC2 in us-east-1",
+              "action": "ec2:RunInstances",
+              "resource": "arn:aws:ec2:us-east-1:111122223333:instance/i-0123456789abcdef0",
+              "context": {
+                "aws:RequestedRegion": "us-east-1"
+              },
+              "expect": "deny"
+            },
+            {
+              "name": "Cannot create a Lambda function in us-west-2",
+              "action": "lambda:CreateFunction",
+              "resource": "arn:aws:lambda:us-west-2:111122223333:function:fn",
+              "context": {
+                "aws:RequestedRegion": "us-west-2"
+              },
+              "expect": "deny"
+            },
+            {
+              "name": "Can launch EC2 in ap-south-1",
+              "action": "ec2:RunInstances",
+              "resource": "arn:aws:ec2:ap-south-1:111122223333:instance/i-0123456789abcdef0",
+              "context": {
+                "aws:RequestedRegion": "ap-south-1"
+              },
+              "expect": "allow"
+            },
+            {
+              "name": "Can create an S3 bucket in eu-west-1",
+              "action": "s3:CreateBucket",
+              "resource": "arn:aws:s3:::nw-eu-data",
+              "context": {
+                "aws:RequestedRegion": "eu-west-1"
+              },
+              "expect": "allow"
+            },
+            {
+              "name": "IAM (a global service) still works",
+              "action": "iam:CreateRole",
+              "resource": "arn:aws:iam::111122223333:role/NewRole",
+              "context": {
+                "aws:RequestedRegion": "us-east-1"
+              },
+              "expect": "allow"
+            },
+            {
+              "name": "STS still works from its global endpoint",
+              "action": "sts:GetCallerIdentity",
+              "context": {
+                "aws:RequestedRegion": "us-east-1"
+              },
+              "expect": "allow"
+            }
+          ],
+          "explanation": "The condition key aws:RequestedRegion with StringNotEquals denies every request whose target region is not on the list. A blanket Deny on Action \"*\" also breaks global services whose endpoints live in us-east-1 (IAM, STS, Organizations, CloudFront, Route 53), which is why AWS's own examples use NotAction to exempt them. Remember to list every approved region, not just the first."
+        },
+        {
+          "id": "t4",
+          "kind": "policy",
+          "mode": "scp",
+          "prompt": "Write the public-S3 guardrail: Block Public Access settings cannot be changed except by the OrgSecurityAdmin role, and public ACLs cannot be applied. Private ACLs and ordinary uploads must keep working.",
+          "starter": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"ProtectAccountBPA\",\n      \"Effect\": \"Deny\",\n      \"Action\": \"s3:PutAccountPublicAccessBlock\",\n      \"Resource\": \"*\"\n    }\n  ]\n}",
+          "solution": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"ProtectBlockPublicAccess\",\n      \"Effect\": \"Deny\",\n      \"Action\": [\n        \"s3:PutAccountPublicAccessBlock\",\n        \"s3:PutBucketPublicAccessBlock\"\n      ],\n      \"Resource\": \"*\",\n      \"Condition\": {\n        \"ArnNotLike\": {\n          \"aws:PrincipalArn\": \"arn:aws:iam::*:role/OrgSecurityAdmin\"\n        }\n      }\n    },\n    {\n      \"Sid\": \"DenyPublicAcls\",\n      \"Effect\": \"Deny\",\n      \"Action\": [\n        \"s3:PutBucketAcl\",\n        \"s3:PutObjectAcl\"\n      ],\n      \"Resource\": \"*\",\n      \"Condition\": {\n        \"StringEquals\": {\n          \"s3:x-amz-acl\": [\n            \"public-read\",\n            \"public-read-write\",\n            \"authenticated-read\"\n          ]\n        }\n      }\n    }\n  ]\n}",
+          "fixed": {
+            "identity": [
+              "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Effect\": \"Allow\",\n      \"Action\": \"*\",\n      \"Resource\": \"*\"\n    }\n  ]\n}"
+            ],
+            "scp": [
+              "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"FullAWSAccess\",\n      \"Effect\": \"Allow\",\n      \"Action\": \"*\",\n      \"Resource\": \"*\"\n    }\n  ]\n}"
+            ]
+          },
+          "tests": [
+            {
+              "name": "Cannot turn off bucket-level Block Public Access",
+              "action": "s3:PutBucketPublicAccessBlock",
+              "resource": "arn:aws:s3:::nw-reports-prod",
+              "context": {
+                "aws:PrincipalArn": "arn:aws:iam::111122223333:role/DevOpsRole"
+              },
+              "expect": "deny"
+            },
+            {
+              "name": "Cannot turn off account-level Block Public Access",
+              "action": "s3:PutAccountPublicAccessBlock",
+              "resource": "*",
+              "context": {
+                "aws:PrincipalArn": "arn:aws:iam::111122223333:role/DevOpsRole"
+              },
+              "expect": "deny"
+            },
+            {
+              "name": "Cannot make a bucket public with a public-read ACL",
+              "action": "s3:PutBucketAcl",
+              "resource": "arn:aws:s3:::nw-reports-prod",
+              "context": {
+                "s3:x-amz-acl": "public-read"
+              },
+              "expect": "deny"
+            },
+            {
+              "name": "Cannot make an object world-readable",
+              "action": "s3:PutObjectAcl",
+              "resource": "arn:aws:s3:::nw-reports-prod/report.csv",
+              "context": {
+                "s3:x-amz-acl": "authenticated-read"
+              },
+              "expect": "deny"
+            },
+            {
+              "name": "OrgSecurityAdmin can still change Block Public Access (break-glass)",
+              "action": "s3:PutBucketPublicAccessBlock",
+              "resource": "arn:aws:s3:::nw-reports-prod",
+              "context": {
+                "aws:PrincipalArn": "arn:aws:iam::111122223333:role/OrgSecurityAdmin"
+              },
+              "expect": "allow"
+            },
+            {
+              "name": "A private ACL is still allowed",
+              "action": "s3:PutBucketAcl",
+              "resource": "arn:aws:s3:::nw-reports-prod",
+              "context": {
+                "s3:x-amz-acl": "private"
+              },
+              "expect": "allow"
+            },
+            {
+              "name": "Normal uploads still work",
+              "action": "s3:PutObject",
+              "resource": "arn:aws:s3:::nw-reports-prod/report.csv",
+              "expect": "allow"
+            }
+          ],
+          "explanation": "Public S3 is prevented in two layers: Block Public Access itself, and an SCP that stops anyone from switching it off (including the account-level setting). Conditioning on the s3:x-amz-acl key blocks the ACL route to public exposure. Excluding a break-glass role with ArnNotLike on aws:PrincipalArn gives security a controlled way through without opening the door to everyone else."
+        },
+        {
+          "id": "t5",
+          "kind": "policy",
+          "mode": "scp",
+          "prompt": "The starter SCP is meant to require IMDSv2 on new instances, but it blocks the wrong launches. Fix it so launches that do not require IMDSv2 are denied, and compliant launches work.",
+          "starter": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"RequireIMDSv2\",\n      \"Effect\": \"Deny\",\n      \"Action\": \"ec2:RunInstances\",\n      \"Resource\": \"arn:aws:ec2:*:*:instance/*\",\n      \"Condition\": {\n        \"StringEquals\": {\n          \"ec2:MetadataHttpTokens\": \"required\"\n        }\n      }\n    }\n  ]\n}",
+          "solution": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"RequireIMDSv2\",\n      \"Effect\": \"Deny\",\n      \"Action\": \"ec2:RunInstances\",\n      \"Resource\": \"arn:aws:ec2:*:*:instance/*\",\n      \"Condition\": {\n        \"StringNotEquals\": {\n          \"ec2:MetadataHttpTokens\": \"required\"\n        }\n      }\n    }\n  ]\n}",
+          "fixed": {
+            "identity": [
+              "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Effect\": \"Allow\",\n      \"Action\": \"*\",\n      \"Resource\": \"*\"\n    }\n  ]\n}"
+            ],
+            "scp": [
+              "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"FullAWSAccess\",\n      \"Effect\": \"Allow\",\n      \"Action\": \"*\",\n      \"Resource\": \"*\"\n    }\n  ]\n}"
+            ]
+          },
+          "tests": [
+            {
+              "name": "Launching an instance with IMDSv1 allowed (HttpTokens optional) is blocked",
+              "action": "ec2:RunInstances",
+              "resource": "arn:aws:ec2:ap-south-1:111122223333:instance/i-0123456789abcdef0",
+              "context": {
+                "ec2:MetadataHttpTokens": "optional"
+              },
+              "expect": "deny"
+            },
+            {
+              "name": "Launching an instance that requires IMDSv2 is allowed",
+              "action": "ec2:RunInstances",
+              "resource": "arn:aws:ec2:ap-south-1:111122223333:instance/i-0123456789abcdef0",
+              "context": {
+                "ec2:MetadataHttpTokens": "required"
+              },
+              "expect": "allow"
+            },
+            {
+              "name": "Other resources in the same launch (the AMI) are not blocked",
+              "action": "ec2:RunInstances",
+              "resource": "arn:aws:ec2:ap-south-1::image/ami-0abcdef1234567890",
+              "expect": "allow"
+            },
+            {
+              "name": "Describing instances still works",
+              "action": "ec2:DescribeInstances",
+              "expect": "allow"
+            }
+          ],
+          "explanation": "The condition key ec2:MetadataHttpTokens holds the token requirement of the instance being launched. The guardrail must deny when it is NOT 'required' (StringNotEquals); the starter did the inverse and would have blocked every compliant launch. Scoping the statement to instance/* matters because RunInstances touches several resource types (AMI, subnet, volume) and only the instance carries the metadata option."
+        },
+        {
+          "id": "t6",
+          "kind": "flag",
+          "prompt": "Dry-run the Terraform change. Scan the whole file first, then re-run Checkov for just the check that corresponds to your IMDSv2 guardrail to see the CI gate block the merge. Paste the gate receipt.",
+          "flag": "FLAG{iac_gate_blocks_imdsv1_c82d}",
+          "explanation": "Shifting left means the same rule exists twice: the SCP is the backstop that cannot be bypassed, and the IaC check fails the merge request long before an API call is made. Running the full scan first tells you which check ID corresponds to which risk, and a single-check run is how you wire one rule into a CI gate."
+        },
+        {
+          "id": "t7",
+          "kind": "answer",
+          "prompt": "In the Checkov report, which check ID reports that Instance Metadata Service Version 1 is still enabled?",
+          "accept": [
+            "ckv_aws_79",
+            "ckv aws 79",
+            "ckv-aws-79"
+          ],
+          "explanation": "CKV_AWS_79 fails on aws_instance.reports_api because http_tokens is 'optional'. The other failures are the public-read ACL (CKV_AWS_20) and the four Block Public Access checks (CKV_AWS_53 to 56), which map directly onto guardrails 4 and 5 in the requirements, so every SCP you wrote has a matching pre-deploy check."
+        },
+        {
+          "id": "t8",
+          "kind": "choice",
+          "prompt": "Which statements about Service Control Policies are true? (select all that apply)",
+          "options": [
+            "An SCP never grants permissions; it only sets the maximum that identity and resource policies can allow",
+            "An SCP applies to the organization's management account, so you can lock down the master account too",
+            "An SCP restricts the root user of every member account it applies to",
+            "An SCP restricts service-linked roles so it can stop AWS services from managing resources"
+          ],
+          "correct": [
+            0,
+            2
+          ],
+          "explanation": "SCPs are guardrails: the effective permission is the intersection of the SCP and the identity policy, and the root user of a member account is limited by them too. They do not affect the management account at all, which is why you keep workloads out of it, and they do not restrict service-linked roles, which AWS services use to do their own work."
+        }
+      ],
+      "takeaways": [
+        "An SCP is the only guardrail that account administrators cannot remove; permission boundaries and IAM policies are controlled by the people they constrain.",
+        "Cover every route to the same outcome (stop, delete, update, change selectors) and exempt global services from region locks with NotAction.",
+        "Prove each guardrail both ways: it must block the bad action and still allow everyday work, or teams will route around it.",
+        "Run the same rule pre-deploy (Checkov in CI) and as a backstop (SCP) so mistakes are stopped at merge time and again at the API."
+      ]
+    }
+  },
+  {
+    "labId": "cloud-L30",
+    "objective": "Survey a deliberately broken estate through a read-only terminal, find five flawed policies (public bucket, wildcard trust, PassRole wildcard, admin without MFA, unprotected CloudTrail), fix each one with the right policy type, and name the top risk.",
+    "successCriteria": [
+      "You found all five flaws from the terminal and unlocked the estate report",
+      "Each of the five policies is fixed so the bad access is denied and legitimate access still works",
+      "You used the right policy slot for each fix (bucket policy, trust policy, permission boundary, identity policy, SCP)",
+      "You named the single highest risk in the estate and justified it by impact"
+    ],
+    "hints": [
+      "Start broad: list the buckets, roles, users and trails, then inspect policies one at a time. Not every policy is broken, so compare them.",
+      "The flaws are one per area: a bucket policy with Principal \"*\", a role trust with a wildcard principal, a user with iam:PassRole on every role, an administrator without an MFA condition, and a trail nothing protects. You must inspect all five before the estate report will run.",
+      "For the top risk, ask which flaw lets someone with no credentials of your organization reach administrator permissions with one API call."
+    ],
+    "estimatedHours": 2,
+    "resources": [
+      {
+        "title": "AWS docs: Permissions boundaries for IAM entities",
+        "url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies_boundaries.html",
+        "type": "link"
+      },
+      {
+        "title": "AWS docs: The confused deputy problem",
+        "url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/confused-deputy.html",
+        "type": "link"
+      },
+      {
+        "title": "AWS docs: Configuring MFA-protected API access",
+        "url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_mfa_configure-api-require.html",
+        "type": "link"
+      },
+      {
+        "title": "AWS docs: Security best practices in AWS CloudTrail",
+        "url": "https://docs.aws.amazon.com/awscloudtrail/latest/userguide/best-practices-security.html",
+        "type": "link"
+      }
+    ],
+    "range": {
+      "scenario": "Northwind Retail has just acquired a small shop and its AWS account 111122223333 comes with no documentation. Leadership suspects it is a mess and has given you read-only audit access (SecurityAuditRole) and one day. Survey the account from the terminal, find the flawed policies, fix each one with the correct kind of policy, and finish by running the estate report and naming the single biggest risk. Not every policy in the account is bad, so do not fix what is not broken.",
+      "artifacts": [
+        {
+          "name": "estate-inventory.txt",
+          "language": "text",
+          "content": "ESTATE INVENTORY (as handed over, unverified)\n\nBuckets:   nw-app-assets (storefront images behind CloudFront), nw-cloudtrail-logs, nw-customer-exports (nightly customer data exports for the partner portal)\nRoles:     DeployRole (used by an outside CI vendor, account 444455556666), EcsTaskRole-orders, OrgAdminRole, SecurityAuditRole\nUsers:     ci-deployer (deploys ECS services), platform-admin, intern-priya\nTrail:     org-trail (us-east-1, multi-region)\nOrg:       single management account, only the default FullAWSAccess SCP attached\n\nEstate report script: ./estate-report.sh (runs a five-point summary once you have looked at each area).",
+          "note": "What the previous owners say exists."
+        },
+        {
+          "name": "nw-customer-exports-bucket-policy.json",
+          "language": "json",
+          "content": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"PartnerReadAll\",\n      \"Effect\": \"Allow\",\n      \"Principal\": \"*\",\n      \"Action\": [\n        \"s3:GetObject\",\n        \"s3:ListBucket\"\n      ],\n      \"Resource\": [\n        \"arn:aws:s3:::nw-customer-exports\",\n        \"arn:aws:s3:::nw-customer-exports/*\"\n      ]\n    },\n    {\n      \"Sid\": \"ExportJobWrite\",\n      \"Effect\": \"Allow\",\n      \"Principal\": {\n        \"AWS\": \"arn:aws:iam::111122223333:role/ExportJobRole\"\n      },\n      \"Action\": \"s3:PutObject\",\n      \"Resource\": \"arn:aws:s3:::nw-customer-exports/*\"\n    }\n  ]\n}",
+          "note": "Bucket policy on nw-customer-exports (flaw 1)."
+        },
+        {
+          "name": "DeployRole-trust-policy.json",
+          "language": "json",
+          "content": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Effect\": \"Allow\",\n      \"Principal\": {\n        \"AWS\": \"*\"\n      },\n      \"Action\": \"sts:AssumeRole\"\n    }\n  ]\n}",
+          "note": "Trust policy on DeployRole (flaw 2). The vendor CI role is arn:aws:iam::444455556666:role/CiRunner and uses external ID nw-ci-7f3b2."
+        },
+        {
+          "name": "ci-deployer-policy.json",
+          "language": "json",
+          "content": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"EcsDeploy\",\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"ecs:RegisterTaskDefinition\",\n        \"ecs:UpdateService\",\n        \"ecs:DescribeServices\"\n      ],\n      \"Resource\": \"*\"\n    },\n    {\n      \"Sid\": \"PassAnyRole\",\n      \"Effect\": \"Allow\",\n      \"Action\": \"iam:PassRole\",\n      \"Resource\": \"*\"\n    }\n  ]\n}",
+          "note": "Identity policy on the ci-deployer user (flaw 3). The user may deploy ECS services and pass only EcsTaskRole-* roles, only to ECS tasks."
+        },
+        {
+          "name": "platform-admin-policy.json",
+          "language": "json",
+          "content": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"AdminAll\",\n      \"Effect\": \"Allow\",\n      \"Action\": \"*\",\n      \"Resource\": \"*\"\n    }\n  ]\n}",
+          "note": "Identity policy on platform-admin (flaw 4)."
+        },
+        {
+          "name": "org-scp-current.json",
+          "language": "json",
+          "content": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"DenyDeleteTrail\",\n      \"Effect\": \"Deny\",\n      \"Action\": \"cloudtrail:DeleteTrail\",\n      \"Resource\": \"*\"\n    }\n  ]\n}",
+          "note": "A draft SCP someone started for CloudTrail (flaw 5). The trail is arn:aws:cloudtrail:us-east-1:111122223333:trail/org-trail."
+        },
+        {
+          "name": "estate-report.sh",
+          "language": "bash",
+          "content": "#!/usr/bin/env bash\n# Prints a five-point summary of the estate's biggest risks.\n# It refuses to run until the auditor has looked at every risk area in this session\n# (bucket policy, role trust, PassRole grants, admin MFA, CloudTrail protection).\n",
+          "note": "Local helper script."
+        }
+      ],
+      "terminal": {
+        "prompt": "audit@estate:~$",
+        "intro": "SecurityAuditRole (read-only) for account 111122223333. Explore with the AWS CLI. ./estate-report.sh is in the working directory.",
+        "help": "Commands you can try:\n  aws sts get-caller-identity\n  aws s3api list-buckets\n  aws s3api get-bucket-policy --bucket <name>\n  aws iam list-roles | list-users\n  aws iam get-role --role-name <name>\n  aws iam list-attached-role-policies --role-name <name>\n  aws iam list-user-policies --user-name <name>\n  aws iam get-user-policy --user-name <name> --policy-name <name>\n  aws iam list-mfa-devices --user-name <name>\n  aws cloudtrail describe-trails\n  aws organizations list-policies --filter SERVICE_CONTROL_POLICY\n  ./estate-report.sh",
+        "rules": [
+          {
+            "match": "^aws sts get-caller-identity$",
+            "output": "{\n    \"UserId\": \"AROAEXAMPLEAUDIT0001:audit-session\",\n    \"Account\": \"111122223333\",\n    \"Arn\": \"arn:aws:sts::111122223333:assumed-role/SecurityAuditRole/audit-session\"\n}"
+          },
+          {
+            "match": "^aws s3api list-buckets$",
+            "output": "{\n    \"Buckets\": [\n        { \"Name\": \"nw-app-assets\", \"CreationDate\": \"2024-03-11T08:20:15+00:00\" },\n        { \"Name\": \"nw-cloudtrail-logs\", \"CreationDate\": \"2024-03-11T08:25:02+00:00\" },\n        { \"Name\": \"nw-customer-exports\", \"CreationDate\": \"2025-06-02T10:41:37+00:00\" }\n    ]\n}"
+          },
+          {
+            "match": "^aws s3api get-bucket-policy --bucket nw-customer-exports$",
+            "output": "{\n    \"Policy\": \"{\\\"Version\\\":\\\"2012-10-17\\\",\\\"Statement\\\":[{\\\"Sid\\\":\\\"PartnerReadAll\\\",\\\"Effect\\\":\\\"Allow\\\",\\\"Principal\\\":\\\"*\\\",\\\"Action\\\":[\\\"s3:GetObject\\\",\\\"s3:ListBucket\\\"],\\\"Resource\\\":[\\\"arn:aws:s3:::nw-customer-exports\\\",\\\"arn:aws:s3:::nw-customer-exports/*\\\"]},{\\\"Sid\\\":\\\"ExportJobWrite\\\",\\\"Effect\\\":\\\"Allow\\\",\\\"Principal\\\":{\\\"AWS\\\":\\\"arn:aws:iam::111122223333:role/ExportJobRole\\\"},\\\"Action\\\":\\\"s3:PutObject\\\",\\\"Resource\\\":\\\"arn:aws:s3:::nw-customer-exports/*\\\"}]}\"\n}",
+            "sets": [
+              "found_bucket"
+            ]
+          },
+          {
+            "match": "^aws s3api get-bucket-policy --bucket nw-app-assets$",
+            "output": "{\n    \"Policy\": \"{\\\"Version\\\":\\\"2012-10-17\\\",\\\"Statement\\\":[{\\\"Sid\\\":\\\"CloudFrontOAC\\\",\\\"Effect\\\":\\\"Allow\\\",\\\"Principal\\\":{\\\"Service\\\":\\\"cloudfront.amazonaws.com\\\"},\\\"Action\\\":\\\"s3:GetObject\\\",\\\"Resource\\\":\\\"arn:aws:s3:::nw-app-assets/*\\\",\\\"Condition\\\":{\\\"StringEquals\\\":{\\\"AWS:SourceArn\\\":\\\"arn:aws:cloudfront::111122223333:distribution/E2EXAMPLE1ABCD\\\"}}}]}\"\n}"
+          },
+          {
+            "match": "^aws s3api get-bucket-policy --bucket nw-cloudtrail-logs$",
+            "output": "{\n    \"Policy\": \"{\\\"Version\\\":\\\"2012-10-17\\\",\\\"Statement\\\":[{\\\"Sid\\\":\\\"AWSCloudTrailWrite\\\",\\\"Effect\\\":\\\"Allow\\\",\\\"Principal\\\":{\\\"Service\\\":\\\"cloudtrail.amazonaws.com\\\"},\\\"Action\\\":\\\"s3:PutObject\\\",\\\"Resource\\\":\\\"arn:aws:s3:::nw-cloudtrail-logs/AWSLogs/111122223333/*\\\",\\\"Condition\\\":{\\\"StringEquals\\\":{\\\"s3:x-amz-acl\\\":\\\"bucket-owner-full-control\\\"}}}]}\"\n}"
+          },
+          {
+            "match": "^aws s3api get-public-access-block --bucket (\\S+)$",
+            "output": "An error occurred (NoSuchPublicAccessBlockConfiguration) when calling the GetPublicAccessBlock operation: The public access block configuration was not found"
+          },
+          {
+            "match": "^aws iam list-roles$",
+            "output": "{\n    \"Roles\": [\n        { \"RoleName\": \"DeployRole\",          \"Arn\": \"arn:aws:iam::111122223333:role/DeployRole\" },\n        { \"RoleName\": \"EcsTaskRole-orders\",  \"Arn\": \"arn:aws:iam::111122223333:role/EcsTaskRole-orders\" },\n        { \"RoleName\": \"OrgAdminRole\",        \"Arn\": \"arn:aws:iam::111122223333:role/OrgAdminRole\" },\n        { \"RoleName\": \"SecurityAuditRole\",   \"Arn\": \"arn:aws:iam::111122223333:role/SecurityAuditRole\" }\n    ]\n}"
+          },
+          {
+            "match": "^aws iam get-role --role-name deployrole$",
+            "output": "{\n    \"Role\": {\n        \"RoleName\": \"DeployRole\",\n        \"Arn\": \"arn:aws:iam::111122223333:role/DeployRole\",\n        \"AssumeRolePolicyDocument\": {\n          \"Version\": \"2012-10-17\",\n          \"Statement\": [\n            {\n              \"Effect\": \"Allow\",\n              \"Principal\": {\n                \"AWS\": \"*\"\n              },\n              \"Action\": \"sts:AssumeRole\"\n            }\n          ]\n        }\n    }\n}",
+            "sets": [
+              "found_trust"
+            ]
+          },
+          {
+            "match": "^aws iam get-role --role-name ecstaskrole-orders$",
+            "output": "{\n    \"Role\": {\n        \"RoleName\": \"EcsTaskRole-orders\",\n        \"AssumeRolePolicyDocument\": { \"Statement\": [ { \"Effect\": \"Allow\", \"Principal\": { \"Service\": \"ecs-tasks.amazonaws.com\" }, \"Action\": \"sts:AssumeRole\" } ] }\n    }\n}"
+          },
+          {
+            "match": "^aws iam get-role --role-name orgadminrole$",
+            "output": "{\n    \"Role\": {\n        \"RoleName\": \"OrgAdminRole\",\n        \"AssumeRolePolicyDocument\": { \"Statement\": [ { \"Effect\": \"Allow\", \"Principal\": { \"AWS\": \"arn:aws:iam::111122223333:user/platform-admin\" }, \"Action\": \"sts:AssumeRole\" } ] }\n    }\n}"
+          },
+          {
+            "match": "^aws iam get-role --role-name securityauditrole$",
+            "output": "{\n    \"Role\": {\n        \"RoleName\": \"SecurityAuditRole\",\n        \"AssumeRolePolicyDocument\": { \"Statement\": [ { \"Effect\": \"Allow\", \"Principal\": { \"AWS\": \"arn:aws:iam::111122223333:root\" }, \"Action\": \"sts:AssumeRole\", \"Condition\": { \"Bool\": { \"aws:MultiFactorAuthPresent\": \"true\" } } } ] }\n    }\n}"
+          },
+          {
+            "match": "^aws iam get-role --role-name (\\S+)$",
+            "output": "An error occurred (NoSuchEntity) when calling the GetRole operation: The role with name $1 cannot be found."
+          },
+          {
+            "match": "^aws iam list-attached-role-policies --role-name deployrole$",
+            "output": "{\n    \"AttachedPolicies\": [\n        { \"PolicyName\": \"AdministratorAccess\", \"PolicyArn\": \"arn:aws:iam::aws:policy/AdministratorAccess\" }\n    ]\n}"
+          },
+          {
+            "match": "^aws iam list-attached-role-policies --role-name (\\S+)$",
+            "output": "{\n    \"AttachedPolicies\": []\n}"
+          },
+          {
+            "match": "^aws iam list-users$",
+            "output": "{\n    \"Users\": [\n        { \"UserName\": \"ci-deployer\",    \"Arn\": \"arn:aws:iam::111122223333:user/ci-deployer\" },\n        { \"UserName\": \"intern-priya\",   \"Arn\": \"arn:aws:iam::111122223333:user/intern-priya\" },\n        { \"UserName\": \"platform-admin\", \"Arn\": \"arn:aws:iam::111122223333:user/platform-admin\" }\n    ]\n}"
+          },
+          {
+            "match": "^aws iam list-user-policies --user-name ci-deployer$",
+            "output": "{\n    \"PolicyNames\": [ \"EcsDeploy\" ]\n}"
+          },
+          {
+            "match": "^aws iam list-user-policies --user-name platform-admin$",
+            "output": "{\n    \"PolicyNames\": [ \"AdminAll\" ]\n}"
+          },
+          {
+            "match": "^aws iam list-user-policies --user-name (\\S+)$",
+            "output": "{\n    \"PolicyNames\": []\n}"
+          },
+          {
+            "match": "^aws iam get-user-policy --user-name ci-deployer --policy-name ecsdeploy$",
+            "output": "{\n    \"UserName\": \"ci-deployer\",\n    \"PolicyName\": \"EcsDeploy\",\n    \"PolicyDocument\": {\n      \"Version\": \"2012-10-17\",\n      \"Statement\": [\n        {\n          \"Sid\": \"EcsDeploy\",\n          \"Effect\": \"Allow\",\n          \"Action\": [\n            \"ecs:RegisterTaskDefinition\",\n            \"ecs:UpdateService\",\n            \"ecs:DescribeServices\"\n          ],\n          \"Resource\": \"*\"\n        },\n        {\n          \"Sid\": \"PassAnyRole\",\n          \"Effect\": \"Allow\",\n          \"Action\": \"iam:PassRole\",\n          \"Resource\": \"*\"\n        }\n      ]\n    }\n}",
+            "sets": [
+              "found_passrole"
+            ]
+          },
+          {
+            "match": "^aws iam get-user-policy --user-name platform-admin --policy-name adminall$",
+            "output": "{\n    \"UserName\": \"platform-admin\",\n    \"PolicyName\": \"AdminAll\",\n    \"PolicyDocument\": {\n      \"Version\": \"2012-10-17\",\n      \"Statement\": [\n        {\n          \"Sid\": \"AdminAll\",\n          \"Effect\": \"Allow\",\n          \"Action\": \"*\",\n          \"Resource\": \"*\"\n        }\n      ]\n    }\n}",
+            "sets": [
+              "found_admin"
+            ]
+          },
+          {
+            "match": "^aws iam get-user-policy\\b",
+            "output": "An error occurred (NoSuchEntity) when calling the GetUserPolicy operation: The user policy with that name cannot be found."
+          },
+          {
+            "match": "^aws iam get-user --user-name ci-deployer$",
+            "output": "{\n    \"User\": { \"UserName\": \"ci-deployer\", \"Arn\": \"arn:aws:iam::111122223333:user/ci-deployer\" }\n}"
+          },
+          {
+            "match": "^aws iam list-mfa-devices --user-name platform-admin$",
+            "output": "{\n    \"MFADevices\": []\n}"
+          },
+          {
+            "match": "^aws iam list-mfa-devices --user-name (\\S+)$",
+            "output": "{\n    \"MFADevices\": [ { \"UserName\": \"$1\", \"SerialNumber\": \"arn:aws:iam::111122223333:mfa/$1\", \"EnableDate\": \"2025-09-14T07:12:44+00:00\" } ]\n}"
+          },
+          {
+            "match": "^aws cloudtrail describe-trails$",
+            "output": "{\n    \"trailList\": [\n        {\n            \"Name\": \"org-trail\",\n            \"S3BucketName\": \"nw-cloudtrail-logs\",\n            \"IsMultiRegionTrail\": true,\n            \"IsOrganizationTrail\": false,\n            \"LogFileValidationEnabled\": false,\n            \"TrailARN\": \"arn:aws:cloudtrail:us-east-1:111122223333:trail/org-trail\",\n            \"HomeRegion\": \"us-east-1\"\n        }\n    ]\n}",
+            "sets": [
+              "found_trail"
+            ]
+          },
+          {
+            "match": "^aws cloudtrail get-trail-status --name org-trail$",
+            "output": "{\n    \"IsLogging\": true,\n    \"LatestDeliveryTime\": \"2026-11-20T06:03:12+00:00\"\n}"
+          },
+          {
+            "match": "^aws organizations list-policies --filter SERVICE_CONTROL_POLICY$",
+            "output": "{\n    \"Policies\": [\n        { \"Id\": \"p-FullAWSAccess\", \"Name\": \"FullAWSAccess\", \"AwsManaged\": true }\n    ]\n}"
+          },
+          {
+            "match": "^\\./estate-report\\.sh$",
+            "output": "estate-report: surveying 5 risk areas in account 111122223333\n[1/5] S3 bucket policy ...... nw-customer-exports ... PUBLIC (Principal \"*\" can read and list)\n[2/5] Role trust policy ..... DeployRole ... any AWS principal can assume it (AdministratorAccess attached)\n[3/5] PassRole grants ....... ci-deployer ... iam:PassRole on Resource \"*\"\n[4/5] Admin MFA ............. platform-admin ... Allow * with no MFA condition\n[5/5] CloudTrail ............ org-trail ... no SCP protects it from StopLogging or Update\nAll five areas surveyed. Report token: FLAG{estate_survey_complete_5d2b}",
+            "requires": [
+              "found_bucket",
+              "found_trust",
+              "found_passrole",
+              "found_admin",
+              "found_trail"
+            ]
+          },
+          {
+            "match": "^\\./estate-report\\.sh$",
+            "output": "estate-report: survey incomplete. Inspect all five risk areas first: bucket policies, role trust policies, PassRole grants, admin users and MFA, and CloudTrail protection."
+          },
+          {
+            "match": "^aws (?:s3api|iam|cloudtrail|organizations) (put|delete|create|update|attach|detach|stop|remove)\\S*",
+            "output": "An error occurred (AccessDenied) when calling the requested operation: User: arn:aws:sts::111122223333:assumed-role/SecurityAuditRole/audit-session is not authorized to perform that action (SecurityAuditRole is read-only; fix the policies in the editor tasks)"
+          }
+        ]
+      },
+      "solution": [
+        "aws sts get-caller-identity",
+        "aws s3api list-buckets",
+        "aws s3api get-bucket-policy --bucket nw-customer-exports",
+        "aws iam list-roles",
+        "aws iam get-role --role-name DeployRole",
+        "aws iam list-users",
+        "aws iam get-user-policy --user-name ci-deployer --policy-name EcsDeploy",
+        "aws iam get-user-policy --user-name platform-admin --policy-name AdminAll",
+        "aws cloudtrail describe-trails",
+        "./estate-report.sh"
+      ],
+      "tasks": [
+        {
+          "id": "t1",
+          "kind": "answer",
+          "prompt": "From the terminal, inspect the policies on the three buckets. Which bucket has a policy that lets anonymous users read objects?",
+          "accept": [
+            "nw-customer-exports",
+            "arn:aws:s3:::nw-customer-exports",
+            "customer-exports",
+            "nw customer exports"
+          ],
+          "explanation": "nw-customer-exports has an Allow with Principal \"*\", so anyone on the internet can list and download customer data. The other two policies are fine: nw-app-assets only trusts the CloudFront service for one distribution, and nw-cloudtrail-logs only lets the CloudTrail service write. Comparing them is how you tell a flaw from a design."
+        },
+        {
+          "id": "t2",
+          "kind": "policy",
+          "mode": "resource",
+          "prompt": "Fix the bucket policy on nw-customer-exports. Anonymous users get nothing. ExportJobRole must still write exports, PortalReaderRole must still read them, and every request must use TLS.",
+          "starter": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"PartnerReadAll\",\n      \"Effect\": \"Allow\",\n      \"Principal\": \"*\",\n      \"Action\": [\n        \"s3:GetObject\",\n        \"s3:ListBucket\"\n      ],\n      \"Resource\": [\n        \"arn:aws:s3:::nw-customer-exports\",\n        \"arn:aws:s3:::nw-customer-exports/*\"\n      ]\n    },\n    {\n      \"Sid\": \"ExportJobWrite\",\n      \"Effect\": \"Allow\",\n      \"Principal\": {\n        \"AWS\": \"arn:aws:iam::111122223333:role/ExportJobRole\"\n      },\n      \"Action\": \"s3:PutObject\",\n      \"Resource\": \"arn:aws:s3:::nw-customer-exports/*\"\n    }\n  ]\n}",
+          "solution": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"PortalRead\",\n      \"Effect\": \"Allow\",\n      \"Principal\": {\n        \"AWS\": \"arn:aws:iam::111122223333:role/PortalReaderRole\"\n      },\n      \"Action\": \"s3:GetObject\",\n      \"Resource\": \"arn:aws:s3:::nw-customer-exports/*\"\n    },\n    {\n      \"Sid\": \"ExportJobWrite\",\n      \"Effect\": \"Allow\",\n      \"Principal\": {\n        \"AWS\": \"arn:aws:iam::111122223333:role/ExportJobRole\"\n      },\n      \"Action\": \"s3:PutObject\",\n      \"Resource\": \"arn:aws:s3:::nw-customer-exports/*\"\n    },\n    {\n      \"Sid\": \"DenyInsecureTransport\",\n      \"Effect\": \"Deny\",\n      \"Principal\": \"*\",\n      \"Action\": \"s3:*\",\n      \"Resource\": [\n        \"arn:aws:s3:::nw-customer-exports\",\n        \"arn:aws:s3:::nw-customer-exports/*\"\n      ],\n      \"Condition\": {\n        \"Bool\": {\n          \"aws:SecureTransport\": \"false\"\n        }\n      }\n    }\n  ]\n}",
+          "tests": [
+            {
+              "name": "Anonymous users cannot download exports",
+              "action": "s3:GetObject",
+              "resource": "arn:aws:s3:::nw-customer-exports/2026-11/customers.csv",
+              "expect": "deny"
+            },
+            {
+              "name": "Anonymous users cannot list the bucket",
+              "action": "s3:ListBucket",
+              "resource": "arn:aws:s3:::nw-customer-exports",
+              "expect": "deny"
+            },
+            {
+              "name": "PortalReaderRole can still read exports",
+              "action": "s3:GetObject",
+              "resource": "arn:aws:s3:::nw-customer-exports/2026-11/customers.csv",
+              "principal": "arn:aws:iam::111122223333:role/PortalReaderRole",
+              "context": {
+                "aws:SecureTransport": true
+              },
+              "expect": "allow"
+            },
+            {
+              "name": "ExportJobRole can still write exports",
+              "action": "s3:PutObject",
+              "resource": "arn:aws:s3:::nw-customer-exports/2026-11/customers.csv",
+              "principal": "arn:aws:iam::111122223333:role/ExportJobRole",
+              "context": {
+                "aws:SecureTransport": true
+              },
+              "expect": "allow"
+            },
+            {
+              "name": "Reads over plain HTTP are rejected",
+              "action": "s3:GetObject",
+              "resource": "arn:aws:s3:::nw-customer-exports/2026-11/customers.csv",
+              "principal": "arn:aws:iam::111122223333:role/PortalReaderRole",
+              "context": {
+                "aws:SecureTransport": false
+              },
+              "expect": "deny"
+            },
+            {
+              "name": "A role from another account cannot read exports",
+              "action": "s3:GetObject",
+              "resource": "arn:aws:s3:::nw-customer-exports/2026-11/customers.csv",
+              "principal": "arn:aws:iam::999988887777:role/Scanner",
+              "context": {
+                "aws:SecureTransport": true
+              },
+              "expect": "deny"
+            }
+          ],
+          "explanation": "A resource-based policy that names Principal \"*\" is public by definition. Name the exact roles instead and add an explicit Deny for non-TLS requests, since an explicit Deny beats every Allow. The lasting fix is account-level S3 Block Public Access, which would have neutralised this policy even if someone had written it."
+        },
+        {
+          "id": "t3",
+          "kind": "policy",
+          "mode": "resource",
+          "prompt": "Fix DeployRole's trust policy. Only the vendor's CiRunner role (account 444455556666) may assume it, and only when it presents external ID nw-ci-7f3b2.",
+          "starter": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Effect\": \"Allow\",\n      \"Principal\": {\n        \"AWS\": \"*\"\n      },\n      \"Action\": \"sts:AssumeRole\"\n    }\n  ]\n}",
+          "solution": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Effect\": \"Allow\",\n      \"Principal\": {\n        \"AWS\": \"arn:aws:iam::444455556666:role/CiRunner\"\n      },\n      \"Action\": \"sts:AssumeRole\",\n      \"Condition\": {\n        \"StringEquals\": {\n          \"sts:ExternalId\": \"nw-ci-7f3b2\"\n        }\n      }\n    }\n  ]\n}",
+          "tests": [
+            {
+              "name": "CiRunner with the correct external ID can assume the role",
+              "action": "sts:AssumeRole",
+              "principal": "arn:aws:iam::444455556666:role/CiRunner",
+              "context": {
+                "sts:ExternalId": "nw-ci-7f3b2"
+              },
+              "expect": "allow"
+            },
+            {
+              "name": "CiRunner without an external ID cannot assume the role",
+              "action": "sts:AssumeRole",
+              "principal": "arn:aws:iam::444455556666:role/CiRunner",
+              "expect": "deny"
+            },
+            {
+              "name": "CiRunner with the wrong external ID cannot assume the role",
+              "action": "sts:AssumeRole",
+              "principal": "arn:aws:iam::444455556666:role/CiRunner",
+              "context": {
+                "sts:ExternalId": "guess-123"
+              },
+              "expect": "deny"
+            },
+            {
+              "name": "An unrelated role in another account cannot assume the role",
+              "action": "sts:AssumeRole",
+              "principal": "arn:aws:iam::999988887777:role/Attacker",
+              "context": {
+                "sts:ExternalId": "nw-ci-7f3b2"
+              },
+              "expect": "deny"
+            }
+          ],
+          "explanation": "A trust policy with Principal AWS \"*\" lets any AWS principal in the world that knows the role ARN assume it, and DeployRole carries AdministratorAccess, so this is a one-call account takeover. Name the exact vendor role, and require an external ID so a third party's other customers cannot trick the vendor into assuming your role (the confused deputy problem)."
+        },
+        {
+          "id": "t4",
+          "kind": "policy",
+          "mode": "boundary",
+          "prompt": "ci-deployer's identity policy allows iam:PassRole on every role. Write a permission boundary that caps it: ECS deployment actions stay allowed, and PassRole is limited to roles named EcsTaskRole-* and only when passed to ecs-tasks.amazonaws.com.",
+          "starter": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"EcsDeploy\",\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"ecs:RegisterTaskDefinition\",\n        \"ecs:UpdateService\",\n        \"ecs:DescribeServices\"\n      ],\n      \"Resource\": \"*\"\n    },\n    {\n      \"Sid\": \"PassAnyRole\",\n      \"Effect\": \"Allow\",\n      \"Action\": \"iam:PassRole\",\n      \"Resource\": \"*\"\n    }\n  ]\n}",
+          "solution": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"EcsDeploy\",\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"ecs:RegisterTaskDefinition\",\n        \"ecs:UpdateService\",\n        \"ecs:DescribeServices\"\n      ],\n      \"Resource\": \"*\"\n    },\n    {\n      \"Sid\": \"PassEcsTaskRolesToEcsOnly\",\n      \"Effect\": \"Allow\",\n      \"Action\": \"iam:PassRole\",\n      \"Resource\": \"arn:aws:iam::111122223333:role/EcsTaskRole-*\",\n      \"Condition\": {\n        \"StringEquals\": {\n          \"iam:PassedToService\": \"ecs-tasks.amazonaws.com\"\n        }\n      }\n    }\n  ]\n}",
+          "fixed": {
+            "identity": [
+              "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"EcsDeploy\",\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"ecs:RegisterTaskDefinition\",\n        \"ecs:UpdateService\",\n        \"ecs:DescribeServices\"\n      ],\n      \"Resource\": \"*\"\n    },\n    {\n      \"Sid\": \"PassAnyRole\",\n      \"Effect\": \"Allow\",\n      \"Action\": \"iam:PassRole\",\n      \"Resource\": \"*\"\n    }\n  ]\n}"
+            ]
+          },
+          "tests": [
+            {
+              "name": "Can pass EcsTaskRole-orders to ECS tasks",
+              "action": "iam:PassRole",
+              "resource": "arn:aws:iam::111122223333:role/EcsTaskRole-orders",
+              "context": {
+                "iam:PassedToService": "ecs-tasks.amazonaws.com"
+              },
+              "expect": "allow"
+            },
+            {
+              "name": "Cannot pass OrgAdminRole to ECS tasks",
+              "action": "iam:PassRole",
+              "resource": "arn:aws:iam::111122223333:role/OrgAdminRole",
+              "context": {
+                "iam:PassedToService": "ecs-tasks.amazonaws.com"
+              },
+              "expect": "deny"
+            },
+            {
+              "name": "Cannot pass EcsTaskRole-orders to EC2",
+              "action": "iam:PassRole",
+              "resource": "arn:aws:iam::111122223333:role/EcsTaskRole-orders",
+              "context": {
+                "iam:PassedToService": "ec2.amazonaws.com"
+              },
+              "expect": "deny"
+            },
+            {
+              "name": "Can still update ECS services",
+              "action": "ecs:UpdateService",
+              "resource": "arn:aws:ecs:us-east-1:111122223333:service/orders/web",
+              "expect": "allow"
+            }
+          ],
+          "explanation": "A permission boundary never grants anything; it caps what the identity policy can actually do. Here the identity policy still says PassRole on \"*\", but the boundary reduces the effective permission to the intended roles and the intended service. PassRole on an over-powerful role is a classic escalation path (create a task with the admin role, run code as it), so the Resource and iam:PassedToService scoping is the control."
+        },
+        {
+          "id": "t5",
+          "kind": "policy",
+          "mode": "identity",
+          "prompt": "platform-admin has Allow * on * with no MFA requirement. Keep the admin access, but deny everything without MFA, except the actions needed to enrol an MFA device. Long-term access keys (no MFA information at all) must be blocked too.",
+          "starter": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"AdminAll\",\n      \"Effect\": \"Allow\",\n      \"Action\": \"*\",\n      \"Resource\": \"*\"\n    }\n  ]\n}",
+          "solution": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"AdminAll\",\n      \"Effect\": \"Allow\",\n      \"Action\": \"*\",\n      \"Resource\": \"*\"\n    },\n    {\n      \"Sid\": \"DenyEverythingWithoutMFA\",\n      \"Effect\": \"Deny\",\n      \"NotAction\": [\n        \"iam:CreateVirtualMFADevice\",\n        \"iam:EnableMFADevice\",\n        \"iam:ListMFADevices\",\n        \"iam:ListVirtualMFADevices\",\n        \"iam:ResyncMFADevice\",\n        \"iam:GetUser\",\n        \"iam:ChangePassword\",\n        \"sts:GetSessionToken\"\n      ],\n      \"Resource\": \"*\",\n      \"Condition\": {\n        \"BoolIfExists\": {\n          \"aws:MultiFactorAuthPresent\": \"false\"\n        }\n      }\n    }\n  ]\n}",
+          "tests": [
+            {
+              "name": "Admin signed in with MFA can create users",
+              "action": "iam:CreateUser",
+              "resource": "arn:aws:iam::111122223333:user/new-user",
+              "context": {
+                "aws:MultiFactorAuthPresent": true
+              },
+              "expect": "allow"
+            },
+            {
+              "name": "Admin signed in with MFA can terminate instances",
+              "action": "ec2:TerminateInstances",
+              "resource": "arn:aws:ec2:us-east-1:111122223333:instance/i-0123456789abcdef0",
+              "context": {
+                "aws:MultiFactorAuthPresent": true
+              },
+              "expect": "allow"
+            },
+            {
+              "name": "A long-term access key (no MFA information) cannot create users",
+              "action": "iam:CreateUser",
+              "resource": "arn:aws:iam::111122223333:user/new-user",
+              "expect": "deny"
+            },
+            {
+              "name": "A session without MFA cannot delete the trail",
+              "action": "cloudtrail:DeleteTrail",
+              "resource": "arn:aws:cloudtrail:us-east-1:111122223333:trail/org-trail",
+              "context": {
+                "aws:MultiFactorAuthPresent": false
+              },
+              "expect": "deny"
+            },
+            {
+              "name": "Without MFA the user can still enrol an MFA device",
+              "action": "iam:EnableMFADevice",
+              "resource": "arn:aws:iam::111122223333:user/platform-admin",
+              "context": {
+                "aws:MultiFactorAuthPresent": false
+              },
+              "expect": "allow"
+            },
+            {
+              "name": "Without MFA the user can still list MFA devices",
+              "action": "iam:ListMFADevices",
+              "resource": "arn:aws:iam::111122223333:user/platform-admin",
+              "context": {
+                "aws:MultiFactorAuthPresent": false
+              },
+              "expect": "allow"
+            }
+          ],
+          "explanation": "The pattern is an explicit Deny with NotAction that applies when MFA is absent. BoolIfExists (rather than Bool) makes the deny also catch requests where the key is missing entirely, which is how long-term access keys look. Exempting only the MFA self-service actions lets a new admin enrol a device without being locked out. A stolen password or key then cannot be used for administration."
+        },
+        {
+          "id": "t6",
+          "kind": "policy",
+          "mode": "scp",
+          "prompt": "Protect org-trail with an SCP. Nobody may stop, delete, update or change event selectors on arn:aws:cloudtrail:us-east-1:111122223333:trail/org-trail, except the OrgSecurityAdmin role. Other trails and read-only calls must be unaffected.",
+          "starter": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"DenyDeleteTrail\",\n      \"Effect\": \"Deny\",\n      \"Action\": \"cloudtrail:DeleteTrail\",\n      \"Resource\": \"*\"\n    }\n  ]\n}",
+          "solution": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"ProtectOrgTrail\",\n      \"Effect\": \"Deny\",\n      \"Action\": [\n        \"cloudtrail:StopLogging\",\n        \"cloudtrail:DeleteTrail\",\n        \"cloudtrail:UpdateTrail\",\n        \"cloudtrail:PutEventSelectors\"\n      ],\n      \"Resource\": \"arn:aws:cloudtrail:us-east-1:111122223333:trail/org-trail\",\n      \"Condition\": {\n        \"ArnNotLike\": {\n          \"aws:PrincipalArn\": \"arn:aws:iam::*:role/OrgSecurityAdmin\"\n        }\n      }\n    }\n  ]\n}",
+          "fixed": {
+            "identity": [
+              "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Effect\": \"Allow\",\n      \"Action\": \"*\",\n      \"Resource\": \"*\"\n    }\n  ]\n}"
+            ],
+            "scp": [
+              "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"FullAWSAccess\",\n      \"Effect\": \"Allow\",\n      \"Action\": \"*\",\n      \"Resource\": \"*\"\n    }\n  ]\n}"
+            ]
+          },
+          "tests": [
+            {
+              "name": "A developer role cannot stop logging on org-trail",
+              "action": "cloudtrail:StopLogging",
+              "resource": "arn:aws:cloudtrail:us-east-1:111122223333:trail/org-trail",
+              "context": {
+                "aws:PrincipalArn": "arn:aws:iam::111122223333:role/DevRole"
+              },
+              "expect": "deny"
+            },
+            {
+              "name": "A developer role cannot change event selectors on org-trail",
+              "action": "cloudtrail:PutEventSelectors",
+              "resource": "arn:aws:cloudtrail:us-east-1:111122223333:trail/org-trail",
+              "context": {
+                "aws:PrincipalArn": "arn:aws:iam::111122223333:role/DevRole"
+              },
+              "expect": "deny"
+            },
+            {
+              "name": "A developer role cannot delete org-trail",
+              "action": "cloudtrail:DeleteTrail",
+              "resource": "arn:aws:cloudtrail:us-east-1:111122223333:trail/org-trail",
+              "context": {
+                "aws:PrincipalArn": "arn:aws:iam::111122223333:role/DevRole"
+              },
+              "expect": "deny"
+            },
+            {
+              "name": "OrgSecurityAdmin can still manage org-trail (break-glass)",
+              "action": "cloudtrail:StopLogging",
+              "resource": "arn:aws:cloudtrail:us-east-1:111122223333:trail/org-trail",
+              "context": {
+                "aws:PrincipalArn": "arn:aws:iam::111122223333:role/OrgSecurityAdmin"
+              },
+              "expect": "allow"
+            },
+            {
+              "name": "A scratch trail can still be stopped by developers",
+              "action": "cloudtrail:StopLogging",
+              "resource": "arn:aws:cloudtrail:us-east-1:111122223333:trail/dev-scratch-trail",
+              "context": {
+                "aws:PrincipalArn": "arn:aws:iam::111122223333:role/DevRole"
+              },
+              "expect": "allow"
+            },
+            {
+              "name": "Looking up events still works",
+              "action": "cloudtrail:LookupEvents",
+              "resource": "*",
+              "context": {
+                "aws:PrincipalArn": "arn:aws:iam::111122223333:role/DevRole"
+              },
+              "expect": "allow"
+            }
+          ],
+          "explanation": "Audit logs are only trustworthy if the people being audited cannot switch them off. The SCP denies the four tamper actions on the specific trail ARN, with a named break-glass role as the only exception, so ordinary administrators cannot blind you. Scoping to the trail rather than every trail avoids breaking unrelated work, and remember an SCP does not affect the management account."
+        },
+        {
+          "id": "t7",
+          "kind": "flag",
+          "prompt": "Make sure you have surveyed all five risk areas from the terminal, then run the estate report script and paste the report token.",
+          "flag": "FLAG{estate_survey_complete_5d2b}",
+          "explanation": "The report only runs once the bucket policy, role trust, PassRole grants, admin MFA posture and CloudTrail protection have each been looked at, mirroring a real assessment: you cannot rank risks you have not inspected. Surveying the whole estate before fixing anything is what lets you prioritise instead of fixing whichever flaw you stumbled on first."
+        },
+        {
+          "id": "t8",
+          "kind": "answer",
+          "prompt": "Write the headline of your risk summary: which role is the top risk because any AWS principal can assume it and it carries AdministratorAccess? (role name)",
+          "accept": [
+            "deployrole",
+            "arn:aws:iam::111122223333:role/deployrole",
+            "deploy role"
+          ],
+          "explanation": "DeployRole needs no stolen credential and no foothold in the company: a wildcard trust policy plus AdministratorAccess means one sts:AssumeRole call from any AWS account gives full control of the account, including the ability to switch off logging and read every bucket. The public bucket is serious but bounded to one dataset; the admin trust flaw bounds nothing."
+        },
+        {
+          "id": "t9",
+          "kind": "choice",
+          "prompt": "Which control best stops public buckets like nw-customer-exports from reappearing across every account in the organization?",
+          "options": [
+            "A quarterly manual review of every bucket policy",
+            "Enable S3 Block Public Access at the account level and use an SCP to prevent it from being turned off",
+            "Enable SSE-KMS default encryption on every bucket",
+            "Enable S3 versioning on every bucket"
+          ],
+          "correct": [
+            1
+          ],
+          "explanation": "Block Public Access makes public bucket policies and ACLs ineffective, and the SCP makes sure nobody can disable it. Encryption and versioning are valuable, but neither stops an anonymous request from reading data. Manual review is detective and slow; a preventive control removes the problem class instead of finding instances of it."
+        }
+      ],
+      "takeaways": [
+        "A broken estate fails in a handful of repeating ways: public resource policies, wildcard trust, PassRole wildcards, admins without MFA, and unprotected logs.",
+        "Match the control to the problem: resource policy for who can touch a bucket, trust policy for who can assume a role, boundary to cap a principal, identity policy for conditions like MFA, SCP for what no one may do.",
+        "Survey everything before fixing anything, then rank by impact: a wildcard trust on an admin role outranks a single public bucket.",
+        "Fixes must be proven both ways: the bad access is denied, and the legitimate access still works."
+      ]
+    }
+  }
+]

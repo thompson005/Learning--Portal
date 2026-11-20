@@ -12,6 +12,7 @@ import { AI_LABS } from "./aiLabs"
 import { CLOUD_CURRICULUM } from "./cloudCurriculum"
 import { CLOUD_TOPIC_QUIZZES } from "./cloudTopicQuizzes"
 import { CLOUD_LABS } from "./cloudLabs"
+import { applyCloudRanges } from "./cloudRanges"
 
 export interface Track {
   id: string
@@ -64,7 +65,7 @@ export const TRACKS: Track[] = [
     shortName: "Cloud Security",
     blurb: "Securing and attacking AWS, Azure and GCP.",
     curriculum: CLOUD_CURRICULUM,
-    labs: CLOUD_LABS,
+    labs: applyCloudRanges(CLOUD_LABS),
     topicQuizzes: CLOUD_TOPIC_QUIZZES,
     moduleQuizzes: [],
     phases: [

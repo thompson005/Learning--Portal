@@ -1,0 +1,673 @@
+[
+  {
+    "labId": "cloud-L18",
+    "title": "Secure the Lambda Handler",
+    "objective": "Review a Lambda handler that feeds event data into a shell command, a SQL query and a file path, fix it with validation and safe APIs, prove the fix with a scan and tests, and shrink the function's execution role to least privilege.",
+    "successCriteria": [
+      "You identified the three unsafe sinks (shell, SQL, filesystem path) in the handler",
+      "You chose the rewrite that removes the shell and validates input, and the static-analysis gate passes",
+      "You rewrote the execution role to one bucket prefix plus its own log group"
+    ],
+    "hints": [
+      "Follow the data: which values come from the event, and which interpreter (shell, database, filesystem) receives them?",
+      "Prefer designs where input is data and never instructions: allow-lists, argument lists with shell=False, bound query parameters.",
+      "Apply option B with ./apply-fix.sh B, run pytest -q, then bandit -r handler.py -ll. For the role, allow only GetObject/PutObject on the exports/ prefix plus CreateLogStream/PutLogEvents on the function's own log group."
+    ],
+    "estimatedHours": 2,
+    "resources": [
+      {
+        "title": "OWASP: Command Injection",
+        "url": "https://owasp.org/www-community/attacks/Command_Injection",
+        "type": "link"
+      },
+      {
+        "title": "OWASP Cheat Sheet: Query Parameterization",
+        "url": "https://cheatsheetseries.owasp.org/cheatsheets/Query_Parameterization_Cheat_Sheet.html",
+        "type": "link"
+      },
+      {
+        "title": "Python docs: subprocess security considerations",
+        "url": "https://docs.python.org/3/library/subprocess.html#security-considerations",
+        "type": "link"
+      },
+      {
+        "title": "AWS docs: Lambda execution role",
+        "url": "https://docs.aws.amazon.com/lambda/latest/dg/lambda-intro-execution-role.html",
+        "type": "link"
+      }
+    ],
+    "range": {
+      "scenario": "You are the security engineer reviewing report-exporter, a Lambda function behind an internal API in account 111122223333. It takes a report name and a customer name from the query string, archives a report folder, looks up the customer's orders and publishes the archive to S3. A teammate wants it in production this week. Review the code and the function's role, fix what you find, and prove the fix with the team's static-analysis scan and unit tests. Everything here is a simulation with fictional resources; you only inspect, fix and verify.",
+      "artifacts": [
+        {
+          "name": "handler.py",
+          "language": "text",
+          "content": "import os\nimport sqlite3\nimport boto3\n\ns3 = boto3.client(\"s3\")\ndb = sqlite3.connect(\"/tmp/orders.db\")\n\n\ndef handler(event, context):\n    params = event.get(\"queryStringParameters\") or {}\n    report = params.get(\"report\", \"\")\n    customer = params.get(\"customer\", \"\")\n\n    # 1. archive the requested report folder\n    os.system(\"tar czf /tmp/\" + report + \".tgz /var/task/reports/\" + report)\n\n    # 2. look up the customer's orders\n    cur = db.cursor()\n    cur.execute(\"SELECT id, total FROM orders WHERE customer = '%s'\" % customer)\n    rows = cur.fetchall()\n\n    # 3. read a previously exported CSV for the same report name\n    with open(\"/tmp/exports/\" + report + \".csv\") as f:\n        csv_data = f.read()\n\n    # 4. publish the archive and confirm the upload\n    with open(\"/tmp/\" + report + \".tgz\", \"rb\") as f:\n        s3.put_object(Bucket=os.environ[\"REPORT_BUCKET\"], Key=\"exports/\" + report + \".tgz\", Body=f)\n    s3.get_object(Bucket=os.environ[\"REPORT_BUCKET\"], Key=\"exports/\" + report + \".tgz\")\n\n    return {\"statusCode\": 200, \"body\": csv_data}\n",
+          "note": "The handler as submitted for review (line numbers match the scanner output)."
+        },
+        {
+          "name": "report-exporter-role-policy.json",
+          "language": "json",
+          "content": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"ReportBucket\",\n      \"Effect\": \"Allow\",\n      \"Action\": \"s3:*\",\n      \"Resource\": \"*\"\n    },\n    {\n      \"Sid\": \"Logging\",\n      \"Effect\": \"Allow\",\n      \"Action\": \"logs:*\",\n      \"Resource\": \"*\"\n    }\n  ]\n}",
+          "note": "The inline policy on the function's execution role, report-exporter-role."
+        }
+      ],
+      "terminal": {
+        "prompt": "reviewer@sandbox:~/report-exporter$",
+        "intro": "Working copy of report-exporter. Region: us-east-1. Tools: aws, bandit, pytest, ./apply-fix.sh.",
+        "help": "Commands you can try:\n  aws lambda get-function-configuration --function-name report-exporter\n  aws iam list-attached-role-policies --role-name <role>\n  aws iam list-role-policies --role-name <role>\n  aws iam get-role-policy --role-name <role> --policy-name <name>\n  bandit -r handler.py -ll        static-analysis scan (medium severity and above)\n  ./apply-fix.sh <A|B|C|D>        apply the rewrite option you chose in the review\n  pytest -q                       run the unit tests (benign inputs)",
+        "rules": [
+          {
+            "match": "^aws lambda get-function-configuration --function-name report-exporter$",
+            "sets": [
+              "saw_config"
+            ],
+            "output": "{\n    \"FunctionName\": \"report-exporter\",\n    \"FunctionArn\": \"arn:aws:lambda:us-east-1:111122223333:function:report-exporter\",\n    \"Runtime\": \"python3.12\",\n    \"Role\": \"arn:aws:iam::111122223333:role/report-exporter-role\",\n    \"Handler\": \"handler.handler\",\n    \"Timeout\": 15,\n    \"MemorySize\": 256,\n    \"LastModified\": \"2026-11-18T14:02:44.000+0000\",\n    \"Environment\": { \"Variables\": { \"REPORT_BUCKET\": \"acme-reports-prod\" } },\n    \"State\": \"Active\"\n}"
+          },
+          {
+            "match": "^aws lambda get-function-configuration\\b",
+            "output": "An error occurred (ResourceNotFoundException) when calling the GetFunctionConfiguration operation: Function not found: arn:aws:lambda:us-east-1:111122223333:function:unknown"
+          },
+          {
+            "match": "^aws iam list-attached-role-policies --role-name report-exporter-role$",
+            "output": "{\n    \"AttachedPolicies\": []\n}"
+          },
+          {
+            "match": "^aws iam list-role-policies --role-name report-exporter-role$",
+            "output": "{\n    \"PolicyNames\": [\n        \"report-exporter-access\"\n    ]\n}"
+          },
+          {
+            "match": "^aws iam get-role-policy --role-name report-exporter-role --policy-name report-exporter-access$",
+            "sets": [
+              "saw_role"
+            ],
+            "output": "{\n    \"RoleName\": \"report-exporter-role\",\n    \"PolicyName\": \"report-exporter-access\",\n    \"PolicyDocument\": {\n        \"Version\": \"2012-10-17\",\n        \"Statement\": [\n            { \"Sid\": \"ReportBucket\", \"Effect\": \"Allow\", \"Action\": \"s3:*\",   \"Resource\": \"*\" },\n            { \"Sid\": \"Logging\",      \"Effect\": \"Allow\", \"Action\": \"logs:*\", \"Resource\": \"*\" }\n        ]\n    }\n}"
+          },
+          {
+            "match": "^aws iam (list-attached-role-policies|list-role-policies|get-role-policy)\\b",
+            "output": "An error occurred (NoSuchEntity) when calling the IAM operation: The role or policy cannot be found. Check the names from get-function-configuration."
+          },
+          {
+            "match": "^(bash |\\./)apply-fix\\.sh a$",
+            "sets": [
+              "fix_a"
+            ],
+            "output": "apply-fix: option A applied to handler.py\n  step 1: report is stripped of ; & | characters, os.system(...) kept\n  step 2: SQL step uses a parameterized query\n  step 3: export path is resolved and must stay under /tmp/exports\nhandler.py updated. Re-run the scan and the tests."
+          },
+          {
+            "match": "^(bash |\\./)apply-fix\\.sh b$",
+            "sets": [
+              "fix_b"
+            ],
+            "output": "apply-fix: option B applied to handler.py\n  step 1: report checked against the allow-list, tar run with an argument list and shell=False\n  step 2: SQL step uses a parameterized query\n  step 3: export path is resolved and must stay under /tmp/exports\nhandler.py updated. Re-run the scan and the tests."
+          },
+          {
+            "match": "^(bash |\\./)apply-fix\\.sh c$",
+            "sets": [
+              "fix_c"
+            ],
+            "output": "apply-fix: option C applied to handler.py\n  step 1: report wrapped in shlex.quote(), subprocess.run(..., shell=True) kept\n  step 2: SQL step uses a parameterized query\n  step 3: export path is resolved and must stay under /tmp/exports\nhandler.py updated. Re-run the scan and the tests."
+          },
+          {
+            "match": "^(bash |\\./)apply-fix\\.sh d$",
+            "sets": [
+              "fix_d"
+            ],
+            "output": "apply-fix: option D applied to handler.py\n  step 1: os.system(...) kept, wrapped in try/except returning a generic 500\n  step 2: SQL step uses a parameterized query\n  step 3: export path is resolved and must stay under /tmp/exports\nhandler.py updated. Re-run the scan and the tests."
+          },
+          {
+            "match": "^(bash |\\./)apply-fix\\.sh\\b",
+            "output": "usage: ./apply-fix.sh <A|B|C|D>   (the option letter you chose in the review)"
+          },
+          {
+            "match": "^bandit -r handler\\.py( -ll)?$",
+            "requires": [
+              "fix_b"
+            ],
+            "output": "[main]\tINFO\tprofile include tests: None\n[main]\tINFO\tprofile exclude tests: None\n[main]\tINFO\tcli include tests: None\n[main]\tINFO\tcli exclude tests: None\nRun started:2026-11-20 09:14:02.118400\n\nTest results:\n\tNo issues identified.\n\nCode scanned:\n\tTotal lines of code: 41\n\tTotal lines skipped (#nosec): 0\n\nRun metrics:\n\tTotal issues (by severity):\n\t\tUndefined: 0\n\t\tLow: 0\n\t\tMedium: 0\n\t\tHigh: 0\n\n[ci-gate] static-analysis gate (medium and above): PASS   release token: FLAG{handler_scan_clean_7c21}"
+          },
+          {
+            "match": "^bandit -r handler\\.py( -ll)?$",
+            "requires": [
+              "fix_c"
+            ],
+            "output": "[main]\tINFO\tprofile include tests: None\n[main]\tINFO\tprofile exclude tests: None\n[main]\tINFO\tcli include tests: None\n[main]\tINFO\tcli exclude tests: None\nRun started:2026-11-20 09:14:02.118400\n\nTest results:\n>> Issue: [B602:subprocess_popen_with_shell_equals_true] subprocess call with shell=True identified, security issue.\n   Severity: High   Confidence: High\n   CWE: CWE-78 (https://cwe.mitre.org/data/definitions/78.html)\n   Location: handler.py:21:4\n20\t    safe = shlex.quote(report)\n21\t    subprocess.run(\"tar czf /tmp/%s.tgz /var/task/reports/%s\" % (safe, safe), shell=True)\n22\t\n\nCode scanned:\n\tTotal lines of code: 43\n\tTotal lines skipped (#nosec): 0\n\nRun metrics:\n\tTotal issues (by severity):\n\t\tUndefined: 0\n\t\tLow: 0\n\t\tMedium: 0\n\t\tHigh: 1\n\n[ci-gate] static-analysis gate (medium and above): FAIL"
+          },
+          {
+            "match": "^bandit -r handler\\.py( -ll)?$",
+            "requires": [
+              "fix_a"
+            ],
+            "output": "[main]\tINFO\tprofile include tests: None\n[main]\tINFO\tprofile exclude tests: None\n[main]\tINFO\tcli include tests: None\n[main]\tINFO\tcli exclude tests: None\nRun started:2026-11-20 09:14:02.118400\n\nTest results:\n>> Issue: [B605:start_process_with_a_shell] Starting a process with a shell, possible injection detected, security issue.\n   Severity: High   Confidence: High\n   CWE: CWE-78 (https://cwe.mitre.org/data/definitions/78.html)\n   Location: handler.py:15:4\n14\t    # 1. archive the requested report folder\n15\t    os.system(\"tar czf /tmp/\" + report + \".tgz /var/task/reports/\" + report)\n16\t\n\nCode scanned:\n\tTotal lines of code: 44\n\tTotal lines skipped (#nosec): 0\n\nRun metrics:\n\tTotal issues (by severity):\n\t\tUndefined: 0\n\t\tLow: 0\n\t\tMedium: 0\n\t\tHigh: 1\n\n[ci-gate] static-analysis gate (medium and above): FAIL"
+          },
+          {
+            "match": "^bandit -r handler\\.py( -ll)?$",
+            "requires": [
+              "fix_d"
+            ],
+            "output": "[main]\tINFO\tprofile include tests: None\n[main]\tINFO\tprofile exclude tests: None\n[main]\tINFO\tcli include tests: None\n[main]\tINFO\tcli exclude tests: None\nRun started:2026-11-20 09:14:02.118400\n\nTest results:\n>> Issue: [B605:start_process_with_a_shell] Starting a process with a shell, possible injection detected, security issue.\n   Severity: High   Confidence: High\n   CWE: CWE-78 (https://cwe.mitre.org/data/definitions/78.html)\n   Location: handler.py:15:4\n14\t    # 1. archive the requested report folder\n15\t    os.system(\"tar czf /tmp/\" + report + \".tgz /var/task/reports/\" + report)\n16\t\n\nCode scanned:\n\tTotal lines of code: 45\n\tTotal lines skipped (#nosec): 0\n\nRun metrics:\n\tTotal issues (by severity):\n\t\tUndefined: 0\n\t\tLow: 0\n\t\tMedium: 0\n\t\tHigh: 1\n\n[ci-gate] static-analysis gate (medium and above): FAIL"
+          },
+          {
+            "match": "^bandit -r handler\\.py( -ll)?$",
+            "sets": [
+              "scanned_before"
+            ],
+            "output": "[main]\tINFO\tprofile include tests: None\n[main]\tINFO\tprofile exclude tests: None\n[main]\tINFO\tcli include tests: None\n[main]\tINFO\tcli exclude tests: None\nRun started:2026-11-20 09:14:02.118400\n\nTest results:\n>> Issue: [B605:start_process_with_a_shell] Starting a process with a shell, possible injection detected, security issue.\n   Severity: High   Confidence: High\n   CWE: CWE-78 (https://cwe.mitre.org/data/definitions/78.html)\n   Location: handler.py:15:4\n14\t    # 1. archive the requested report folder\n15\t    os.system(\"tar czf /tmp/\" + report + \".tgz /var/task/reports/\" + report)\n16\t\n\n>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.\n   Severity: Medium   Confidence: Low\n   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)\n   Location: handler.py:19:19\n18\t    cur = db.cursor()\n19\t    cur.execute(\"SELECT id, total FROM orders WHERE customer = '%s'\" % customer)\n20\t    rows = cur.fetchall()\n\nCode scanned:\n\tTotal lines of code: 31\n\tTotal lines skipped (#nosec): 0\n\nRun metrics:\n\tTotal issues (by severity):\n\t\tUndefined: 0\n\t\tLow: 0\n\t\tMedium: 1\n\t\tHigh: 1\n\n[ci-gate] static-analysis gate (medium and above): FAIL"
+          },
+          {
+            "match": "^(python3? -m )?pytest\\b.*$",
+            "requires": [
+              "fix_b"
+            ],
+            "sets": [
+              "tests_pass"
+            ],
+            "output": "============================= test session starts ==============================\nplatform linux -- Python 3.12.4, pytest-8.2.2, pluggy-1.5.0\ncollected 5 items\n\ntests/test_handler.py .....                                              [100%]\n\n============================== 5 passed in 0.38s ==============================="
+          },
+          {
+            "match": "^(python3? -m )?pytest\\b.*$",
+            "output": "============================= test session starts ==============================\nplatform linux -- python 3.12.4, pytest-8.2.2, pluggy-1.5.0\ncollected 5 items\n\ntests/test_handler.py ..F.F                                              [100%]\n\n=================================== FAILURES ===================================\n____________________ test_customer_with_apostrophe_is_data _____________________\nE   sqlite3.OperationalError: near \"Brien\": syntax error\n____________________ test_unknown_report_name_rejected _________________________\nE   assert 500 == 400\n=========================== short test summary info ============================\nFAILED tests/test_handler.py::test_customer_with_apostrophe_is_data\nFAILED tests/test_handler.py::test_unknown_report_name_rejected\n========================= 2 failed, 3 passed in 0.41s =========================="
+          },
+          {
+            "match": "^cat handler\\.py$",
+            "output": "(see the handler.py artifact on the left)"
+          },
+          {
+            "match": "^ls$",
+            "output": "apply-fix.sh  handler.py  tests/"
+          }
+        ],
+        "fallback": "command not recognised in this sandbox. Type help to see the available commands."
+      },
+      "solution": [
+        "aws lambda get-function-configuration --function-name report-exporter",
+        "aws iam list-role-policies --role-name report-exporter-role",
+        "aws iam get-role-policy --role-name report-exporter-role --policy-name report-exporter-access",
+        "bandit -r handler.py -ll",
+        "./apply-fix.sh B",
+        "pytest -q",
+        "bandit -r handler.py -ll"
+      ],
+      "tasks": [
+        {
+          "id": "t1",
+          "kind": "choice",
+          "prompt": "Review handler.py. Which lines build a shell command, a query or a filesystem path directly out of values taken from the event? Select all that apply.",
+          "options": [
+            "os.system(...) built by concatenating the report name from the event into a command string",
+            "cur.execute(...) building the SQL text with % formatting of the customer value",
+            "open(\"/tmp/exports/\" + report + \".csv\") with a filename taken from the event",
+            "s3 = boto3.client(\"s3\") created once at module scope",
+            "params = event.get(\"queryStringParameters\") or {} reading the query string"
+          ],
+          "correct": [
+            0,
+            1,
+            2
+          ],
+          "explanation": "The three sinks are a shell (os.system), a query engine (cursor.execute) and the filesystem (open). In each, text that came from the caller is mixed into an instruction that another interpreter will parse. Creating the client at module scope is a normal Lambda performance pattern, and merely reading the event is fine: the danger starts where unvalidated data reaches a sink."
+        },
+        {
+          "id": "t2",
+          "kind": "answer",
+          "prompt": "In Python's subprocess module, which keyword argument (written as name=value) hands the command string to /bin/sh for parsing, and so must be avoided with event data?",
+          "accept": [
+            "shell=true",
+            "shell = true",
+            "shell"
+          ],
+          "explanation": "With shell=True (and with os.system, which always uses a shell) the whole string is parsed by the shell, so metacharacters in the data become shell syntax. Passing an argument list with shell=False runs the program directly and every list item is one literal argument, so the data cannot change the command's structure."
+        },
+        {
+          "id": "t3",
+          "kind": "choice",
+          "prompt": "Pick the safest rewrite for step 1 (archiving the report). Remember its letter: the terminal's ./apply-fix.sh applies your chosen option so you can verify it with the scanner and the tests.",
+          "options": [
+            "Option A: strip the characters ; & | from report, then keep os.system(...)",
+            "Option B: check report against an allow-list of known report names, then run subprocess.run([\"tar\", \"czf\", out_path, src_path], shell=False)",
+            "Option C: wrap the value with shlex.quote(report) and keep subprocess.run(cmd, shell=True)",
+            "Option D: keep os.system(...) but wrap it in try/except and return a generic 500 error"
+          ],
+          "correct": [
+            1
+          ],
+          "explanation": "Option B removes the shell from the path entirely and restricts the input to values you expect (validate against an allow-list, do not try to remove bad characters). A and C keep a shell in the loop and depend on a block-list or quoting being perfect; D hides errors but changes nothing about what runs. Prefer 'no interpreter at all' over 'sanitise and hope'."
+        },
+        {
+          "id": "t4",
+          "kind": "choice",
+          "prompt": "Which change correctly fixes step 2, the customer lookup?",
+          "options": [
+            "cur.execute(\"SELECT id, total FROM orders WHERE customer = ?\", (customer,)) with a bound parameter",
+            "Replace each single quote in customer with two single quotes before formatting it in",
+            "Reject the request if customer contains the words SELECT, UNION or DROP",
+            "Switch from % formatting to an f-string"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "A parameterized query sends the SQL text and the value separately, so the value is always treated as data (the name O'Brien just works). Hand-rolled escaping, keyword block-lists and a different string-formatting style all still build the query text from the input and break on edge cases."
+        },
+        {
+          "id": "t5",
+          "kind": "flag",
+          "prompt": "In the terminal: inspect the function and its role, run the scan to see the findings, apply your chosen fix with ./apply-fix.sh <letter>, confirm the tests pass with benign inputs, then re-run the scan until the gate passes. Paste the release token it prints.",
+          "flag": "FLAG{handler_scan_clean_7c21}",
+          "explanation": "The first scan reports the shell and SQL findings; after the fix the scan is clean and the unit tests (including a customer named O'Brien and an unknown report name) pass. Scanning, testing and gating on every change is how you keep these patterns from coming back."
+        },
+        {
+          "id": "t6",
+          "kind": "policy",
+          "mode": "identity",
+          "prompt": "The function's execution role report-exporter-role is far broader than the handler needs. Rewrite the policy for least privilege: the function reads and writes objects only under the exports/ prefix of the acme-reports-prod bucket, and writes logs only to its own log group (/aws/lambda/report-exporter) in us-east-1, account 111122223333.",
+          "starter": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"ReportBucket\",\n      \"Effect\": \"Allow\",\n      \"Action\": \"s3:*\",\n      \"Resource\": \"*\"\n    },\n    {\n      \"Sid\": \"Logging\",\n      \"Effect\": \"Allow\",\n      \"Action\": \"logs:*\",\n      \"Resource\": \"*\"\n    }\n  ]\n}",
+          "solution": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"ExportsPrefixOnly\",\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"s3:GetObject\",\n        \"s3:PutObject\"\n      ],\n      \"Resource\": \"arn:aws:s3:::acme-reports-prod/exports/*\"\n    },\n    {\n      \"Sid\": \"OwnLogGroupOnly\",\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"logs:CreateLogStream\",\n        \"logs:PutLogEvents\"\n      ],\n      \"Resource\": \"arn:aws:logs:us-east-1:111122223333:log-group:/aws/lambda/report-exporter:*\"\n    }\n  ]\n}",
+          "tests": [
+            {
+              "name": "Can write exports to the exports/ prefix",
+              "action": "s3:PutObject",
+              "resource": "arn:aws:s3:::acme-reports-prod/exports/daily-sales.tgz",
+              "expect": "allow"
+            },
+            {
+              "name": "Can read exports from the exports/ prefix",
+              "action": "s3:GetObject",
+              "resource": "arn:aws:s3:::acme-reports-prod/exports/daily-sales.tgz",
+              "expect": "allow"
+            },
+            {
+              "name": "Cannot read other prefixes in the same bucket",
+              "action": "s3:GetObject",
+              "resource": "arn:aws:s3:::acme-reports-prod/hr/salaries.csv",
+              "expect": "deny"
+            },
+            {
+              "name": "Cannot delete exported objects",
+              "action": "s3:DeleteObject",
+              "resource": "arn:aws:s3:::acme-reports-prod/exports/daily-sales.tgz",
+              "expect": "deny"
+            },
+            {
+              "name": "Cannot list every bucket in the account",
+              "action": "s3:ListAllMyBuckets",
+              "resource": "*",
+              "expect": "deny"
+            },
+            {
+              "name": "Can write to its own log group",
+              "action": "logs:PutLogEvents",
+              "resource": "arn:aws:logs:us-east-1:111122223333:log-group:/aws/lambda/report-exporter:log-stream:2026/11/20/[$LATEST]abc123",
+              "expect": "allow"
+            },
+            {
+              "name": "Cannot write to another function's log group",
+              "action": "logs:PutLogEvents",
+              "resource": "arn:aws:logs:us-east-1:111122223333:log-group:/aws/lambda/billing-sync:log-stream:2026/11/20/[$LATEST]def456",
+              "expect": "deny"
+            },
+            {
+              "name": "Cannot pass a role to another service",
+              "action": "iam:PassRole",
+              "resource": "arn:aws:iam::111122223333:role/AdminRole",
+              "expect": "deny"
+            }
+          ],
+          "explanation": "Even a perfectly fixed handler should not run with s3:* and logs:* on every resource, because the next bug in this function would inherit all of it. Scope actions to what the code calls (GetObject and PutObject), resources to one bucket prefix and one log group, and leave out everything else: anything not allowed is implicitly denied."
+        },
+        {
+          "id": "t7",
+          "kind": "choice",
+          "prompt": "The code is now fixed. Why is it still worth shrinking the execution role?",
+          "options": [
+            "Defence in depth: if a similar bug appears later, the blast radius is limited to what the role can do",
+            "Because a smaller role makes the Lambda function run faster",
+            "Because Lambda refuses to invoke functions whose roles use wildcards",
+            "It is not worth it once static analysis passes"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Static analysis and tests reduce the chance of a flaw, but they cannot prove there are none. A least-privilege role limits what any future flaw (or a vulnerable dependency) can reach. Permissions do not affect speed, and Lambda happily runs wildcard roles, which is exactly why you must review them yourself."
+        }
+      ],
+      "takeaways": [
+        "Untrusted event data must never reach a shell, a query or a filesystem path unvalidated: use allow-lists, argument lists with shell=False and bound query parameters.",
+        "Remove the dangerous interpreter rather than trying to sanitise around it: quoting and block-lists are fragile.",
+        "Back every fix with a scan and tests, and keep the execution role least-privilege so the next bug has a small blast radius."
+      ]
+    }
+  },
+  {
+    "labId": "cloud-L19",
+    "title": "Right-Size a Lambda Execution Role",
+    "objective": "Use an IAM Access Analyzer unused-access report and the function's code to right-size an over-permissive Lambda execution role, apply the least-privilege policy, and verify the function still works.",
+    "successCriteria": [
+      "You used the unused-access report to identify permissions that can be removed",
+      "You rewrote the role to one bucket prefix, one secret, one table and its own logs, with no iam:PassRole",
+      "The function still works and the re-check reports no active unused-access findings"
+    ],
+    "hints": [
+      "Start with the analyzer: list the analyzers, list the findings, then read the finding details for the role.",
+      "Compare the report with processor.py. Keep only what the code calls, on the exact resources it touches, and treat the report as a signal to verify rather than a verdict.",
+      "Allow s3:GetObject/PutObject on invoices/*, secretsmanager:GetSecretValue on the one secret ARN, dynamodb:GetItem/PutItem/Query on the one table ARN and the two log actions; drop iam:PassRole entirely."
+    ],
+    "estimatedHours": 2,
+    "resources": [
+      {
+        "title": "AWS docs: What is IAM Access Analyzer?",
+        "url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/what-is-access-analyzer.html",
+        "type": "link"
+      },
+      {
+        "title": "AWS docs: IAM security best practices (least privilege)",
+        "url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/best-practices.html",
+        "type": "link"
+      },
+      {
+        "title": "AWS docs: Lambda execution role",
+        "url": "https://docs.aws.amazon.com/lambda/latest/dg/lambda-intro-execution-role.html",
+        "type": "link"
+      },
+      {
+        "title": "AWS docs: Granting a user permissions to pass a role to an AWS service",
+        "url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_use_passrole.html",
+        "type": "link"
+      }
+    ],
+    "range": {
+      "scenario": "You own the invoice-processor Lambda function in account 111122223333. It was built under deadline and its execution role was given s3:*, secretsmanager:*, dynamodb:* and iam:PassRole on every resource 'to make it work'. A quarterly review flags the role as high risk. Your account has an IAM Access Analyzer configured for unused access with a 90-day window. Use the report together with the function's code to decide what the role really needs, rewrite it, and prove the function still works. Everything here is simulated with fictional resources.",
+      "artifacts": [
+        {
+          "name": "invoice-processor-role-policy.json",
+          "language": "json",
+          "content": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"Storage\",\n      \"Effect\": \"Allow\",\n      \"Action\": \"s3:*\",\n      \"Resource\": \"*\"\n    },\n    {\n      \"Sid\": \"Secrets\",\n      \"Effect\": \"Allow\",\n      \"Action\": \"secretsmanager:*\",\n      \"Resource\": \"*\"\n    },\n    {\n      \"Sid\": \"PassAnything\",\n      \"Effect\": \"Allow\",\n      \"Action\": \"iam:PassRole\",\n      \"Resource\": \"*\"\n    },\n    {\n      \"Sid\": \"Database\",\n      \"Effect\": \"Allow\",\n      \"Action\": \"dynamodb:*\",\n      \"Resource\": \"*\"\n    },\n    {\n      \"Sid\": \"Logging\",\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"logs:CreateLogStream\",\n        \"logs:PutLogEvents\"\n      ],\n      \"Resource\": \"arn:aws:logs:us-east-1:111122223333:log-group:/aws/lambda/invoice-processor:*\"\n    }\n  ]\n}",
+          "note": "The inline policy 'invoice-processor-access' on invoice-processor-role today."
+        },
+        {
+          "name": "processor.py",
+          "language": "text",
+          "content": "import os\nimport boto3\n\nBUCKET = \"acme-invoices-prod\"\nSECRET_ID = \"prod/invoice-api-key\"\n\ns3 = boto3.client(\"s3\")\nsecrets = boto3.client(\"secretsmanager\")\ntable = boto3.resource(\"dynamodb\").Table(\"invoices\")\n\n\ndef handler(event, context):\n    key = event[\"detail\"][\"object\"][\"key\"]            # always invoices/<file>.pdf\n\n    pdf = s3.get_object(Bucket=BUCKET, Key=key)[\"Body\"].read()\n    api_key = secrets.get_secret_value(SecretId=SECRET_ID)[\"SecretString\"]\n\n    invoice = extract_fields(pdf, api_key)             # calls the OCR vendor API\n\n    if not table.get_item(Key={\"invoice_id\": invoice[\"id\"]}).get(\"Item\"):\n        table.put_item(Item=invoice)\n    table.query(\n        IndexName=None,\n        KeyConditionExpression=\"invoice_id = :i\",\n        ExpressionAttributeValues={\":i\": invoice[\"id\"]},\n    )\n\n    s3.put_object(Bucket=BUCKET, Key=\"invoices/processed/\" + invoice[\"id\"] + \".json\", Body=str(invoice))\n    return {\"status\": \"processed\", \"invoice\": invoice[\"id\"]}\n",
+          "note": "The function's code: it shows which AWS calls the function really makes."
+        }
+      ],
+      "terminal": {
+        "prompt": "owner@sandbox:~/invoice-processor$",
+        "intro": "Region: us-east-1, account 111122223333. An unused-access analyzer (90-day window) is already running.",
+        "help": "Commands you can try:\n  aws accessanalyzer list-analyzers\n  aws accessanalyzer list-findings-v2 --analyzer-arn <arn>\n  aws accessanalyzer get-finding-v2 --analyzer-arn <arn> --id <finding-id>\n  aws iam list-attached-role-policies --role-name invoice-processor-role\n  aws iam list-role-policies --role-name invoice-processor-role\n  aws iam get-role-policy --role-name invoice-processor-role --policy-name invoice-processor-access\n  aws iam put-role-policy --role-name invoice-processor-role --policy-name invoice-processor-access --policy-document file://role-policy-fixed.json\n  aws lambda invoke --function-name invoice-processor out.json\n  ./recheck-unused-access.sh invoice-processor-role",
+        "rules": [
+          {
+            "match": "^aws accessanalyzer list-analyzers( --type account_unused_access)?$",
+            "sets": [
+              "saw_analyzer"
+            ],
+            "output": "{\n    \"analyzers\": [\n        {\n            \"arn\": \"arn:aws:access-analyzer:us-east-1:111122223333:analyzer/unused-access-90d\",\n            \"name\": \"unused-access-90d\",\n            \"type\": \"ACCOUNT_UNUSED_ACCESS\",\n            \"status\": \"ACTIVE\",\n            \"configuration\": { \"unusedAccess\": { \"unusedAccessAge\": 90 } }\n        }\n    ]\n}"
+          },
+          {
+            "match": "^aws accessanalyzer list-findings-v2 --analyzer-arn arn:aws:access-analyzer:us-east-1:111122223333:analyzer/unused-access-90d$",
+            "sets": [
+              "listed_findings"
+            ],
+            "output": "{\n    \"findings\": [\n        {\n            \"analyzedAt\": \"2026-11-20T02:00:11+00:00\",\n            \"createdAt\": \"2026-10-02T02:00:09+00:00\",\n            \"id\": \"b7f3c1e2-5d9a-4c11-8a60-3f2e9d41aa07\",\n            \"resource\": \"arn:aws:iam::111122223333:role/invoice-processor-role\",\n            \"resourceType\": \"AWS::IAM::Role\",\n            \"resourceOwnerAccount\": \"111122223333\",\n            \"status\": \"ACTIVE\",\n            \"updatedAt\": \"2026-11-20T02:00:11+00:00\",\n            \"findingType\": \"UnusedPermission\"\n        }\n    ]\n}"
+          },
+          {
+            "match": "^aws accessanalyzer list-findings-v2\\b",
+            "output": "An error occurred (ValidationException) when calling the ListFindingsV2 operation: analyzerArn is required. Run: aws accessanalyzer list-analyzers"
+          },
+          {
+            "match": "^aws accessanalyzer get-finding-v2 --analyzer-arn arn:aws:access-analyzer:us-east-1:111122223333:analyzer/unused-access-90d --id b7f3c1e2-5d9a-4c11-8a60-3f2e9d41aa07$",
+            "requires": [
+              "listed_findings"
+            ],
+            "sets": [
+              "saw_report"
+            ],
+            "output": "{\n    \"analyzedAt\": \"2026-11-20T02:00:11+00:00\",\n    \"createdAt\": \"2026-10-02T02:00:09+00:00\",\n    \"id\": \"b7f3c1e2-5d9a-4c11-8a60-3f2e9d41aa07\",\n    \"resource\": \"arn:aws:iam::111122223333:role/invoice-processor-role\",\n    \"resourceType\": \"AWS::IAM::Role\",\n    \"resourceOwnerAccount\": \"111122223333\",\n    \"status\": \"ACTIVE\",\n    \"findingType\": \"UnusedPermission\",\n    \"findingDetails\": [\n        {\n            \"unusedPermissionDetails\": {\n                \"serviceNamespace\": \"s3\",\n                \"lastAccessed\": \"2026-11-20T01:48:00+00:00\",\n                \"actions\": [\n                    { \"action\": \"s3:DeleteBucket\" },\n                    { \"action\": \"s3:DeleteObject\" },\n                    { \"action\": \"s3:PutBucketPolicy\" },\n                    { \"action\": \"s3:PutBucketAcl\" },\n                    { \"action\": \"s3:GetBucketPolicy\" },\n                    { \"action\": \"s3:ListAllMyBuckets\" }\n                ]\n            }\n        },\n        {\n            \"unusedPermissionDetails\": {\n                \"serviceNamespace\": \"secretsmanager\",\n                \"lastAccessed\": \"2026-11-20T01:48:00+00:00\",\n                \"actions\": [\n                    { \"action\": \"secretsmanager:CreateSecret\" },\n                    { \"action\": \"secretsmanager:DeleteSecret\" },\n                    { \"action\": \"secretsmanager:ListSecrets\" },\n                    { \"action\": \"secretsmanager:PutResourcePolicy\" },\n                    { \"action\": \"secretsmanager:PutSecretValue\" },\n                    { \"action\": \"secretsmanager:UpdateSecret\" }\n                ]\n            }\n        },\n        {\n            \"unusedPermissionDetails\": {\n                \"serviceNamespace\": \"dynamodb\",\n                \"lastAccessed\": \"2026-11-20T01:48:00+00:00\",\n                \"actions\": [\n                    { \"action\": \"dynamodb:BatchWriteItem\" },\n                    { \"action\": \"dynamodb:CreateTable\" },\n                    { \"action\": \"dynamodb:DeleteItem\" },\n                    { \"action\": \"dynamodb:DeleteTable\" },\n                    { \"action\": \"dynamodb:Scan\" },\n                    { \"action\": \"dynamodb:UpdateTable\" }\n                ]\n            }\n        },\n        {\n            \"unusedPermissionDetails\": {\n                \"serviceNamespace\": \"iam\",\n                \"actions\": [\n                    { \"action\": \"iam:PassRole\" }\n                ]\n            }\n        }\n    ]\n}"
+          },
+          {
+            "match": "^aws accessanalyzer get-finding-v2\\b",
+            "output": "An error occurred (ResourceNotFoundException) when calling the GetFindingV2 operation: Finding not found. List findings first to get a valid id."
+          },
+          {
+            "match": "^aws iam get-role-policy --role-name invoice-processor-role --policy-name invoice-processor-access$",
+            "output": "{\n    \"RoleName\": \"invoice-processor-role\",\n    \"PolicyName\": \"invoice-processor-access\",\n    \"PolicyDocument\": {\n      \"Version\": \"2012-10-17\",\n      \"Statement\": [\n        {\n          \"Sid\": \"Storage\",\n          \"Effect\": \"Allow\",\n          \"Action\": \"s3:*\",\n          \"Resource\": \"*\"\n        },\n        {\n          \"Sid\": \"Secrets\",\n          \"Effect\": \"Allow\",\n          \"Action\": \"secretsmanager:*\",\n          \"Resource\": \"*\"\n        },\n        {\n          \"Sid\": \"PassAnything\",\n          \"Effect\": \"Allow\",\n          \"Action\": \"iam:PassRole\",\n          \"Resource\": \"*\"\n        },\n        {\n          \"Sid\": \"Database\",\n          \"Effect\": \"Allow\",\n          \"Action\": \"dynamodb:*\",\n          \"Resource\": \"*\"\n        },\n        {\n          \"Sid\": \"Logging\",\n          \"Effect\": \"Allow\",\n          \"Action\": [\n            \"logs:CreateLogStream\",\n            \"logs:PutLogEvents\"\n          ],\n          \"Resource\": \"arn:aws:logs:us-east-1:111122223333:log-group:/aws/lambda/invoice-processor:*\"\n        }\n      ]\n    }\n}"
+          },
+          {
+            "match": "^aws iam list-attached-role-policies --role-name invoice-processor-role$",
+            "output": "{\n    \"AttachedPolicies\": [\n        { \"PolicyName\": \"AWSLambdaBasicExecutionRole\", \"PolicyArn\": \"arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole\" }\n    ]\n}"
+          },
+          {
+            "match": "^aws iam list-role-policies --role-name invoice-processor-role$",
+            "output": "{\n    \"PolicyNames\": [\n        \"invoice-processor-access\"\n    ]\n}"
+          },
+          {
+            "match": "^aws iam put-role-policy --role-name invoice-processor-role --policy-name invoice-processor-access --policy-document file://role-policy-fixed\\.json$",
+            "requires": [
+              "saw_report"
+            ],
+            "sets": [
+              "applied_fix"
+            ],
+            "output": "(no output) policy invoice-processor-access replaced with the document you wrote in the policy editor"
+          },
+          {
+            "match": "^aws iam put-role-policy\\b",
+            "output": "change-control: blocked. Attach the Access Analyzer finding (aws accessanalyzer get-finding-v2 ...) to the change before editing role policies. The document to apply is file://role-policy-fixed.json (your policy from the editor)."
+          },
+          {
+            "match": "^aws lambda invoke --function-name invoice-processor\\b.*out\\.json$",
+            "requires": [
+              "applied_fix"
+            ],
+            "sets": [
+              "fn_ok"
+            ],
+            "output": "{\n    \"StatusCode\": 200,\n    \"ExecutedVersion\": \"$LATEST\"\n}\n(out.json) {\"status\": \"processed\", \"invoice\": \"INV-2026-0042\"}\n(logs) s3 get/put ok | secret read ok | dynamodb get/put/query ok | no AccessDenied errors"
+          },
+          {
+            "match": "^aws lambda invoke --function-name invoice-processor\\b.*out\\.json$",
+            "output": "{\n    \"StatusCode\": 200,\n    \"ExecutedVersion\": \"$LATEST\"\n}\n(out.json) {\"status\": \"processed\", \"invoice\": \"INV-2026-0042\"}\n(note) works today only because the role is over-permissive; re-test after you right-size it."
+          },
+          {
+            "match": "^aws lambda invoke\\b",
+            "output": "An error occurred (ResourceNotFoundException) when calling the Invoke operation: Function not found. Expected: --function-name invoice-processor ... out.json"
+          },
+          {
+            "match": "^\\./recheck-unused-access\\.sh invoice-processor-role$",
+            "requires": [
+              "fn_ok"
+            ],
+            "output": "unused-access re-check for arn:aws:iam::111122223333:role/invoice-processor-role\n  s3              granted: GetObject, PutObject on invoices/*          unused: 0\n  secretsmanager  granted: GetSecretValue on 1 secret                  unused: 0\n  dynamodb        granted: GetItem, PutItem, Query on table/invoices   unused: 0\n  iam             granted: none\n  active unused-access findings: 0\n[ci-gate] right-sizing gate: PASS   token: FLAG{role_rightsized_4d8e}"
+          },
+          {
+            "match": "^\\./recheck-unused-access\\.sh invoice-processor-role$",
+            "requires": [
+              "applied_fix"
+            ],
+            "output": "re-check blocked: no smoke test recorded for the new policy. Invoke the function first (aws lambda invoke --function-name invoice-processor out.json) to confirm it still works."
+          },
+          {
+            "match": "^\\./recheck-unused-access\\.sh invoice-processor-role$",
+            "output": "unused-access re-check for arn:aws:iam::111122223333:role/invoice-processor-role\n  s3              granted: s3:*                  unused: 6 actions\n  secretsmanager  granted: secretsmanager:*      unused: 6 actions\n  dynamodb        granted: dynamodb:*            unused: 6 actions\n  iam             granted: iam:PassRole on *     unused: 1 action\n  active unused-access findings: 1\n[ci-gate] right-sizing gate: FAIL"
+          },
+          {
+            "match": "^\\./recheck-unused-access\\.sh\\b",
+            "output": "usage: ./recheck-unused-access.sh invoice-processor-role"
+          }
+        ],
+        "fallback": "command not recognised in this sandbox. Type help to see the available commands."
+      },
+      "solution": [
+        "aws accessanalyzer list-analyzers",
+        "aws accessanalyzer list-findings-v2 --analyzer-arn arn:aws:access-analyzer:us-east-1:111122223333:analyzer/unused-access-90d",
+        "aws accessanalyzer get-finding-v2 --analyzer-arn arn:aws:access-analyzer:us-east-1:111122223333:analyzer/unused-access-90d --id b7f3c1e2-5d9a-4c11-8a60-3f2e9d41aa07",
+        "aws iam put-role-policy --role-name invoice-processor-role --policy-name invoice-processor-access --policy-document file://role-policy-fixed.json",
+        "aws lambda invoke --function-name invoice-processor out.json",
+        "./recheck-unused-access.sh invoice-processor-role"
+      ],
+      "tasks": [
+        {
+          "id": "t1",
+          "kind": "answer",
+          "prompt": "Use the terminal to list the unused-access analyzer, its findings and the finding details for invoice-processor-role. Which service namespace shows no last-accessed time at all (nothing in that service was used in the whole 90-day window)?",
+          "accept": [
+            "iam"
+          ],
+          "explanation": "Every other service in the finding has a lastAccessed time because the function really does call it, but the iam entry has none: the function has never used its iam:PassRole permission. A permission that is granted on '*' and never used is pure risk with no benefit."
+        },
+        {
+          "id": "t2",
+          "kind": "choice",
+          "prompt": "Compare the unused-access report with processor.py (what the code actually calls). Which changes right-size the role without breaking the function? Select all that apply.",
+          "options": [
+            "Remove iam:PassRole entirely: the function never passes a role to anything",
+            "Replace dynamodb:* with GetItem, PutItem and Query on the invoices table ARN, the only calls the code makes",
+            "Keep s3:* on all resources and add an explicit Deny for s3:DeleteBucket",
+            "Remove the logs permissions because they do not appear as unused"
+          ],
+          "correct": [
+            0,
+            1
+          ],
+          "explanation": "Right-sizing means granting exactly the actions and resources the code uses and dropping the rest. A Deny list on top of s3:* is fragile because every new dangerous action must be remembered, and the logging permissions are used on every invocation (they are not in the unused report), so removing them would only break observability."
+        },
+        {
+          "id": "t3",
+          "kind": "choice",
+          "prompt": "The analyzer says s3:ListAllMyBuckets has been unused for 90 days. The team mentions a year-end job that sometimes lists buckets. What is the best way to treat the report?",
+          "options": [
+            "As a strong signal, not a verdict: confirm with the code and owners, then remove it and let the year-end job request exactly what it needs",
+            "Delete every unused permission automatically, since the analyzer is always right",
+            "Ignore the report: unused permissions are harmless",
+            "Wait a further year before touching anything"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Unused-access findings only reflect the observation window, so rare jobs can look unused. Use them to focus your review, check against the code and the owners, then cut and give the rare job its own narrowly scoped role. Auto-deleting trusts the window blindly; ignoring or waiting keeps the risk."
+        },
+        {
+          "id": "t4",
+          "kind": "policy",
+          "mode": "identity",
+          "prompt": "Rewrite invoice-processor-role's policy using the report and processor.py. It must reach only: objects under the invoices/ prefix of acme-invoices-prod (get and put), the one secret prod/invoice-api-key (get its value), the one table invoices (GetItem, PutItem, Query), and its own log group. It must not be able to pass any role.",
+          "starter": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"Storage\",\n      \"Effect\": \"Allow\",\n      \"Action\": \"s3:*\",\n      \"Resource\": \"*\"\n    },\n    {\n      \"Sid\": \"Secrets\",\n      \"Effect\": \"Allow\",\n      \"Action\": \"secretsmanager:*\",\n      \"Resource\": \"*\"\n    },\n    {\n      \"Sid\": \"PassAnything\",\n      \"Effect\": \"Allow\",\n      \"Action\": \"iam:PassRole\",\n      \"Resource\": \"*\"\n    },\n    {\n      \"Sid\": \"Database\",\n      \"Effect\": \"Allow\",\n      \"Action\": \"dynamodb:*\",\n      \"Resource\": \"*\"\n    },\n    {\n      \"Sid\": \"Logging\",\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"logs:CreateLogStream\",\n        \"logs:PutLogEvents\"\n      ],\n      \"Resource\": \"arn:aws:logs:us-east-1:111122223333:log-group:/aws/lambda/invoice-processor:*\"\n    }\n  ]\n}",
+          "solution": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"s3:GetObject\",\n        \"s3:PutObject\"\n      ],\n      \"Resource\": \"arn:aws:s3:::acme-invoices-prod/invoices/*\"\n    },\n    {\n      \"Effect\": \"Allow\",\n      \"Action\": \"secretsmanager:GetSecretValue\",\n      \"Resource\": \"arn:aws:secretsmanager:us-east-1:111122223333:secret:prod/invoice-api-key-AbCdEf\"\n    },\n    {\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"dynamodb:GetItem\",\n        \"dynamodb:PutItem\",\n        \"dynamodb:Query\"\n      ],\n      \"Resource\": \"arn:aws:dynamodb:us-east-1:111122223333:table/invoices\"\n    },\n    {\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"logs:CreateLogStream\",\n        \"logs:PutLogEvents\"\n      ],\n      \"Resource\": \"arn:aws:logs:us-east-1:111122223333:log-group:/aws/lambda/invoice-processor:*\"\n    }\n  ]\n}",
+          "tests": [
+            {
+              "name": "Can read invoice PDFs under the invoices/ prefix",
+              "action": "s3:GetObject",
+              "resource": "arn:aws:s3:::acme-invoices-prod/invoices/2026-11/inv-0042.pdf",
+              "expect": "allow"
+            },
+            {
+              "name": "Can write processed results under the invoices/ prefix",
+              "action": "s3:PutObject",
+              "resource": "arn:aws:s3:::acme-invoices-prod/invoices/processed/INV-2026-0042.json",
+              "expect": "allow"
+            },
+            {
+              "name": "Cannot read other prefixes in the invoice bucket",
+              "action": "s3:GetObject",
+              "resource": "arn:aws:s3:::acme-invoices-prod/payroll/2026-11.csv",
+              "expect": "deny"
+            },
+            {
+              "name": "Cannot read the same prefix in another bucket",
+              "action": "s3:GetObject",
+              "resource": "arn:aws:s3:::acme-backups-prod/invoices/2026-11/inv-0042.pdf",
+              "expect": "deny"
+            },
+            {
+              "name": "Cannot delete the bucket",
+              "action": "s3:DeleteBucket",
+              "resource": "arn:aws:s3:::acme-invoices-prod",
+              "expect": "deny"
+            },
+            {
+              "name": "Can read the invoice API key secret",
+              "action": "secretsmanager:GetSecretValue",
+              "resource": "arn:aws:secretsmanager:us-east-1:111122223333:secret:prod/invoice-api-key-AbCdEf",
+              "expect": "allow"
+            },
+            {
+              "name": "Cannot read a different secret",
+              "action": "secretsmanager:GetSecretValue",
+              "resource": "arn:aws:secretsmanager:us-east-1:111122223333:secret:prod/db-admin-password-QwErTy",
+              "expect": "deny"
+            },
+            {
+              "name": "Cannot delete the invoice API key secret",
+              "action": "secretsmanager:DeleteSecret",
+              "resource": "arn:aws:secretsmanager:us-east-1:111122223333:secret:prod/invoice-api-key-AbCdEf",
+              "expect": "deny"
+            },
+            {
+              "name": "Can write invoice records to the invoices table",
+              "action": "dynamodb:PutItem",
+              "resource": "arn:aws:dynamodb:us-east-1:111122223333:table/invoices",
+              "expect": "allow"
+            },
+            {
+              "name": "Can query the invoices table",
+              "action": "dynamodb:Query",
+              "resource": "arn:aws:dynamodb:us-east-1:111122223333:table/invoices",
+              "expect": "allow"
+            },
+            {
+              "name": "Cannot delete the invoices table",
+              "action": "dynamodb:DeleteTable",
+              "resource": "arn:aws:dynamodb:us-east-1:111122223333:table/invoices",
+              "expect": "deny"
+            },
+            {
+              "name": "Cannot read a different table",
+              "action": "dynamodb:GetItem",
+              "resource": "arn:aws:dynamodb:us-east-1:111122223333:table/customers",
+              "expect": "deny"
+            },
+            {
+              "name": "Cannot pass any role to a service",
+              "action": "iam:PassRole",
+              "resource": "arn:aws:iam::111122223333:role/AdminRole",
+              "expect": "deny"
+            },
+            {
+              "name": "Can still write to its own log group",
+              "action": "logs:PutLogEvents",
+              "resource": "arn:aws:logs:us-east-1:111122223333:log-group:/aws/lambda/invoice-processor:log-stream:2026/11/20/[$LATEST]abc123",
+              "expect": "allow"
+            }
+          ],
+          "explanation": "Each wildcard statement became exact actions on exact ARNs: one prefix, one secret, one table, one log group. iam:PassRole is simply gone, so nothing in this role can be used to hand a more powerful role to another service. The 'allow' tests protect the function's real behaviour while the 'deny' tests prove the blast radius shrank."
+        },
+        {
+          "id": "t5",
+          "kind": "flag",
+          "prompt": "In the terminal: review the unused-access finding, apply your rewritten policy from the editor (file://role-policy-fixed.json), confirm the function still works, then run the re-check script and paste the gate token it prints.",
+          "flag": "FLAG{role_rightsized_4d8e}",
+          "explanation": "The change was gated on the analyzer evidence, applied, smoke-tested to prove the function still works, and re-checked clean. That sequence (evidence, change, verify) is how you cut permissions confidently instead of guessing and breaking production."
+        },
+        {
+          "id": "t6",
+          "kind": "choice",
+          "prompt": "Why was iam:PassRole on Resource '*' the most dangerous statement in the original role?",
+          "options": [
+            "A compromised function could hand any role in the account, including a powerful one, to a service it can drive and so act with more privilege than it was given",
+            "PassRole slows down every Lambda invocation",
+            "PassRole lets the function read any S3 object directly",
+            "PassRole is only needed for cross-account access, so it is always an error"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "iam:PassRole is a privilege-escalation primitive: combined with permission to create or update a resource that runs code, it lets the holder borrow another role's power. A function that never needs to pass roles should have no PassRole at all, and where it is needed it must name the role ARN and the target service."
+        }
+      ],
+      "takeaways": [
+        "Right-size execution roles from evidence: the unused-access report plus the code tell you what to keep, and what to remove.",
+        "Scope every allow to exact actions and ARNs (one prefix, one secret, one table); drop iam:PassRole unless the function truly passes roles.",
+        "Treat unused-access findings as a signal to verify, then smoke-test after the change so you cut permissions without breaking the workload."
+      ]
+    }
+  }
+]
