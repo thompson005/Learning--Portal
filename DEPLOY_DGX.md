@@ -28,7 +28,7 @@ git clone <your-repo-url> technieum && cd technieum
 # 2. Configure secrets
 cp .env.docker.example .env
 #    edit .env — set POSTGRES_PASSWORD, SESSION_SECRET, DEFAULT_ADMIN_PASSWORD,
-#    and DEEPSEEK_API_KEY (powers all AI features; DeepSeek flash only). Tune LABS_MAX_CONCURRENT / LABS_MEM / LABS_CPUS.
+#    and LLM_BASE_URL (the local model server; powers all AI features). Tune LABS_MAX_CONCURRENT / LABS_MEM / LABS_CPUS.
 
 # 3. Build + start (first build takes a few minutes)
 docker compose up -d --build

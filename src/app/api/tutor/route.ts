@@ -24,9 +24,9 @@ const BASE_SYSTEM =
   "Explain clearly and accurately for a motivated learner. Prefer short paragraphs and concrete examples. Never invent CVE IDs, tool flags or command syntax you are unsure of. " +
   "Keep answers focused on what was asked. You may use light markdown (code blocks, inline `code`, bold, lists) when it aids clarity."
 
-/** The graceful fallback streamed when the model is unreachable or not configured. */
+/** The graceful fallback streamed when the local model server is unreachable. */
 const FALLBACK =
-  "The AI tutor isn't available right now — it may be offline or not configured (an admin needs to set DEEPSEEK_API_KEY). Meanwhile, check the walkthrough slides and quick-check questions for this topic."
+  "The AI tutor isn't available right now — the local model server may be offline or unreachable from this network (it runs on the DGX; you must be on the VPN). Meanwhile, check the walkthrough slides and quick-check questions for this topic."
 
 function buildMessages(body: TutorBody): ChatMessage[] {
   const mode: Mode = body.mode ?? "ask"

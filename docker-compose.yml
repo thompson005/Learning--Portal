@@ -38,9 +38,11 @@ services:
       SESSION_SECRET: ${SESSION_SECRET:-change-me-to-a-long-random-string}
       DEFAULT_ADMIN_USERNAME: ${DEFAULT_ADMIN_USERNAME:-admin}
       DEFAULT_ADMIN_PASSWORD: ${DEFAULT_ADMIN_PASSWORD:-change-me}
-      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
-      # AI features (tutor chat, Explain-simpler, Teki) use DeepSeek flash ONLY,
-      # via DEEPSEEK_API_KEY above. No other model or provider is used.
+      # AI features (tutor chat, Explain-simpler, Teki) use the LOCAL model on the
+      # DGX only — an OpenAI-compatible server (vLLM). No cloud provider.
+      LLM_BASE_URL: ${LLM_BASE_URL:-http://10.8.0.11:8000/v1}
+      LLM_MODEL: ${LLM_MODEL:-}
+      LLM_API_KEY: ${LLM_API_KEY:-}
       # This self-host serves over plain HTTP, so cookies must NOT be marked
       # Secure (browsers drop Secure cookies on HTTP and login fails). Set to 0
       # only once you put HTTPS/TLS in front.
