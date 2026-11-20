@@ -18,6 +18,7 @@ import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { LabDiagramView } from "@/components/labs/diagrams/DiagramRenderer"
+import { InteractiveText } from "@/components/learn/InteractiveText"
 import { getProgress, recordCheckpoint } from "@/lib/store/progress"
 import type { LabSlide } from "@/types"
 
@@ -197,7 +198,7 @@ function SlideContent({
         )}
         style={body.style}
       >
-        {slide.body}
+        <InteractiveText text={slide.body} />
       </p>
       {slide.diagram && (
         <div className={cn("mt-3", diagram.className)} style={diagram.style}>
@@ -235,6 +236,32 @@ export function LabSlideshow({
   const [animateCurrent, setAnimateCurrent] = useState(true)
   const gradientId = useId()
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const celebrated = useRef(false)
+
+  function celebrate() {
+    if (celebrated.current) return
+    celebrated.current = true
+    toast.success("Topic walkthrough complete!", {
+      icon: <Sparkles className="h-4 w-4" />,
+    })
+    if (
+      typeof window !== "undefined" &&
+      !window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
+    ) {
+      import("canvas-confetti")
+        .then(({ default: confetti }) =>
+          confetti({
+            particleCount: 80,
+            spread: 70,
+            startVelocity: 34,
+            origin: { y: 0.7 },
+            colors: ["#E8792A", "#f0793a", "#8E44AD", "#ffcf99"],
+            scalar: 0.9,
+          }),
+        )
+        .catch(() => {})
+    }
+  }
 
   const slide = slides[index]
   const total = slides.length
@@ -251,6 +278,7 @@ export function LabSlideshow({
     seen.current.add(clamped)
     setIndex(clamped)
     setIsTransitioning(true)
+    if (clamped === total - 1) celebrate()
     if (timeoutRef.current) clearTimeout(timeoutRef.current)
     timeoutRef.current = setTimeout(() => {
       setOutgoing(null)

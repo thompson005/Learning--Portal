@@ -11,6 +11,7 @@ import { StatusBadge } from "@/components/shared/StatusBadge"
 import { CodeBlock } from "@/components/shared/CodeBlock"
 import { LabSlideshow } from "@/components/labs/LabSlideshow"
 import { ExerciseBlock } from "@/components/exercises/ExerciseBlock"
+import { InteractiveText } from "@/components/learn/InteractiveText"
 import { VideoEmbed, isEmbeddableVideo } from "@/components/shared/VideoEmbed"
 import {
   Select,
@@ -218,7 +219,9 @@ export function TopicRow({
       {expanded && (
         <div className="animate-in fade-in slide-in-from-top-2 space-y-4 border-t border-border px-4 py-4 duration-500 [animation-timing-function:cubic-bezier(0.16,1,0.3,1)] motion-reduce:animate-none">
           {topic.description && (
-            <p className="text-sm text-muted-foreground">{topic.description}</p>
+            <p className="text-sm text-muted-foreground">
+              <InteractiveText text={topic.description} />
+            </p>
           )}
 
           <div className="flex flex-wrap gap-4 font-mono text-xs text-muted-foreground">
@@ -245,7 +248,9 @@ export function TopicRow({
                   </p>
                   <ul className="list-inside list-disc space-y-1 text-sm">
                     {topic.keyPoints.map((kp, i) => (
-                      <li key={i}>{kp}</li>
+                      <li key={i}>
+                        <InteractiveText text={kp} />
+                      </li>
                     ))}
                   </ul>
                 </div>
