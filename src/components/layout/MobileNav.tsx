@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useState } from "react"
-import { BookOpen, FlaskConical, LayoutDashboard, LineChart, MoreHorizontal, Library, Settings, Route, Trophy, X } from "lucide-react"
+import { BookOpen, FlaskConical, LayoutDashboard, LineChart, MoreHorizontal, Library, Settings, Route, Trophy, Medal, X } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
@@ -17,6 +17,7 @@ const TABS = [
 const MORE_LINKS = [
   { href: "/paths", label: "Paths", icon: Route },
   { href: "/achievements", label: "Achievements", icon: Trophy },
+  { href: "/leaderboard", label: "Leaderboard", icon: Medal },
   { href: "/glossary", label: "Glossary", icon: Library },
   // Admin is a staff-only endpoint (/admin), deliberately not surfaced in nav.
   { href: "/settings", label: "Settings", icon: Settings },
