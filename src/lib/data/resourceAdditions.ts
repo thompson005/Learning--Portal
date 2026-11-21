@@ -1,8 +1,9 @@
 import type { Resource } from "@/types"
+import { VIDEO_RESOURCES } from "./videoResources"
 
 // Extra curated resources per topic/module/lab id, layered on top of the base
 // resources already defined in curriculum.ts / labs.ts.
-export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
+const BASE_RESOURCE_ADDITIONS: Record<string, Resource[]> = {
   "m0-1": [
     {
       "title": "The Central Processing Unit (CPU): Crash Course Computer Science #7",
@@ -1280,11 +1281,7 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
     }
   ],
   "m4-5": [
-    {
-      "title": "Understand the Difference Between SOAP and REST APIs",
-      "url": "https://www.youtube.com/watch?v=bPNfu0IZhoE",
-      "type": "video"
-    },
+    
     {
       "title": "MDN HTTP documentation",
       "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP",
@@ -1981,11 +1978,7 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
     }
   ],
   "m7-3": [
-    {
-      "title": "Active Reconnaissance - TryHackMe Junior Penetration Tester: 5.2",
-      "url": "https://www.youtube.com/watch?v=nBboVLWahoI",
-      "type": "video"
-    },
+    
     {
       "title": "Nmap official documentation",
       "url": "https://nmap.org/book/man.html",
@@ -2015,11 +2008,7 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
     }
   ],
   "m7-5": [
-    {
-      "title": "Nmap Tutorial Series 4 - Nmap Scripts (NSE)",
-      "url": "https://www.youtube.com/watch?v=qC2ss7pa1UU",
-      "type": "video"
-    },
+    
     {
       "title": "Nmap NSE documentation",
       "url": "https://nmap.org/book/nse.html",
@@ -2032,11 +2021,7 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
     }
   ],
   "m7-6": [
-    {
-      "title": "Quick Subdomain Enumeration for Bug Bounty Hunters",
-      "url": "https://www.youtube.com/watch?v=Z8Rc3tUzuzM",
-      "type": "video"
-    },
+    
     {
       "title": "subfinder (ProjectDiscovery)",
       "url": "https://github.com/projectdiscovery/subfinder",
@@ -2289,11 +2274,7 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
     }
   ],
   "m8-6": [
-    {
-      "title": "Learn Burp Suite Decoder Tab In ONLY 5 Minutes!",
-      "url": "https://www.youtube.com/watch?v=o8XnnJAhugE",
-      "type": "video"
-    },
+    
     {
       "title": "PortSwigger Decoder documentation",
       "url": "https://portswigger.net/burp/documentation/desktop/tools/decoder",
@@ -2347,11 +2328,7 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
     }
   ],
   "m8-10": [
-    {
-      "title": "Burp Suite: Repeater - TryHackMe Junior Penetration Tester 4.2",
-      "url": "https://www.youtube.com/watch?v=dJy0dVlWGtI",
-      "type": "video"
-    },
+    
     {
       "title": "PortSwigger - SQL injection",
       "url": "https://portswigger.net/web-security/sql-injection",
@@ -2632,11 +2609,7 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
     }
   ],
   "m9-9": [
-    {
-      "title": "SQL injection UNION attack, retrieving data from other tables (Video solution)",
-      "url": "https://www.youtube.com/watch?v=qWUELXgQtWU",
-      "type": "video"
-    },
+    
     {
       "title": "PortSwigger: SQL injection",
       "url": "https://portswigger.net/web-security/sql-injection",
@@ -3556,11 +3529,7 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
     }
   ],
   "m12-7": [
-    {
-      "title": "How to Use ChatGPT for Cybersecurity Full Tutorial",
-      "url": "https://www.youtube.com/watch?v=6vKRrskI8cc",
-      "type": "video"
-    },
+    
     {
       "title": "Ollama",
       "url": "https://ollama.com",
@@ -4094,3 +4063,14 @@ export const RESOURCE_ADDITIONS: Record<string, Resource[]> = {
     }
   ]
 }
+
+/** Hand-curated extras plus the verified YouTube video(s) per topic (videoResources.ts,
+ *  re-checked by `npx tsx scripts/check-videos.ts`). Verified videos come first so the
+ *  topic's primary player is the vetted one. */
+export const RESOURCE_ADDITIONS: Record<string, Resource[]> = (() => {
+  const merged: Record<string, Resource[]> = { ...BASE_RESOURCE_ADDITIONS }
+  for (const [id, vids] of Object.entries(VIDEO_RESOURCES)) {
+    merged[id] = [...vids, ...(merged[id] ?? [])]
+  }
+  return merged
+})()

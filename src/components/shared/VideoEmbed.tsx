@@ -109,9 +109,20 @@ export function VideoEmbed({
           onError={() => setFailed(true)}
         />
       </div>
-      <p className="truncate px-3 py-2 text-xs font-medium text-muted-foreground">
-        {title}
-      </p>
+      <div className="flex items-center gap-2 px-3 py-2">
+        <p className="min-w-0 flex-1 truncate text-xs font-medium text-muted-foreground">
+          {title}
+        </p>
+        <a
+          href={url}
+          target="_blank"
+          rel="noreferrer"
+          className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+          title="Open on YouTube if the player does not load"
+        >
+          YouTube <ExternalLink className="h-3 w-3" />
+        </a>
+      </div>
     </div>
   )
 }
