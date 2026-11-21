@@ -79,8 +79,13 @@ export function TopicRow({
   // Videos that can play inline get an embedded player; everything else (plus
   // non-embeddable videos) stays a link.
   const videoResources = allResources.filter((r) => isEmbeddableVideo(r.url))
-  const linkResources = allResources.filter((r) => !isEmbeddableVideo(r.url))
-  const primaryVideo = videoResources[0]
+  // A video YouTube refuses to play here is skipped: the next one becomes primary.
+  const [failedVideos, setFailedVideos] = useState<string[]>([])
+  const markVideoFailed = (url: string) =>
+    setFailedVideos((f) => (f.includes(url) ? f : [...f, url]))
+  const primaryVideo =
+    videoResources.find((r) => !failedVideos.includes(r.url)) ??
+    videoResources[0]
 
   useEffect(() => {
     const tp = getProgress().topics[topic.id]
@@ -321,9 +326,11 @@ export function TopicRow({
             <Reveal delay={60}>
               <div className="space-y-2">
                 <VideoEmbed
+                  key={primaryVideo.url}
                   url={primaryVideo.url}
                   title={primaryVideo.title}
                   autoplay
+                  onError={() => markVideoFailed(primaryVideo.url)}
                 />
                 <p className="font-mono text-[11px] text-muted-foreground">
                   Prefer reading? Switch to Read above.
@@ -424,29 +431,41 @@ export function TopicRow({
                 </p>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   {videoResources.map((r) => (
-                    <VideoEmbed key={r.url} url={r.url} title={r.title} />
+                    <VideoEmbed
+                      key={r.url}
+                      url={r.url}
+                      title={r.title}
+                      onError={() => markVideoFailed(r.url)}
+                    />
                   ))}
                 </div>
               </GlassCard>
             </Reveal>
           )}
 
-          {linkResources.length > 0 && (
+          {allResources.length > 0 && (
             <Reveal delay={180}>
               <GlassCard className="p-4 md:p-5">
                 <p className="mb-3 font-mono text-xs font-semibold uppercase tracking-widest text-muted-foreground">
                   Resources
                 </p>
                 <ul className="space-y-1.5 text-sm">
-                  {linkResources.map((r) => (
-                    <li key={r.url}>
+                  {allResources.map((r) => (
+                    <li key={r.url} className="flex items-center gap-2">
+                      <Badge
+                        variant="outline"
+                        className="rounded-md font-mono text-[10px] uppercase"
+                      >
+                        {r.type}
+                      </Badge>
                       <a
                         href={r.url}
                         target="_blank"
                         rel="noreferrer"
-                        className="inline-flex items-center gap-1 text-brand-orange hover:underline"
+                        className="inline-flex min-w-0 items-center gap-1 text-brand-orange hover:underline"
                       >
-                        {r.title} <ExternalLink className="h-3 w-3" />
+                        <span className="truncate">{r.title}</span>
+                        <ExternalLink className="h-3 w-3 shrink-0" />
                       </a>
                     </li>
                   ))}

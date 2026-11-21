@@ -101,7 +101,6 @@ function ModuleDetailContent({
     ? dedupeResources(mod.resources, extraModuleResources)
     : []
   const moduleVideos = moduleResources.filter((r) => isEmbeddableVideo(r.url))
-  const moduleLinks = moduleResources.filter((r) => !isEmbeddableVideo(r.url))
   const moduleLabs = mod ? owningTrack.labs.filter((l) => l.moduleId === mod.id) : []
 
   useEffect(() => {
@@ -330,9 +329,9 @@ function ModuleDetailContent({
               </GlassCard>
             )}
             <GlassCard className="p-5">
-              {moduleLinks.length > 0 ? (
+              {moduleResources.length > 0 ? (
                 <ul className="divide-y divide-border">
-                  {moduleLinks.map((r) => (
+                  {moduleResources.map((r) => (
                     <li
                       key={r.url}
                       className="flex items-center gap-2 py-2.5 text-sm first:pt-0 last:pb-0"
@@ -356,9 +355,7 @@ function ModuleDetailContent({
                 </ul>
               ) : (
                 <p className="text-sm text-muted-foreground">
-                  {moduleVideos.length > 0
-                    ? "All curated resources for this module are videos — watch them above."
-                    : "No curated resources for this module yet."}
+                  No curated resources for this module yet.
                 </p>
               )}
             </GlassCard>
